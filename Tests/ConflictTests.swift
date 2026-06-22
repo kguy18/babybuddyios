@@ -31,6 +31,25 @@ final class ConflictTests: XCTestCase {
         XCTAssertFalse(SyncEngine.jsonEqual(nil, data(["note": "x"])))
     }
 
+    /// A running timer's server-computed `duration` advances on every GET (verified against
+    /// the live API), so a plain diff would raise a false conflict on every stop. The
+    /// conflict comparison must ignore it. Payloads below are real demo `/api/timers/` shapes.
+    func testUnchangedSinceBaseIgnoresTimerDurationDrift() {
+        let base = data(["id": 2, "child": 1, "name": "nap",
+                         "start": "2026-06-22T12:09:57-05:00", "duration": "00:00:00.264700", "user": 1])
+        let later = data(["id": 2, "child": 1, "name": "nap",
+                          "start": "2026-06-22T12:09:57-05:00", "duration": "00:00:03.602713", "user": 1])
+        XCTAssertTrue(SyncEngine.unchangedSinceBase(later, base), "duration drift must not be a conflict")
+        XCTAssertFalse(SyncEngine.jsonEqual(later, base), "plain equality would wrongly flag a change")
+    }
+
+    /// Ignoring `duration` must not hide a genuine server-side edit to another field.
+    func testUnchangedSinceBaseStillDetectsRealEdits() {
+        let base = data(["id": 2, "child": 1, "name": "nap", "duration": "00:00:01"])
+        let edited = data(["id": 2, "child": 1, "name": "feeding", "duration": "00:09:00"])
+        XCTAssertFalse(SyncEngine.unchangedSinceBase(edited, base))
+    }
+
     /// Sets up a cached note plus a conflict between a local edit and a divergent server version.
     private func makeConflict(op: MutationOp, serverDeleted: Bool = false) -> (LocalEntity, ConflictRecord) {
         let base = data(["id": 5, "child": 1, "time": "2024-01-15T10:00:00-05:00", "note": "base"])
