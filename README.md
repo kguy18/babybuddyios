@@ -53,8 +53,14 @@ Run the tests with `test` instead of `build`.
 
 ### Connecting
 
-On first launch, enter your Baby Buddy server URL and the API token from your web
-**User → Settings** page.
+On first launch you can sign in two ways:
+
+- **Scan a QR code** (fastest) — on your Baby Buddy site open **User → Add a Device**
+  and tap **Scan QR Code** in the app. The QR encodes both your server URL and API key,
+  so the connection is filled in and validated automatically — no copy/paste, and it
+  works for any self-hosted domain.
+- **Enter manually** — type your server URL and the API token from your web
+  **User → Settings** page.
 
 ### Debug launch flags (simulator)
 
