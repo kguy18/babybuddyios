@@ -3,7 +3,7 @@ import SwiftData
 
 /// The app's SwiftData container.
 enum LocalStore {
-    static let schema = Schema([LocalEntity.self, PendingMutation.self, ConflictRecord.self])
+    static let schema = Schema([LocalEntity.self, CachedTag.self, PendingMutation.self, ConflictRecord.self])
 
     @MainActor
     static func makeContainer(inMemory: Bool = false) -> ModelContainer {
@@ -57,5 +57,24 @@ enum LocalStore {
             predicate: #Predicate { $0.localID == localID })
         descriptor.fetchLimit = 1
         return try? context.fetch(descriptor).first
+    }
+
+    // MARK: Tags
+
+    /// Insert or refresh a cached tag from a server ``TagDTO``. Keyed by name.
+    @discardableResult
+    static func upsertTag(_ dto: TagDTO, in context: ModelContext) -> CachedTag {
+        let name = dto.name
+        var descriptor = FetchDescriptor<CachedTag>(predicate: #Predicate { $0.name == name })
+        descriptor.fetchLimit = 1
+        if let existing = try? context.fetch(descriptor).first {
+            existing.colorHex = dto.color
+            existing.slug = dto.slug
+            existing.lastUsed = dto.last_used
+            return existing
+        }
+        let tag = CachedTag(name: name, colorHex: dto.color, slug: dto.slug, lastUsed: dto.last_used)
+        context.insert(tag)
+        return tag
     }
 }

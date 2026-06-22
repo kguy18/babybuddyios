@@ -16,6 +16,18 @@ actor SyncActor {
     /// Pull every kind into the store. Returns `nil` on success, or an error message.
     func pullAll(config: ServerConfig, windowDays: Int) async -> String? {
         let client = APIClient(config: config)
+        do {
+            try await pullTags(client: client)
+            try modelContext.save()
+        } catch APIError.notFound {
+            // Tags endpoint absent on this server version — skip.
+        } catch APIError.unauthorized {
+            return Self.unauthorized
+        } catch let error as APIError {
+            return error.userMessage
+        } catch {
+            return error.localizedDescription
+        }
         for kind in EntityKind.allCases {
             do {
                 try await pull(kind: kind, client: client, windowDays: windowDays)
@@ -31,6 +43,22 @@ actor SyncActor {
             }
         }
         return nil
+    }
+
+    /// Pull the server's global tag list into the cache for the picker's autocomplete.
+    /// Tags are low-volume and not child-scoped, so we pull all and reconcile deletions.
+    private func pullTags(client: APIClient) async throws {
+        let records = try await client.listAllRaw(path: "tags")
+        var names = Set<String>()
+        for record in records {
+            guard let dto = try? APICoders.decoder.decode(TagDTO.self, from: record) else { continue }
+            LocalStore.upsertTag(dto, in: modelContext)
+            names.insert(dto.name)
+        }
+        let cached = (try? modelContext.fetch(FetchDescriptor<CachedTag>())) ?? []
+        for tag in cached where !names.contains(tag.name) {
+            modelContext.delete(tag)
+        }
     }
 
     private func pull(kind: EntityKind, client: APIClient, windowDays: Int) async throws {

@@ -20,9 +20,20 @@ enum DemoData {
             APIDate.isoDateTime.string(from: now.addingTimeInterval(Double(-offsetMinutes * 60)))
         }
 
+        // Cached tags so the picker has colored suggestions offline.
+        for dto in [
+            TagDTO(slug: "hungry", name: "hungry", color: "#ff7f7f", last_used: now),
+            TagDTO(slug: "night", name: "night", color: "#00007f", last_used: now),
+            TagDTO(slug: "fussy", name: "fussy", color: "#ffff7f", last_used: now),
+            TagDTO(slug: "milestone", name: "milestone", color: "#007f7f", last_used: now),
+        ] {
+            LocalStore.upsertTag(dto, in: context)
+        }
+
         insert(.feeding, id: 10, [
             "id": 10, "child": 1, "start": iso(90), "end": iso(70),
-            "type": "breast milk", "method": "left breast", "amount": NSNull(), "tags": [],
+            "type": "breast milk", "method": "left breast", "amount": NSNull(),
+            "tags": ["hungry", "night"],
         ], context)
         insert(.feeding, id: 11, [
             "id": 11, "child": 1, "start": iso(330), "end": iso(310),
@@ -37,7 +48,8 @@ enum DemoData {
             "color": "yellow", "tags": [],
         ], context)
         insert(.sleep, id: 30, [
-            "id": 30, "child": 1, "start": iso(420), "end": iso(180), "nap": false, "tags": [],
+            "id": 30, "child": 1, "start": iso(420), "end": iso(180), "nap": false,
+            "tags": ["night"],
         ], context)
         insert(.timer, id: 40, [
             "id": 40, "child": 1, "name": "Tummy time", "start": iso(8),

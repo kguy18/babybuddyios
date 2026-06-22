@@ -23,7 +23,7 @@ struct EntityEditorView: View {
     @State private var time = Date()
     @State private var date = Date()
     @State private var notes = ""
-    @State private var tags = ""
+    @State private var tagNames: [String] = []
     // Feeding
     @State private var feedingType: FeedingType = .breastMilk
     @State private var feedingMethod: FeedingMethod = .leftBreast
@@ -157,9 +157,8 @@ struct EntityEditorView: View {
     }
 
     private var tagsSection: some View {
-        Section {
-            TextField("Tags (comma separated)", text: $tags)
-                .textInputAutocapitalization(.never).autocorrectionDisabled()
+        Section("Tags") {
+            TagField(selected: $tagNames)
         }
     }
 
@@ -201,7 +200,7 @@ struct EntityEditorView: View {
         time = parseDate("time") ?? time
         date = parseDate("date") ?? date
         notes = p["notes"] as? String ?? ""
-        tags = (p["tags"] as? [String])?.joined(separator: ", ") ?? ""
+        tagNames = (p["tags"] as? [String]) ?? []
         if let t = p["type"] as? String, let ft = FeedingType(rawValue: t) { feedingType = ft }
         if let m = p["method"] as? String, let fm = FeedingMethod(rawValue: m) { feedingMethod = fm }
         if let a = p["amount"] as? Double { amount = trimmed(a) }
@@ -235,8 +234,7 @@ struct EntityEditorView: View {
 
     private func buildPayload() -> [String: Any] {
         var p: [String: Any] = ["child": childID]
-        let tagList = tags.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
+        let tagList = tagNames
         func iso(_ d: Date) -> String { APIDate.isoDateTime.string(from: d) }
 
         switch kind {

@@ -8,6 +8,19 @@ enum EntityFormatting {
 
     static func subtitle(_ entity: LocalEntity) -> String? {
         let p = entity.payloadObject
+        let base = baseSubtitle(entity, p)
+        guard let tagSuffix = tagsLine(p) else { return base }
+        guard let base, !base.isEmpty else { return tagSuffix }
+        return base + " · " + tagSuffix
+    }
+
+    /// Tag names rendered for list subtitles, e.g. `#hungry #night`. Nil when there are none.
+    private static func tagsLine(_ p: [String: Any]) -> String? {
+        guard let tags = p["tags"] as? [String], !tags.isEmpty else { return nil }
+        return tags.map { "#\($0)" }.joined(separator: " ")
+    }
+
+    private static func baseSubtitle(_ entity: LocalEntity, _ p: [String: Any]) -> String? {
         switch entity.kind {
         case .feeding:
             var parts: [String] = []
