@@ -29,6 +29,7 @@ targets:
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait"
         INFOPLIST_KEY_NSFaceIDUsageDescription: "Baby Buddy uses Face ID to keep your baby's data private."
+        INFOPLIST_KEY_NSCameraUsageDescription: "Baby Buddy uses the camera to scan the login QR code from your server's Add a Device page."
         INFOPLIST_KEY_UIBackgroundModes: "fetch"
     info:
       path: Sources/Info.plist

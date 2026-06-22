@@ -8,6 +8,7 @@ struct OnboardingView: View {
     @State private var serverURL = "https://demo.baby-buddy.net"
     @State private var token = ""
     @State private var isValidating = false
+    @State private var showScanner = false
 
     private var canSubmit: Bool {
         !serverURL.trimmingCharacters(in: .whitespaces).isEmpty
@@ -19,6 +20,21 @@ struct OnboardingView: View {
         NavigationStack {
             Form {
                 Section {
+                    Button {
+                        session.lastError = nil
+                        showScanner = true
+                    } label: {
+                        Label("Scan QR Code", systemImage: "qrcode.viewfinder")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .disabled(isValidating)
+                } header: {
+                    Text("Connect to Baby Buddy")
+                } footer: {
+                    Text("On your Baby Buddy site, open User → Add a Device to show a login QR code, then scan it to sign in automatically.")
+                }
+
+                Section {
                     TextField("https://baby.example.com", text: $serverURL)
                         .textContentType(.URL)
                         .keyboardType(.URL)
@@ -28,7 +44,7 @@ struct OnboardingView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 } header: {
-                    Text("Connect to Baby Buddy")
+                    Text("Or Enter Manually")
                 } footer: {
                     Text("Find your API token on your Baby Buddy site under User → Settings.")
                 }
@@ -53,7 +69,22 @@ struct OnboardingView: View {
                 }
             }
             .navigationTitle("Baby Buddy")
+            .sheet(isPresented: $showScanner) {
+                QRScannerSheet(onScan: handleScan)
+            }
         }
+    }
+
+    /// Decode a scanned QR payload. On success, fill the fields and connect immediately;
+    /// otherwise surface a hint so the user knows they scanned the wrong code.
+    private func handleScan(_ raw: String) {
+        guard let credentials = DeviceLoginQR.parse(raw) else {
+            session.lastError = "That QR code isn't a Baby Buddy login code. Open User → Add a Device on your server to show it."
+            return
+        }
+        serverURL = credentials.serverURL
+        token = credentials.token
+        submit()
     }
 
     private func submit() {
