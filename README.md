@@ -8,6 +8,9 @@ baby-tracking server. Offline-first, with conflict-aware sync and optional Face 
 - **Feature parity tracking** — feedings, diaper changes, sleep, tummy time, pumping, notes,
   medications, and measurements (weight, height, head circumference, temperature, BMI), with tags
   and multiple children.
+- **Tag chip picker** — add tags as removable colored chips with live autocomplete over the
+  server's existing tags (cached for offline use), or create a new tag inline. Chip colors and
+  text contrast match the Baby Buddy web app.
 - **Dashboard** — last-event cards, active timers, and today's running totals.
 - **Merged timeline** — day-grouped activity feed across all event types, with tap-to-edit and
   swipe-to-delete.

@@ -57,6 +57,25 @@ final class LocalEntity {
     }
 }
 
+/// A Baby Buddy tag cached for offline autocomplete in the tag picker. Tags have no child
+/// or timestamp, so they don't fit the generic ``LocalEntity`` envelope and live in their
+/// own lightweight model. `name` is the natural key (Baby Buddy tag names are unique);
+/// `colorHex` is the server-assigned `#RRGGBB` chip color. Refreshed on every sync.
+@Model
+final class CachedTag {
+    @Attribute(.unique) var name: String
+    var colorHex: String?
+    var slug: String?
+    var lastUsed: Date?
+
+    init(name: String, colorHex: String? = nil, slug: String? = nil, lastUsed: Date? = nil) {
+        self.name = name
+        self.colorHex = colorHex
+        self.slug = slug
+        self.lastUsed = lastUsed
+    }
+}
+
 /// An ordered, persisted write awaiting delivery to the server.
 @Model
 final class PendingMutation {
