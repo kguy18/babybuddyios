@@ -1,0 +1,58 @@
+name: BabyBuddy
+options:
+  bundleIdPrefix: com.kurtisguy
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+    DEVELOPMENT_TEAM: "547DWTTFY6"
+    CODE_SIGN_STYLE: Automatic
+    GENERATE_INFOPLIST_FILE: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+
+targets:
+  BabyBuddy:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kurtisguy.BabyBuddy
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait"
+        INFOPLIST_KEY_NSFaceIDUsageDescription: "Baby Buddy uses Face ID to keep your baby's data private."
+        INFOPLIST_KEY_UIBackgroundModes: "fetch"
+    info:
+      path: Sources/Info.plist
+      properties:
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.kurtisguy.BabyBuddy.sync
+
+  BabyBuddyTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: BabyBuddy
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kurtisguy.BabyBuddy.tests
+
+schemes:
+  BabyBuddy:
+    build:
+      targets:
+        BabyBuddy: all
+        BabyBuddyTests: [test]
+    test:
+      targets:
+        - BabyBuddyTests

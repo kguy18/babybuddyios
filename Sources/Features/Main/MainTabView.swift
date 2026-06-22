@@ -1,0 +1,103 @@
+import SwiftUI
+import SwiftData
+
+/// Root tab bar shown once authenticated. Owns the selected-child state shared by the
+/// Dashboard and Timeline tabs, and kicks off an initial pull.
+struct MainTabView: View {
+    @Environment(SyncEngine.self) private var sync
+    @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "child" }, sort: \.timestamp)
+    private var children: [LocalEntity]
+    @AppStorage("selectedChildID") private var selectedChildID = 0
+    @State private var selectedTab = initialTab
+
+    var body: some View {
+        TabView(selection: $selectedTab) {
+            DashboardView(selectedChildID: childBinding)
+                .tabItem { Label("Home", systemImage: "house.fill") }.tag(0)
+            TimelineView(selectedChildID: childBinding)
+                .tabItem { Label("Timeline", systemImage: "list.bullet") }.tag(1)
+            SettingsView()
+                .tabItem { Label("Settings", systemImage: "gearshape.fill") }.tag(2)
+        }
+        .task {
+            await sync.sync()
+            ensureValidSelection()
+        }
+        .onChange(of: children.map(\.serverID)) { _, _ in ensureValidSelection() }
+        .safeAreaInset(edge: .top) {
+            if !sync.isOnline {
+                Label("Offline — changes will sync when reconnected", systemImage: "wifi.slash")
+                    .font(.caption.weight(.medium))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .background(.orange.opacity(0.2))
+            }
+        }
+    }
+
+    private static var initialTab: Int {
+        #if DEBUG
+        switch ProcessInfo.processInfo.environment["BB_START_TAB"] {
+        case "timeline": return 1
+        case "settings": return 2
+        default: return 0
+        }
+        #else
+        return 0
+        #endif
+    }
+
+    private var childBinding: Binding<Int> {
+        Binding(get: { selectedChildID }, set: { selectedChildID = $0 })
+    }
+
+    /// Default to the first child if none is selected or the selection no longer exists.
+    private func ensureValidSelection() {
+        let ids = children.compactMap(\.serverID)
+        if !ids.contains(selectedChildID), let first = ids.first {
+            selectedChildID = first
+        }
+    }
+}
+
+/// Toolbar control for switching between children (hidden when there's only one).
+struct ChildSwitcher: ToolbarContent {
+    let children: [LocalEntity]
+    @Binding var selectedChildID: Int
+
+    var body: some ToolbarContent {
+        ToolbarItem(placement: .principal) {
+            if children.count > 1 {
+                Menu {
+                    ForEach(children, id: \.serverID) { child in
+                        Button {
+                            if let id = child.serverID { selectedChildID = id }
+                        } label: {
+                            Label(childName(child), systemImage: child.serverID == selectedChildID
+                                  ? "checkmark" : "person.crop.circle")
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(currentName).font(.headline)
+                        Image(systemName: "chevron.down").font(.caption2)
+                    }
+                }
+            } else {
+                Text(currentName).font(.headline)
+            }
+        }
+    }
+
+    private var currentName: String {
+        children.first { $0.serverID == selectedChildID }.map(childName) ?? "Baby Buddy"
+    }
+
+    private func childName(_ entity: LocalEntity) -> String {
+        let p = entity.payloadObject
+        let first = p["first_name"] as? String ?? ""
+        let last = p["last_name"] as? String ?? ""
+        let name = [first, last].filter { !$0.isEmpty }.joined(separator: " ")
+        return name.isEmpty ? "Child" : name
+    }
+}
