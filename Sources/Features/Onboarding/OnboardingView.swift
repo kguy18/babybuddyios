@@ -5,7 +5,7 @@ import SwiftUI
 struct OnboardingView: View {
     @Environment(AppSession.self) private var session
 
-    @State private var serverURL = ""
+    @State private var serverURL = "https://demo.baby-buddy.net"
     @State private var token = ""
     @State private var isValidating = false
 
