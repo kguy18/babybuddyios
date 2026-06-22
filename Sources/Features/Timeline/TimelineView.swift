@@ -9,8 +9,16 @@ struct TimelineView: View {
     @Binding var selectedChildID: Int
 
     @Query(sort: \LocalEntity.timestamp, order: .reverse) private var allEntities: [LocalEntity]
+    @Query private var cachedTags: [CachedTag]
     @State private var kindFilter: EntityKind?
     @State private var editing: LocalEntity?
+
+    /// Lowercased tag name → server `#RRGGBB` color, for tinting timeline chips.
+    private var tagColors: [String: String] {
+        Dictionary(
+            cachedTags.compactMap { tag in tag.colorHex.map { (tag.name.lowercased(), $0) } },
+            uniquingKeysWith: { first, _ in first })
+    }
 
     var body: some View {
         NavigationStack {
@@ -18,7 +26,7 @@ struct TimelineView: View {
                 ForEach(groupedDays, id: \.self) { day in
                     Section(day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())) {
                         ForEach(entities(on: day)) { entity in
-                            TimelineRow(entity: entity)
+                            TimelineRow(entity: entity, tagColors: tagColors)
                                 .contentShape(Rectangle())
                                 .onTapGesture { editing = entity }
                                 .swipeActions {
@@ -97,16 +105,27 @@ struct TimelineView: View {
 
 private struct TimelineRow: View {
     let entity: LocalEntity
+    let tagColors: [String: String]
 
     var body: some View {
         HStack(spacing: 12) {
             entity.kind.icon(22)
                 .frame(width: 28)
                 .foregroundStyle(.tint)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(EntityFormatting.title(entity)).font(.body)
                 if let subtitle = EntityFormatting.subtitle(entity), !subtitle.isEmpty {
                     Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
+                let tags = EntityFormatting.tags(entity)
+                if !tags.isEmpty {
+                    FlowLayout(spacing: 4) {
+                        ForEach(tags, id: \.self) { name in
+                            TagChip(name: name, colorHex: tagColors[name.lowercased()],
+                                    removable: false, compact: true)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             Spacer()

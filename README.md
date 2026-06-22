@@ -12,8 +12,8 @@ baby-tracking server. Offline-first, with conflict-aware sync and optional Face 
   server's existing tags (cached for offline use), or create a new tag inline. Chip colors and
   text contrast match the Baby Buddy web app.
 - **Dashboard** — last-event cards, active timers, and today's running totals.
-- **Merged timeline** — day-grouped activity feed across all event types, with tap-to-edit and
-  swipe-to-delete.
+- **Merged timeline** — day-grouped activity feed across all event types, with tap-to-edit,
+  swipe-to-delete, and inline colored tag chips on each row.
 - **Offline-first** — the local SwiftData store is the source of truth; every change is applied
   instantly and queued for delivery. An offline banner shows when the server is unreachable.
 - **Conflict-aware sync** — because Baby Buddy exposes no server-side change marker, edits are

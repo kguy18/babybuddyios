@@ -83,11 +83,13 @@ struct TagChip: View {
     let name: String
     var colorHex: String?
     var removable: Bool = true
+    /// Denser sizing for inline contexts like timeline rows.
+    var compact: Bool = false
     var onRemove: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 4) {
-            Text(name).font(.caption.weight(.medium)).lineLimit(1)
+            Text(name).font((compact ? Font.caption2 : Font.caption).weight(.medium)).lineLimit(1)
             if removable {
                 Button { onRemove?() } label: {
                     Image(systemName: "xmark.circle.fill").font(.caption2)
@@ -96,7 +98,7 @@ struct TagChip: View {
             }
         }
         .foregroundStyle(TagColor.textColor(forHex: colorHex))
-        .padding(.horizontal, 10).padding(.vertical, 5)
+        .padding(.horizontal, compact ? 8 : 10).padding(.vertical, compact ? 2 : 5)
         .background(TagColor.color(forHex: colorHex), in: Capsule())
     }
 }
