@@ -50,11 +50,24 @@ final class AppSession {
         return nil
     }
 
+    /// Normalize a user- or QR-supplied server address into an `https` URL string.
+    ///
+    /// Plain `http://` is upgraded to `https://`: iOS App Transport Security blocks cleartext,
+    /// so HTTP can never connect anyway, and Baby Buddy servers behind a TLS-terminating proxy
+    /// emit `http://` in their `/user/add-device/` QR even though they're only reachable over
+    /// https (Django sees the proxied request as http). A bare host gets an `https://` prefix.
+    static func normalizedServerURLString(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lower = trimmed.lowercased()
+        if lower.hasPrefix("https://") { return trimmed }
+        if lower.hasPrefix("http://") { return "https://" + trimmed.dropFirst("http://".count) }
+        return "https://" + trimmed
+    }
+
     /// Validate a URL + token against the server and, on success, persist and activate it.
     func signIn(serverURL: String, token: String) async -> Bool {
         lastError = nil
-        let trimmed = serverURL.trimmingCharacters(in: .whitespaces)
-        let normalized = trimmed.hasPrefix("http") ? trimmed : "https://\(trimmed)"
+        let normalized = Self.normalizedServerURLString(serverURL)
         guard let url = URL(string: normalized), url.host != nil else {
             lastError = "That doesn't look like a valid server address."
             return false
