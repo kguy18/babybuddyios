@@ -3,9 +3,9 @@ import SwiftData
 import WidgetKit
 
 /// Starts a Baby Buddy timer for an activity. Invoked by the Quick Start widget's buttons
-/// (and available to Siri/Shortcuts). Local-only model: it writes to the App Group store and
-/// enqueues a `PendingMutation` via ``LocalRepository``; the server is updated on the app's
-/// next foreground or background sync.
+/// (and available to Siri/Shortcuts). Writes to the App Group store via ``LocalRepository`` and
+/// then pushes the create to the server immediately (best-effort via ``TimerPush``); if that
+/// fails (offline, not signed in) the mutation stays queued for the app's next sync.
 struct StartTimerIntent: AppIntent {
     static var title: LocalizedStringResource = "Start a timer"
     static var description = IntentDescription("Starts a Baby Buddy timer for an activity.")
@@ -32,7 +32,9 @@ struct StartTimerIntent: AppIntent {
             payload["child"] = child
         }
 
-        LocalRepository(context: container.mainContext).create(kind: .timer, payload: payload)
+        let context = container.mainContext
+        let timer = LocalRepository(context: context).create(kind: .timer, payload: payload)
+        if let timer { await TimerPush.pushCreate(localID: timer.localID, in: context) }
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
     }

@@ -54,6 +54,12 @@ final class SyncEngine {
         let queue = (try? context.fetch(
             FetchDescriptor<PendingMutation>(sortBy: [SortDescriptor(\.createdAt)]))) ?? []
         for mutation in queue {
+            // Skip a create the widget/intents extension is currently delivering, so we don't
+            // double-POST it. A stale claim (extension killed mid-push) ages out and is retried.
+            if let claimedAt = mutation.claimedAt,
+               Date().timeIntervalSince(claimedAt) < TimerPush.claimWindow {
+                continue
+            }
             do {
                 try await deliver(mutation, client: client)
             } catch let error as APIError {
@@ -241,15 +247,8 @@ final class SyncEngine {
 
     /// Reconcile a cached record with the authoritative server payload after a write.
     private func applyServerResponse(_ response: Data, to entity: LocalEntity?) {
-        guard let entity,
-              let obj = try? JSONSerialization.jsonObject(with: response) as? [String: Any] else { return }
-        entity.payload = response
-        entity.baseSnapshot = response
-        entity.serverID = obj["id"] as? Int
-        entity.timestamp = entity.kind.timestamp(from: obj)
-        entity.childID = entity.kind.childID(from: obj)
-        entity.syncState = .synced
-        entity.updatedAt = .now
+        guard let entity else { return }
+        TimerPush.reconcile(response, into: entity)
     }
 
     /// Pull fresh server state into the cache. The heavy parsing/inserting runs on a
