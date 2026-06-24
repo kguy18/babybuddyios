@@ -12,6 +12,14 @@ enum TimerActivity: String, AppEnum, CaseIterable {
         [.feeding: "Feeding", .sleep: "Sleep", .tummyTime: "Tummy time", .pumping: "Pumping"]
     }
 
+    /// Best-effort match of an existing timer's name back to an activity, for icon/tint in the
+    /// Active Timer widget. Returns `nil` for custom-named timers (shown with a generic icon).
+    init?(timerName: String) {
+        guard let match = TimerActivity.allCases.first(where: { $0.timerName == timerName })
+        else { return nil }
+        self = match
+    }
+
     /// The record kind this timer is expected to become when converted (drives the icon).
     var convertKind: EntityKind {
         switch self {

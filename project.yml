@@ -38,6 +38,10 @@ targets:
       properties:
         BGTaskSchedulerPermittedIdentifiers:
           - com.kurtisguy.BabyBuddy.sync
+        CFBundleURLTypes:
+          - CFBundleURLName: com.kurtisguy.BabyBuddy
+            CFBundleURLSchemes:
+              - babybuddy
     entitlements:
       path: Sources/BabyBuddy.entitlements
       properties:

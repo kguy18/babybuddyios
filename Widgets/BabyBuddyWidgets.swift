@@ -6,5 +6,6 @@ import SwiftUI
 struct BabyBuddyWidgets: WidgetBundle {
     var body: some Widget {
         QuickStartWidget()
+        ActiveTimerWidget()
     }
 }

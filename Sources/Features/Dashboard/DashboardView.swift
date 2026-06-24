@@ -6,6 +6,7 @@ import SwiftData
 struct DashboardView: View {
     @Environment(SyncEngine.self) private var sync
     @Environment(\.modelContext) private var context
+    @Environment(DeepLinkRouter.self) private var router
     @Binding var selectedChildID: Int
 
     @Query(sort: \LocalEntity.timestamp, order: .reverse) private var allEntities: [LocalEntity]
@@ -76,7 +77,9 @@ struct DashboardView: View {
                 Text(EntityFormatting.subtitle(timer) ?? "Timer")
             }
             .refreshable { await sync.sync() }
+            .onChange(of: router.openTimerLocalID) { _, id in openTimerActions(id) }
             .onAppear {
+                openTimerActions(router.openTimerLocalID) // handle a deep link that arrived before this view existed
                 #if DEBUG
                 if let raw = ProcessInfo.processInfo.environment["BB_OPEN"], !children.isEmpty {
                     if raw == "timer", !startingTimer {
@@ -157,6 +160,15 @@ struct DashboardView: View {
     /// Drives the timer action sheet; clears the selection when dismissed.
     private var timerActionPresented: Binding<Bool> {
         Binding(get: { actionTimer != nil }, set: { if !$0 { actionTimer = nil } })
+    }
+
+    /// Open the convert/stop sheet for a timer arriving via deep link (Active Timer widget).
+    private func openTimerActions(_ id: UUID?) {
+        guard let id,
+              let timer = allEntities.first(where: { $0.localID == id && $0.kind == .timer })
+        else { return }
+        actionTimer = timer
+        router.openTimerLocalID = nil
     }
 
     private var todayCard: some View {

@@ -5,6 +5,7 @@ import SwiftData
 /// Dashboard and Timeline tabs, and kicks off an initial pull.
 struct MainTabView: View {
     @Environment(SyncEngine.self) private var sync
+    @Environment(DeepLinkRouter.self) private var router
     @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "child" }, sort: \.timestamp)
     private var children: [LocalEntity]
     // Stored in the App Group suite so the timer widget/intents target the same child.
@@ -25,6 +26,9 @@ struct MainTabView: View {
             ensureValidSelection()
         }
         .onChange(of: children.map(\.serverID)) { _, _ in ensureValidSelection() }
+        .onChange(of: router.openTimerLocalID) { _, id in
+            if id != nil { selectedTab = 0 } // a timer deep link targets the Home tab
+        }
         .safeAreaInset(edge: .top) {
             if !sync.isOnline {
                 Label("Offline — changes will sync when reconnected", systemImage: "wifi.slash")
