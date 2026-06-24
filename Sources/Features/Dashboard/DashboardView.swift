@@ -1,8 +1,8 @@
 import SwiftUI
 import SwiftData
 
-/// Baby Buddy-style overview: most-recent event of each kind, active timers, and today's
-/// running counts for the selected child. Reads entirely from the local cache.
+/// Baby Buddy-style overview: active timer hero, today's running totals, and the most-recent
+/// event of each kind for the selected child. Reads entirely from the local cache.
 struct DashboardView: View {
     @Environment(SyncEngine.self) private var sync
     @Environment(\.modelContext) private var context
@@ -25,32 +25,36 @@ struct DashboardView: View {
     /// Activity kinds a running timer can be converted into (the duration-based records).
     private let convertKinds: [EntityKind] = [.feeding, .sleep, .tummyTime, .pumping]
 
-    private let columns = [GridItem(.flexible()), GridItem(.flexible())]
+    private let columns = [GridItem(.flexible(), spacing: 9), GridItem(.flexible(), spacing: 9)]
 
     private let quickAddKinds: [EntityKind] = [.feeding, .change, .sleep, .tummyTime, .pumping, .note]
     private let measureKinds: [EntityKind] = [.weight, .height, .headCircumference, .temperature, .bmi, .medication]
+    private let recentKinds: [EntityKind] = [.feeding, .change, .sleep, .tummyTime, .pumping]
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(recentKinds, id: \.self) { kind in
-                        lastEventCard(kind)
+                VStack(spacing: 18) {
+                    header
+
+                    if activeTimers.isEmpty {
+                        startTimerCard
+                    } else {
+                        VStack(spacing: 12) {
+                            ForEach(activeTimers) { timerHero($0) }
+                        }
                     }
+
+                    todaySection
+                    if !latestEvents.isEmpty { latestSection }
                 }
                 .padding(.horizontal)
-
-                if !activeTimers.isEmpty {
-                    timersCard.padding(.horizontal).padding(.top, 4)
-                }
-                todayCard.padding(.horizontal).padding(.top, 4)
+                .padding(.top, 8)
+                .padding(.bottom, 28)
             }
-            .navigationTitle("Home")
+            .background(BBColor.surface)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ChildSwitcher(children: children, selectedChildID: $selectedChildID)
-                ToolbarItem(placement: .topBarTrailing) { addMenu }
-            }
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { addMenu } }
             .sheet(item: $addKind) { kind in
                 EntityEditorView(kind: kind, childID: selectedChildID)
             }
@@ -101,6 +105,43 @@ struct DashboardView: View {
         }
     }
 
+    // MARK: Header
+
+    private var header: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Date.now, format: .dateTime.weekday(.wide).month().day())
+                    .font(.subheadline).foregroundStyle(.secondary)
+                Text(currentChildName).font(.title.weight(.semibold))
+            }
+            Spacer()
+            avatar
+        }
+    }
+
+    private var avatar: some View {
+        let circle = Circle()
+            .fill(BBColor.brand)
+            .frame(width: 42, height: 42)
+            .overlay(Text(currentChildName.prefix(1)).font(.headline).foregroundStyle(.white))
+        return Group {
+            if children.count > 1 {
+                Menu {
+                    ForEach(children, id: \.serverID) { child in
+                        Button {
+                            if let id = child.serverID { selectedChildID = id }
+                        } label: {
+                            Label(childName(child), systemImage: child.serverID == selectedChildID
+                                  ? "checkmark" : "person.crop.circle")
+                        }
+                    }
+                } label: { circle }
+            } else {
+                circle
+            }
+        }
+    }
+
     // MARK: Toolbar
 
     private var addMenu: some View {
@@ -123,39 +164,80 @@ struct DashboardView: View {
         .disabled(children.isEmpty)
     }
 
-    // MARK: Cards
+    // MARK: Active timer
 
-    private let recentKinds: [EntityKind] = [.feeding, .change, .sleep, .tummyTime]
-
-    @ViewBuilder private func lastEventCard(_ kind: EntityKind) -> some View {
-        DashboardCard(title: "Last \(kind.displayName)", icon: { kind.icon(15) }) {
-            if let entity = lastEvent(of: kind) {
-                Text(entity.timestamp, format: .relative(presentation: .named))
-                    .font(.headline)
-                if let subtitle = EntityFormatting.subtitle(entity), !subtitle.isEmpty {
-                    Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+    private func timerHero(_ timer: LocalEntity) -> some View {
+        BBCard {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    RunningDot()
+                    Text(timerTitle(timer))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(BBColor.success)
+                    Spacer()
                 }
-            } else {
-                Text("—").font(.headline).foregroundStyle(.secondary)
+                Text(timer.timestamp, style: .timer)
+                    .font(BBFont.timer)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                Text("Started \(timer.timestamp.formatted(date: .omitted, time: .shortened))")
+                    .font(.footnote).foregroundStyle(.secondary)
+                Button { actionTimer = timer } label: {
+                    Label("Stop", systemImage: "stop.fill")
+                }
+                .buttonStyle(.bbStop)
             }
         }
     }
 
-    private var timersCard: some View {
-        DashboardCard(title: "Active Timers", systemImage: "timer") {
-            ForEach(activeTimers) { timer in
-                Button { actionTimer = timer } label: {
-                    HStack {
-                        Text(EntityFormatting.subtitle(timer) ?? "Timer")
-                        Spacer()
-                        Text(timer.timestamp, style: .timer).monospacedDigit()
-                        Image(systemName: "chevron.right")
-                            .font(.caption2).foregroundStyle(.tertiary)
+    private var startTimerCard: some View {
+        Button { startingTimer = true } label: {
+            BBCard {
+                HStack(spacing: 12) {
+                    ActivityTile(kind: .timer, size: 40, glyph: 21)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Start a timer").font(.headline)
+                        Text("Feeding, sleep, tummy time…")
+                            .font(.footnote).foregroundStyle(.secondary)
                     }
-                    .font(.subheadline)
-                    .contentShape(Rectangle())
+                    Spacer()
+                    Image(systemName: "chevron.right").foregroundStyle(.tertiary)
                 }
-                .buttonStyle(.plain)
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(children.isEmpty)
+    }
+
+    /// Title shown above the running timer. Uses the timer's name when set.
+    private func timerTitle(_ timer: LocalEntity) -> String {
+        if let name = timer.payloadObject["name"] as? String, !name.isEmpty {
+            return "\(name) running"
+        }
+        return "Timer running"
+    }
+
+    // MARK: Today
+
+    private var todaySection: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            SectionHeader("Today")
+            LazyVGrid(columns: columns, spacing: 9) {
+                MetricTile(kind: .feeding, label: "Feedings", value: "\(count(of: .feeding, today: true))")
+                MetricTile(kind: .sleep, label: "Sleep", value: sleepTodayText)
+                MetricTile(kind: .change, label: "Diapers", value: "\(count(of: .change, today: true))")
+                MetricTile(kind: .tummyTime, label: "Tummy time", value: tummyTodayText)
+            }
+        }
+    }
+
+    // MARK: Latest
+
+    private var latestSection: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            SectionHeader("Latest")
+            VStack(spacing: 9) {
+                ForEach(latestEvents) { EventRow(entity: $0) }
             }
         }
     }
@@ -184,27 +266,6 @@ struct DashboardView: View {
         router.convertTarget = nil
     }
 
-    private var todayCard: some View {
-        DashboardCard(title: "Today", systemImage: "calendar") {
-            HStack(spacing: 20) {
-                stat("Feedings", count(of: .feeding, today: true))
-                stat("Changes", count(of: .change, today: true))
-                stat("Sleep", sleepTodayText)
-            }
-        }
-    }
-
-    private func stat(_ label: String, _ value: Int) -> some View {
-        stat(label, "\(value)")
-    }
-
-    private func stat(_ label: String, _ value: String) -> some View {
-        VStack {
-            Text(value).font(.title2.bold())
-            Text(label).font(.caption2).foregroundStyle(.secondary)
-        }
-    }
-
     // MARK: Derived data
 
     private var children: [LocalEntity] { allEntities.filter { $0.kind == .child } }
@@ -213,8 +274,27 @@ struct DashboardView: View {
         allEntities.filter { $0.childID == selectedChildID && $0.syncState != .pendingDelete }
     }
 
+    private var currentChild: LocalEntity? { children.first { $0.serverID == selectedChildID } }
+
+    private var currentChildName: String {
+        currentChild.map { childName($0, firstOnly: true) } ?? "Baby Buddy"
+    }
+
+    private func childName(_ entity: LocalEntity, firstOnly: Bool = false) -> String {
+        let p = entity.payloadObject
+        let first = p["first_name"] as? String ?? ""
+        let last = p["last_name"] as? String ?? ""
+        if firstOnly { return first.isEmpty ? (last.isEmpty ? "Child" : last) : first }
+        let name = [first, last].filter { !$0.isEmpty }.joined(separator: " ")
+        return name.isEmpty ? "Child" : name
+    }
+
     private func lastEvent(of kind: EntityKind) -> LocalEntity? {
         childEntities.first { $0.kind == kind }
+    }
+
+    private var latestEvents: [LocalEntity] {
+        recentKinds.compactMap { lastEvent(of: $0) }.sorted { $0.timestamp > $1.timestamp }
     }
 
     private var activeTimers: [LocalEntity] {
@@ -227,9 +307,13 @@ struct DashboardView: View {
         }.count
     }
 
-    private var sleepTodayText: String {
+    private var sleepTodayText: String { durationToday(of: .sleep) }
+    private var tummyTodayText: String { durationToday(of: .tummyTime) }
+
+    /// Total logged duration today for a start/end-based kind, formatted (or "—").
+    private func durationToday(of kind: EntityKind) -> String {
         let total = childEntities
-            .filter { $0.kind == .sleep && Calendar.current.isDateInToday($0.timestamp) }
+            .filter { $0.kind == kind && Calendar.current.isDateInToday($0.timestamp) }
             .reduce(0.0) { acc, e in
                 let p = e.payloadObject
                 if let s = p["start"] as? String, let en = p["end"] as? String,
