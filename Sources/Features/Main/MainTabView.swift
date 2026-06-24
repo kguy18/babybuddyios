@@ -5,9 +5,11 @@ import SwiftData
 /// Dashboard and Timeline tabs, and kicks off an initial pull.
 struct MainTabView: View {
     @Environment(SyncEngine.self) private var sync
+    @Environment(DeepLinkRouter.self) private var router
     @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "child" }, sort: \.timestamp)
     private var children: [LocalEntity]
-    @AppStorage("selectedChildID") private var selectedChildID = 0
+    // Stored in the App Group suite so the timer widget/intents target the same child.
+    @AppStorage("selectedChildID", store: SharedDefaults.suite) private var selectedChildID = 0
     @State private var selectedTab = initialTab
 
     var body: some View {
@@ -24,6 +26,12 @@ struct MainTabView: View {
             ensureValidSelection()
         }
         .onChange(of: children.map(\.serverID)) { _, _ in ensureValidSelection() }
+        .onChange(of: router.openTimerLocalID) { _, id in
+            if id != nil { selectedTab = 0 } // a timer deep link targets the Home tab
+        }
+        .onChange(of: router.convertTarget) { _, target in
+            if target != nil { selectedTab = 0 }
+        }
         .safeAreaInset(edge: .top) {
             if !sync.isOnline {
                 Label("Offline — changes will sync when reconnected", systemImage: "wifi.slash")

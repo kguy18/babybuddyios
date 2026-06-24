@@ -38,11 +38,17 @@ targets:
       properties:
         BGTaskSchedulerPermittedIdentifiers:
           - com.kurtisguy.BabyBuddy.sync
+        CFBundleURLTypes:
+          - CFBundleURLName: com.kurtisguy.BabyBuddy
+            CFBundleURLSchemes:
+              - babybuddy
     entitlements:
       path: Sources/BabyBuddy.entitlements
       properties:
         com.apple.security.application-groups:
           - group.com.kurtisguy.BabyBuddy
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)com.kurtisguy.BabyBuddy
 
   BabyBuddyWidgets:
     type: app-extension
@@ -69,6 +75,8 @@ targets:
       properties:
         com.apple.security.application-groups:
           - group.com.kurtisguy.BabyBuddy
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)com.kurtisguy.BabyBuddy
 
   BabyBuddyTests:
     type: bundle.unit-test

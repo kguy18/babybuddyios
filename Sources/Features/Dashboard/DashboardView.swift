@@ -6,6 +6,7 @@ import SwiftData
 struct DashboardView: View {
     @Environment(SyncEngine.self) private var sync
     @Environment(\.modelContext) private var context
+    @Environment(DeepLinkRouter.self) private var router
     @Binding var selectedChildID: Int
 
     @Query(sort: \LocalEntity.timestamp, order: .reverse) private var allEntities: [LocalEntity]
@@ -68,7 +69,7 @@ struct DashboardView: View {
                         convertRequest = ConvertRequest(timer: timer, kind: kind)
                     }
                 }
-                Button("Stop Timer", role: .destructive) {
+                Button("Discard Timer", role: .destructive) {
                     LocalRepository(context: context).delete(timer)
                     Task { await sync.sync() }
                 }
@@ -76,7 +77,12 @@ struct DashboardView: View {
                 Text(EntityFormatting.subtitle(timer) ?? "Timer")
             }
             .refreshable { await sync.sync() }
+            .onChange(of: router.openTimerLocalID) { _, id in openTimerActions(id) }
+            .onChange(of: router.convertTarget) { _, target in openConvert(target) }
             .onAppear {
+                // handle a deep link that arrived before this view existed
+                openTimerActions(router.openTimerLocalID)
+                openConvert(router.convertTarget)
                 #if DEBUG
                 if let raw = ProcessInfo.processInfo.environment["BB_OPEN"], !children.isEmpty {
                     if raw == "timer", !startingTimer {
@@ -157,6 +163,25 @@ struct DashboardView: View {
     /// Drives the timer action sheet; clears the selection when dismissed.
     private var timerActionPresented: Binding<Bool> {
         Binding(get: { actionTimer != nil }, set: { if !$0 { actionTimer = nil } })
+    }
+
+    /// Open the convert/stop sheet for a timer arriving via deep link (Active Timer widget).
+    private func openTimerActions(_ id: UUID?) {
+        guard let id,
+              let timer = allEntities.first(where: { $0.localID == id && $0.kind == .timer })
+        else { return }
+        actionTimer = timer
+        router.openTimerLocalID = nil
+    }
+
+    /// Open the pre-filled convert editor for a timer arriving via deep link — the widget Stop
+    /// button for activities that need extra fields (feeding/pumping).
+    private func openConvert(_ target: DeepLinkRouter.ConvertTarget?) {
+        guard let target,
+              let timer = allEntities.first(where: { $0.localID == target.localID && $0.kind == .timer })
+        else { return }
+        convertRequest = ConvertRequest(timer: timer, kind: target.kind)
+        router.convertTarget = nil
     }
 
     private var todayCard: some View {

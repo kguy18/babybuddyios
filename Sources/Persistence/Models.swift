@@ -89,6 +89,9 @@ final class PendingMutation {
     var attemptCount: Int
     var lastError: String?
     var createdAt: Date
+    /// When another process (the widget/intents extension) started delivering this mutation,
+    /// so the app's push loop can skip it briefly and avoid a double-send. `nil` = unclaimed.
+    var claimedAt: Date?
 
     init(localID: UUID, kind: EntityKind, op: MutationOp, payload: Data,
          baseSnapshot: Data? = nil, serverID: Int? = nil, createdAt: Date = .now) {
@@ -102,6 +105,7 @@ final class PendingMutation {
         self.attemptCount = 0
         self.lastError = nil
         self.createdAt = createdAt
+        self.claimedAt = nil
     }
 
     var kind: EntityKind { EntityKind(rawValue: kindRaw) ?? .note }
