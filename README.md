@@ -12,6 +12,10 @@ baby-tracking server. Offline-first, with conflict-aware sync and optional Face 
   server's existing tags (cached for offline use), or create a new tag inline. Chip colors and
   text contrast match the Baby Buddy web app.
 - **Dashboard** — last-event cards, active timers, and today's running totals.
+- **Timer widgets** — Home Screen widgets to start a timer (feeding/sleep/tummy time/pumping)
+  and to watch the running timer with live elapsed time and a one-tap Stop that logs the
+  activity. Lock Screen and StandBy accessories show the running timer at a glance. Widget
+  actions push to the server immediately (falling back to the sync queue when offline).
 - **Merged timeline** — day-grouped activity feed across all event types, with tap-to-edit,
   swipe-to-delete, and inline colored tag chips on each row.
 - **Offline-first** — the local SwiftData store is the source of truth; every change is applied

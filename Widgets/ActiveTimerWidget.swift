@@ -3,8 +3,9 @@ import SwiftUI
 import SwiftData
 import AppIntents
 
-/// Home-screen widget showing the most-recent running timer with live-ticking elapsed time and
-/// a one-tap Stop button. Tapping the body opens the app to the timer's actions (convert/stop).
+/// The most-recent running timer with live-ticking elapsed time. On the Home screen it offers a
+/// one-tap Stop button and tap-to-open actions; the Lock Screen / StandBy accessories are
+/// glanceable and tap-to-open only (accessory widgets can't host interactive buttons).
 struct ActiveTimerWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "BabyBuddyActiveTimer", provider: ActiveTimerProvider()) { entry in
@@ -12,8 +13,8 @@ struct ActiveTimerWidget: Widget {
                 .containerBackground(.background, for: .widget)
         }
         .configurationDisplayName("Active timer")
-        .description("See your running timer and stop it with one tap.")
-        .supportedFamilies([.systemSmall])
+        .description("See your running timer at a glance and stop it with one tap.")
+        .supportedFamilies([.systemSmall, .accessoryRectangular, .accessoryCircular, .accessoryInline])
     }
 }
 
@@ -66,15 +67,83 @@ struct ActiveTimerProvider: TimelineProvider {
 }
 
 struct ActiveTimerView: View {
+    @Environment(\.widgetFamily) private var family
     let entry: ActiveTimerEntry
 
     var body: some View {
-        if let timer = entry.timer {
-            running(timer)
-        } else {
-            empty
+        switch family {
+        case .accessoryRectangular: rectangular
+        case .accessoryCircular: circular
+        case .accessoryInline: inline
+        default:
+            if let timer = entry.timer { running(timer) } else { empty }
         }
     }
+
+    // MARK: Lock Screen / StandBy accessories (tap-to-open; no interactive buttons)
+
+    @ViewBuilder private var rectangular: some View {
+        if let timer = entry.timer {
+            VStack(alignment: .leading, spacing: 2) {
+                Label(timer.name, systemImage: timer.activity?.systemImage ?? "timer")
+                    .font(.headline)
+                    .widgetAccentable()
+                Text(timer.start, style: .timer)
+                    .font(.title2)
+                    .monospacedDigit()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .widgetURL(timerURL(timer))
+        } else {
+            Label("No timer running", systemImage: "timer")
+                .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .widgetURL(homeURL)
+        }
+    }
+
+    @ViewBuilder private var circular: some View {
+        if let timer = entry.timer {
+            ZStack {
+                AccessoryWidgetBackground()
+                VStack(spacing: 1) {
+                    Image(systemName: timer.activity?.systemImage ?? "timer")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text(timer.start, style: .timer)
+                        .font(.system(size: 11, weight: .medium))
+                        .monospacedDigit()
+                        .minimumScaleFactor(0.5)
+                        .lineLimit(1)
+                }
+                .padding(4)
+            }
+            .widgetURL(timerURL(timer))
+        } else {
+            ZStack {
+                AccessoryWidgetBackground()
+                Image(systemName: "timer").font(.system(size: 18))
+            }
+            .widgetURL(homeURL)
+        }
+    }
+
+    @ViewBuilder private var inline: some View {
+        if let timer = entry.timer {
+            // Inline must stay one line; the icon conveys the activity and the elapsed keeps ticking.
+            Label {
+                Text(timer.start, style: .timer)
+            } icon: {
+                Image(systemName: timer.activity?.systemImage ?? "timer")
+            }
+        } else {
+            Label("No timer", systemImage: "timer")
+        }
+    }
+
+    private func timerURL(_ timer: TimerSnapshot) -> URL? {
+        URL(string: "babybuddy://timer/\(timer.localID)")
+    }
+    private var homeURL: URL? { URL(string: "babybuddy://home") }
 
     private func running(_ timer: TimerSnapshot) -> some View {
         let tint = timer.activity.map(BBColor.tint(for:)) ?? BBColor.brand
