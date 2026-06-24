@@ -37,6 +37,17 @@ enum BBColor {
     static let tagChipFill = Color.adaptive(light: "F1F3F5", dark: "20242A") // neutral inline-tag pill
     static let tagChipText = Color.adaptive(light: "495057", dark: "C2C0B6")
 
+    // MARK: Editor & form surfaces
+    static let nested       = Color.adaptive(light: "F4F6F8", dark: "0E1014") // inset field background
+    static let fieldStroke  = Color.adaptive(light: "E3E7EB", dark: "23272E") // hairline field border
+    static let divider      = Color.adaptive(light: "EEF0F2", dark: "23272E") // in-card row separator
+    static let controlFill  = Color.adaptive(light: "EEF0F2", dark: "23272E") // neutral pill / stepper "−"
+    static let segmentTrack = Color.adaptive(light: "EEF0F2", dark: "0E1014") // segmented control track
+    static let segmentThumb = Color.adaptive(light: "FFFFFF", dark: "343A42") // segmented selected thumb
+    static let brandTint    = Color.adaptive(light: "EEF4FB", dark: "1A303E") // brand-tinted fill (stepper "+")
+    /// Blue text/icon accent for tinted contexts — brighter in dark so it reads on near-black.
+    static let brandAccent  = Color.adaptive(light: "1D6FA5", dark: "6DB9EE")
+
     /// Tint for a running-timer activity (used by the widgets).
     static func tint(for activity: TimerActivity) -> Color {
         switch activity {

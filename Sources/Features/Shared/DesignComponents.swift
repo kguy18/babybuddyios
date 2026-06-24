@@ -125,15 +125,63 @@ struct EventRow: View {
 struct TagDotChip: View {
     let name: String
     var colorHex: String?
+    /// When set, the chip shows a trailing "×" that removes it — the editor's committed-tag style.
+    var onRemove: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 5) {
             Circle().fill(TagColor.color(forHex: colorHex)).frame(width: 6, height: 6)
             Text(name).font(.caption2.weight(.medium)).lineLimit(1)
+            if let onRemove {
+                Button(action: onRemove) {
+                    Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.tertiary)
+            }
         }
         .foregroundStyle(BBColor.tagChipText)
-        .padding(.leading, 7).padding(.trailing, 9).padding(.vertical, 3)
+        .padding(.leading, 7).padding(.trailing, onRemove == nil ? 9 : 6).padding(.vertical, 3)
         .background(BBColor.tagChipFill, in: Capsule())
+    }
+}
+
+// MARK: Segmented control
+
+/// A calm, tinted segmented control: a soft track with a raised thumb under the selection.
+/// Generic over any `Hashable` value, so the same control drives the feeding-type picker here
+/// and the Keep-mine / Keep-server / Merge choice on the Conflict screen.
+struct BBSegmentedControl<Value: Hashable>: View {
+    @Binding var selection: Value
+    let options: [Value]
+    let label: (Value) -> String
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(options, id: \.self) { option in
+                let isSelected = option == selection
+                Text(label(option))
+                    .font(.subheadline.weight(isSelected ? .semibold : .medium))
+                    .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 7)
+                    .background {
+                        if isSelected {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(BBColor.segmentThumb)
+                                .shadow(color: .black.opacity(0.06), radius: 1.5, y: 1)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.snappy(duration: 0.18)) { selection = option }
+                    }
+            }
+        }
+        .padding(3)
+        .background(BBColor.segmentTrack, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
     }
 }
 
