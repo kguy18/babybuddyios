@@ -1,8 +1,9 @@
 import SwiftUI
 import SwiftData
 
-/// Merged chronological activity feed across all event kinds for the selected child,
-/// grouped by day. Reads from the local cache.
+/// Merged chronological activity feed across all event kinds for the selected child, grouped
+/// by day and laid out as a continuous left "rail": each event's tinted glyph tile is a node
+/// on a spine that resets at every day boundary. Reads from the local cache.
 struct TimelineView: View {
     @Environment(SyncEngine.self) private var sync
     @Environment(\.modelContext) private var context
@@ -23,19 +24,42 @@ struct TimelineView: View {
     var body: some View {
         NavigationStack {
             List {
-                ForEach(groupedDays, id: \.self) { day in
-                    Section(day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())) {
-                        ForEach(entities(on: day)) { entity in
-                            TimelineRow(entity: entity, tagColors: tagColors)
-                                .contentShape(Rectangle())
-                                .onTapGesture { editing = entity }
-                                .swipeActions {
-                                    Button("Delete", role: .destructive) { delete(entity) }
+                ForEach(timelineItems) { item in
+                    switch item {
+                    case .header(let day):
+                        dayHeader(day)
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                    case .event(let entity, let connectsDown):
+                        TimelineRailRow(entity: entity, connectsDown: connectsDown, tagColors: tagColors)
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .contentShape(Rectangle())
+                            .onTapGesture { editing = entity }
+                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                Button { repeatEvent(entity) } label: {
+                                    Label("Repeat", systemImage: "arrow.clockwise")
                                 }
-                        }
+                                .tint(BBColor.repeatAction)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) { delete(entity) } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                                .tint(BBColor.danger)
+                                Button { editing = entity } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                .tint(BBColor.primary)
+                            }
                     }
                 }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(BBColor.surface)
             .navigationTitle("Timeline")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -53,6 +77,23 @@ struct TimelineView: View {
                 }
             }
         }
+    }
+
+    // MARK: Day header
+
+    private func dayHeader(_ day: Date) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(dayLabel(day))
+                .font(.subheadline.weight(.semibold))
+            Spacer(minLength: 8)
+            Text(daySummary(day))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 16)
+        .padding(.bottom, 10)
     }
 
     private var filterMenu: some View {
@@ -97,42 +138,171 @@ struct TimelineView: View {
         visibleEntities.filter { startOfDay($0.timestamp) == day }
     }
 
+    /// Flattened header + event rows, in display order. Each event knows whether the spine
+    /// continues below it (true for every event except the day's last/oldest).
+    private var timelineItems: [TimelineItem] {
+        var result: [TimelineItem] = []
+        for day in groupedDays {
+            result.append(.header(day))
+            let dayEvents = entities(on: day)
+            for (index, entity) in dayEvents.enumerated() {
+                result.append(.event(entity, connectsDown: index < dayEvents.count - 1))
+            }
+        }
+        return result
+    }
+
+    // MARK: Day labels & summary
+
+    private func dayLabel(_ day: Date) -> String {
+        let cal = Calendar.current
+        if cal.isDateInToday(day) { return "Today" }
+        if cal.isDateInYesterday(day) { return "Yesterday" }
+        return day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+    }
+
+    /// One-line tally for the day header (e.g. "6 feeds · 5h 20m sleep · 4 diapers").
+    private func daySummary(_ day: Date) -> String {
+        let events = entities(on: day)
+        var parts: [String] = []
+
+        let feeds = events.filter { $0.kind == .feeding }.count
+        if feeds > 0 { parts.append("\(feeds) feed\(feeds == 1 ? "" : "s")") }
+
+        let sleep = totalDuration(events, kind: .sleep)
+        if sleep > 0 { parts.append("\(EntityFormatting.formatInterval(sleep)) sleep") }
+
+        let diapers = events.filter { $0.kind == .change }.count
+        if diapers > 0 { parts.append("\(diapers) diaper\(diapers == 1 ? "" : "s")") }
+
+        if parts.isEmpty {
+            let n = events.count
+            return "\(n) event\(n == 1 ? "" : "s")"
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// Summed start→end duration across the day's events of one kind.
+    private func totalDuration(_ events: [LocalEntity], kind: EntityKind) -> TimeInterval {
+        events.filter { $0.kind == kind }.reduce(0) { acc, e in
+            let p = e.payloadObject
+            if let s = p["start"] as? String, let en = p["end"] as? String,
+               let start = APIDate.parse(s), let end = APIDate.parse(en), end > start {
+                return acc + end.timeIntervalSince(start)
+            }
+            return acc
+        }
+    }
+
+    // MARK: Mutations
+
     private func delete(_ entity: LocalEntity) {
         LocalRepository(context: context).delete(entity)
         Task { await sync.sync() }
     }
+
+    /// Re-log an event as a fresh record at the current time: copy its payload, drop the
+    /// server-assigned/computed fields, and re-stamp the timestamps to now (preserving an
+    /// activity's duration). Uses the existing repository create path — no model changes.
+    private func repeatEvent(_ entity: LocalEntity) {
+        var p = entity.payloadObject
+        for key in ["id", "url", "duration"] { p.removeValue(forKey: key) }
+
+        let now = Date()
+        func iso(_ d: Date) -> String { APIDate.isoDateTime.string(from: d) }
+        if let s = p["start"] as? String, let e = p["end"] as? String,
+           let start = APIDate.parse(s), let end = APIDate.parse(e), end > start {
+            let duration = end.timeIntervalSince(start)
+            p["start"] = iso(now.addingTimeInterval(-duration))
+            p["end"] = iso(now)
+        } else if p["start"] is String {
+            p["start"] = iso(now)
+        }
+        if p["time"] is String { p["time"] = iso(now) }
+        if p["date"] is String { p["date"] = APIDate.dateOnly.string(from: now) }
+
+        LocalRepository(context: context).create(kind: entity.kind, payload: p)
+        Task { await sync.sync() }
+    }
 }
 
-private struct TimelineRow: View {
+/// A header or an event in the flattened, day-grouped timeline.
+private enum TimelineItem: Identifiable {
+    case header(Date)
+    case event(LocalEntity, connectsDown: Bool)
+
+    var id: String {
+        switch self {
+        case .header(let day): return "h-\(day.timeIntervalSince1970)"
+        case .event(let entity, _): return "e-\(entity.localID.uuidString)"
+        }
+    }
+}
+
+/// One event on the rail: a tinted glyph node on the spine, beside its detail card.
+private struct TimelineRailRow: View {
     let entity: LocalEntity
+    let connectsDown: Bool
     let tagColors: [String: String]
 
     var body: some View {
-        HStack(spacing: 12) {
-            entity.kind.icon(22)
-                .frame(width: 28)
-                .foregroundStyle(.tint)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(EntityFormatting.title(entity)).font(.body)
-                if let subtitle = EntityFormatting.subtitle(entity), !subtitle.isEmpty {
-                    Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                }
-                let tags = EntityFormatting.tags(entity)
-                if !tags.isEmpty {
-                    FlowLayout(spacing: 4) {
-                        ForEach(tags, id: \.self) { name in
-                            TagChip(name: name, colorHex: tagColors[name.lowercased()],
-                                    removable: false, compact: true)
-                        }
+        HStack(alignment: .top, spacing: 9) {
+            RailNode(kind: entity.kind, connectsDown: connectsDown)
+            card.padding(.bottom, 9)
+        }
+        .padding(.horizontal, 16)
+    }
+
+    private var card: some View {
+        BBCard(cornerRadius: BBRadius.tile, padding: 13) {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(EntityFormatting.title(entity))
+                        .font(.subheadline.weight(.semibold))
+                    if let subtitle = EntityFormatting.subtitle(entity), !subtitle.isEmpty {
+                        Text(subtitle)
+                            .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            .padding(.top, 2)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    let tags = EntityFormatting.tags(entity)
+                    if !tags.isEmpty {
+                        FlowLayout(spacing: 6) {
+                            ForEach(tags, id: \.self) { name in
+                                TagDotChip(name: name, colorHex: tagColors[name.lowercased()])
+                            }
+                        }
+                        .padding(.top, 7)
+                    }
                 }
-            }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(entity.timestamp, style: .time).font(.caption).foregroundStyle(.secondary)
-                SyncStateBadge(state: entity.syncState).font(.caption2)
+                Spacer(minLength: 8)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(entity.timestamp.formatted(date: .omitted, time: .shortened))
+                        .font(.subheadline.weight(.semibold)).monospacedDigit()
+                    SyncStateBadge(state: entity.syncState).font(.caption2)
+                }
             }
         }
+    }
+}
+
+/// The 40pt rail column: the activity's glyph tile as a node, plus a 2pt spine descending to
+/// the next node (drawn only when the spine continues — the day's last event has none).
+private struct RailNode: View {
+    let kind: EntityKind
+    let connectsDown: Bool
+
+    var body: some View {
+        ActivityTile(kind: kind, size: 38, glyph: 20)
+            .padding(.top, 5)
+            .frame(width: 40, alignment: .top)
+            .frame(maxHeight: .infinity, alignment: .top)
+            .background(alignment: .top) {
+                if connectsDown {
+                    Rectangle()
+                        .fill(BBColor.railLine)
+                        .frame(width: 2)
+                        .padding(.top, 43)
+                }
+            }
     }
 }

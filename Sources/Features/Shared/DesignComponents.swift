@@ -117,6 +117,26 @@ struct EventRow: View {
     }
 }
 
+// MARK: Inline tag chip
+
+/// A neutral pill carrying a small colored dot — the inline tag treatment for timeline rows.
+/// Deliberately distinct from the solid ``TagChip`` activity-style pill: the pill stays
+/// neutral and only the dot uses the tag's server color (via `TagColor`).
+struct TagDotChip: View {
+    let name: String
+    var colorHex: String?
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle().fill(TagColor.color(forHex: colorHex)).frame(width: 6, height: 6)
+            Text(name).font(.caption2.weight(.medium)).lineLimit(1)
+        }
+        .foregroundStyle(BBColor.tagChipText)
+        .padding(.leading, 7).padding(.trailing, 9).padding(.vertical, 3)
+        .background(BBColor.tagChipFill, in: Capsule())
+    }
+}
+
 // MARK: Buttons
 
 /// Full-width filled button carrying the action-color grammar (stop=yellow, primary=blue…).
