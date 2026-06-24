@@ -21,6 +21,8 @@ targets:
     platform: iOS
     sources:
       - path: Sources
+    dependencies:
+      - target: BabyBuddyWidgets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kurtisguy.BabyBuddy
@@ -36,6 +38,37 @@ targets:
       properties:
         BGTaskSchedulerPermittedIdentifiers:
           - com.kurtisguy.BabyBuddy.sync
+    entitlements:
+      path: Sources/BabyBuddy.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.kurtisguy.BabyBuddy
+
+  BabyBuddyWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Widgets
+      - path: Sources/Persistence
+        excludes:
+          - DemoData.swift
+      - path: Sources/Networking
+      - path: Sources/Auth/KeychainStore.swift
+      - path: Sources/Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kurtisguy.BabyBuddy.Widgets
+        INFOPLIST_KEY_CFBundleDisplayName: "Baby Buddy"
+    info:
+      path: Widgets/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: Widgets/BabyBuddyWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.kurtisguy.BabyBuddy
 
   BabyBuddyTests:
     type: bundle.unit-test

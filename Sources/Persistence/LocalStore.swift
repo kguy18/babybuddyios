@@ -5,9 +5,27 @@ import SwiftData
 enum LocalStore {
     static let schema = Schema([LocalEntity.self, CachedTag.self, PendingMutation.self, ConflictRecord.self])
 
+    /// App Group shared between the app and its widget/intents extension. The store lives
+    /// here so a widget can read active timers and the App Intents can enqueue mutations.
+    static let appGroupID = "group.com.kurtisguy.BabyBuddy"
+
+    /// On-disk location of the SwiftData store. Prefers the App Group container so the
+    /// extension shares it; falls back to the app's Application Support directory when the
+    /// App Group is unavailable — e.g. unsigned simulator builds (`CODE_SIGNING_ALLOWED=NO`),
+    /// where the entitlement isn't applied — so development builds still run.
+    static var storeURL: URL {
+        let directory = FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: appGroupID)
+            ?? URL.applicationSupportDirectory
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory.appending(path: "BabyBuddy.sqlite")
+    }
+
     @MainActor
     static func makeContainer(inMemory: Bool = false) -> ModelContainer {
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)
+        let config = inMemory
+            ? ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            : ModelConfiguration(schema: schema, url: storeURL)
         do {
             return try ModelContainer(for: schema, configurations: config)
         } catch {
