@@ -98,19 +98,34 @@ struct ActiveTimerView: View {
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
             Spacer(minLength: 6)
-            Button(intent: StopTimerIntent(timerLocalID: timer.localID)) {
-                HStack(spacing: 4) {
-                    Image(systemName: "stop.fill").font(.system(size: 11))
-                    Text("Stop").font(.system(size: 13, weight: .medium))
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 7)
-                .background(BBColor.stop, in: RoundedRectangle(cornerRadius: 9))
-                .foregroundStyle(Color(red: 0x5A / 255.0, green: 0x43 / 255.0, blue: 0x02 / 255.0))
-            }
-            .buttonStyle(.plain)
+            stopControl(timer)
         }
         .widgetURL(URL(string: "babybuddy://timer/\(timer.localID)"))
+    }
+
+    /// Stop logs the activity. Sleep/tummy time record in one tap (background intent);
+    /// feeding/pumping need extra fields, so they open a pre-filled in-app form via a deep
+    /// link; an unrecognized timer name opens the generic timer actions.
+    @ViewBuilder private func stopControl(_ timer: TimerSnapshot) -> some View {
+        if let activity = timer.activity, activity.isInstantLoggable {
+            Button(intent: LogTimerIntent(timerLocalID: timer.localID)) { stopLabel }
+                .buttonStyle(.plain)
+        } else if let activity = timer.activity {
+            Link(destination: URL(string: "babybuddy://convert/\(timer.localID)/\(activity.convertKind.rawValue)")!) { stopLabel }
+        } else {
+            Link(destination: URL(string: "babybuddy://timer/\(timer.localID)")!) { stopLabel }
+        }
+    }
+
+    private var stopLabel: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "stop.fill").font(.system(size: 11))
+            Text("Stop").font(.system(size: 13, weight: .medium))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 7)
+        .background(BBColor.stop, in: RoundedRectangle(cornerRadius: 9))
+        .foregroundStyle(Color(red: 0x5A / 255.0, green: 0x43 / 255.0, blue: 0x02 / 255.0))
     }
 
     private var empty: some View {

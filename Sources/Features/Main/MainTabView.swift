@@ -29,6 +29,9 @@ struct MainTabView: View {
         .onChange(of: router.openTimerLocalID) { _, id in
             if id != nil { selectedTab = 0 } // a timer deep link targets the Home tab
         }
+        .onChange(of: router.convertTarget) { _, target in
+            if target != nil { selectedTab = 0 }
+        }
         .safeAreaInset(edge: .top) {
             if !sync.isOnline {
                 Label("Offline — changes will sync when reconnected", systemImage: "wifi.slash")

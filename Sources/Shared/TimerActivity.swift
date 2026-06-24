@@ -41,4 +41,15 @@ enum TimerActivity: String, AppEnum, CaseIterable {
     }
 
     var systemImage: String { convertKind.systemImage }
+
+    /// Whether the activity can be logged from just child/start/end, so the Active Timer
+    /// widget can record it in one tap on Stop. Feeding (needs type + method) and pumping
+    /// (needs amount) require extra fields, so those open a pre-filled form instead.
+    /// Verified against the live Baby Buddy API.
+    var isInstantLoggable: Bool {
+        switch self {
+        case .sleep, .tummyTime: return true
+        case .feeding, .pumping: return false
+        }
+    }
 }

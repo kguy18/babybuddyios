@@ -35,24 +35,43 @@ final class StartTimerTests: XCTestCase {
         XCTAssertEqual(mutations.first?.kind, .timer)
     }
 
-    /// The Active Timer widget's Stop button deletes a synced timer — which must enqueue a
-    /// pending delete (the same path as the in-app "Stop Timer" action).
-    func testStoppingSyncedTimerEnqueuesPendingDelete() throws {
+    func testInstantLoggableActivities() {
+        // Verified against the live API: sleep/tummy time log from start+end alone; feeding
+        // (type/method) and pumping (amount) need a form.
+        XCTAssertTrue(TimerActivity.sleep.isInstantLoggable)
+        XCTAssertTrue(TimerActivity.tummyTime.isInstantLoggable)
+        XCTAssertFalse(TimerActivity.feeding.isInstantLoggable)
+        XCTAssertFalse(TimerActivity.pumping.isInstantLoggable)
+    }
+
+    /// The Active Timer widget's Stop button logs a sleep/tummy timer as a completed activity:
+    /// it creates the record (carrying the server `timer` id so the server deletes the timer)
+    /// and removes the local timer. Mirrors `LogTimerIntent`'s use of `convertTimer`.
+    func testLoggingSyncedSleepTimerCreatesActivityAndRemovesTimer() throws {
         let container = LocalStore.makeContainer(inMemory: true)
         let context = container.mainContext
         let serverPayload = try JSONSerialization.data(withJSONObject: [
-            "id": 42, "child": 1, "name": "Sleep",
-            "start": APIDate.isoDateTime.string(from: .now),
+            "id": 7, "child": 1, "name": "Sleep", "start": "2026-06-24T09:00:00-05:00",
         ])
         let timer = LocalStore.upsertFromServer(serverPayload, kind: .timer, in: context)!
-        XCTAssertEqual(timer.serverID, 42)
 
-        LocalRepository(context: context).delete(timer)
+        LocalRepository(context: context).convertTimer(timer, to: .sleep, payload: [
+            "child": 1,
+            "start": "2026-06-24T09:00:00-05:00",
+            "end": APIDate.isoDateTime.string(from: .now),
+        ])
 
-        XCTAssertEqual(timer.syncState, .pendingDelete)
+        // Timer removed locally; one sleep activity created as a pending create.
+        XCTAssertTrue(try context.fetch(
+            FetchDescriptor<LocalEntity>(predicate: #Predicate { $0.kindRaw == "timer" })).isEmpty)
+        let sleeps = try context.fetch(
+            FetchDescriptor<LocalEntity>(predicate: #Predicate { $0.kindRaw == "sleep" }))
+        XCTAssertEqual(sleeps.count, 1)
+        XCTAssertEqual(sleeps.first?.syncState, .pendingCreate)
+        XCTAssertEqual(sleeps.first?.payloadObject["timer"] as? Int, 7) // server deletes the timer on POST
+
         let mutations = try context.fetch(FetchDescriptor<PendingMutation>())
-        XCTAssertEqual(mutations.count, 1)
-        XCTAssertEqual(mutations.first?.op, .delete)
-        XCTAssertEqual(mutations.first?.kind, .timer)
+        XCTAssertEqual(mutations.map(\.kind), [.sleep])
+        XCTAssertEqual(mutations.first?.op, .create)
     }
 }
