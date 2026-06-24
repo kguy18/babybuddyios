@@ -18,46 +18,97 @@ struct TagField: View {
         cached.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }?.colorHex
     }
 
+    private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             if !selected.isEmpty {
-                FlowLayout(spacing: 6) {
+                FlowLayout(spacing: 7) {
                     ForEach(selected, id: \.self) { name in
-                        TagChip(name: name, colorHex: color(for: name)) { remove(name) }
+                        TagDotChip(name: name, colorHex: color(for: name)) { remove(name) }
                     }
                 }
             }
 
+            inputField
+            if fieldFocused { dropdown }
+        }
+        .animation(.snappy(duration: 0.2), value: selected)
+        .animation(.snappy(duration: 0.2), value: fieldFocused)
+    }
+
+    /// The text entry — a soft inset field that gains a brand-blue ring while focused.
+    private var inputField: some View {
+        HStack(spacing: 8) {
             TextField("Add a tag", text: $query)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .focused($fieldFocused)
                 .submitLabel(.done)
                 .onSubmit(commitQuery)
-
-            let suggestions = TagLogic.suggestions(query: query, all: allNames, selected: selected, limit: 8)
-            let canCreate = TagLogic.canCreate(query: query, all: allNames, selected: selected)
-            if !suggestions.isEmpty || canCreate {
-                FlowLayout(spacing: 6) {
-                    ForEach(suggestions, id: \.self) { name in
-                        Button { add(name) } label: {
-                            TagChip(name: name, colorHex: color(for: name), removable: false)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    if canCreate {
-                        Button { commitQuery() } label: {
-                            Label("Add “\(query.trimmingCharacters(in: .whitespaces))”", systemImage: "plus")
-                                .font(.caption.weight(.medium))
-                                .padding(.horizontal, 10).padding(.vertical, 5)
-                                .background(.tint.opacity(0.15), in: Capsule())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
+            if fieldFocused {
+                Text("add tag").font(.caption).foregroundStyle(.tertiary)
             }
         }
-        .animation(.default, value: selected)
+        .padding(.horizontal, 13).padding(.vertical, 10)
+        .background(BBColor.nested, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .strokeBorder(fieldFocused ? BBColor.brand : BBColor.fieldStroke,
+                              lineWidth: fieldFocused ? 1.5 : 0.5)
+        }
+    }
+
+    /// Autocomplete list: matching tags (colored dot + name) and an always-present blue
+    /// "Create …" row in brand color as the final option.
+    @ViewBuilder private var dropdown: some View {
+        let suggestions = TagLogic.suggestions(query: query, all: allNames, selected: selected, limit: 8)
+        let canCreate = TagLogic.canCreate(query: query, all: allNames, selected: selected)
+        if !suggestions.isEmpty || canCreate {
+            VStack(spacing: 0) {
+                ForEach(Array(suggestions.enumerated()), id: \.element) { index, name in
+                    if index > 0 { rowDivider }
+                    Button { add(name) } label: { suggestionRow(name) }
+                        .buttonStyle(.plain)
+                }
+                if canCreate {
+                    if !suggestions.isEmpty { rowDivider }
+                    Button(action: commitQuery) { createRow }
+                        .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 13)
+            .background(BBColor.nested, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .strokeBorder(BBColor.fieldStroke, lineWidth: 0.5)
+            }
+        }
+    }
+
+    private var rowDivider: some View {
+        Rectangle().fill(BBColor.divider).frame(height: 0.5)
+    }
+
+    private func suggestionRow(_ name: String) -> some View {
+        HStack(spacing: 10) {
+            Circle().fill(TagColor.color(forHex: color(for: name))).frame(width: 9, height: 9)
+            Text(name).font(.subheadline)
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
+    }
+
+    private var createRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "plus").font(.subheadline.weight(.semibold))
+            Text("Create “\(trimmedQuery)”").font(.subheadline.weight(.medium))
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(BBColor.brandAccent)
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
     }
 
     private func add(_ name: String) {
