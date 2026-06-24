@@ -7,7 +7,8 @@ struct MainTabView: View {
     @Environment(SyncEngine.self) private var sync
     @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "child" }, sort: \.timestamp)
     private var children: [LocalEntity]
-    @AppStorage("selectedChildID") private var selectedChildID = 0
+    // Stored in the App Group suite so the timer widget/intents target the same child.
+    @AppStorage("selectedChildID", store: SharedDefaults.suite) private var selectedChildID = 0
     @State private var selectedTab = initialTab
 
     var body: some View {
