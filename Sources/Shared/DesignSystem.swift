@@ -30,6 +30,13 @@ enum BBColor {
     static let change  = Color.adaptive(light: "8A6D3B", dark: "C9AF83") // diaper — warm tan
     static let note    = Color.adaptive(light: "6C757D", dark: "9AA0A6")
 
+    // MARK: Timeline & inline tag chips
+    static let railLine = Color.adaptive(light: "DDE2E7", dark: "23272E") // timeline spine
+    /// Fixed green for the timeline "Repeat" swipe action — identical in light & dark (locked decision).
+    static let repeatAction = Color(uiColor: UIColor(hex: "239556"))
+    static let tagChipFill = Color.adaptive(light: "F1F3F5", dark: "20242A") // neutral inline-tag pill
+    static let tagChipText = Color.adaptive(light: "495057", dark: "C2C0B6")
+
     /// Tint for a running-timer activity (used by the widgets).
     static func tint(for activity: TimerActivity) -> Color {
         switch activity {
