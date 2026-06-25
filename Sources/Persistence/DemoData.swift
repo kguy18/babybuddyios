@@ -64,12 +64,17 @@ enum DemoData {
         try? context.save()
     }
 
-    /// Seed a single update-vs-update conflict on the most recent feeding.
+    /// Seed a single update-vs-update conflict on the most recent feeding. Diverges in four
+    /// fields (end time, amount, tags, notes) while start/type/method match, so the merge
+    /// screen exercises scalar choices, a tag diff, and the silently-kept summary row.
     private static func seedConflict(into context: ModelContext) {
         guard let feeding = LocalStore.fetch(kind: .feeding, serverID: 11, in: context) else { return }
         let base = feeding.payload
-        var mine = feeding.payloadObject; mine["amount"] = 120; mine["notes"] = "Extra hungry"
-        var theirs = feeding.payloadObject; theirs["amount"] = 60; theirs["method"] = "bottle"
+        let iso: (Int) -> String = { APIDate.isoDateTime.string(from: Date().addingTimeInterval(Double(-$0 * 60))) }
+        var mine = feeding.payloadObject
+        mine["end"] = iso(305); mine["amount"] = 120; mine["tags"] = ["hungry", "night"]; mine["notes"] = "Extra hungry"
+        var theirs = feeding.payloadObject
+        theirs["amount"] = 60; theirs["notes"] = "Spit up a little"
         feeding.syncState = .conflicted
         context.insert(ConflictRecord(
             localID: feeding.localID, kind: .feeding, op: .update, serverID: 11,
