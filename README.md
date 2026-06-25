@@ -21,7 +21,7 @@ baby-tracking server. Offline-first, with conflict-aware sync and optional Face 
 - **Merged timeline** — day-grouped activity feed across all event types, with tap-to-edit,
   swipe-to-delete, and inline colored tag chips on each row. **Search** (notes, tags, type,
   child) and a **type + date-range filter** narrow it instantly, all offline over the cache.
-  Sync keeps a rolling 60-day window; **Load older activity** at the foot of the timeline
+  Sync keeps a rolling 30-day window; **Load older activity** at the foot of the timeline
   pages further back on demand (down to the child's birth) without dropping anything cached.
 - **Offline-first** — the local SwiftData store is the source of truth; every change is applied
   instantly and queued for delivery. An offline banner shows when the server is unreachable.

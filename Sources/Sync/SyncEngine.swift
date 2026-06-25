@@ -19,7 +19,9 @@ final class SyncEngine {
     let reachability = Reachability()
 
     /// Default rolling-window depth, in days; also the initial history horizon.
-    static let defaultPullWindowDays = 60
+    /// Kept lean so the first sync stays light — older data is fetched on demand via
+    /// "Load older" and, once cached, remains visible and locally searchable.
+    static let defaultPullWindowDays = 30
 
     /// How far back to pull high-volume event records, in days.
     var pullWindowDays = SyncEngine.defaultPullWindowDays
