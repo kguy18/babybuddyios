@@ -12,8 +12,11 @@ struct DashboardView: View {
     @Query(sort: \LocalEntity.timestamp, order: .reverse) private var allEntities: [LocalEntity]
     @State private var addKind: EntityKind?
     @State private var startingTimer = false
-    @State private var actionTimer: LocalEntity?
+    @State private var stoppingTimer: LocalEntity?
     @State private var convertRequest: ConvertRequest?
+    /// A convert deferred until the Stop sheet finishes dismissing, so the detail editor doesn't
+    /// try to present while another sheet is still on screen.
+    @State private var pendingConvert: ConvertRequest?
 
     /// A request to convert a specific timer into a specific activity kind.
     private struct ConvertRequest: Identifiable {
@@ -21,9 +24,6 @@ struct DashboardView: View {
         let kind: EntityKind
         var id: String { "\(timer.localID)-\(kind.rawValue)" }
     }
-
-    /// Activity kinds a running timer can be converted into (the duration-based records).
-    private let convertKinds: [EntityKind] = [.feeding, .sleep, .tummyTime, .pumping]
 
     private let columns = [GridItem(.flexible(), spacing: 9), GridItem(.flexible(), spacing: 9)]
 
@@ -66,19 +66,13 @@ struct DashboardView: View {
                                  childID: request.timer.childID ?? selectedChildID,
                                  sourceTimer: request.timer)
             }
-            .confirmationDialog("Timer", isPresented: timerActionPresented,
-                                presenting: actionTimer) { timer in
-                ForEach(convertKinds) { kind in
-                    Button("Convert to \(kind.displayName)") {
-                        convertRequest = ConvertRequest(timer: timer, kind: kind)
-                    }
-                }
-                Button("Discard Timer", role: .destructive) {
-                    LocalRepository(context: context).delete(timer)
-                    Task { await sync.sync() }
-                }
-            } message: { timer in
-                Text(EntityFormatting.subtitle(timer) ?? "Timer")
+            .sheet(item: $stoppingTimer, onDismiss: {
+                // Open the detail editor only after the Stop sheet is fully gone.
+                if let pendingConvert { convertRequest = pendingConvert; self.pendingConvert = nil }
+            }) { timer in
+                StopTimerSheet(timer: timer,
+                               onLog: { kind in stopTimer(timer, as: kind) },
+                               onDiscard: { discardTimer(timer); stoppingTimer = nil })
             }
             .refreshable { await sync.sync() }
             .onChange(of: router.openTimerLocalID) { _, id in openTimerActions(id) }
@@ -182,7 +176,7 @@ struct DashboardView: View {
                     .minimumScaleFactor(0.6)
                 Text("Started \(timer.timestamp.formatted(date: .omitted, time: .shortened))")
                     .font(.footnote).foregroundStyle(.secondary)
-                Button { actionTimer = timer } label: {
+                Button { stoppingTimer = timer } label: {
                     Label("Stop", systemImage: "stop.fill")
                 }
                 .buttonStyle(.bbStop)
@@ -242,17 +236,12 @@ struct DashboardView: View {
         }
     }
 
-    /// Drives the timer action sheet; clears the selection when dismissed.
-    private var timerActionPresented: Binding<Bool> {
-        Binding(get: { actionTimer != nil }, set: { if !$0 { actionTimer = nil } })
-    }
-
-    /// Open the convert/stop sheet for a timer arriving via deep link (Active Timer widget).
+    /// Open the Stop sheet for a timer arriving via deep link (Active Timer widget).
     private func openTimerActions(_ id: UUID?) {
         guard let id,
               let timer = allEntities.first(where: { $0.localID == id && $0.kind == .timer })
         else { return }
-        actionTimer = timer
+        stoppingTimer = timer
         router.openTimerLocalID = nil
     }
 
@@ -264,6 +253,33 @@ struct DashboardView: View {
         else { return }
         convertRequest = ConvertRequest(timer: timer, kind: target.kind)
         router.convertTarget = nil
+    }
+
+    /// File a stopped timer as the chosen activity. Sleep/tummy time log in one tap; feeding and
+    /// pumping need extra fields, so they defer to the pre-filled convert editor (opened once the
+    /// Stop sheet has dismissed). The timer's existing type may be overridden by the picker.
+    private func stopTimer(_ timer: LocalEntity, as kind: EntityKind) {
+        guard TimerActivity(convertKind: kind)?.isInstantLoggable == true else {
+            pendingConvert = ConvertRequest(timer: timer, kind: kind)
+            stoppingTimer = nil
+            return
+        }
+        let p = timer.payloadObject
+        let start = (p["start"] as? String) ?? APIDate.isoDateTime.string(from: timer.timestamp)
+        var payload: [String: Any] = [
+            "start": start,
+            "end": APIDate.isoDateTime.string(from: .now),
+        ]
+        if let child = timer.childID { payload["child"] = child }
+        LocalRepository(context: context).convertTimer(timer, to: kind, payload: payload)
+        Task { await sync.sync() }
+        stoppingTimer = nil
+    }
+
+    /// Discard a running timer without logging anything.
+    private func discardTimer(_ timer: LocalEntity) {
+        LocalRepository(context: context).delete(timer)
+        Task { await sync.sync() }
     }
 
     // MARK: Derived data

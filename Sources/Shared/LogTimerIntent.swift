@@ -27,7 +27,7 @@ struct LogTimerIntent: AppIntent {
 
         if let id = UUID(uuidString: timerLocalID),
            let timer = LocalStore.fetch(localID: id, in: context),
-           let activity = TimerActivity(timerName: (timer.payloadObject["name"] as? String) ?? ""),
+           let activity = TimerActivity(timer: timer),
            activity.isInstantLoggable {
             let start = (timer.payloadObject["start"] as? String)
                 ?? APIDate.isoDateTime.string(from: timer.timestamp)

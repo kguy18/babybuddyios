@@ -20,6 +20,30 @@ enum TimerActivity: String, AppEnum, CaseIterable {
         self = match
     }
 
+    /// The activity whose ``convertKind`` is `kind`, or `nil` if `kind` isn't a timer activity.
+    init?(convertKind kind: EntityKind) {
+        guard let match = TimerActivity.allCases.first(where: { $0.convertKind == kind })
+        else { return nil }
+        self = match
+    }
+
+    /// The activity a `.timer` entity represents, for icon/tint and auto-filing on Stop. Prefers
+    /// the explicit kind persisted when the timer was started (`timerActivityRaw`); falls back to
+    /// inferring from the timer's name (timers from the Quick Start widget are named after their
+    /// activity). Returns `nil` for an uncategorized, custom-named timer.
+    init?(timer: LocalEntity) {
+        if let raw = timer.timerActivityRaw, let kind = EntityKind(rawValue: raw),
+           let activity = TimerActivity(convertKind: kind) {
+            self = activity
+            return
+        }
+        if let name = timer.payloadObject["name"] as? String, let activity = TimerActivity(timerName: name) {
+            self = activity
+            return
+        }
+        return nil
+    }
+
     /// The record kind this timer is expected to become when converted (drives the icon).
     var convertKind: EntityKind {
         switch self {

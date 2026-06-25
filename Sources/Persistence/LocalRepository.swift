@@ -12,11 +12,12 @@ struct LocalRepository {
     // MARK: Create
 
     @discardableResult
-    func create(kind: EntityKind, payload: [String: Any]) -> LocalEntity? {
+    func create(kind: EntityKind, payload: [String: Any], timerActivity: EntityKind? = nil) -> LocalEntity? {
         guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return nil }
         let entity = LocalEntity(
             kind: kind, serverID: nil, childID: kind.childID(from: payload),
-            timestamp: kind.timestamp(from: payload), payload: data, syncState: .pendingCreate)
+            timestamp: kind.timestamp(from: payload), payload: data, syncState: .pendingCreate,
+            timerActivityRaw: timerActivity?.rawValue)
         context.insert(entity)
         context.insert(PendingMutation(localID: entity.localID, kind: kind, op: .create, payload: data))
         try? context.save()

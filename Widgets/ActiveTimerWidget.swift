@@ -19,11 +19,13 @@ struct ActiveTimerWidget: Widget {
 }
 
 /// Plain snapshot of a running timer, decoupled from SwiftData so it can live in a TimelineEntry.
+/// `activity` is resolved at capture time (hint-first, name-fallback) so a custom-named timer
+/// still shows the right icon and routes Stop to the right activity.
 struct TimerSnapshot {
     let localID: String
     let name: String
     let start: Date
-    var activity: TimerActivity? { TimerActivity(timerName: name) }
+    let activity: TimerActivity?
 }
 
 struct ActiveTimerEntry: TimelineEntry {
@@ -34,7 +36,7 @@ struct ActiveTimerEntry: TimelineEntry {
 struct ActiveTimerProvider: TimelineProvider {
     func placeholder(in context: Context) -> ActiveTimerEntry {
         ActiveTimerEntry(date: .now, timer: TimerSnapshot(
-            localID: "", name: "Sleep", start: .now.addingTimeInterval(-3725)))
+            localID: "", name: "Sleep", start: .now.addingTimeInterval(-3725), activity: .sleep))
     }
 
     func getSnapshot(in context: Context, completion: @escaping (ActiveTimerEntry) -> Void) {
@@ -62,7 +64,8 @@ struct ActiveTimerProvider: TimelineProvider {
               let timer = timers.first(where: { $0.syncState != .pendingDelete })
         else { return nil }
         let name = (timer.payloadObject["name"] as? String) ?? "Timer"
-        return TimerSnapshot(localID: timer.localID.uuidString, name: name, start: timer.timestamp)
+        return TimerSnapshot(localID: timer.localID.uuidString, name: name, start: timer.timestamp,
+                             activity: TimerActivity(timer: timer))
     }
 }
 
