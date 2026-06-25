@@ -68,9 +68,16 @@ struct DashboardView: View {
             }
             .confirmationDialog("Timer", isPresented: timerActionPresented,
                                 presenting: actionTimer) { timer in
-                ForEach(convertKinds) { kind in
-                    Button("Convert to \(kind.displayName)") {
-                        convertRequest = ConvertRequest(timer: timer, kind: kind)
+                if let activity = TimerActivity(timer: timer) {
+                    // Started for a specific activity — file it straight to that kind, no chooser.
+                    Button("Stop & log \(activity.convertKind.displayName)") {
+                        stopAndLog(timer, activity: activity)
+                    }
+                } else {
+                    ForEach(convertKinds) { kind in
+                        Button("Convert to \(kind.displayName)") {
+                            convertRequest = ConvertRequest(timer: timer, kind: kind)
+                        }
                     }
                 }
                 Button("Discard Timer", role: .destructive) {
@@ -264,6 +271,24 @@ struct DashboardView: View {
         else { return }
         convertRequest = ConvertRequest(timer: timer, kind: target.kind)
         router.convertTarget = nil
+    }
+
+    /// Stop a timer started for a specific activity: sleep/tummy time log in one tap; feeding and
+    /// pumping need extra fields, so they open the pre-filled convert editor (mirrors the widget).
+    private func stopAndLog(_ timer: LocalEntity, activity: TimerActivity) {
+        guard activity.isInstantLoggable else {
+            convertRequest = ConvertRequest(timer: timer, kind: activity.convertKind)
+            return
+        }
+        let p = timer.payloadObject
+        let start = (p["start"] as? String) ?? APIDate.isoDateTime.string(from: timer.timestamp)
+        var payload: [String: Any] = [
+            "start": start,
+            "end": APIDate.isoDateTime.string(from: .now),
+        ]
+        if let child = timer.childID { payload["child"] = child }
+        LocalRepository(context: context).convertTimer(timer, to: activity.convertKind, payload: payload)
+        Task { await sync.sync() }
     }
 
     // MARK: Derived data

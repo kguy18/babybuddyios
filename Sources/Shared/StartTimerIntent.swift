@@ -33,7 +33,8 @@ struct StartTimerIntent: AppIntent {
         }
 
         let context = container.mainContext
-        let timer = LocalRepository(context: context).create(kind: .timer, payload: payload)
+        let timer = LocalRepository(context: context).create(
+            kind: .timer, payload: payload, timerActivity: activity.convertKind)
         if let timer { await TimerPush.pushCreate(localID: timer.localID, in: context) }
         WidgetCenter.shared.reloadAllTimelines()
         return .result()

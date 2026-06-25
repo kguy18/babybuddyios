@@ -30,10 +30,15 @@ final class LocalEntity {
     /// JSON of the server version this local edit was derived from (conflict detection).
     var baseSnapshot: Data?
     var updatedAt: Date
+    /// For `.timer` records started for a specific activity: the convertible ``EntityKind``
+    /// rawValue chosen at start, so Stop can auto-file the timer without asking which kind.
+    /// Local-only and never sent to the server, so it survives sync (server timers are generic);
+    /// `nil` for uncategorized timers and all non-timer records.
+    var timerActivityRaw: String?
 
     init(localID: UUID = UUID(), kind: EntityKind, serverID: Int?, childID: Int?,
          timestamp: Date, payload: Data, syncState: SyncState,
-         baseSnapshot: Data? = nil, updatedAt: Date = .now) {
+         baseSnapshot: Data? = nil, updatedAt: Date = .now, timerActivityRaw: String? = nil) {
         self.localID = localID
         self.kindRaw = kind.rawValue
         self.serverID = serverID
@@ -43,6 +48,7 @@ final class LocalEntity {
         self.syncStateRaw = syncState.rawValue
         self.baseSnapshot = baseSnapshot
         self.updatedAt = updatedAt
+        self.timerActivityRaw = timerActivityRaw
     }
 
     var kind: EntityKind { EntityKind(rawValue: kindRaw) ?? .note }

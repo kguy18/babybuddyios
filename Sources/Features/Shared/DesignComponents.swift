@@ -22,6 +22,51 @@ struct ActivityTile: View {
     }
 }
 
+// MARK: Selectable activity tile
+
+/// A large, selectable activity tile — the Start Timer picker grid. Tinted background, glyph in
+/// the activity color, a dark-on-tint label; selecting it adds a 2pt activity-color ring and a
+/// check badge. Distinct from the editor's activity *pills* (a different selection pattern), so
+/// it's its own component rather than a forced share.
+struct ActivityPickTile: View {
+    @Environment(\.colorScheme) private var scheme
+    let kind: EntityKind
+    let isSelected: Bool
+    var action: () -> Void
+
+    var body: some View {
+        let color = BBColor.activity(kind)
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .top) {
+                    kind.icon(24).foregroundStyle(color)
+                    Spacer(minLength: 0)
+                    ZStack {
+                        Circle().fill(color).frame(width: 20, height: 20)
+                        Image(systemName: "checkmark").font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+                    .opacity(isSelected ? 1 : 0)
+                }
+                Spacer(minLength: 14)
+                Text(kind.displayName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+            }
+            .frame(maxWidth: .infinity, minHeight: 92, alignment: .topLeading)
+            .padding(14)
+            .background(color.opacity(scheme == .dark ? 0.22 : 0.15),
+                        in: RoundedRectangle(cornerRadius: BBRadius.tile, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: BBRadius.tile, style: .continuous)
+                    .strokeBorder(color, lineWidth: isSelected ? 2 : 0)
+            }
+        }
+        .buttonStyle(.plain)
+        .animation(.snappy(duration: 0.15), value: isSelected)
+    }
+}
+
 // MARK: Card container
 
 /// White (elevated, in dark mode) card with generous rounding — the base surface.
