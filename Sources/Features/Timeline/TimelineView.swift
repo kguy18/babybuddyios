@@ -14,6 +14,10 @@ struct TimelineView: View {
     @State private var kindFilter: EntityKind?
     @State private var editing: LocalEntity?
     @State private var didAutoLoadHistory = false
+    @State private var searchText = ""
+    @State private var dateFrom: Date?
+    @State private var dateTo: Date?
+    @State private var showingFilters = false
 
     /// Lowercased tag name → server `#RRGGBB` color, for tinting timeline chips.
     private var tagColors: [String: String] {
@@ -71,19 +75,37 @@ struct TimelineView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ChildSwitcher(children: children, selectedChildID: $selectedChildID)
-                ToolbarItem(placement: .topBarTrailing) { filterMenu }
+                ToolbarItem(placement: .topBarTrailing) { filterButton }
             }
+            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always),
+                        prompt: "Search notes, tags, type…")
             .refreshable { await sync.sync() }
             .onAppear(perform: autoLoadOlderIfRequested)
             .sheet(item: $editing) { entity in
                 EntityEditorView(kind: entity.kind, childID: selectedChildID, entity: entity)
             }
-            .overlay {
-                if visibleEntities.isEmpty {
-                    ContentUnavailableView("No Activity", systemImage: "list.bullet",
-                        description: Text("Logged events will appear here."))
-                }
+            .sheet(isPresented: $showingFilters) {
+                TimelineFiltersView(kindFilter: $kindFilter, dateFrom: $dateFrom, dateTo: $dateTo)
             }
+            .overlay {
+                if visibleEntities.isEmpty { emptyState }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var emptyState: some View {
+        if isFilteringOrSearching {
+            ContentUnavailableView {
+                Label("No Results", systemImage: "magnifyingglass")
+            } description: {
+                Text("No activity matches your search and filters.")
+            } actions: {
+                Button("Clear Search & Filters") { clearAllFilters() }
+            }
+        } else {
+            ContentUnavailableView("No Activity", systemImage: "list.bullet",
+                description: Text("Logged events will appear here."))
         }
     }
 
@@ -150,36 +172,54 @@ struct TimelineView: View {
         .padding(.bottom, 10)
     }
 
-    private var filterMenu: some View {
-        Menu {
-            Button { kindFilter = nil } label: {
-                Label("All", systemImage: kindFilter == nil ? "checkmark" : "line.3.horizontal.decrease")
-            }
-            ForEach(EntityKind.timelineKinds) { kind in
-                Button { kindFilter = kind } label: {
-                    Label {
-                        Text(kind.displayName)
-                    } icon: {
-                        if kindFilter == kind { Image(systemName: "checkmark") } else { kind.icon() }
-                    }
-                }
-            }
-        } label: {
-            Image(systemName: "line.3.horizontal.decrease.circle")
+    private var filterButton: some View {
+        Button { showingFilters = true } label: {
+            Image(systemName: hasActiveFilters
+                  ? "line.3.horizontal.decrease.circle.fill"
+                  : "line.3.horizontal.decrease.circle")
         }
+        .accessibilityLabel("Filters")
     }
 
     // MARK: Derived data
 
     private var children: [LocalEntity] { allEntities.filter { $0.kind == .child } }
 
+    /// The selected child's display name, included in the search haystack so activity can be
+    /// found by child even though the payload only carries the child's id.
+    private var selectedChildName: String? {
+        guard let child = children.first(where: { $0.serverID == selectedChildID }) else { return nil }
+        let p = child.payloadObject
+        let parts = [p["first_name"] as? String, p["last_name"] as? String]
+            .compactMap { $0 }.filter { !$0.isEmpty }
+        return parts.isEmpty ? nil : parts.joined(separator: " ")
+    }
+
+    /// Cheap predicates (child / kind / date — all on stored or denormalized fields) are applied
+    /// before the substring search, so the haystack is only built for the already-narrowed set.
     private var visibleEntities: [LocalEntity] {
-        allEntities.filter {
+        let childName = selectedChildName
+        return allEntities.filter {
             $0.childID == selectedChildID
                 && $0.syncState != .pendingDelete
                 && EntityKind.timelineKinds.contains($0.kind)
                 && (kindFilter == nil || $0.kind == kindFilter)
+                && TimelineFiltering.inDateRange($0.timestamp, from: dateFrom, to: dateTo)
+                && TimelineFiltering.matchesSearch($0, query: searchText, childName: childName)
         }
+    }
+
+    private var hasActiveFilters: Bool { kindFilter != nil || dateFrom != nil || dateTo != nil }
+
+    private var isFilteringOrSearching: Bool {
+        hasActiveFilters || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private func clearAllFilters() {
+        kindFilter = nil
+        dateFrom = nil
+        dateTo = nil
+        searchText = ""
     }
 
     private func startOfDay(_ date: Date) -> Date { Calendar.current.startOfDay(for: date) }
@@ -358,5 +398,68 @@ private struct RailNode: View {
                         .padding(.top, 43)
                 }
             }
+    }
+}
+
+/// Sheet for the timeline's activity-type and date-range filters. Bindings write straight back
+/// to the timeline, so changes apply live behind the sheet; combines with the search field.
+private struct TimelineFiltersView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var kindFilter: EntityKind?
+    @Binding var dateFrom: Date?
+    @Binding var dateTo: Date?
+
+    private var hasActiveFilters: Bool { kindFilter != nil || dateFrom != nil || dateTo != nil }
+
+    /// Default seed when a date bound is first enabled: 30 days back for "from", today for "to".
+    private var defaultFrom: Date {
+        Calendar.current.date(byAdding: .day, value: -30, to: Calendar.current.startOfDay(for: .now)) ?? .now
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Activity Type") {
+                    Picker("Type", selection: $kindFilter) {
+                        Text("All Types").tag(EntityKind?.none)
+                        ForEach(EntityKind.timelineKinds) { kind in
+                            Text(kind.displayName).tag(EntityKind?.some(kind))
+                        }
+                    }
+                }
+                Section("Date Range") {
+                    dateBound(label: "From", date: $dateFrom, default: defaultFrom)
+                    dateBound(label: "To", date: $dateTo, default: Calendar.current.startOfDay(for: .now))
+                }
+                if hasActiveFilters {
+                    Section {
+                        Button("Clear Filters", role: .destructive) {
+                            kindFilter = nil; dateFrom = nil; dateTo = nil
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Filters")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    /// A toggle that enables/clears an optional date bound, plus a date picker shown when on.
+    @ViewBuilder
+    private func dateBound(label: String, date: Binding<Date?>, default seed: Date) -> some View {
+        Toggle(label, isOn: Binding(
+            get: { date.wrappedValue != nil },
+            set: { date.wrappedValue = $0 ? seed : nil }))
+        if date.wrappedValue != nil {
+            DatePicker(label, selection: Binding(
+                get: { date.wrappedValue ?? seed },
+                set: { date.wrappedValue = $0 }),
+                displayedComponents: .date)
+            .labelsHidden()
+        }
     }
 }
