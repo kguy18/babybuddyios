@@ -209,4 +209,6 @@ extension ButtonStyle where Self == BBFilledButton {
     static var bbStop: BBFilledButton { BBFilledButton(background: BBColor.stop, foreground: Color(uiColor: UIColor(hex: "5C4300"))) }
     /// Blue primary / edit-convert button.
     static var bbPrimary: BBFilledButton { BBFilledButton(background: BBColor.primary, foreground: .white) }
+    /// Brand-tinted secondary action (soft blue fill, brand-accent label) — Connect / Try again.
+    static var bbTinted: BBFilledButton { BBFilledButton(background: BBColor.brandTint, foreground: BBColor.brandAccent) }
 }
