@@ -64,6 +64,45 @@ enum DemoData {
         try? context.save()
     }
 
+    /// Reveal the slice of the fixed historic dataset whose dates fall within `[start, end]`,
+    /// mimicking a server fetch for that older window. Drives BB_DEMO verification of "load
+    /// older": each `SyncEngine.loadOlderHistory()` chunk uncovers the entries it spans, all
+    /// dated older than the rolling 60-day window but after Maya's birth (2025-11-02). ids are
+    /// namespaced (1000+) so they never collide with the recent seeds; upsert keeps re-reveals
+    /// idempotent.
+    static func seedOlderBatch(from start: Date, to end: Date, into context: ModelContext) {
+        let now = Date()
+        func day(_ daysAgo: Int) -> Date { now.addingTimeInterval(Double(-daysAgo) * 86_400) }
+        func iso(_ d: Date) -> String { APIDate.isoDateTime.string(from: d) }
+        func mins(_ d: Date, _ m: Int) -> String { iso(d.addingTimeInterval(Double(m) * 60)) }
+
+        let historic: [(id: Int, kind: EntityKind, daysAgo: Int, payload: (Date) -> [String: Any])] = [
+            (1001, .feeding, 70, { ["start": mins($0, -20), "end": iso($0), "type": "formula",
+                                    "method": "bottle", "amount": 100, "tags": []] }),
+            (1002, .change, 72, { ["time": iso($0), "wet": true, "solid": false, "color": "", "tags": []] }),
+            (1003, .sleep, 95, { ["start": mins($0, -180), "end": iso($0), "nap": true, "tags": ["night"]] }),
+            (1004, .feeding, 100, { ["start": mins($0, -15), "end": iso($0), "type": "breast milk",
+                                     "method": "left breast", "amount": NSNull(), "tags": ["hungry"]] }),
+            (1005, .note, 115, { ["time": iso($0), "note": "First real smile!", "tags": ["milestone"]] }),
+            (1006, .change, 130, { ["time": iso($0), "wet": true, "solid": true, "color": "yellow", "tags": []] }),
+            (1007, .sleep, 140, { ["start": mins($0, -240), "end": iso($0), "nap": false, "tags": ["night"]] }),
+            (1008, .tummyTime, 175, { ["start": mins($0, -10), "end": iso($0), "tags": []] }),
+            (1009, .feeding, 200, { ["start": mins($0, -18), "end": iso($0), "type": "formula",
+                                     "method": "bottle", "amount": 60, "tags": []] }),
+            (1010, .change, 210, { ["time": iso($0), "wet": true, "solid": false, "color": "", "tags": []] }),
+        ]
+
+        for item in historic {
+            let when = day(item.daysAgo)
+            guard when >= start, when <= end else { continue }
+            var p = item.payload(when)
+            p["id"] = item.id
+            p["child"] = 1
+            insert(item.kind, id: item.id, p, context)
+        }
+        try? context.save()
+    }
+
     /// Seed a single update-vs-update conflict on the most recent feeding. Diverges in four
     /// fields (end time, amount, tags, notes) while start/type/method match, so the merge
     /// screen exercises scalar choices, a tag diff, and the silently-kept summary row.

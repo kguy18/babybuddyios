@@ -10,8 +10,12 @@ struct ServerConfig: Equatable {
 /// Query parameters for list requests.
 struct ListQuery {
     var child: Int?
-    var dateMin: Date?
-    var dateMax: Date?
+    /// Base name for the inclusive range filter (`<timeParam>_min`/`<timeParam>_max`). Baby
+    /// Buddy names these per model: start/end events use `start`, time-stamped records use
+    /// `date` (see ``EntityKind/rangeFilterParam``). Both bounds are `IsoDateTimeFilter`s.
+    var timeParam: String = "date"
+    var timeMin: Date?
+    var timeMax: Date?
     var ordering: String?
     var limit: Int?
     var offset: Int?
@@ -19,8 +23,12 @@ struct ListQuery {
     func items() -> [URLQueryItem] {
         var items: [URLQueryItem] = []
         if let child { items.append(.init(name: "child", value: String(child))) }
-        if let dateMin { items.append(.init(name: "date_min", value: APIDate.isoDateTime.string(from: dateMin))) }
-        if let dateMax { items.append(.init(name: "date_max", value: APIDate.isoDateTime.string(from: dateMax))) }
+        if let timeMin {
+            items.append(.init(name: "\(timeParam)_min", value: APIDate.isoDateTime.string(from: timeMin)))
+        }
+        if let timeMax {
+            items.append(.init(name: "\(timeParam)_max", value: APIDate.isoDateTime.string(from: timeMax)))
+        }
         if let ordering { items.append(.init(name: "ordering", value: ordering)) }
         if let limit { items.append(.init(name: "limit", value: String(limit))) }
         if let offset { items.append(.init(name: "offset", value: String(offset))) }

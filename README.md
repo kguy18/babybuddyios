@@ -17,7 +17,9 @@ baby-tracking server. Offline-first, with conflict-aware sync and optional Face 
   activity. Lock Screen and StandBy accessories show the running timer at a glance. Widget
   actions push to the server immediately (falling back to the sync queue when offline).
 - **Merged timeline** — day-grouped activity feed across all event types, with tap-to-edit,
-  swipe-to-delete, and inline colored tag chips on each row.
+  swipe-to-delete, and inline colored tag chips on each row. Sync keeps a rolling 60-day
+  window; **Load older activity** at the foot of the timeline pages further back on demand
+  (down to the child's birth) without dropping anything already cached.
 - **Offline-first** — the local SwiftData store is the source of truth; every change is applied
   instantly and queued for delivery. An offline banner shows when the server is unreachable.
 - **Conflict-aware sync** — because Baby Buddy exposes no server-side change marker, edits are
@@ -76,4 +78,5 @@ Pass via `SIMCTL_CHILD_<NAME>` env vars to `xcrun simctl launch`:
 | `BB_SEED_CONFLICT=1` | Also seed a sample sync conflict |
 | `BB_START_TAB=timeline\|settings` | Open on a specific tab |
 | `BB_OPEN=feeding\|change\|…` | Auto-present a new-entry editor |
+| `BB_LOAD_OLDER=<n>` | Auto-page the timeline back `n` history chunks on launch (with `BB_DEMO`) |
 | `BB_LOCK=1` | Force the Face ID lock on |

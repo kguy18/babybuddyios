@@ -18,8 +18,26 @@ final class SyncEngine {
     private let syncActor: SyncActor
     let reachability = Reachability()
 
+    /// Default rolling-window depth, in days; also the initial history horizon.
+    static let defaultPullWindowDays = 60
+
     /// How far back to pull high-volume event records, in days.
-    var pullWindowDays = 60
+    var pullWindowDays = SyncEngine.defaultPullWindowDays
+
+    /// How far back each "Load older" step reaches, in days.
+    var historyChunkDays = 60
+
+    /// Oldest date history has been pulled through. Starts at the rolling window's start and
+    /// walks backward as the user loads older activity. In-memory (reset per launch): records
+    /// already loaded persist in the cache and keep displaying, so a reset only means a repeat
+    /// "load older" re-fetches an already-cached chunk — an idempotent upsert.
+    private(set) var historyHorizon: Date
+
+    /// True while a "load older" fetch is in flight (drives the timeline footer spinner).
+    private(set) var isLoadingHistory = false
+
+    /// Last "load older" failure, for inline display in the timeline footer. Cleared on retry.
+    private(set) var historyError: String?
 
     var isOnline: Bool { reachability.isOnline }
 
@@ -30,6 +48,8 @@ final class SyncEngine {
         self.session = session
         self.context = context
         self.syncActor = SyncActor(modelContainer: context.container)
+        self.historyHorizon = Calendar.current.date(
+            byAdding: .day, value: -SyncEngine.defaultPullWindowDays, to: .now) ?? .now
         reachability.onReconnect = { [weak self] in
             Task { await self?.sync() }
         }
@@ -273,4 +293,67 @@ final class SyncEngine {
         lastSyncDate = .now
         status = .idle
     }
+
+    // MARK: History paging
+
+    /// Whether older activity remains to be loaded (the horizon hasn't reached the birth floor).
+    var hasMoreHistory: Bool { Self.hasMoreHistory(horizon: historyHorizon, floor: historyFloor) }
+
+    /// The earliest date history can contain: the start-of-day of the earliest-born cached
+    /// child (no activity predates birth). Falls back to a 5-year lookback when no child or
+    /// `birth_date` is cached, so paging always terminates.
+    private var historyFloor: Date {
+        let descriptor = FetchDescriptor<LocalEntity>(predicate: #Predicate { $0.kindRaw == "child" })
+        let births = ((try? context.fetch(descriptor)) ?? []).compactMap { child -> Date? in
+            (child.payloadObject["birth_date"] as? String).flatMap(APIDate.parse)
+        }
+        guard let earliest = births.min() else {
+            return Calendar.current.date(byAdding: .year, value: -5, to: .now) ?? .distantPast
+        }
+        return Calendar.current.startOfDay(for: earliest)
+    }
+
+    /// Fetch the next older chunk of history into the cache, extending the timeline backward.
+    /// Reentrancy-guarded and a no-op once the horizon reaches the birth floor. The fetch only
+    /// upserts (never reconciles deletions), so nothing already cached is dropped.
+    func loadOlderHistory() async {
+        guard !isLoadingHistory, hasMoreHistory,
+              let chunk = Self.nextHistoryChunk(
+                horizon: historyHorizon, chunkDays: historyChunkDays, floor: historyFloor)
+        else { return }
+        isLoadingHistory = true
+        historyError = nil
+        defer { isLoadingHistory = false }
+
+        #if DEBUG
+        if session.isDemo {
+            DemoData.seedOlderBatch(from: chunk.start, to: chunk.end, into: context)
+            historyHorizon = chunk.start
+            return
+        }
+        #endif
+
+        guard let config = session.config else { return }
+        let error = await syncActor.pullOlderWindow(
+            config: config, dateMin: chunk.start, dateMax: chunk.end)
+        if let error {
+            if error == SyncActor.unauthorized { session.signOut(); return }
+            historyError = error
+            return
+        }
+        // Advance only on success, so a failed load retries the same chunk.
+        historyHorizon = chunk.start
+    }
+
+    /// The historic window the next "load older" step fetches: `[start, end]` where `end` is the
+    /// current horizon and `start` steps back `chunkDays`, clamped at `floor`. `nil` once the
+    /// horizon has reached the floor. Pure, for unit-testing the paging math.
+    nonisolated static func nextHistoryChunk(horizon: Date, chunkDays: Int, floor: Date) -> (start: Date, end: Date)? {
+        guard horizon > floor else { return nil }
+        let stepped = Calendar.current.date(byAdding: .day, value: -chunkDays, to: horizon) ?? floor
+        return (max(stepped, floor), horizon)
+    }
+
+    /// Whether the horizon can still walk back toward older history.
+    nonisolated static func hasMoreHistory(horizon: Date, floor: Date) -> Bool { horizon > floor }
 }
