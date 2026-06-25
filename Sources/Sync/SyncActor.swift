@@ -63,9 +63,15 @@ actor SyncActor {
 
     private func pull(kind: EntityKind, client: APIClient, windowDays: Int) async throws {
         var query = ListQuery(ordering: "-\(kind.timeField)")
-        // Children and timers are low-volume; pull everything. Window the rest.
-        let windowStart = Calendar.current.date(byAdding: .day, value: -windowDays, to: .now)
-        if kind != .child && kind != .timer { query.dateMin = windowStart }
+        // Only high-volume event kinds are windowed; children, timers, and growth
+        // measurements are pulled in full (measurements expose no range filter on the API).
+        let windowStart = kind.isWindowed
+            ? Calendar.current.date(byAdding: .day, value: -windowDays, to: .now)
+            : nil
+        if let windowStart {
+            query.timeParam = kind.rangeFilterParam
+            query.timeMin = windowStart
+        }
 
         let records = try await client.listAllRaw(path: kind.path, query: query)
         var serverIDs = Set<Int>()
@@ -75,8 +81,38 @@ actor SyncActor {
                 serverIDs.insert(id)
             }
         }
-        reconcileDeletions(kind: kind, serverIDs: serverIDs,
-                           windowStart: (kind == .child || kind == .timer) ? nil : windowStart)
+        reconcileDeletions(kind: kind, serverIDs: serverIDs, windowStart: windowStart)
+    }
+
+    /// Pull a historic date window `[dateMin, dateMax]` across every windowed kind, merging
+    /// the results into the cache for on-demand "load older" history. Unlike
+    /// ``pull(kind:client:windowDays:)`` this **only ever upserts and never reconciles
+    /// deletions**, so records already cached — by this call, an earlier history page, or the
+    /// rolling window — are never dropped. Returns `nil` on success, or an error message.
+    func pullOlderWindow(config: ServerConfig, dateMin: Date, dateMax: Date) async -> String? {
+        let client = APIClient(config: config)
+        for kind in EntityKind.allCases where kind.isWindowed {
+            do {
+                var query = ListQuery(ordering: "-\(kind.timeField)")
+                query.timeParam = kind.rangeFilterParam
+                query.timeMin = dateMin
+                query.timeMax = dateMax
+                let records = try await client.listAllRaw(path: kind.path, query: query)
+                for record in records {
+                    LocalStore.upsertFromServer(record, kind: kind, in: modelContext)
+                }
+                try modelContext.save()       // commit per kind so the UI fills in progressively
+            } catch APIError.notFound {
+                continue                       // endpoint absent on this server version
+            } catch APIError.unauthorized {
+                return Self.unauthorized
+            } catch let error as APIError {
+                return error.userMessage
+            } catch {
+                return error.localizedDescription
+            }
+        }
+        return nil
     }
 
     /// Remove synced local records the server no longer returns within the pulled window
@@ -86,11 +122,22 @@ actor SyncActor {
         let descriptor = FetchDescriptor<LocalEntity>(
             predicate: #Predicate { $0.kindRaw == kindRaw && $0.serverID != nil })
         guard let locals = try? modelContext.fetch(descriptor) else { return }
-        for local in locals where local.syncState == .synced {
-            if let windowStart, local.timestamp < windowStart { continue } // outside pulled window
-            if let id = local.serverID, !serverIDs.contains(id) {
-                modelContext.delete(local)
-            }
+        for local in locals where Self.shouldPurge(
+            syncState: local.syncState, timestamp: local.timestamp, serverID: local.serverID,
+            serverIDs: serverIDs, windowStart: windowStart) {
+            modelContext.delete(local)
         }
+    }
+
+    /// Whether a cached record should be purged as a server-side deletion. Only *synced*
+    /// records the windowed pull no longer returned are candidates, and only those at or
+    /// after `windowStart`: records older than the rolling window — fetched by "load older"
+    /// history paging — are preserved so a narrower pull never drops them. Pending/conflicted
+    /// local edits are never purged. Pure, so the window invariant is unit-testable.
+    static func shouldPurge(syncState: SyncState, timestamp: Date, serverID: Int?,
+                            serverIDs: Set<Int>, windowStart: Date?) -> Bool {
+        guard syncState == .synced, let serverID else { return false }
+        if let windowStart, timestamp < windowStart { return false } // outside pulled window — keep
+        return !serverIDs.contains(serverID)
     }
 }

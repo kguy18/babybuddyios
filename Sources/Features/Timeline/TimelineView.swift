@@ -13,6 +13,7 @@ struct TimelineView: View {
     @Query private var cachedTags: [CachedTag]
     @State private var kindFilter: EntityKind?
     @State private var editing: LocalEntity?
+    @State private var didAutoLoadHistory = false
 
     /// Lowercased tag name → server `#RRGGBB` color, for tinting timeline chips.
     private var tagColors: [String: String] {
@@ -56,6 +57,12 @@ struct TimelineView: View {
                             }
                     }
                 }
+                if showHistoryFooter {
+                    historyFooter
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                }
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
@@ -67,6 +74,7 @@ struct TimelineView: View {
                 ToolbarItem(placement: .topBarTrailing) { filterMenu }
             }
             .refreshable { await sync.sync() }
+            .onAppear(perform: autoLoadOlderIfRequested)
             .sheet(item: $editing) { entity in
                 EntityEditorView(kind: entity.kind, childID: selectedChildID, entity: entity)
             }
@@ -77,6 +85,52 @@ struct TimelineView: View {
                 }
             }
         }
+    }
+
+    // MARK: History footer
+
+    /// Show the "load older" affordance only when there's activity to anchor it and there's
+    /// either more history to fetch or a fetch in progress.
+    private var showHistoryFooter: Bool {
+        !visibleEntities.isEmpty && (sync.hasMoreHistory || sync.isLoadingHistory)
+    }
+
+    /// DEBUG-only: `BB_LOAD_OLDER=<n>` auto-pages history `n` times on first appearance, so the
+    /// load-older merge can be verified deterministically in the simulator via screenshots
+    /// (alongside `BB_DEMO`). Runs once per view lifetime.
+    private func autoLoadOlderIfRequested() {
+        #if DEBUG
+        guard !didAutoLoadHistory,
+              let n = ProcessInfo.processInfo.environment["BB_LOAD_OLDER"].flatMap(Int.init), n > 0
+        else { return }
+        didAutoLoadHistory = true
+        Task { for _ in 0..<n { await sync.loadOlderHistory() } }
+        #endif
+    }
+
+    @ViewBuilder
+    private var historyFooter: some View {
+        VStack(spacing: 8) {
+            if sync.isLoadingHistory {
+                ProgressView()
+                Text("Loading older activity…")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                Button { Task { await sync.loadOlderHistory() } } label: {
+                    Label("Load older activity", systemImage: "clock.arrow.circlepath")
+                        .font(.subheadline.weight(.medium))
+                }
+                .buttonStyle(.bordered)
+                .tint(BBColor.primary)
+                if let error = sync.historyError {
+                    Text(error)
+                        .font(.caption).foregroundStyle(BBColor.danger)
+                        .multilineTextAlignment(.center)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
     }
 
     // MARK: Day header

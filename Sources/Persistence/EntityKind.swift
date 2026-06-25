@@ -42,7 +42,7 @@ enum EntityKind: String, Codable, CaseIterable, Identifiable {
     }
 
     /// The payload key holding the record's primary timestamp, used for timeline sorting
-    /// and `date_min`/`date_max` pull windows.
+    /// and as the `ordering` field on list requests.
     var timeField: String {
         switch self {
         case .feeding, .sleep, .tummyTime, .pumping, .timer: return "start"
@@ -50,6 +50,30 @@ enum EntityKind: String, Codable, CaseIterable, Identifiable {
         case .weight, .height, .headCircumference, .bmi: return "date"
         case .child: return "birth_date"
         }
+    }
+
+    /// Whether bulk pulls window this kind to a rolling date range (and so support on-demand
+    /// "load older" paging). Children and timers are low-volume metadata; the growth
+    /// measurements are infrequent *and* the API exposes no range filter for them
+    /// (`filterset_fields = ("child", "date")` — exact match only), so all four are always
+    /// pulled in full. The remaining high-volume event kinds are windowed.
+    var isWindowed: Bool {
+        switch self {
+        case .feeding, .change, .sleep, .tummyTime, .pumping, .note, .temperature, .medication:
+            return true
+        case .child, .timer, .weight, .height, .headCircumference, .bmi:
+            return false
+        }
+    }
+
+    /// The query-parameter base name for range-filtering this kind on the Baby Buddy API:
+    /// the filter is `<base>_min`/`<base>_max` (both `IsoDateTimeFilter`, gte/lte). Start/end
+    /// events filter on `start`; time-stamped records (changes/notes/temperature/medications)
+    /// expose `date_min`/`date_max` mapped onto their `time` field — i.e. the filter base is
+    /// *not* always `timeField`. Only meaningful when ``isWindowed``. Verified against
+    /// upstream `api/filters.py` (`StartEndFieldFilter` / `TimeFieldFilter`).
+    var rangeFilterParam: String {
+        timeField == "start" ? "start" : "date"
     }
 
     var displayName: String {
