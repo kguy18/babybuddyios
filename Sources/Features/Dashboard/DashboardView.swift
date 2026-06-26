@@ -390,6 +390,8 @@ private struct QuickAddMenu: View {
     /// The everyday record types surfaced directly in the stack; the rest live behind "More…".
     private let quickKinds: [EntityKind] = [.feeding, .change, .sleep, .tummyTime]
     private let spring = Animation.spring(response: 0.32, dampingFraction: 0.82)
+    private let tileSize: CGFloat = 46
+    private var tileShape: RoundedRectangle { RoundedRectangle(cornerRadius: 46 * 0.29, style: .continuous) }
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -439,7 +441,7 @@ private struct QuickAddMenu: View {
         } label: {
             HStack(spacing: 10) {
                 pill(label)
-                ActivityTile(kind: kind, size: 46, glyph: 23)
+                tile(fill: BBColor.activity(kind)) { kind.icon(23) }
             }
         }
         .buttonStyle(.plain)
@@ -453,18 +455,24 @@ private struct QuickAddMenu: View {
         } label: {
             HStack(spacing: 10) {
                 pill("More…")
-                RoundedRectangle(cornerRadius: 46 * 0.29, style: .continuous)
-                    .fill(BBColor.note.opacity(0.15))
-                    .frame(width: 46, height: 46)
-                    .overlay {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(BBColor.note)
-                    }
+                tile(fill: BBColor.note) {
+                    Image(systemName: "ellipsis").font(.system(size: 18, weight: .semibold))
+                }
             }
         }
         .buttonStyle(.plain)
         .transition(.move(edge: .trailing).combined(with: .opacity))
+    }
+
+    /// A solid, filled glyph tile for the stack: the activity color as an opaque fill with a white
+    /// glyph. High contrast for every kind and clearly legible over the dim — the shared
+    /// translucent ``ActivityTile`` muddied against the dark backdrop.
+    private func tile<Glyph: View>(fill: Color, @ViewBuilder glyph: () -> Glyph) -> some View {
+        glyph()
+            .foregroundStyle(.white)
+            .frame(width: tileSize, height: tileSize)
+            .background(fill, in: tileShape)
+            .shadow(color: .black.opacity(0.18), radius: 5, y: 2)
     }
 
     private func pill(_ text: String) -> some View {
