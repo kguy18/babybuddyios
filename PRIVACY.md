@@ -34,6 +34,8 @@ designed to be **anonymous and non-attributed**:
   - **Onboarding** — that sign-in completed, and whether it used the QR code or manual entry.
   - **Timers** — that a timer was started or stopped, the activity type (e.g. feeding, sleep), and
     whether it came from the app or a widget.
+  - **Logged activities** — that an activity record was logged, and its kind (e.g. diaper change,
+    feeding, sleep, note, measurement). Never the contents of the record.
   - **Widgets** — that a widget/Siri action was performed, and which one.
   - **Search** — that a timeline search started, completed, or returned no results.
   - **App lock** — that an unlock was attempted, the result, and the device biometry type

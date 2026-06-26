@@ -13,36 +13,46 @@ actor SyncActor {
     /// Sentinel returned when the server rejects the token, so the caller can sign out.
     static let unauthorized = "##unauthorized##"
 
-    /// Pull every kind into the store. Returns `nil` on success, or an error message.
-    func pullAll(config: ServerConfig, windowDays: Int) async -> String? {
+    /// Outcome of a bulk pull: an error message (or `nil` on success), and whether any cached
+    /// record was actually inserted, updated, or deleted (so the caller can tell a meaningful
+    /// sync from a no-op one).
+    struct PullOutcome {
+        let error: String?
+        let changed: Bool
+    }
+
+    /// Pull every kind into the store.
+    func pullAll(config: ServerConfig, windowDays: Int) async -> PullOutcome {
         let client = APIClient(config: config)
+        var changed = false
         do {
             try await pullTags(client: client)
             try modelContext.save()
         } catch APIError.notFound {
             // Tags endpoint absent on this server version — skip.
         } catch APIError.unauthorized {
-            return Self.unauthorized
+            return PullOutcome(error: Self.unauthorized, changed: changed)
         } catch let error as APIError {
-            return error.userMessage
+            return PullOutcome(error: error.userMessage, changed: changed)
         } catch {
-            return error.localizedDescription
+            return PullOutcome(error: error.localizedDescription, changed: changed)
         }
         for kind in EntityKind.allCases {
             do {
                 try await pull(kind: kind, client: client, windowDays: windowDays)
+                if modelContext.hasChanges { changed = true } // real insert/update/delete this kind
                 try modelContext.save()      // commit per kind so the UI fills in progressively
             } catch APIError.notFound {
                 continue                      // endpoint absent on this server version (e.g. medications)
             } catch APIError.unauthorized {
-                return Self.unauthorized
+                return PullOutcome(error: Self.unauthorized, changed: changed)
             } catch let error as APIError {
-                return error.userMessage
+                return PullOutcome(error: error.userMessage, changed: changed)
             } catch {
-                return error.localizedDescription
+                return PullOutcome(error: error.localizedDescription, changed: changed)
             }
         }
-        return nil
+        return PullOutcome(error: nil, changed: changed)
     }
 
     /// Pull the server's global tag list into the cache for the picker's autocomplete.

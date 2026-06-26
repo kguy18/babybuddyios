@@ -87,6 +87,13 @@ extension Analytics {
         signal("Timer.stopped", parameters: ["activity": activity, "source": source.rawValue])
     }
 
+    /// A completed activity record was logged (created), of any kind — e.g. a diaper change,
+    /// feeding, note, or measurement. Fires for manual entries, "repeat", and timer
+    /// conversions alike (a converted timer also emits `Timer.stopped`).
+    static func activityLogged(kind: String) {
+        signal("Activity.logged", parameters: ["kind": kind])
+    }
+
     /// A widget/App Intent was performed (e.g. from a Home Screen widget button or Siri).
     static func widgetIntent(_ intent: String) {
         signal("Widget.intentInvoked", parameters: ["intent": intent])

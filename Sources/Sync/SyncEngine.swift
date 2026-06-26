@@ -62,19 +62,26 @@ final class SyncEngine {
         guard !isSyncing else { return }
         isSyncing = true
         defer { isSyncing = false }
-        await pushPending()
-        await pullAll()
+        let pushed = await pushPending()
+        let pulledChanges = await pullAll()
+        // Only report a sync that actually did work — most syncs (foreground, pull-to-refresh,
+        // after each timer action, background) are no-ops, which would otherwise be pure noise.
+        if pushed || pulledChanges { Analytics.syncCompleted() }
     }
 
     /// Drain the pending-mutation queue oldest-first. Conflict detection is layered on in
     /// Phase 5; for now updates/deletes are delivered directly.
-    func pushPending() async {
+    /// Returns whether at least one mutation was actually delivered to the server (so callers can
+    /// tell a meaningful sync from a no-op one). Conflicts don't count as delivered.
+    @discardableResult
+    func pushPending() async -> Bool {
         #if DEBUG
-        if session.isDemo { return }
+        if session.isDemo { return false }
         #endif
-        guard let client = session.client else { return }
+        guard let client = session.client else { return false }
         let queue = (try? context.fetch(
             FetchDescriptor<PendingMutation>(sortBy: [SortDescriptor(\.createdAt)]))) ?? []
+        var delivered = false
         for mutation in queue {
             // Skip a create the widget/intents extension is currently delivering, so we don't
             // double-POST it. A stale claim (extension killed mid-push) ages out and is retried.
@@ -83,10 +90,10 @@ final class SyncEngine {
                 continue
             }
             do {
-                try await deliver(mutation, client: client)
+                if try await deliver(mutation, client: client) { delivered = true }
             } catch let error as APIError {
                 Analytics.report(error)
-                if case .unauthorized = error { session.signOut(); return }
+                if case .unauthorized = error { session.signOut(); return delivered }
                 if error.isRetryable { break } // offline/5xx: stop, retry whole queue later
                 mutation.attemptCount += 1
                 mutation.lastError = error.userMessage
@@ -96,9 +103,13 @@ final class SyncEngine {
             }
         }
         try? context.save()
+        return delivered
     }
 
-    private func deliver(_ mutation: PendingMutation, client: APIClient) async throws {
+    /// Delivers one mutation. Returns `true` when it performed an actual server write (POST/
+    /// PATCH/DELETE), `false` when it raised a conflict or only cleaned up locally.
+    @discardableResult
+    private func deliver(_ mutation: PendingMutation, client: APIClient) async throws -> Bool {
         let entity = LocalStore.fetch(localID: mutation.localID, in: context)
         switch mutation.op {
         case .create:
@@ -106,45 +117,50 @@ final class SyncEngine {
             let response = try await client.createRaw(path: mutation.kind.path, body: mutation.payload)
             applyServerResponse(response, to: entity)
             context.delete(mutation)
+            return true
 
         case .update:
-            guard let serverID = mutation.serverID else { context.delete(mutation); return }
+            guard let serverID = mutation.serverID else { context.delete(mutation); return false }
             // Conflict check: has the server record changed since we based our edit on it?
             let current: Data
             do {
                 current = try await client.getRaw(path: mutation.kind.path, id: serverID)
             } catch APIError.notFound {
                 raiseConflict(mutation, entity: entity, serverPayload: Data("{}".utf8), serverDeleted: true)
-                return
+                return false
             }
             if Self.unchangedSinceBase(current, mutation.baseSnapshot) {
                 let response = try await client.patchRaw(
                     path: mutation.kind.path, id: serverID, body: mutation.payload)
                 applyServerResponse(response, to: entity)
                 context.delete(mutation)
+                return true
             } else {
                 raiseConflict(mutation, entity: entity, serverPayload: current, serverDeleted: false)
+                return false
             }
 
         case .delete:
             guard let serverID = mutation.serverID else {
                 if let entity { context.delete(entity) }
-                context.delete(mutation); return
+                context.delete(mutation); return false
             }
             let current: Data
             do {
                 current = try await client.getRaw(path: mutation.kind.path, id: serverID)
             } catch APIError.notFound {
                 if let entity { context.delete(entity) } // already gone — our delete is satisfied
-                context.delete(mutation); return
+                context.delete(mutation); return false
             }
             if Self.unchangedSinceBase(current, mutation.baseSnapshot) {
                 try await client.deleteRaw(path: mutation.kind.path, id: serverID)
                 if let entity { context.delete(entity) }
                 context.delete(mutation)
+                return true
             } else {
                 // Server changed under a local delete — let the user decide.
                 raiseConflict(mutation, entity: entity, serverPayload: current, serverDeleted: false)
+                return false
             }
         }
     }
@@ -277,29 +293,31 @@ final class SyncEngine {
 
     /// Pull fresh server state into the cache. The heavy parsing/inserting runs on a
     /// background context (``SyncActor``); the UI's `@Query`s pick up the merged changes.
-    func pullAll() async {
+    /// Returns whether the pull changed any cached data, so `sync()` can report only meaningful syncs.
+    @discardableResult
+    func pullAll() async -> Bool {
         #if DEBUG
         if session.isDemo {
             DemoData.seedIfNeeded(into: context)
             lastSyncDate = .now
             status = .idle
-            return
+            return false
         }
         #endif
-        guard let config = session.config else { return }
+        guard let config = session.config else { return false }
         status = .syncing
-        let error = await syncActor.pullAll(config: config, windowDays: pullWindowDays)
-        if let error {
-            if error == SyncActor.unauthorized { session.signOut(); return }
+        let outcome = await syncActor.pullAll(config: config, windowDays: pullWindowDays)
+        if let error = outcome.error {
+            if error == SyncActor.unauthorized { session.signOut(); return false }
             // Pull failures surface only as a user-facing string; report them as a coarse
             // network error (the common cause) without the message text.
             Analytics.error(network: "pull")
             status = .failed(error)
-            return
+            return false
         }
         lastSyncDate = .now
         status = .idle
-        Analytics.syncCompleted()
+        return outcome.changed
     }
 
     // MARK: History paging
