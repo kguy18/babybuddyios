@@ -9,6 +9,9 @@ packages:
   TelemetryDeck:
     url: https://github.com/TelemetryDeck/SwiftSDK
     from: 2.14.1
+  RevenueCat:
+    url: https://github.com/RevenueCat/purchases-ios-spm.git
+    majorVersion: 5.0.0
 
 settings:
   base:
@@ -32,6 +35,8 @@ targets:
     dependencies:
       - target: BabyBuddyWidgets
       - package: TelemetryDeck
+      - package: RevenueCat
+        product: RevenueCat
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kurtisguy.BabyBuddy
@@ -46,6 +51,7 @@ targets:
       path: Sources/Info.plist
       properties:
         TelemetryDeckAppID: "$(TELEMETRYDECK_APP_ID)"
+        RevenueCatAPIKey: "$(REVENUECAT_API_KEY)"
         BGTaskSchedulerPermittedIdentifiers:
           - com.kurtisguy.BabyBuddy.sync
         CFBundleURLTypes:

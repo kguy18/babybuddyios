@@ -11,5 +11,11 @@
 // is gitignored and overrides the empty default below.
 TELEMETRYDECK_APP_ID =
 
+// RevenueCat public Apple SDK key (begins with `appl_`), injected into the
+// `RevenueCatAPIKey` Info.plist key. Ships EMPTY in the public repo: in-app
+// purchases only initialize when this is non-empty (see
+// Sources/Purchases/Subscriptions.swift). Set it in `Secrets.xcconfig`.
+REVENUECAT_API_KEY =
+
 // Optional, gitignored override (App Store / private builds). Missing = no-op.
 #include? "Secrets.xcconfig"

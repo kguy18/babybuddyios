@@ -55,6 +55,15 @@ designed to be **anonymous and non-attributed**:
 an analytics App ID, so any build you compile yourself (or a third party compiles) initializes no
 analytics SDK and sends nothing to TelemetryDeck.
 
+## In-app purchases
+
+The App Store version uses [RevenueCat](https://www.revenuecat.com) to manage subscriptions. It only
+communicates with the purchase backend when you interact with purchases, and it never receives your
+baby/tracking data, your server URL, or your credentials. As with analytics, **open-source / self-built
+versions ship without a RevenueCat API key**, so they initialize no purchase SDK and send nothing.
+See RevenueCat's [privacy policy](https://www.revenuecat.com/privacy/) for how it processes purchase
+data.
+
 ## Biometric authentication
 
 If you enable the Face ID / passcode lock, authentication is performed by iOS via
