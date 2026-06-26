@@ -20,6 +20,7 @@ struct SettingsView: View {
 
     @State private var debugConflict: ConflictRecord?
     @State private var debugIcons = false
+    @State private var showingPending = false
 
     var body: some View {
         NavigationStack {
@@ -52,6 +53,7 @@ struct SettingsView: View {
             }
             .background(BBColor.surface)
             .navigationTitle("Settings")
+            .sheet(isPresented: $showingPending) { PendingChangesView() }
             .sheet(item: $debugConflict) { c in
                 NavigationStack { ConflictResolutionView(conflict: c) }
             }
@@ -149,21 +151,33 @@ struct SettingsView: View {
 
             rowDivider
 
-            SettingsRow(symbol: pendingMutations.isEmpty ? "checkmark.icloud" : "icloud.and.arrow.up",
-                        tint: pendingMutations.isEmpty ? BBColor.success : BBColor.warning,
-                        title: "Pending changes") {
-                if pendingMutations.isEmpty {
-                    Text("All synced")
-                        .font(.subheadline.weight(.medium)).foregroundStyle(BBColor.success)
-                } else {
-                    Text("\(pendingMutations.count) queued")
-                        .font(.subheadline.weight(.medium)).foregroundStyle(BBColor.warning)
-                }
-            }
+            pendingRow
 
             rowDivider
 
             conflictRow
+        }
+    }
+
+    /// Pending writes open the queue when any exist; otherwise the row reads "All synced".
+    @ViewBuilder private var pendingRow: some View {
+        if pendingMutations.isEmpty {
+            SettingsRow(symbol: "checkmark.icloud", tint: BBColor.success, title: "Pending changes") {
+                Text("All synced")
+                    .font(.subheadline.weight(.medium)).foregroundStyle(BBColor.success)
+            }
+        } else {
+            Button { showingPending = true } label: {
+                SettingsRow(symbol: "icloud.and.arrow.up", tint: BBColor.warning, title: "Pending changes") {
+                    HStack(spacing: 4) {
+                        Text("\(pendingMutations.count) queued")
+                            .font(.subheadline.weight(.medium)).foregroundStyle(BBColor.warning)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .semibold)).foregroundStyle(.tertiary)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
         }
     }
 

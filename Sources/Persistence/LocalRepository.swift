@@ -101,6 +101,35 @@ struct LocalRepository {
         return activity
     }
 
+    // MARK: Discard a queued change
+
+    /// Cancel a queued write, reverting the cached record to the server's last-known state.
+    /// This edits the *sync queue*, never the underlying record:
+    /// - **create**: the record never reached the server, so drop it and its queued write.
+    /// - **update**: restore the record to its base snapshot (the synced server version).
+    /// - **delete**: un-hide the record (it still exists on the server) and mark it synced.
+    func discardPending(_ mutation: PendingMutation) {
+        let entity = LocalStore.fetch(localID: mutation.localID, in: context)
+        switch mutation.op {
+        case .create:
+            if let entity { context.delete(entity) }
+        case .update:
+            if let entity {
+                if let base = entity.baseSnapshot {
+                    entity.payload = base
+                    entity.timestamp = entity.kind.timestamp(from: entity.payloadObject)
+                    entity.childID = entity.kind.childID(from: entity.payloadObject)
+                }
+                entity.syncState = .synced
+                entity.updatedAt = .now
+            }
+        case .delete:
+            entity?.syncState = .synced
+        }
+        context.delete(mutation)
+        try? context.save()
+    }
+
     // MARK: Helpers
 
     private func pendingMutation(for localID: UUID) -> PendingMutation? {

@@ -25,6 +25,8 @@ baby-tracking server. Offline-first, with conflict-aware sync and optional Face 
   pages further back on demand (down to the child's birth) without dropping anything cached.
 - **Offline-first** — the local SwiftData store is the source of truth; every change is applied
   instantly and queued for delivery. An offline banner shows when the server is unreachable.
+  Settings' **Pending changes** row opens the queue: each waiting write is listed (added / edited /
+  deleted), and swiping discards one — reverting the cached record to the server's last-known state.
 - **Conflict-aware sync** — because Baby Buddy exposes no server-side change marker, edits are
   diffed against a base snapshot of the record they were derived from. Concurrent server changes
   raise a conflict you resolve with **Keep Mine / Keep Server / field-by-field Merge**.
