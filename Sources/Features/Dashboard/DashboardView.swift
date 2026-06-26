@@ -50,11 +50,18 @@ struct DashboardView: View {
                 }
                 .padding(.horizontal)
                 .padding(.top, 8)
-                .padding(.bottom, 28)
+                // Leave room so the last row can scroll clear of the floating add button.
+                .padding(.bottom, 88)
             }
             .background(BBColor.surface)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { addMenu } }
+            .overlay(alignment: .bottomTrailing) {
+                if !children.isEmpty {
+                    addButton
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 16)
+                }
+            }
             .sheet(item: $addKind) { kind in
                 EntityEditorView(kind: kind, childID: selectedChildID)
             }
@@ -136,9 +143,11 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: Toolbar
+    // MARK: Add button
 
-    private var addMenu: some View {
+    /// Floating action button (bottom-trailing) opening the add menu: start a timer or log any
+    /// record. Adopts the brand color as the screen's primary create action.
+    private var addButton: some View {
         Menu {
             Button { startingTimer = true } label: {
                 Label { Text("Start Timer") } icon: { EntityKind.timer.icon() }
@@ -154,8 +163,13 @@ struct DashboardView: View {
             }
         } label: {
             Image(systemName: "plus")
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 58, height: 58)
+                .background(BBColor.brand, in: Circle())
+                .shadow(color: .black.opacity(0.18), radius: 8, y: 4)
         }
-        .disabled(children.isEmpty)
+        .accessibilityLabel("Add")
     }
 
     // MARK: Active timer
