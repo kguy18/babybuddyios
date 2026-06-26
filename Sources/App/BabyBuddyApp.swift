@@ -15,6 +15,7 @@ struct BabyBuddyApp: App {
     private static let refreshTaskID = "com.kurtisguy.BabyBuddy.sync"
 
     init() {
+        Analytics.start()
         let container = LocalStore.makeContainer()
         let session = AppSession()
         self.container = container

@@ -18,5 +18,8 @@ xcuserdata/
 .build/
 .swiftpm/
 
+# Build-time secrets (TelemetryDeck App ID, etc.) — never commit
+Config/Secrets.xcconfig
+
 # macOS
 .DS_Store

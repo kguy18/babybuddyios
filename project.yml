@@ -5,6 +5,11 @@ options:
     iOS: "17.0"
   createIntermediateGroups: true
 
+packages:
+  TelemetryDeck:
+    url: https://github.com/TelemetryDeck/SwiftSDK
+    from: 2.14.1
+
 settings:
   base:
     MARKETING_VERSION: "0.1.0"
@@ -21,8 +26,12 @@ targets:
     platform: iOS
     sources:
       - path: Sources
+    configFiles:
+      Debug: Config/BabyBuddy.xcconfig
+      Release: Config/BabyBuddy.xcconfig
     dependencies:
       - target: BabyBuddyWidgets
+      - package: TelemetryDeck
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kurtisguy.BabyBuddy
@@ -36,6 +45,7 @@ targets:
     info:
       path: Sources/Info.plist
       properties:
+        TelemetryDeckAppID: "$(TELEMETRYDECK_APP_ID)"
         BGTaskSchedulerPermittedIdentifiers:
           - com.kurtisguy.BabyBuddy.sync
         CFBundleURLTypes:
