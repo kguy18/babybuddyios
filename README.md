@@ -11,9 +11,10 @@ baby-tracking server. Offline-first, with conflict-aware sync and optional Face 
 - **Tag chip picker** — add tags as removable colored chips with live autocomplete over the
   server's existing tags (cached for offline use), or create a new tag inline. Chip colors and
   text contrast match the Baby Buddy web app.
-- **Dashboard** — last-event cards, active timers, and today's running totals. Start a timer for
-  a specific activity (feeding/sleep/tummy time/pumping) and stopping it files straight to that
-  record — no "convert to…?" step — or start an uncategorized timer.
+- **Dashboard** — last-event cards, active timers, and today's running totals. Each "Today" tile
+  (feedings/sleep/diapers/tummy time) taps through to a scoped timeline of just that activity for
+  the day. Start a timer for a specific activity (feeding/sleep/tummy time/pumping) and stopping it
+  files straight to that record — no "convert to…?" step — or start an uncategorized timer.
 - **Timer widgets** — Home Screen widgets to start a timer (feeding/sleep/tummy time/pumping)
   and to watch the running timer with live elapsed time and a one-tap Stop that logs the
   activity. Lock Screen and StandBy accessories show the running timer at a glance. Widget

@@ -55,6 +55,9 @@ struct DashboardView: View {
             }
             .background(BBColor.surface)
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(for: EntityKind.self) { kind in
+                DayTimelineView(kind: kind, childID: selectedChildID)
+            }
             .overlay(alignment: .bottomTrailing) {
                 if !children.isEmpty {
                     addButton
@@ -231,12 +234,27 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: 9) {
             SectionHeader("Today")
             LazyVGrid(columns: columns, spacing: 9) {
-                MetricTile(kind: .feeding, label: "Feedings", value: "\(count(of: .feeding, today: true))")
-                MetricTile(kind: .sleep, label: "Sleep", value: sleepTodayText)
-                MetricTile(kind: .change, label: "Diapers", value: "\(count(of: .change, today: true))")
-                MetricTile(kind: .tummyTime, label: "Tummy time", value: tummyTodayText)
+                metricLink(.feeding) {
+                    MetricTile(kind: .feeding, label: "Feedings", value: "\(count(of: .feeding, today: true))")
+                }
+                metricLink(.sleep) {
+                    MetricTile(kind: .sleep, label: "Sleep", value: sleepTodayText)
+                }
+                metricLink(.change) {
+                    MetricTile(kind: .change, label: "Diapers", value: "\(count(of: .change, today: true))")
+                }
+                metricLink(.tummyTime) {
+                    MetricTile(kind: .tummyTime, label: "Tummy time", value: tummyTodayText)
+                }
             }
         }
+    }
+
+    /// Wrap a "Today" tile so tapping it pushes a single-day, single-kind timeline slice.
+    private func metricLink<Content: View>(_ kind: EntityKind,
+                                           @ViewBuilder _ tile: () -> Content) -> some View {
+        NavigationLink(value: kind) { tile() }
+            .buttonStyle(.plain)
     }
 
     // MARK: Latest
