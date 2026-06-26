@@ -55,12 +55,27 @@ final class AppLockManager {
         guard isEnabled else { isLocked = false; return }
         let context = LAContext()
         context.localizedFallbackTitle = "Enter Passcode"
+        // Evaluate availability first so `biometryType` is populated for analytics.
+        _ = context.canEvaluatePolicy(.deviceOwnerAuthentication, error: nil)
+        let biometry = Self.biometryName(context.biometryType)
         do {
             let ok = try await context.evaluatePolicy(
                 .deviceOwnerAuthentication, localizedReason: "Unlock Baby Buddy")
             isLocked = !ok
+            Analytics.appLockUnlock(result: ok ? .success : .failure, biometry: biometry)
         } catch {
             isLocked = true
+            Analytics.appLockUnlock(result: .failure, biometry: biometry)
+        }
+    }
+
+    private static func biometryName(_ type: LABiometryType) -> String {
+        switch type {
+        case .faceID: return "faceID"
+        case .touchID: return "touchID"
+        case .opticID: return "opticID"
+        case .none: return "none"
+        @unknown default: return "unknown"
         }
     }
 }

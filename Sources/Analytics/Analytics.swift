@@ -40,3 +40,29 @@ enum Analytics {
         TelemetryDeck.signal(name, parameters: parameters)
     }
 }
+
+// MARK: - Events
+//
+// Typed signal helpers so the analytics vocabulary lives in one place. Each is a
+// no-op unless analytics are enabled (see `signal`). Parameters carry only coarse,
+// non-identifying enums — never user, child, or tracking data.
+extension Analytics {
+    enum AuthResult: String { case success, failure }
+
+    /// An app-lock unlock attempt, plus which biometry the device offers, so we can
+    /// see whether Face ID / Touch ID is actually being used.
+    static func appLockUnlock(result: AuthResult, biometry: String) {
+        signal("AppLock.unlocked", parameters: ["result": result.rawValue, "biometry": biometry])
+    }
+
+    enum SearchActivity: String {
+        case started, completed
+        case noResults = "no-results"
+    }
+
+    /// Timeline search usage: `started` when a query begins, then `completed` or
+    /// `no-results` once typing settles.
+    static func search(_ activity: SearchActivity) {
+        signal("Search", parameters: ["activity": activity.rawValue])
+    }
+}
