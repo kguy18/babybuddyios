@@ -13,7 +13,9 @@ baby-tracking server. Offline-first, with conflict-aware sync and optional Face 
   text contrast match the Baby Buddy web app.
 - **Dashboard** — last-event cards, active timers, and today's running totals. Each "Today" tile
   (feedings/sleep/diapers/tummy time) taps through to a scoped timeline of just that activity for
-  the day, and each "Latest" card taps to open the editor for that entry. Start a timer for a
+  the day, and each "Latest" card taps to open the editor for that entry. The "+" button fans up a
+  quick-action stack — Start timer plus the everyday record types — over a "More…" row that opens
+  the full activity picker (every log + measurement as a tinted glyph tile). Start a timer for a
   specific activity (feeding/sleep/tummy time/pumping) and stopping it files straight to that
   record — no "convert to…?" step — or start an uncategorized timer.
 - **Timer widgets** — Home Screen widgets to start a timer (feeding/sleep/tummy time/pumping)
