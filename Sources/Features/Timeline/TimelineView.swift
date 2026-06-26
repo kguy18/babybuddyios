@@ -319,27 +319,9 @@ struct TimelineView: View {
         Task { await sync.sync() }
     }
 
-    /// Re-log an event as a fresh record at the current time: copy its payload, drop the
-    /// server-assigned/computed fields, and re-stamp the timestamps to now (preserving an
-    /// activity's duration). Uses the existing repository create path — no model changes.
+    /// Re-log an event as a fresh record stamped to now (see ``LocalRepository/repeatEvent(_:now:)``).
     private func repeatEvent(_ entity: LocalEntity) {
-        var p = entity.payloadObject
-        for key in ["id", "url", "duration"] { p.removeValue(forKey: key) }
-
-        let now = Date()
-        func iso(_ d: Date) -> String { APIDate.isoDateTime.string(from: d) }
-        if let s = p["start"] as? String, let e = p["end"] as? String,
-           let start = APIDate.parse(s), let end = APIDate.parse(e), end > start {
-            let duration = end.timeIntervalSince(start)
-            p["start"] = iso(now.addingTimeInterval(-duration))
-            p["end"] = iso(now)
-        } else if p["start"] is String {
-            p["start"] = iso(now)
-        }
-        if p["time"] is String { p["time"] = iso(now) }
-        if p["date"] is String { p["date"] = APIDate.dateOnly.string(from: now) }
-
-        LocalRepository(context: context).create(kind: entity.kind, payload: p)
+        LocalRepository(context: context).repeatEvent(entity)
         Task { await sync.sync() }
     }
 }
@@ -358,7 +340,8 @@ private enum TimelineItem: Identifiable {
 }
 
 /// One event on the rail: a tinted glyph node on the spine, beside its detail card.
-private struct TimelineRailRow: View {
+/// Shared with ``DayTimelineView`` so scoped day slices render identical rows.
+struct TimelineRailRow: View {
     let entity: LocalEntity
     let connectsDown: Bool
     let tagColors: [String: String]

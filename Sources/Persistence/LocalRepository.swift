@@ -101,6 +101,31 @@ struct LocalRepository {
         return activity
     }
 
+    // MARK: Repeat
+
+    /// Re-log an existing event as a fresh record stamped to `now`: copies the payload, drops
+    /// the server-assigned/computed fields, and re-stamps its timestamps (preserving an
+    /// activity's start→end duration). Routes through ``create`` — no special sync handling.
+    @discardableResult
+    func repeatEvent(_ entity: LocalEntity, now: Date = .now) -> LocalEntity? {
+        var p = entity.payloadObject
+        for key in ["id", "url", "duration"] { p.removeValue(forKey: key) }
+
+        func iso(_ d: Date) -> String { APIDate.isoDateTime.string(from: d) }
+        if let s = p["start"] as? String, let e = p["end"] as? String,
+           let start = APIDate.parse(s), let end = APIDate.parse(e), end > start {
+            let duration = end.timeIntervalSince(start)
+            p["start"] = iso(now.addingTimeInterval(-duration))
+            p["end"] = iso(now)
+        } else if p["start"] is String {
+            p["start"] = iso(now)
+        }
+        if p["time"] is String { p["time"] = iso(now) }
+        if p["date"] is String { p["date"] = APIDate.dateOnly.string(from: now) }
+
+        return create(kind: entity.kind, payload: p)
+    }
+
     // MARK: Discard a queued change
 
     /// Cancel a queued write, reverting the cached record to the server's last-known state.

@@ -68,6 +68,53 @@ final class LocalRepositoryTests: XCTestCase {
         XCTAssertEqual(muts.first?.serverID, 99)
     }
 
+    func testRepeatEventPreservesDurationAndRestampsToNow() throws {
+        let payload = try JSONSerialization.data(withJSONObject: [
+            "id": 42, "url": "http://x/42", "child": 1, "duration": "00:20:00",
+            "start": "2024-01-15T10:00:00-05:00", "end": "2024-01-15T10:20:00-05:00",
+            "type": "formula", "method": "bottle"])
+        let original = LocalStore.upsertFromServer(payload, kind: .feeding, in: context)!
+
+        let now = Date()
+        let copy = repo.repeatEvent(original, now: now)!
+
+        // A brand-new pending-create record, distinct from the source.
+        XCTAssertEqual(copy.syncState, .pendingCreate)
+        XCTAssertNil(copy.serverID)
+        XCTAssertNotEqual(copy.localID, original.localID)
+
+        // Server-assigned/computed fields are dropped.
+        let p = copy.payloadObject
+        XCTAssertNil(p["id"])
+        XCTAssertNil(p["url"])
+        XCTAssertNil(p["duration"])
+
+        // Carried-over data survives.
+        XCTAssertEqual(p["type"] as? String, "formula")
+        XCTAssertEqual(p["child"] as? Int, 1)
+
+        // 20-minute span preserved, ending now.
+        let start = APIDate.parse(p["start"] as! String)!
+        let end = APIDate.parse(p["end"] as! String)!
+        XCTAssertEqual(end.timeIntervalSince(start), 20 * 60, accuracy: 1)
+        XCTAssertEqual(end.timeIntervalSince(now), 0, accuracy: 1)
+
+        // The original is untouched.
+        XCTAssertEqual(original.serverID, 42)
+    }
+
+    func testRepeatEventRestampsTimeStampedRecord() throws {
+        let entity = repo.create(kind: .note, payload: [
+            "child": 1, "time": "2024-01-15T10:00:00-05:00", "note": "hello"])!
+        let now = Date()
+        let copy = repo.repeatEvent(entity, now: now)!
+
+        let p = copy.payloadObject
+        XCTAssertEqual(p["note"] as? String, "hello")
+        let time = APIDate.parse(p["time"] as! String)!
+        XCTAssertEqual(time.timeIntervalSince(now), 0, accuracy: 1)
+    }
+
     func testPullDoesNotClobberLocalEdit() throws {
         // A locally edited (pendingUpdate) record must survive a re-pull of the server version.
         let original = try JSONSerialization.data(withJSONObject: [
