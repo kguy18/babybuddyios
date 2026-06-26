@@ -61,7 +61,43 @@ enum DemoData {
         if ProcessInfo.processInfo.environment["BB_SEED_CONFLICT"] == "1" {
             seedConflict(into: context)
         }
+        if ProcessInfo.processInfo.environment["BB_SEED_PENDING"] == "1" {
+            seedPending(into: context)
+        }
         try? context.save()
+    }
+
+    /// Seed a few queued writes — one create, one update, one delete — so the Pending Changes
+    /// sheet can be verified in demo, where the sync engine never actually pushes.
+    private static func seedPending(into context: ModelContext) {
+        func data(_ o: [String: Any]) -> Data { (try? JSONSerialization.data(withJSONObject: o)) ?? Data("{}".utf8) }
+        let iso = APIDate.isoDateTime.string(from: Date())
+
+        // Create: a brand-new pumping not yet on the server.
+        let newPayload: [String: Any] = ["child": 1, "start": iso, "end": iso, "amount": 75, "tags": []]
+        let created = LocalEntity(kind: .pumping, serverID: nil, childID: 1,
+                                  timestamp: Date(), payload: data(newPayload), syncState: .pendingCreate)
+        context.insert(created)
+        context.insert(PendingMutation(localID: created.localID, kind: .pumping, op: .create, payload: data(newPayload)))
+
+        // Update: edit the cached diaper change (id 20).
+        if let change = LocalStore.fetch(kind: .change, serverID: 20, in: context) {
+            let base = change.payload
+            var edited = change.payloadObject
+            edited["solid"] = true; edited["color"] = "green"
+            change.baseSnapshot = base
+            change.payload = data(edited)
+            change.syncState = .pendingUpdate
+            context.insert(PendingMutation(localID: change.localID, kind: .change, op: .update,
+                                           payload: data(edited), baseSnapshot: base, serverID: 20))
+        }
+
+        // Delete: remove the cached sleep (id 30).
+        if let sleep = LocalStore.fetch(kind: .sleep, serverID: 30, in: context) {
+            sleep.syncState = .pendingDelete
+            context.insert(PendingMutation(localID: sleep.localID, kind: .sleep, op: .delete,
+                                           payload: Data("{}".utf8), baseSnapshot: sleep.payload, serverID: 30))
+        }
     }
 
     /// Reveal the slice of the fixed historic dataset whose dates fall within `[start, end]`,
