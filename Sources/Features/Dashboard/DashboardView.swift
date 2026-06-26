@@ -11,6 +11,7 @@ struct DashboardView: View {
 
     @Query(sort: \LocalEntity.timestamp, order: .reverse) private var allEntities: [LocalEntity]
     @State private var addKind: EntityKind?
+    @State private var editing: LocalEntity?
     @State private var startingTimer = false
     @State private var stoppingTimer: LocalEntity?
     @State private var convertRequest: ConvertRequest?
@@ -67,6 +68,9 @@ struct DashboardView: View {
             }
             .sheet(item: $addKind) { kind in
                 EntityEditorView(kind: kind, childID: selectedChildID)
+            }
+            .sheet(item: $editing) { entity in
+                EntityEditorView(kind: entity.kind, childID: selectedChildID, entity: entity)
             }
             .sheet(isPresented: $startingTimer) {
                 StartTimerSheet(childID: selectedChildID)
@@ -263,7 +267,10 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: 9) {
             SectionHeader("Latest")
             VStack(spacing: 9) {
-                ForEach(latestEvents) { EventRow(entity: $0) }
+                ForEach(latestEvents) { entity in
+                    Button { editing = entity } label: { EventRow(entity: entity) }
+                        .buttonStyle(.plain)
+                }
             }
         }
     }
