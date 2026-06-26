@@ -560,6 +560,7 @@ struct EntityEditorView: View {
             "name": activity.timerName,
         ]
         LocalRepository(context: context).create(kind: .timer, payload: payload)
+        Analytics.timerStarted(activity: activity.rawValue, source: .app)
         Task { await sync.sync() }
         dismiss()
     }

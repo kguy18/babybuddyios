@@ -28,8 +28,18 @@ cookieless analytics service, to understand which features are used and to catch
 designed to be **anonymous and non-attributed**:
 
 - **No personal data and no baby/tracking data** is ever sent to TelemetryDeck — only generic app
-  usage signals (for example: app launched, a screen was viewed) together with coarse technical
-  context such as app version, iOS version, device model, and locale.
+  usage signals together with coarse technical context such as app version, iOS version, device
+  model, and locale. The usage signals are limited to:
+  - **App lifecycle** — app launched / session started, and new-install detection.
+  - **Onboarding** — that sign-in completed, and whether it used the QR code or manual entry.
+  - **Timers** — that a timer was started or stopped, the activity type (e.g. feeding, sleep), and
+    whether it came from the app or a widget.
+  - **Widgets** — that a widget/Siri action was performed, and which one.
+  - **Search** — that a timeline search started, completed, or returned no results.
+  - **App lock** — that an unlock was attempted, the result, and the device biometry type
+    (Face ID / Touch ID / none).
+  - **Sync & errors** — that a sync completed or raised a conflict, and coarse error categories
+    (e.g. network vs. server-rejected). Error reports never include the server's message text.
 - Analytics are **not tied to your identity**. TelemetryDeck does not use cookies or stable
   advertising identifiers; any user count is derived from a one-way, non-reversible hash and cannot
   be traced back to you. Your IP address is not stored.

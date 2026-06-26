@@ -85,6 +85,7 @@ final class SyncEngine {
             do {
                 try await deliver(mutation, client: client)
             } catch let error as APIError {
+                Analytics.report(error)
                 if case .unauthorized = error { session.signOut(); return }
                 if error.isRetryable { break } // offline/5xx: stop, retry whole queue later
                 mutation.attemptCount += 1
@@ -158,6 +159,7 @@ final class SyncEngine {
             serverDeleted: serverDeleted)
         context.insert(conflict)
         entity?.syncState = .conflicted
+        Analytics.syncConflictRaised(kind: mutation.kind.rawValue, op: "\(mutation.op)")
         context.delete(mutation)
     }
 
@@ -289,11 +291,15 @@ final class SyncEngine {
         let error = await syncActor.pullAll(config: config, windowDays: pullWindowDays)
         if let error {
             if error == SyncActor.unauthorized { session.signOut(); return }
+            // Pull failures surface only as a user-facing string; report them as a coarse
+            // network error (the common cause) without the message text.
+            Analytics.error(network: "pull")
             status = .failed(error)
             return
         }
         lastSyncDate = .now
         status = .idle
+        Analytics.syncCompleted()
     }
 
     // MARK: History paging

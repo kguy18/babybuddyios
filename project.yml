@@ -71,6 +71,12 @@ targets:
       - path: Sources/Networking
       - path: Sources/Auth/KeychainStore.swift
       - path: Sources/Shared
+      - path: Sources/Analytics
+    configFiles:
+      Debug: Config/BabyBuddy.xcconfig
+      Release: Config/BabyBuddy.xcconfig
+    dependencies:
+      - package: TelemetryDeck
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kurtisguy.BabyBuddy.Widgets
@@ -78,6 +84,7 @@ targets:
     info:
       path: Widgets/Info.plist
       properties:
+        TelemetryDeckAppID: "$(TELEMETRYDECK_APP_ID)"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:
