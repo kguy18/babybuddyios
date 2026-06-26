@@ -272,6 +272,8 @@ struct DashboardView: View {
         ]
         if let child = timer.childID { payload["child"] = child }
         LocalRepository(context: context).convertTimer(timer, to: kind, payload: payload)
+        let activity = TimerActivity(convertKind: kind)?.rawValue ?? "other"
+        Analytics.timerStopped(activity: activity, source: .app)
         Task { await sync.sync() }
         stoppingTimer = nil
     }

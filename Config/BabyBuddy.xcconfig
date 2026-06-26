@@ -1,0 +1,15 @@
+// Build configuration for the BabyBuddy app target.
+//
+// The TelemetryDeck App ID is injected here and surfaced to the app via the
+// `TelemetryDeckAppID` Info.plist key. The public repository ships it EMPTY on
+// purpose: open-source and forked builds must never send analytics to the
+// maintainer's TelemetryDeck account. Analytics only run when this value is
+// non-empty (see Sources/Analytics/Analytics.swift).
+//
+// To enable analytics in your own build, copy `Secrets.example.xcconfig` to
+// `Secrets.xcconfig` (same folder) and set your App ID there. `Secrets.xcconfig`
+// is gitignored and overrides the empty default below.
+TELEMETRYDECK_APP_ID =
+
+// Optional, gitignored override (App Store / private builds). Missing = no-op.
+#include? "Secrets.xcconfig"

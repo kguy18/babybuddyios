@@ -122,6 +122,8 @@ struct StartTimerSheet: View {
             payload["name"] = activity.timerName
         }
         LocalRepository(context: context).create(kind: .timer, payload: payload, timerActivity: kind)
+        let activity = kind.flatMap { TimerActivity(convertKind: $0) }?.rawValue ?? "other"
+        Analytics.timerStarted(activity: activity, source: .app)
         Task { await sync.sync() }
         dismiss()
     }

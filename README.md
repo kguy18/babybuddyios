@@ -60,6 +60,24 @@ xcodebuild -project BabyBuddy.xcodeproj -scheme BabyBuddy \
 
 Run the tests with `test` instead of `build`.
 
+### Analytics (optional)
+
+The app integrates [TelemetryDeck](https://telemetrydeck.com), a privacy-focused,
+cookieless analytics service. **It is disabled by default and this repository ships
+without an App ID**, so builds you make from a clone send no data anywhere.
+
+Analytics only run when a TelemetryDeck App ID is configured at build time:
+
+```sh
+cp Config/Secrets.example.xcconfig Config/Secrets.xcconfig
+# then edit Config/Secrets.xcconfig and set TELEMETRYDECK_APP_ID = <your-app-id>
+```
+
+`Config/Secrets.xcconfig` is gitignored and must never be committed. The ID flows
+into the app's `TelemetryDeckAppID` Info.plist key (see `Config/BabyBuddy.xcconfig`)
+and `Analytics.start()` initializes the SDK only when that value is non-empty.
+Analytics are also skipped automatically in `BB_DEMO` mode.
+
 ### Connecting
 
 On first launch you can sign in two ways:

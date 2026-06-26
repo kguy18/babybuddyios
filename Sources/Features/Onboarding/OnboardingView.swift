@@ -318,12 +318,12 @@ struct OnboardingView: View {
                 .background(BBColor.controlFill, in: RoundedRectangle(cornerRadius: BBRadius.control, style: .continuous))
         } else if hasError {
             // Retry is not destructive, so it stays blue (tinted secondary), not red.
-            Button(action: submit) {
+            Button(action: { submit() }) {
                 Label("Try again", systemImage: "arrow.clockwise")
             }
             .buttonStyle(.bbTinted)
         } else {
-            Button(action: submit) {
+            Button(action: { submit() }) {
                 Label("Connect", systemImage: "powerplug.fill")
             }
             .buttonStyle(.bbTinted)
@@ -359,14 +359,15 @@ struct OnboardingView: View {
         }
         serverURL = credentials.serverURL
         token = credentials.token
-        submit()
+        submit(method: .qr)
     }
 
-    private func submit() {
+    private func submit(method: Analytics.SignInMethod = .manual) {
         focusedField = nil
         isValidating = true
         Task {
-            _ = await session.signIn(serverURL: serverURL, token: token)
+            let ok = await session.signIn(serverURL: serverURL, token: token)
+            if ok { Analytics.onboardingCompleted(method: method) }
             isValidating = false
         }
     }

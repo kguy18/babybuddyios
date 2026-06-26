@@ -18,6 +18,9 @@ struct StartTimerIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
+        // The intent runs in a separate process from the app, so analytics must be started here.
+        Analytics.start()
+        Analytics.widgetIntent("StartTimer")
         let container = try ModelContainer(
             for: LocalStore.schema,
             configurations: ModelConfiguration(schema: LocalStore.schema, url: LocalStore.storeURL))
@@ -35,6 +38,7 @@ struct StartTimerIntent: AppIntent {
         let context = container.mainContext
         let timer = LocalRepository(context: context).create(
             kind: .timer, payload: payload, timerActivity: activity.convertKind)
+        Analytics.timerStarted(activity: activity.rawValue, source: .widget)
         if let timer { await TimerPush.pushCreate(localID: timer.localID, in: context) }
         WidgetCenter.shared.reloadAllTimelines()
         return .result()

@@ -20,6 +20,9 @@ struct LogTimerIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
+        // The intent runs in a separate process from the app, so analytics must be started here.
+        Analytics.start()
+        Analytics.widgetIntent("LogTimer")
         let container = try ModelContainer(
             for: LocalStore.schema,
             configurations: ModelConfiguration(schema: LocalStore.schema, url: LocalStore.storeURL))
@@ -38,6 +41,7 @@ struct LogTimerIntent: AppIntent {
             if let child = timer.childID { payload["child"] = child }
             let logged = LocalRepository(context: context).convertTimer(
                 timer, to: activity.convertKind, payload: payload)
+            Analytics.timerStopped(activity: activity.rawValue, source: .widget)
             if let logged { await TimerPush.pushCreate(localID: logged.localID, in: context) }
         }
         WidgetCenter.shared.reloadAllTimelines()

@@ -18,6 +18,8 @@ struct TimelineView: View {
     @State private var dateFrom: Date?
     @State private var dateTo: Date?
     @State private var showingFilters = false
+    @State private var searchActive = false
+    @State private var searchDebounce: Task<Void, Never>?
 
     /// Lowercased tag name → server `#RRGGBB` color, for tinting timeline chips.
     private var tagColors: [String: String] {
@@ -79,6 +81,7 @@ struct TimelineView: View {
             }
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always),
                         prompt: "Search notes, tags, type…")
+            .onChange(of: searchText) { _, newValue in handleSearchChange(newValue) }
             .refreshable { await sync.sync() }
             .onAppear(perform: autoLoadOlderIfRequested)
             .sheet(item: $editing) { entity in
@@ -220,6 +223,27 @@ struct TimelineView: View {
         dateFrom = nil
         dateTo = nil
         searchText = ""
+    }
+
+    /// Emits `Search` analytics: `started` once when a query begins, then `completed` or
+    /// `no-results` after typing settles (debounced, so we don't signal per keystroke).
+    /// `visibleEntities` already reflects `newValue` here since `onChange` fires post-update.
+    private func handleSearchChange(_ text: String) {
+        searchDebounce?.cancel()
+        guard !text.trimmingCharacters(in: .whitespaces).isEmpty else {
+            searchActive = false
+            return
+        }
+        if !searchActive {
+            searchActive = true
+            Analytics.search(.started)
+        }
+        let isEmpty = visibleEntities.isEmpty
+        searchDebounce = Task {
+            try? await Task.sleep(for: .milliseconds(700))
+            guard !Task.isCancelled else { return }
+            Analytics.search(isEmpty ? .noResults : .completed)
+        }
     }
 
     private func startOfDay(_ date: Date) -> Date { Calendar.current.startOfDay(for: date) }

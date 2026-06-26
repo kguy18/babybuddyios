@@ -21,6 +21,12 @@ struct LocalRepository {
         context.insert(entity)
         context.insert(PendingMutation(localID: entity.localID, kind: kind, op: .create, payload: data))
         try? context.save()
+        // A timer is a stopwatch, not a logged activity; children come from sync. Everything
+        // else here is a completed record being logged (incl. timer conversions, which route
+        // through this method). Timer start/stop are tracked separately at their call sites.
+        if kind != .timer && kind != .child {
+            Analytics.activityLogged(kind: kind.rawValue)
+        }
         return entity
     }
 

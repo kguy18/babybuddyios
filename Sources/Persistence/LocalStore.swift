@@ -46,6 +46,11 @@ enum LocalStore {
         let existing = fetch(kind: kind, serverID: serverID, in: context)
         if let existing {
             guard existing.syncState == .synced else { return existing } // don't clobber local edits
+            // Skip writes when the server record is unchanged, so an unchanged pull doesn't dirty
+            // the whole store every time (avoids write churn and keeps `hasChanges` meaningful for
+            // "did this sync actually change anything"). Volatile fields are ignored so a running
+            // timer's ever-advancing `duration` doesn't count as a change.
+            if payloadsEquivalent(existing.payload, payload) { return existing }
             existing.payload = payload
             existing.baseSnapshot = payload
             existing.timestamp = kind.timestamp(from: obj)
@@ -94,5 +99,20 @@ enum LocalStore {
         let tag = CachedTag(name: name, colorHex: dto.color, slug: dto.slug, lastUsed: dto.last_used)
         context.insert(tag)
         return tag
+    }
+
+    // MARK: Change detection
+
+    /// Server-computed fields that drift without any real edit and so must be ignored when
+    /// deciding whether a pulled record changed. Mirrors `SyncEngine.volatileFields` (a running
+    /// timer's `duration` advances on every GET).
+    static let volatilePayloadFields: Set<String> = ["duration"]
+
+    /// Order-independent JSON equality of two payloads, ignoring volatile server-computed fields.
+    static func payloadsEquivalent(_ a: Data, _ b: Data) -> Bool {
+        guard var oa = try? JSONSerialization.jsonObject(with: a) as? [String: Any],
+              var ob = try? JSONSerialization.jsonObject(with: b) as? [String: Any] else { return false }
+        for key in volatilePayloadFields { oa.removeValue(forKey: key); ob.removeValue(forKey: key) }
+        return NSDictionary(dictionary: oa).isEqual(to: ob)
     }
 }

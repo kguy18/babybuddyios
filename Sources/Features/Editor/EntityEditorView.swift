@@ -541,6 +541,10 @@ struct EntityEditorView: View {
         let repo = LocalRepository(context: context)
         if let sourceTimer {
             repo.convertTimer(sourceTimer, to: kind, payload: payload)
+            // Full timer-stop coverage: feeding/pumping (and any editor-based convert) finish
+            // here rather than via the dashboard's one-tap path.
+            let activity = TimerActivity(convertKind: kind)?.rawValue ?? "other"
+            Analytics.timerStopped(activity: activity, source: .app)
         } else if let entity {
             repo.update(entity, payload: payload)
         } else {
@@ -560,6 +564,7 @@ struct EntityEditorView: View {
             "name": activity.timerName,
         ]
         LocalRepository(context: context).create(kind: .timer, payload: payload)
+        Analytics.timerStarted(activity: activity.rawValue, source: .app)
         Task { await sync.sync() }
         dismiss()
     }
