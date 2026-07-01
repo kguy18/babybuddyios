@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 /// Adaptive create/edit form for any ``EntityKind``. Reads/writes a JSON payload through
 /// ``LocalRepository`` and triggers a sync on save. Renders only the fields relevant to
@@ -49,9 +50,14 @@ struct EntityEditorView: View {
     @State private var milestone = ""
     // Note
     @State private var noteText = ""
-    /// URL of an image already attached to the note on the server (display-only for now; picking
-    /// and uploading a new image lands in Part B).
+    /// URL of an image already attached to the note (server URL, or a local `file://` preview of a
+    /// queued upload). Shown when no new image has been picked in this session.
     @State private var imageURL: String?
+    /// A newly picked note image, pending save: the selection item, its decoded preview, and the
+    /// re-encoded JPEG bytes to enqueue for upload.
+    @State private var photoItem: PhotosPickerItem?
+    @State private var pickedImage: UIImage?
+    @State private var pickedImageData: Data?
     // Measurement
     @State private var value = ""
     // Medication
@@ -237,17 +243,7 @@ struct EntityEditorView: View {
                     TextField("Add a note…", text: $noteText, axis: .vertical)
                         .lineLimit(3...8)
                         .frame(maxWidth: .infinity, minHeight: 60, alignment: .topLeading)
-                    if let imageURL {
-                        RemoteImage(urlString: imageURL) {
-                            RoundedRectangle(cornerRadius: BBRadius.control, style: .continuous)
-                                .fill(BBColor.controlFill)
-                                .frame(height: 160)
-                                .overlay(ProgressView())
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 160)
-                        .clipShape(RoundedRectangle(cornerRadius: BBRadius.control, style: .continuous))
-                    }
+                    notePhoto
                 }
             }
         case .weight, .height, .headCircumference, .bmi:
@@ -518,6 +514,52 @@ struct EntityEditorView: View {
         }
     }
 
+    // MARK: Note photo
+
+    private var hasNoteImage: Bool { pickedImage != nil || imageURL != nil }
+
+    @ViewBuilder private var notePhoto: some View {
+        if let pickedImage {
+            notePreview(Image(uiImage: pickedImage))
+        } else if let imageURL {
+            RemoteImage(urlString: imageURL) {
+                RoundedRectangle(cornerRadius: BBRadius.control, style: .continuous)
+                    .fill(BBColor.controlFill)
+                    .frame(height: 160)
+                    .overlay(ProgressView())
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 160)
+            .clipShape(RoundedRectangle(cornerRadius: BBRadius.control, style: .continuous))
+        }
+        PhotosPicker(selection: $photoItem, matching: .images) {
+            Label(hasNoteImage ? "Change Photo" : "Add Photo", systemImage: "photo")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(BBColor.brandAccent)
+        }
+        .onChange(of: photoItem) { _, item in loadPickedPhoto(item) }
+    }
+
+    private func notePreview(_ image: Image) -> some View {
+        image.resizable().scaledToFill()
+            .frame(maxWidth: .infinity)
+            .frame(height: 160)
+            .clipped()
+            .clipShape(RoundedRectangle(cornerRadius: BBRadius.control, style: .continuous))
+    }
+
+    /// Load the picked item's bytes off the main actor, decode a preview, and hold re-encoded JPEG
+    /// data to enqueue on save.
+    private func loadPickedPhoto(_ item: PhotosPickerItem?) {
+        guard let item else { return }
+        Task {
+            guard let data = try? await item.loadTransferable(type: Data.self),
+                  let image = UIImage(data: data) else { return }
+            pickedImage = image
+            pickedImageData = image.bbUploadJPEG() ?? data
+        }
+    }
+
     // MARK: Load / save
 
     private func populate() {
@@ -556,16 +598,21 @@ struct EntityEditorView: View {
     private func save() {
         let payload = buildPayload()
         let repo = LocalRepository(context: context)
+        let target: LocalEntity?
         if let sourceTimer {
-            repo.convertTimer(sourceTimer, to: kind, payload: payload)
+            target = repo.convertTimer(sourceTimer, to: kind, payload: payload)
             // Full timer-stop coverage: feeding/pumping (and any editor-based convert) finish
             // here rather than via the dashboard's one-tap path.
             let activity = TimerActivity(convertKind: kind)?.rawValue ?? "other"
             Analytics.timerStopped(activity: activity, source: .app)
         } else if let entity {
             repo.update(entity, payload: payload)
+            target = entity
         } else {
-            repo.create(kind: kind, payload: payload)
+            target = repo.create(kind: kind, payload: payload)
+        }
+        if let pickedImageData, let target {
+            repo.enqueueImageUpload(for: target, imageData: pickedImageData)
         }
         Task { await sync.sync() }
         dismiss()

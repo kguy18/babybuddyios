@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 /// Server/account, offline-first sync status, app lock, and sign-out — styled to the Baby
 /// Buddy design system: a child-profile masthead over grouped white ``BBCard`` sections, each
@@ -9,6 +10,9 @@ struct SettingsView: View {
     @Environment(AppSession.self) private var session
     @Environment(SyncEngine.self) private var sync
     @Environment(AppLockManager.self) private var lock
+    @Environment(\.modelContext) private var context
+
+    @State private var photoItem: PhotosPickerItem?
 
     @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "child" }, sort: \.timestamp)
     private var children: [LocalEntity]
@@ -82,14 +86,21 @@ struct SettingsView: View {
     private var masthead: some View {
         BBCard(cornerRadius: BBRadius.tile, padding: 14) {
             HStack(spacing: 13) {
-                Circle()
-                    .fill(BBColor.primary)
-                    .frame(width: 48, height: 48)
-                    .overlay {
-                        Text(avatarInitial)
-                            .font(.system(size: 19, weight: .semibold))
+                PhotosPicker(selection: $photoItem, matching: .images) {
+                    ChildAvatar(
+                        pictureURL: currentChild?.payloadObject["picture"] as? String,
+                        initial: avatarInitial, size: 48)
+                    .overlay(alignment: .bottomTrailing) {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 9, weight: .bold))
                             .foregroundStyle(.white)
+                            .padding(4)
+                            .background(BBColor.primary, in: Circle())
+                            .overlay(Circle().stroke(BBColor.card, lineWidth: 1.5))
                     }
+                }
+                .disabled(currentChild == nil)
+                .onChange(of: photoItem) { _, item in loadChildPhoto(item) }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(childDisplayName).font(.system(size: 17, weight: .semibold))
                     if let subtitle = childSubtitle {
@@ -281,6 +292,19 @@ struct SettingsView: View {
 
     private var currentChild: LocalEntity? {
         children.first { $0.serverID == selectedChildID } ?? children.first
+    }
+
+    /// Decode the picked photo, attach it to the selected child (immediate `file://` preview), and
+    /// enqueue the upload. Children are already synced, so the sync drain PATCHes it right away.
+    private func loadChildPhoto(_ item: PhotosPickerItem?) {
+        guard let item, let child = currentChild else { return }
+        Task {
+            guard let data = try? await item.loadTransferable(type: Data.self),
+                  let image = UIImage(data: data) else { return }
+            LocalRepository(context: context).enqueueImageUpload(
+                for: child, imageData: image.bbUploadJPEG() ?? data)
+            await sync.sync()
+        }
     }
 
     private var childDisplayName: String {

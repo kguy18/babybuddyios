@@ -115,6 +115,47 @@ final class LocalRepositoryTests: XCTestCase {
         XCTAssertEqual(time.timeIntervalSince(now), 0, accuracy: 1)
     }
 
+    func testEnqueueImageUploadQueuesAndPreviewsLocally() throws {
+        let note = repo.create(kind: .note, payload: ["child": 1, "time": "2024-01-15T10:00:00-05:00", "note": "x"])!
+        repo.enqueueImageUpload(for: note, imageData: Data([0x1, 0x2, 0x3]))
+
+        let uploads = try context.fetch(FetchDescriptor<PendingImageUpload>())
+        XCTAssertEqual(uploads.count, 1)
+        XCTAssertEqual(uploads.first?.localID, note.localID)
+        XCTAssertEqual(uploads.first?.kind, .note)
+
+        // The cached record points its image at the local file so it previews before upload, and
+        // the bytes are on disk under that name.
+        let imageURLString = note.payloadObject["image"] as? String
+        XCTAssertNotNil(imageURLString)
+        XCTAssertTrue(imageURLString?.hasPrefix("file://") == true)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: ImageUploadStore.url(for: uploads.first!.filename).path))
+
+        ImageUploadStore.delete(uploads.first!.filename) // cleanup
+    }
+
+    func testEnqueueImageUploadCoalescesToLatest() throws {
+        let note = repo.create(kind: .note, payload: ["child": 1, "time": "2024-01-15T10:00:00-05:00", "note": "x"])!
+        repo.enqueueImageUpload(for: note, imageData: Data([0x1]))
+        let first = try XCTUnwrap(try context.fetch(FetchDescriptor<PendingImageUpload>()).first)
+        repo.enqueueImageUpload(for: note, imageData: Data([0x2]))
+
+        let uploads = try context.fetch(FetchDescriptor<PendingImageUpload>())
+        XCTAssertEqual(uploads.count, 1, "a newer pick should replace the earlier queued one")
+        XCTAssertNotEqual(uploads.first?.filename, first.filename)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: ImageUploadStore.url(for: first.filename).path),
+                       "the superseded file should be deleted")
+
+        ImageUploadStore.delete(uploads.first!.filename) // cleanup
+    }
+
+    func testEnqueueImageUploadIgnoresKindsWithoutImage() throws {
+        let feeding = repo.create(kind: .feeding, payload: ["child": 1, "start": "2024-01-15T10:00:00-05:00"])!
+        repo.enqueueImageUpload(for: feeding, imageData: Data([0x1]))
+        XCTAssertEqual(try context.fetch(FetchDescriptor<PendingImageUpload>()).count, 0)
+        XCTAssertNil(feeding.payloadObject["image"])
+    }
+
     func testPullDoesNotClobberLocalEdit() throws {
         // A locally edited (pendingUpdate) record must survive a re-pull of the server version.
         let original = try JSONSerialization.data(withJSONObject: [

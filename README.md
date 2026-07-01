@@ -30,7 +30,11 @@ baby-tracking server. Offline-first, with conflict-aware sync and optional Face 
 - **Photos** — a child's profile picture is shown as the avatar in the dashboard and child
   switcher, and a note's attached image appears as a thumbnail in the timeline and inside the
   note editor. Images are fetched with same-origin auth (cleartext `http` upgraded to `https`)
-  and cached on disk. *(Uploading photos from the device is coming in a follow-up.)*
+  and cached on disk. Pick a note image (in the note editor) or a child photo (tap the avatar in
+  Settings) straight from your library; the picked image shows instantly and uploads as a
+  `multipart/form-data` PATCH. Uploads are **offline-safe** — the bytes are held on disk and the
+  photo is sent once the record exists on the server, so a photo added on a plane lands when you
+  reconnect.
 - **Offline-first** — the local SwiftData store is the source of truth; every change is applied
   instantly and queued for delivery. An offline banner shows when the server is unreachable.
   Settings' **Pending changes** row opens the queue: each waiting write is listed (added / edited /

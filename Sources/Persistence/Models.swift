@@ -118,6 +118,37 @@ final class PendingMutation {
     var op: MutationOp { MutationOp(rawValue: opRaw) ?? .update }
 }
 
+/// A queued image upload (a child `picture` or a note `image`).
+///
+/// Kept separate from ``PendingMutation`` because it's a multipart `PATCH` of a single file field
+/// that can only run **after** the target record exists on the server (has a `serverID`). The image
+/// bytes live on disk (see ``ImageUploadStore``) referenced by `filename`, so large blobs stay out
+/// of the SwiftData store; that same file also backs the record's local `file://` preview.
+@Model
+final class PendingImageUpload {
+    @Attribute(.unique) var id: UUID
+    var localID: UUID          // the LocalEntity to attach the image to
+    var kindRaw: String        // .note or .child
+    var filename: String       // file in the pending-images directory holding the bytes
+    var mimeType: String
+    var attemptCount: Int
+    var lastError: String?
+    var createdAt: Date
+
+    init(localID: UUID, kind: EntityKind, filename: String, mimeType: String, createdAt: Date = .now) {
+        self.id = UUID()
+        self.localID = localID
+        self.kindRaw = kind.rawValue
+        self.filename = filename
+        self.mimeType = mimeType
+        self.attemptCount = 0
+        self.lastError = nil
+        self.createdAt = createdAt
+    }
+
+    var kind: EntityKind { EntityKind(rawValue: kindRaw) ?? .note }
+}
+
 /// A detected sync conflict awaiting user resolution.
 @Model
 final class ConflictRecord {

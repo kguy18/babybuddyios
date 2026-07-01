@@ -3,7 +3,9 @@ import SwiftData
 
 /// The app's SwiftData container.
 enum LocalStore {
-    static let schema = Schema([LocalEntity.self, CachedTag.self, PendingMutation.self, ConflictRecord.self])
+    static let schema = Schema([
+        LocalEntity.self, CachedTag.self, PendingMutation.self, PendingImageUpload.self, ConflictRecord.self,
+    ])
 
     /// App Group shared between the app and its widget/intents extension. The store lives
     /// here so a widget can read active timers and the App Intents can enqueue mutations.
