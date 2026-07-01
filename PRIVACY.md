@@ -23,14 +23,14 @@ no first-party backend operated by the developer.
 
 ## Analytics
 
-The App Store version of this app uses [PostHog](https://posthog.com), a product-analytics service,
-to understand which features are used and to catch problems. It is configured to run in an
-**anonymous, privacy-respecting mode**:
+The App Store version of this app uses [TelemetryDeck](https://telemetrydeck.com), a privacy-focused,
+cookieless analytics service, to understand which features are used and to catch problems. It is
+designed to be **anonymous and non-attributed**:
 
-- **No personal data and no baby/tracking data** is ever sent to PostHog — only generic app
-  usage events together with coarse technical context such as app version, iOS version, device
-  model, and locale. The events are limited to:
-  - **App lifecycle** — app opened / installed / updated.
+- **No personal data and no baby/tracking data** is ever sent to TelemetryDeck — only generic app
+  usage signals together with coarse technical context such as app version, iOS version, device
+  model, and locale. The usage signals are limited to:
+  - **App lifecycle** — app launched / session started, and new-install detection.
   - **Onboarding** — that sign-in completed, and whether it used the QR code or manual entry.
   - **Timers** — that a timer was started or stopped, the activity type (e.g. feeding, sleep), and
     whether it came from the app or a widget.
@@ -42,22 +42,18 @@ to understand which features are used and to catch problems. It is configured to
     (Face ID / Touch ID / none).
   - **Sync & errors** — that a sync completed or raised a conflict, and coarse error categories
     (e.g. network vs. server-rejected). Error reports never include the server's message text.
-- Analytics are **not tied to your identity**. Events are attributed only to a randomly generated,
-  device-scoped identifier stored on your device — the app never calls PostHog's "identify" and
-  never associates events with your name, email, or account. No stable advertising identifier is
-  used. Screen autocapture and session replay are disabled, so the app's contents and your
-  interactions are never recorded.
-- Events are sent to PostHog Cloud (US region by default). PostHog may derive an approximate
-  location from your IP address for aggregate geography, as described in its privacy policy.
-- Because the analytics are anonymous, there is currently **no in-app opt-out**. If you have
-  concerns, you can block network traffic to PostHog or use a build that has analytics disabled
-  (see below).
-- See PostHog's own [privacy policy](https://posthog.com/privacy) for details on how it processes
-  data.
+- Analytics are **not tied to your identity**. TelemetryDeck does not use cookies or stable
+  advertising identifiers; any user count is derived from a one-way, non-reversible hash and cannot
+  be traced back to you. Your IP address is not stored.
+- Because the analytics are fully anonymous, there is currently **no in-app opt-out**. If you have
+  concerns, you can block network traffic to TelemetryDeck or use a build that has analytics
+  disabled (see below).
+- See TelemetryDeck's own [privacy policy](https://telemetrydeck.com/privacy/) for details on how it
+  processes data.
 
 **Open-source / self-built versions send no analytics at all.** The public source code ships without
-an analytics API key, so any build you compile yourself (or a third party compiles) initializes no
-analytics SDK and sends nothing to PostHog.
+an analytics App ID, so any build you compile yourself (or a third party compiles) initializes no
+analytics SDK and sends nothing to TelemetryDeck.
 
 ## In-app purchases
 
