@@ -6,9 +6,9 @@ options:
   createIntermediateGroups: true
 
 packages:
-  PostHog:
-    url: https://github.com/PostHog/posthog-ios
-    from: 3.62.4
+  TelemetryDeck:
+    url: https://github.com/TelemetryDeck/SwiftSDK
+    from: 2.14.1
   RevenueCat:
     url: https://github.com/RevenueCat/purchases-ios-spm.git
     majorVersion: 5.0.0
@@ -34,7 +34,7 @@ targets:
       Release: Config/BabyBuddy.xcconfig
     dependencies:
       - target: BabyBuddyWidgets
-      - package: PostHog
+      - package: TelemetryDeck
       - package: RevenueCat
         product: RevenueCat
     settings:
@@ -50,8 +50,7 @@ targets:
     info:
       path: Sources/Info.plist
       properties:
-        PostHogAPIKey: "$(POSTHOG_API_KEY)"
-        PostHogHost: "https://us.i.posthog.com"
+        TelemetryDeckAppID: "$(TELEMETRYDECK_APP_ID)"
         RevenueCatAPIKey: "$(REVENUECAT_API_KEY)"
         BGTaskSchedulerPermittedIdentifiers:
           - com.kurtisguy.BabyBuddy.sync
@@ -83,7 +82,7 @@ targets:
       Debug: Config/BabyBuddy.xcconfig
       Release: Config/BabyBuddy.xcconfig
     dependencies:
-      - package: PostHog
+      - package: TelemetryDeck
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kurtisguy.BabyBuddy.Widgets
@@ -91,8 +90,7 @@ targets:
     info:
       path: Widgets/Info.plist
       properties:
-        PostHogAPIKey: "$(POSTHOG_API_KEY)"
-        PostHogHost: "https://us.i.posthog.com"
+        TelemetryDeckAppID: "$(TELEMETRYDECK_APP_ID)"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:

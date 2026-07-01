@@ -40,7 +40,6 @@ struct StartTimerIntent: AppIntent {
             kind: .timer, payload: payload, timerActivity: activity.convertKind)
         Analytics.timerStarted(activity: activity.rawValue, source: .widget)
         if let timer { await TimerPush.pushCreate(localID: timer.localID, in: context) }
-        Analytics.flush() // short-lived process — push queued events before it suspends
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
     }
