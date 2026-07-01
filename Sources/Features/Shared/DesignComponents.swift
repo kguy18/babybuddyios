@@ -7,18 +7,28 @@ import SwiftUI
 // MARK: Tinted glyph tile
 
 /// A soft tinted square holding a record's custom glyph — the recurring motif across the app.
+/// The tile scales with Dynamic Type (clamped) so the glyph keeps pace with the text beside it
+/// at large accessibility sizes instead of shrinking to a speck.
 struct ActivityTile: View {
     @Environment(\.colorScheme) private var scheme
+    @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
     let kind: EntityKind
     var size: CGFloat = 38
     var glyph: CGFloat = 20
+    /// Set false in dense grids (the metric tiles) where a growing glyph would crowd out the
+    /// label; the tile there is purely decorative, so keeping it compact costs nothing.
+    var scalesWithType: Bool = true
+
+    /// Growth is capped so the 2-column metric grid and the timeline rail don't blow out.
+    private var scale: CGFloat { scalesWithType ? min(typeScale, 1.6) : 1 }
 
     var body: some View {
         let color = BBColor.activity(kind)
-        RoundedRectangle(cornerRadius: size * 0.29, style: .continuous)
+        let side = size * scale
+        RoundedRectangle(cornerRadius: side * 0.29, style: .continuous)
             .fill(color.opacity(scheme == .dark ? 0.22 : 0.15))
-            .frame(width: size, height: size)
-            .overlay { kind.icon(glyph).foregroundStyle(color) }
+            .frame(width: side, height: side)
+            .overlay { kind.icon(glyph * scale).foregroundStyle(color) }
     }
 }
 
@@ -125,12 +135,16 @@ struct MetricTile: View {
         BBCard(cornerRadius: BBRadius.tile, padding: 13) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 7) {
-                    ActivityTile(kind: kind, size: 26, glyph: 16)
+                    ActivityTile(kind: kind, size: 26, glyph: 16, scalesWithType: false)
                     Text(label).font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true) // wrap, don't truncate
                 }
                 Text(value).font(.title2.weight(.semibold)).monospacedDigit()
+                    .minimumScaleFactor(0.7)
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label), \(value)")
     }
 }
 
@@ -159,6 +173,8 @@ struct EventRow: View {
                 }
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(EntityFormatting.accessibilityLabel(entity))
     }
 }
 
@@ -180,9 +196,13 @@ struct TagDotChip: View {
             if let onRemove {
                 Button(action: onRemove) {
                     Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
+                        .padding(6) // enlarge the tap target beyond the tiny glyph
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.tertiary)
+                .padding(-6) // ...without inflating the chip's visual size
+                .accessibilityLabel("Remove tag \(name)")
             }
         }
         .foregroundStyle(BBColor.tagChipText)
@@ -223,6 +243,12 @@ struct BBSegmentedControl<Value: Hashable>: View {
                     .onTapGesture {
                         withAnimation(.snappy(duration: 0.18)) { selection = option }
                     }
+                    // Expose each segment as a selectable button — a bare Text + onTapGesture is
+                    // invisible to VoiceOver as a control.
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(label(option))
+                    .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+                    .accessibilityAction { withAnimation(.snappy(duration: 0.18)) { selection = option } }
             }
         }
         .padding(3)

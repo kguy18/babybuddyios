@@ -75,6 +75,9 @@ struct RemoteImage<Placeholder: View>: View {
             }
         }
         .task(id: urlString ?? "") { await load() }
+        // Decorative: every use (avatar, note thumbnail, editor preview) sits in a context that
+        // already names it, so an unlabeled "image" would be redundant. Containers add labels.
+        .accessibilityHidden(true)
     }
 
     private func load() async {

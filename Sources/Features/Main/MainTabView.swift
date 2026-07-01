@@ -41,7 +41,14 @@ struct MainTabView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 6)
                     .background(.orange.opacity(0.2))
+                    .accessibilityElement(children: .combine)
+                    .accessibilityAddTraits(.updatesFrequently)
             }
+        }
+        // Announce the connectivity change so it isn't a silent, purely-visual banner.
+        .onChange(of: sync.isOnline) { _, online in
+            AccessibilityNotification.Announcement(
+                online ? "Back online" : "Offline. Changes will sync when reconnected.").post()
         }
     }
 
@@ -94,12 +101,17 @@ struct ChildSwitcher: ToolbarContent {
                         Text(currentName).font(.headline)
                         Image(systemName: "chevron.down").font(.caption2)
                     }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Current child, \(currentName)")
+                    .accessibilityHint("Switch child")
                 }
             } else {
                 HStack(spacing: 6) {
                     avatar
                     Text(currentName).font(.headline)
                 }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Current child, \(currentName)")
             }
         }
     }

@@ -69,6 +69,22 @@ enum EntityFormatting {
         (entity.payloadObject["tags"] as? [String]) ?? []
     }
 
+    /// A single spoken VoiceOver phrase for a timeline/latest row: kind, its detail, the time,
+    /// then sync state and tags — so the row reads as one coherent element instead of fragments.
+    static func accessibilityLabel(_ entity: LocalEntity) -> String {
+        var parts: [String] = [title(entity)]
+        if let subtitle = subtitle(entity), !subtitle.isEmpty { parts.append(subtitle) }
+        parts.append(entity.timestamp.formatted(date: .omitted, time: .shortened))
+        switch entity.syncState {
+        case .pendingCreate, .pendingUpdate, .pendingDelete: parts.append("waiting to sync")
+        case .conflicted: parts.append("sync conflict")
+        case .synced: break
+        }
+        let names = tags(entity)
+        if !names.isEmpty { parts.append("tags: \(names.joined(separator: ", "))") }
+        return parts.joined(separator: ", ")
+    }
+
     // MARK: Helpers
 
     static func formatAmount(_ value: Double) -> String { "\(trim(value)) ml" }

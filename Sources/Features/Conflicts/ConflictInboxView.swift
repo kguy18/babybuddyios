@@ -57,7 +57,10 @@ private struct ConflictInboxRow: View {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens conflict resolution")
     }
 }

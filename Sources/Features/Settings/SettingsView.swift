@@ -101,6 +101,8 @@ struct SettingsView: View {
                 }
                 .disabled(currentChild == nil)
                 .onChange(of: photoItem) { _, item in loadChildPhoto(item) }
+                .accessibilityLabel("Child photo")
+                .accessibilityHint("Change photo")
                 VStack(alignment: .leading, spacing: 2) {
                     Text(childDisplayName).font(.system(size: 17, weight: .semibold))
                     if let subtitle = childSubtitle {
