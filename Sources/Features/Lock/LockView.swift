@@ -10,11 +10,16 @@ struct LockView: View {
             Rectangle().fill(.background).ignoresSafeArea()
             VStack(spacing: 20) {
                 Image(systemName: "lock.fill").font(.system(size: 48)).foregroundStyle(.tint)
+                    .accessibilityHidden(true)
                 Text("Baby Buddy is locked").font(.headline)
                 Button("Unlock") { Task { await lock.unlock() } }
                     .buttonStyle(.borderedProminent)
             }
         }
+        // A full-screen modal barrier so VoiceOver stays within the lock screen…
+        .accessibilityAddTraits(.isModal)
+        // …and announces why the app's content just disappeared.
+        .onAppear { AccessibilityNotification.Announcement("Baby Buddy is locked").post() }
         .task { await lock.unlock() }
     }
 }

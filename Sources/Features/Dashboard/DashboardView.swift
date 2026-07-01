@@ -155,8 +155,10 @@ struct DashboardView: View {
                         }
                     }
                 } label: { photo }
+                .accessibilityLabel("Current child, \(currentChildName)")
+                .accessibilityHint("Switch child")
             } else {
-                photo
+                photo // decorative — the child's name is shown in the header beside it
             }
         }
     }
@@ -166,19 +168,25 @@ struct DashboardView: View {
     private func timerHero(_ timer: LocalEntity) -> some View {
         BBCard {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 8) {
-                    RunningDot()
-                    Text(timerTitle(timer))
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(BBColor.success)
-                    Spacer()
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 8) {
+                        RunningDot().accessibilityHidden(true)
+                        Text(timerTitle(timer))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(BBColor.success)
+                        Spacer()
+                    }
+                    Text(timer.timestamp, style: .timer)
+                        .font(BBFont.timer)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    Text("Started \(timer.timestamp.formatted(date: .omitted, time: .shortened))")
+                        .font(.footnote).foregroundStyle(.secondary)
                 }
-                Text(timer.timestamp, style: .timer)
-                    .font(BBFont.timer)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                Text("Started \(timer.timestamp.formatted(date: .omitted, time: .shortened))")
-                    .font(.footnote).foregroundStyle(.secondary)
+                // Read the running timer as one phrase; the live seconds aren't announced (they'd
+                // fire VoiceOver every second), but the label and start time are.
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(timerTitle(timer)), started \(timer.timestamp.formatted(date: .omitted, time: .shortened))")
                 Button { stoppingTimer = timer } label: {
                     Label("Stop", systemImage: "stop.fill")
                 }

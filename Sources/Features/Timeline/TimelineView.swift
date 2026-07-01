@@ -352,6 +352,17 @@ struct TimelineRailRow: View {
             card.padding(.bottom, 9)
         }
         .padding(.horizontal, 16)
+        // One combined element; the row's tap (edit) and swipe actions stay reachable via VoiceOver.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(rowLabel)
+        .accessibilityHint("Opens the editor")
+        .accessibilityAddTraits(.isButton)
+    }
+
+    private var rowLabel: String {
+        var label = EntityFormatting.accessibilityLabel(entity)
+        if noteImageURL != nil { label += ", photo attached" }
+        return label
     }
 
     /// A note's attached image URL, if this row is a note with an image set.
@@ -407,20 +418,25 @@ struct TimelineRailRow: View {
 /// The 40pt rail column: the activity's glyph tile as a node, plus a 2pt spine descending to
 /// the next node (drawn only when the spine continues — the day's last event has none).
 private struct RailNode: View {
+    // Matches ActivityTile's Dynamic-Type scaling so the column widens with the tile instead of
+    // clipping the glyph at large accessibility text sizes.
+    @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
     let kind: EntityKind
     let connectsDown: Bool
+
+    private var columnWidth: CGFloat { 40 * min(typeScale, 1.6) }
 
     var body: some View {
         ActivityTile(kind: kind, size: 38, glyph: 20)
             .padding(.top, 5)
-            .frame(width: 40, alignment: .top)
+            .frame(width: columnWidth, alignment: .top)
             .frame(maxHeight: .infinity, alignment: .top)
             .background(alignment: .top) {
                 if connectsDown {
                     Rectangle()
                         .fill(BBColor.railLine)
                         .frame(width: 2)
-                        .padding(.top, 43)
+                        .padding(.top, columnWidth + 3)
                 }
             }
     }

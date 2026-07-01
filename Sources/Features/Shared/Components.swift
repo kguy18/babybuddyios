@@ -9,13 +9,17 @@ struct SyncStateBadge: View {
         case .synced:
             EmptyView()
         case .pendingCreate, .pendingUpdate, .pendingDelete:
+            // Darker-than-system orange clears the 3:1 non-text contrast bar; the distinct symbol
+            // (vs. the conflict triangle) means state isn't conveyed by color alone.
             Image(systemName: "arrow.triangle.2.circlepath")
-                .foregroundStyle(.orange)
+                .foregroundStyle(BBColor.restart)
                 .help("Waiting to sync")
+                .accessibilityLabel("Waiting to sync")
         case .conflicted:
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.red)
+                .foregroundStyle(BBColor.danger)
                 .help("Sync conflict — tap to resolve")
+                .accessibilityLabel("Sync conflict")
         }
     }
 }
