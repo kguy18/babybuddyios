@@ -18,6 +18,11 @@ baby-tracking server. Offline-first, with conflict-aware sync and optional Face 
   the full activity picker (every log + measurement as a tinted glyph tile). Start a timer for a
   specific activity (feeding/sleep/tummy time/pumping) and stopping it files straight to that
   record — no "convert to…?" step — or start an uncategorized timer.
+- **Trends** — a Charts-powered analytics tab, scoped to the selected child over a 7 / 14 / 30-day
+  window: daily **sleep** hours, **feedings** per day (plus a total-amount-in-ml sub-chart when
+  amounts are recorded), and **diaper changes** per day split into wet vs solid. All aggregated
+  from the local cache — no extra network — and each chart falls back to a placeholder when the
+  window has no data.
 - **Timer widgets** — Home Screen widgets to start a timer (feeding/sleep/tummy time/pumping)
   and to watch the running timer with live elapsed time and a one-tap Stop that logs the
   activity. Lock Screen and StandBy accessories show the running timer at a glance. Widget
@@ -131,7 +136,7 @@ Pass via `SIMCTL_CHILD_<NAME>` env vars to `xcrun simctl launch`:
 |------|--------|
 | `BB_DEMO=1` | Seed sample data and skip the network (no server needed) |
 | `BB_SEED_CONFLICT=1` | Also seed a sample sync conflict |
-| `BB_START_TAB=timeline\|settings` | Open on a specific tab |
+| `BB_START_TAB=timeline\|trends\|settings` | Open on a specific tab |
 | `BB_OPEN=feeding\|change\|…` | Auto-present a new-entry editor |
 | `BB_LOAD_OLDER=<n>` | Auto-page the timeline back `n` history chunks on launch (with `BB_DEMO`) |
 | `BB_LOCK=1` | Force the Face ID lock on |

@@ -64,6 +64,8 @@ enum DemoData {
             "image": demoNoteImage() as Any, "tags": ["milestone"],
         ], context)
 
+        seedHistory(into: context)
+
         if ProcessInfo.processInfo.environment["BB_SEED_CONFLICT"] == "1" {
             seedConflict(into: context)
         }
@@ -143,6 +145,69 @@ enum DemoData {
             insert(item.kind, id: item.id, p, context)
         }
         try? context.save()
+    }
+
+    /// Seed ~30 days of deterministic feedings, diaper changes, and sleep so the Trends charts
+    /// (and Timeline history) have something to plot in demo mode. Values are derived
+    /// arithmetically from the day offset so screenshots stay stable across runs. ids are
+    /// namespaced (2000+) so they never collide with the recent seeds or the load-older batch.
+    private static func seedHistory(into context: ModelContext) {
+        let cal = Calendar.current
+        let startOfToday = cal.startOfDay(for: Date())
+        var nextID = 2000
+
+        /// ISO datetime `daysAgo` days back at the given fractional `hour`.
+        func iso(_ daysAgo: Int, _ hour: Double) -> String {
+            let day = cal.date(byAdding: .day, value: -daysAgo, to: startOfToday) ?? startOfToday
+            return APIDate.isoDateTime.string(from: day.addingTimeInterval(hour * 3600))
+        }
+
+        // (type, method, carries an amount) — bottle feeds record ml; breast feeds don't.
+        let feedKinds: [(String, String, Bool)] = [
+            ("formula", "bottle", true),
+            ("breast milk", "left breast", false),
+            ("breast milk", "right breast", false),
+            ("fortified breast milk", "bottle", true),
+        ]
+
+        for daysAgo in 1...30 {
+            // Feedings: 5–7 spread across the waking day.
+            let feedCount = 5 + (daysAgo % 3)
+            for f in 0..<feedCount {
+                let hour = 6.5 + Double(f) * (15.0 / Double(feedCount))
+                let (type, method, hasAmount) = feedKinds[(daysAgo + f) % feedKinds.count]
+                var payload: [String: Any] = [
+                    "id": nextID, "child": 1, "start": iso(daysAgo, hour - 0.25), "end": iso(daysAgo, hour),
+                    "type": type, "method": method, "tags": [],
+                ]
+                payload["amount"] = hasAmount ? Double(60 + ((daysAgo * 7 + f * 13) % 70)) : NSNull()
+                insert(.feeding, id: nextID, payload, context); nextID += 1
+            }
+
+            // Diaper changes: 4–7, every so often a solid.
+            let changeCount = 4 + (daysAgo % 4)
+            for c in 0..<changeCount {
+                let hour = 6.0 + Double(c) * (16.0 / Double(changeCount))
+                let solid = (daysAgo + c) % 3 == 0
+                insert(.change, id: nextID, [
+                    "id": nextID, "child": 1, "time": iso(daysAgo, hour), "wet": true, "solid": solid,
+                    "color": solid ? "yellow" : "", "tags": [],
+                ], context); nextID += 1
+            }
+
+            // Sleep: an early-morning block plus two naps, all within the day (~9–11h total).
+            let blocks: [(Double, Double)] = [
+                (0.0, 5.5 + Double(daysAgo % 3) * 0.5),
+                (9.0, 10.5),
+                (13.0, 15.0 + Double(daysAgo % 2) * 0.5),
+            ]
+            for (start, end) in blocks {
+                insert(.sleep, id: nextID, [
+                    "id": nextID, "child": 1, "start": iso(daysAgo, start), "end": iso(daysAgo, end),
+                    "nap": start > 6, "tags": [],
+                ], context); nextID += 1
+            }
+        }
     }
 
     /// Seed a single update-vs-update conflict on the most recent feeding. Diverges in four

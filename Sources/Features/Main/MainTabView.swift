@@ -18,8 +18,10 @@ struct MainTabView: View {
                 .tabItem { Label("Home", systemImage: "house.fill") }.tag(0)
             TimelineView(selectedChildID: childBinding)
                 .tabItem { Label("Timeline", systemImage: "list.bullet") }.tag(1)
+            InsightsView(selectedChildID: childBinding)
+                .tabItem { Label("Trends", systemImage: "chart.bar.fill") }.tag(2)
             SettingsView()
-                .tabItem { Label("Settings", systemImage: "gearshape.fill") }.tag(2)
+                .tabItem { Label("Settings", systemImage: "gearshape.fill") }.tag(3)
         }
         .task {
             await sync.sync()
@@ -47,7 +49,8 @@ struct MainTabView: View {
         #if DEBUG
         switch ProcessInfo.processInfo.environment["BB_START_TAB"] {
         case "timeline": return 1
-        case "settings": return 2
+        case "trends": return 2
+        case "settings": return 3
         default: return 0
         }
         #else
