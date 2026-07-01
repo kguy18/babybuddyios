@@ -1,15 +1,17 @@
 // Build configuration for the BabyBuddy app target.
 //
-// The TelemetryDeck App ID is injected here and surfaced to the app via the
-// `TelemetryDeckAppID` Info.plist key. The public repository ships it EMPTY on
-// purpose: open-source and forked builds must never send analytics to the
-// maintainer's TelemetryDeck account. Analytics only run when this value is
-// non-empty (see Sources/Analytics/Analytics.swift).
+// The PostHog project API key is injected here and surfaced to the app via the
+// `PostHogAPIKey` Info.plist key. The public repository ships it EMPTY on purpose:
+// open-source and forked builds must never send analytics to the maintainer's
+// PostHog project. Analytics only run when this value is non-empty (see
+// Sources/Analytics/Analytics.swift). The ingestion host defaults to US Cloud and
+// is set as a literal `PostHogHost` Info.plist value in project.yml — change it
+// there for the EU region or a self-hosted instance.
 //
 // To enable analytics in your own build, copy `Secrets.example.xcconfig` to
-// `Secrets.xcconfig` (same folder) and set your App ID there. `Secrets.xcconfig`
-// is gitignored and overrides the empty default below.
-TELEMETRYDECK_APP_ID =
+// `Secrets.xcconfig` (same folder) and set your key there. `Secrets.xcconfig` is
+// gitignored and overrides the empty default below.
+POSTHOG_API_KEY =
 
 // RevenueCat public Apple SDK key (begins with `appl_`), injected into the
 // `RevenueCatAPIKey` Info.plist key. Ships EMPTY in the public repo: in-app
