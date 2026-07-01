@@ -86,19 +86,34 @@ struct ChildSwitcher: ToolbarContent {
                         }
                     }
                 } label: {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 6) {
+                        avatar
                         Text(currentName).font(.headline)
                         Image(systemName: "chevron.down").font(.caption2)
                     }
                 }
             } else {
-                Text(currentName).font(.headline)
+                HStack(spacing: 6) {
+                    avatar
+                    Text(currentName).font(.headline)
+                }
             }
         }
     }
 
+    private var avatar: some View {
+        ChildAvatar(
+            pictureURL: selectedChild?.payloadObject["picture"] as? String,
+            initial: String(currentName.prefix(1)),
+            size: 26)
+    }
+
+    private var selectedChild: LocalEntity? {
+        children.first { $0.serverID == selectedChildID }
+    }
+
     private var currentName: String {
-        children.first { $0.serverID == selectedChildID }.map(childName) ?? "Baby Buddy"
+        selectedChild.map(childName) ?? "Baby Buddy"
     }
 
     private func childName(_ entity: LocalEntity) -> String {

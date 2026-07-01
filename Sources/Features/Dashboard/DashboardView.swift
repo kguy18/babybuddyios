@@ -139,10 +139,10 @@ struct DashboardView: View {
     }
 
     private var avatar: some View {
-        let circle = Circle()
-            .fill(BBColor.brand)
-            .frame(width: 42, height: 42)
-            .overlay(Text(currentChildName.prefix(1)).font(.headline).foregroundStyle(.white))
+        let photo = ChildAvatar(
+            pictureURL: currentChild?.payloadObject["picture"] as? String,
+            initial: String(currentChildName.prefix(1)),
+            size: 42)
         return Group {
             if children.count > 1 {
                 Menu {
@@ -154,9 +154,9 @@ struct DashboardView: View {
                                   ? "checkmark" : "person.crop.circle")
                         }
                     }
-                } label: { circle }
+                } label: { photo }
             } else {
-                circle
+                photo
             }
         }
     }

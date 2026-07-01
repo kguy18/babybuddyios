@@ -1,6 +1,7 @@
 #if DEBUG
 import Foundation
 import SwiftData
+import UIKit
 
 /// Seeds the local cache with sample records so the authenticated UI can be exercised in
 /// the simulator without a live Baby Buddy server. Activated by launching with the
@@ -13,6 +14,7 @@ enum DemoData {
         insert(.child, id: 1, [
             "id": 1, "first_name": "Maya", "last_name": "Guy",
             "birth_date": "2025-11-02", "slug": "maya-guy",
+            "picture": demoChildPicture() as Any,
         ], context)
 
         let now = Date()
@@ -56,6 +58,10 @@ enum DemoData {
         ], context)
         insert(.weight, id: 50, [
             "id": 50, "child": 1, "weight": 5.4, "date": APIDate.dateOnly.string(from: now), "tags": [],
+        ], context)
+        insert(.note, id: 60, [
+            "id": 60, "child": 1, "time": iso(150), "note": "Looking out at the garden.",
+            "image": demoNoteImage() as Any, "tags": ["milestone"],
         ], context)
 
         if ProcessInfo.processInfo.environment["BB_SEED_CONFLICT"] == "1" {
@@ -161,6 +167,51 @@ enum DemoData {
     private static func insert(_ kind: EntityKind, id: Int, _ obj: [String: Any], _ context: ModelContext) {
         guard let data = try? JSONSerialization.data(withJSONObject: obj) else { return }
         LocalStore.upsertFromServer(data, kind: kind, in: context)
+    }
+
+    // MARK: Demo images
+    //
+    // The display feature fetches media from the server, which demo mode has no access to. To
+    // exercise the image UI (avatar + note thumbnail) offline, render a couple of placeholder
+    // images to the caches directory and seed their `file://` URLs — `RemoteImage` loads file URLs
+    // directly with no network.
+
+    /// A simple flat "portrait" (distinct from the initials fallback so the loaded photo is
+    /// visually obvious), written once to caches.
+    private static func demoChildPicture() -> String? {
+        renderDemoImage(named: "child", size: CGSize(width: 240, height: 240)) { ctx, rect in
+            UIColor(hex: "F4A6C0").setFill()
+            ctx.fill(rect)
+            UIColor(hex: "FFE0B2").setFill()  // face
+            ctx.fillEllipse(in: rect.insetBy(dx: rect.width * 0.26, dy: rect.height * 0.18))
+            UIColor(hex: "5D4037").setFill()  // eyes
+            ctx.fillEllipse(in: CGRect(x: rect.width * 0.40, y: rect.height * 0.42, width: rect.width * 0.06, height: rect.width * 0.06))
+            ctx.fillEllipse(in: CGRect(x: rect.width * 0.54, y: rect.height * 0.42, width: rect.width * 0.06, height: rect.width * 0.06))
+        }
+    }
+
+    /// A simple flat "garden" scene, written once to caches, for the seeded note's thumbnail.
+    private static func demoNoteImage() -> String? {
+        renderDemoImage(named: "note", size: CGSize(width: 320, height: 320)) { ctx, rect in
+            UIColor(hex: "BFE3F5").setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: rect.width, height: rect.height * 0.6))
+            UIColor(hex: "A8D08D").setFill()
+            ctx.fill(CGRect(x: 0, y: rect.height * 0.6, width: rect.width, height: rect.height * 0.4))
+            UIColor(hex: "FFD54A").setFill()
+            let sun = CGRect(x: rect.width * 0.66, y: rect.height * 0.1, width: rect.width * 0.22, height: rect.width * 0.22)
+            ctx.fillEllipse(in: sun)
+        }
+    }
+
+    private static func renderDemoImage(named name: String, size: CGSize,
+                                        draw: (CGContext, CGRect) -> Void) -> String? {
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        let url = caches.appendingPathComponent("bbdemo_\(name).png")
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let image = renderer.image { ctx in draw(ctx.cgContext, CGRect(origin: .zero, size: size)) }
+        guard let data = image.pngData() else { return nil }
+        try? data.write(to: url, options: .atomic)
+        return url.absoluteString
     }
 }
 #endif

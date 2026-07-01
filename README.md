@@ -27,6 +27,10 @@ baby-tracking server. Offline-first, with conflict-aware sync and optional Face 
   child) and a **type + date-range filter** narrow it instantly, all offline over the cache.
   Sync keeps a rolling 30-day window; **Load older activity** at the foot of the timeline
   pages further back on demand (down to the child's birth) without dropping anything cached.
+- **Photos** — a child's profile picture is shown as the avatar in the dashboard and child
+  switcher, and a note's attached image appears as a thumbnail in the timeline and inside the
+  note editor. Images are fetched with same-origin auth (cleartext `http` upgraded to `https`)
+  and cached on disk. *(Uploading photos from the device is coming in a follow-up.)*
 - **Offline-first** — the local SwiftData store is the source of truth; every change is applied
   instantly and queued for delivery. An offline banner shows when the server is unreachable.
   Settings' **Pending changes** row opens the queue: each waiting write is listed (added / edited /
