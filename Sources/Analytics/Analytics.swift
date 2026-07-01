@@ -41,7 +41,8 @@ enum Analytics {
         guard ProcessInfo.processInfo.environment["BB_DEMO"] != "1" else { return }
         guard let apiKey else { return }
 
-        let config = PostHogConfig(apiKey: apiKey, host: host)
+        // PostHog's "Project API Key" (phc_…); the SDK's parameter is named `projectToken`.
+        let config = PostHogConfig(projectToken: apiKey, host: host)
         config.captureScreenViews = false               // no UIKit screen autocapture
         config.sessionReplay = false                    // never record the screen
         config.preloadFeatureFlags = false              // we don't use feature flags
