@@ -49,6 +49,9 @@ struct EntityEditorView: View {
     @State private var milestone = ""
     // Note
     @State private var noteText = ""
+    /// URL of an image already attached to the note on the server (display-only for now; picking
+    /// and uploading a new image lands in Part B).
+    @State private var imageURL: String?
     // Measurement
     @State private var value = ""
     // Medication
@@ -230,9 +233,22 @@ struct EntityEditorView: View {
             BBCard(cornerRadius: BBRadius.tile) { fieldLabeled("Amount") { amountStepper } }
         case .note:
             BBCard(cornerRadius: BBRadius.tile) {
-                TextField("Add a note…", text: $noteText, axis: .vertical)
-                    .lineLimit(3...8)
-                    .frame(maxWidth: .infinity, minHeight: 60, alignment: .topLeading)
+                VStack(alignment: .leading, spacing: 12) {
+                    TextField("Add a note…", text: $noteText, axis: .vertical)
+                        .lineLimit(3...8)
+                        .frame(maxWidth: .infinity, minHeight: 60, alignment: .topLeading)
+                    if let imageURL {
+                        RemoteImage(urlString: imageURL) {
+                            RoundedRectangle(cornerRadius: BBRadius.control, style: .continuous)
+                                .fill(BBColor.controlFill)
+                                .frame(height: 160)
+                                .overlay(ProgressView())
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 160)
+                        .clipShape(RoundedRectangle(cornerRadius: BBRadius.control, style: .continuous))
+                    }
+                }
             }
         case .weight, .height, .headCircumference, .bmi:
             BBCard(cornerRadius: BBRadius.tile) {
@@ -528,6 +544,7 @@ struct EntityEditorView: View {
         nap = p["nap"] as? Bool ?? nap
         milestone = p["milestone"] as? String ?? ""
         noteText = p["note"] as? String ?? ""
+        imageURL = (p["image"] as? String).flatMap { $0.isEmpty ? nil : $0 }
         medName = p["name"] as? String ?? ""
         if let d = p["dosage"] as? Double { dosage = trimmed(d) }
         dosageUnit = p["dosage_unit"] as? String ?? dosageUnit

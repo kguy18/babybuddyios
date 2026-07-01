@@ -354,6 +354,13 @@ struct TimelineRailRow: View {
         .padding(.horizontal, 16)
     }
 
+    /// A note's attached image URL, if this row is a note with an image set.
+    private var noteImageURL: String? {
+        guard entity.kind == .note, let url = entity.payloadObject["image"] as? String, !url.isEmpty
+        else { return nil }
+        return url
+    }
+
     private var card: some View {
         BBCard(cornerRadius: BBRadius.tile, padding: 13) {
             HStack(alignment: .top, spacing: 10) {
@@ -374,6 +381,17 @@ struct TimelineRailRow: View {
                         }
                         .padding(.top, 7)
                     }
+                }
+                if let noteImageURL {
+                    RemoteImage(urlString: noteImageURL) {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(BBColor.controlFill)
+                            .overlay(Image(systemName: "photo")
+                                .font(.caption).foregroundStyle(.secondary))
+                    }
+                    .frame(width: 46, height: 46)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .padding(.leading, 4)
                 }
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: 2) {
