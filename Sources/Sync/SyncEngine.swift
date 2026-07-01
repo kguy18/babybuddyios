@@ -63,10 +63,57 @@ final class SyncEngine {
         isSyncing = true
         defer { isSyncing = false }
         let pushed = await pushPending()
+        // Image uploads drain after the mutation queue so a just-created record already has its
+        // serverID (a multipart PATCH needs it).
+        let uploaded = await drainImageUploads()
         let pulledChanges = await pullAll()
         // Only report a sync that actually did work — most syncs (foreground, pull-to-refresh,
         // after each timer action, background) are no-ops, which would otherwise be pure noise.
-        if pushed || pulledChanges { Analytics.syncCompleted() }
+        if pushed || uploaded || pulledChanges { Analytics.syncCompleted() }
+    }
+
+    /// Deliver queued image uploads (child pictures / note images) as multipart `PATCH`es. Each
+    /// runs only once its target record is fully synced (has a `serverID`, no pending text write),
+    /// so the image PATCH can't clobber an un-pushed edit. Returns whether any upload was delivered.
+    @discardableResult
+    func drainImageUploads() async -> Bool {
+        #if DEBUG
+        if session.isDemo { return false }
+        #endif
+        guard let client = session.client else { return false }
+        let queue = (try? context.fetch(
+            FetchDescriptor<PendingImageUpload>(sortBy: [SortDescriptor(\.createdAt)]))) ?? []
+        var delivered = false
+        for upload in queue {
+            guard let entity = LocalStore.fetch(localID: upload.localID, in: context),
+                  let serverID = entity.serverID, entity.syncState == .synced,
+                  let field = entity.kind.imageField else {
+                continue // target not ready (create not yet pushed, or has a pending edit)
+            }
+            guard let data = try? Data(contentsOf: ImageUploadStore.url(for: upload.filename)) else {
+                context.delete(upload); continue // bytes gone — drop the orphan
+            }
+            do {
+                let response = try await client.uploadImage(
+                    path: entity.kind.path, id: serverID, field: field,
+                    filename: upload.filename, mimeType: upload.mimeType, data: data)
+                TimerPush.reconcile(response, into: entity)
+                ImageUploadStore.delete(upload.filename)
+                context.delete(upload)
+                delivered = true
+            } catch let error as APIError {
+                Analytics.report(error)
+                if case .unauthorized = error { session.signOut(); return delivered }
+                if error.isRetryable { break } // offline/5xx: retry the whole queue later
+                upload.attemptCount += 1
+                upload.lastError = error.userMessage
+            } catch {
+                upload.attemptCount += 1
+                upload.lastError = error.localizedDescription
+            }
+        }
+        try? context.save()
+        return delivered
     }
 
     /// Drain the pending-mutation queue oldest-first. Conflict detection is layered on in

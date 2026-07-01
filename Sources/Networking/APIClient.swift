@@ -134,6 +134,18 @@ final class APIClient {
         return try await sendRaw(req)
     }
 
+    /// PATCH a single image file field (`multipart/form-data`) onto an existing record — the one
+    /// non-JSON write. Returns the updated record so the caller can reconcile the new media URL.
+    func uploadImage(path: String, id: Int, field: String, filename: String,
+                     mimeType: String, data: Data) async throws -> Data {
+        let boundary = MultipartForm.boundary()
+        var req = try makeRequest(path: "\(path)/\(id)/", method: "PATCH")
+        req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        req.httpBody = MultipartForm.imageBody(
+            boundary: boundary, field: field, filename: filename, mimeType: mimeType, data: data)
+        return try await sendRaw(req)
+    }
+
     func deleteRaw(path: String, id: Int) async throws {
         _ = try await sendRaw(try makeRequest(path: "\(path)/\(id)/", method: "DELETE"))
     }

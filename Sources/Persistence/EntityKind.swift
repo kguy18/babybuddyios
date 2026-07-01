@@ -114,6 +114,16 @@ enum EntityKind: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    /// The multipart file-upload field for this kind's image, if it has one. Baby Buddy exposes
+    /// a note `image` and a child `picture` (both Django `ImageField`s); no other kind has media.
+    var imageField: String? {
+        switch self {
+        case .note: return "image"
+        case .child: return "picture"
+        default: return nil
+        }
+    }
+
     /// Kinds shown in the merged activity timeline (excludes Child, which is metadata).
     static var timelineKinds: [EntityKind] {
         [.feeding, .change, .sleep, .tummyTime, .pumping, .note, .temperature,

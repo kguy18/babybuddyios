@@ -126,6 +126,39 @@ struct LocalRepository {
         return create(kind: entity.kind, payload: p)
     }
 
+    // MARK: Image uploads
+
+    /// Attach a picked image to a record: persist the bytes, point the cached record's image field
+    /// at that local `file://` (so it displays immediately), and enqueue a ``PendingImageUpload``
+    /// to `PATCH` it to the server once the record has a `serverID`. Only notes (`image`) and
+    /// children (`picture`) carry images; a call for any other kind is ignored.
+    ///
+    /// The `file://` preview lives only in the cached `payload` — it is never sent in a JSON
+    /// create/update body (those omit the image field), so the queued text write stays clean and
+    /// the image travels solely over the dedicated multipart path.
+    func enqueueImageUpload(for entity: LocalEntity, imageData: Data,
+                            ext: String = "jpg", mimeType: String = "image/jpeg") {
+        guard let field = entity.kind.imageField,
+              let filename = ImageUploadStore.write(imageData, ext: ext) else { return }
+
+        var payload = entity.payloadObject
+        payload[field] = ImageUploadStore.url(for: filename).absoluteString
+        if let data = try? JSONSerialization.data(withJSONObject: payload) {
+            entity.payload = data
+            entity.updatedAt = .now
+        }
+
+        // Coalesce: a newer pick supersedes an earlier queued one for the same record.
+        let localID = entity.localID
+        let existing = (try? context.fetch(FetchDescriptor<PendingImageUpload>(
+            predicate: #Predicate { $0.localID == localID }))) ?? []
+        for old in existing { ImageUploadStore.delete(old.filename); context.delete(old) }
+
+        context.insert(PendingImageUpload(
+            localID: entity.localID, kind: entity.kind, filename: filename, mimeType: mimeType))
+        try? context.save()
+    }
+
     // MARK: Discard a queued change
 
     /// Cancel a queued write, reverting the cached record to the server's last-known state.
