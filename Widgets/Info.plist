@@ -23,7 +23,9 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.widgetkit-extension</string>
 	</dict>
-	<key>TelemetryDeckAppID</key>
-	<string>$(TELEMETRYDECK_APP_ID)</string>
+	<key>PostHogAPIKey</key>
+	<string>$(POSTHOG_API_KEY)</string>
+	<key>PostHogHost</key>
+	<string>https://us.i.posthog.com</string>
 </dict>
 </plist>

@@ -68,21 +68,24 @@ Run the tests with `test` instead of `build`.
 
 ### Analytics (optional)
 
-The app integrates [TelemetryDeck](https://telemetrydeck.com), a privacy-focused,
-cookieless analytics service. **It is disabled by default and this repository ships
-without an App ID**, so builds you make from a clone send no data anywhere.
+The app integrates [PostHog](https://posthog.com) product analytics, configured to run
+in an anonymous, privacy-respecting mode (no screen autocapture, no session replay, no
+`identify`). **It is disabled by default and this repository ships without an API key**,
+so builds you make from a clone send no data anywhere.
 
-Analytics only run when a TelemetryDeck App ID is configured at build time:
+Analytics only run when a PostHog project API key is configured at build time:
 
 ```sh
 cp Config/Secrets.example.xcconfig Config/Secrets.xcconfig
-# then edit Config/Secrets.xcconfig and set TELEMETRYDECK_APP_ID = <your-app-id>
+# then edit Config/Secrets.xcconfig and set POSTHOG_API_KEY = phc_<your-key>
 ```
 
-`Config/Secrets.xcconfig` is gitignored and must never be committed. The ID flows
-into the app's `TelemetryDeckAppID` Info.plist key (see `Config/BabyBuddy.xcconfig`)
-and `Analytics.start()` initializes the SDK only when that value is non-empty.
-Analytics are also skipped automatically in `BB_DEMO` mode.
+`Config/Secrets.xcconfig` is gitignored and must never be committed. The key flows
+into the app's `PostHogAPIKey` Info.plist key (see `Config/BabyBuddy.xcconfig`) and
+`Analytics.start()` initializes the SDK only when that value is non-empty. The
+ingestion host defaults to US Cloud; set `PostHogHost` in `project.yml` for the EU
+region or a self-hosted instance. Analytics are also skipped automatically in
+`BB_DEMO` mode.
 
 ### In-app purchases (optional)
 

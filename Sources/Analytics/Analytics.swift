@@ -1,43 +1,66 @@
 import Foundation
-import TelemetryDeck
+import PostHog
 
-/// Thin wrapper around the TelemetryDeck SDK.
+/// Thin wrapper around the PostHog SDK.
 ///
-/// Analytics only run when a TelemetryDeck App ID is configured. The ID is
+/// Analytics only run when a PostHog project API key is configured. The key is
 /// injected at build time from `Config/Secrets.xcconfig` (gitignored) into the
-/// `TelemetryDeckAppID` Info.plist key. The public repository ships without an
-/// App ID, so open-source and forked builds send no data. The App Store build
-/// supplies the ID locally / via CI.
+/// `PostHogAPIKey` Info.plist key. The public repository ships without a key, so
+/// open-source and forked builds send no data. The App Store build supplies the
+/// key locally / via CI.
+///
+/// It's configured to stay lean and privacy-respecting: screen autocapture and
+/// session replay are off, we never call `identify(...)`, so events are attributed
+/// only to an anonymous, device-scoped identifier — no personal or baby data.
 enum Analytics {
-    /// The App ID injected into Info.plist, or `nil` if none was configured.
-    private static var appID: String? {
-        guard let value = Bundle.main.object(forInfoDictionaryKey: "TelemetryDeckAppID") as? String else {
+    /// The PostHog project API key from Info.plist, or `nil` if none was configured.
+    private static var apiKey: String? {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: "PostHogAPIKey") as? String else {
             return nil
         }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
     }
 
+    /// The PostHog ingestion host. Defaults to US Cloud; set `PostHogHost` in Info.plist
+    /// (via `project.yml`) for the EU region or a self-hosted instance.
+    private static var host: String {
+        let value = (Bundle.main.object(forInfoDictionaryKey: "PostHogHost") as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return (value?.isEmpty == false ? value : nil) ?? "https://us.i.posthog.com"
+    }
+
     /// `true` once `start()` has initialized the SDK.
     private(set) static var isEnabled = false
 
-    /// Initializes TelemetryDeck if an App ID is configured and we're not in
-    /// demo mode. Safe to call once at launch; a no-op otherwise.
+    /// Initializes PostHog if an API key is configured and we're not in demo mode.
+    /// Safe to call once at launch; a no-op otherwise.
     static func start() {
         guard !isEnabled else { return }
         // Demo mode runs offline with seeded data — never report it.
         guard ProcessInfo.processInfo.environment["BB_DEMO"] != "1" else { return }
-        guard let appID else { return }
+        guard let apiKey else { return }
 
-        let config = TelemetryDeck.Config(appID: appID)
-        TelemetryDeck.initialize(config: config)
+        let config = PostHogConfig(apiKey: apiKey, host: host)
+        config.captureScreenViews = false               // no UIKit screen autocapture
+        config.sessionReplay = false                    // never record the screen
+        config.preloadFeatureFlags = false              // we don't use feature flags
+        config.captureApplicationLifecycleEvents = true // app opened / installed / updated
+        PostHogSDK.shared.setup(config)
         isEnabled = true
     }
 
-    /// Sends a signal if analytics are enabled; a no-op otherwise.
+    /// Sends an event if analytics are enabled; a no-op otherwise.
     static func signal(_ name: String, parameters: [String: String] = [:]) {
         guard isEnabled else { return }
-        TelemetryDeck.signal(name, parameters: parameters)
+        PostHogSDK.shared.capture(name, properties: parameters)
+    }
+
+    /// Flush queued events immediately. PostHog batches by default, so short-lived
+    /// widget/App Intent processes call this after signaling to push before suspension.
+    static func flush() {
+        guard isEnabled else { return }
+        PostHogSDK.shared.flush()
     }
 }
 

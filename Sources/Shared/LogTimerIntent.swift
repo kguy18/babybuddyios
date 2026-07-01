@@ -44,6 +44,7 @@ struct LogTimerIntent: AppIntent {
             Analytics.timerStopped(activity: activity.rawValue, source: .widget)
             if let logged { await TimerPush.pushCreate(localID: logged.localID, in: context) }
         }
+        Analytics.flush() // short-lived process — push queued events before it suspends
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
     }
