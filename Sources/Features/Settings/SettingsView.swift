@@ -10,6 +10,9 @@ struct SettingsView: View {
     @Environment(AppSession.self) private var session
     @Environment(SyncEngine.self) private var sync
     @Environment(AppLockManager.self) private var lock
+    @Environment(PurchaseManager.self) private var purchases
+    @Environment(TrialManager.self) private var trial
+    @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var context
 
     @State private var photoItem: PhotosPickerItem?
@@ -25,6 +28,9 @@ struct SettingsView: View {
     @State private var debugConflict: ConflictRecord?
     @State private var debugIcons = false
     @State private var showingPending = false
+    @State private var showPaywall = false
+    @State private var showTrialOffer = false
+    @State private var isRestoring = false
 
     var body: some View {
         NavigationStack {
@@ -35,6 +41,8 @@ struct SettingsView: View {
                     if case .authenticated(let config) = session.state {
                         sectioned("Server") { serverCard(config) }
                     }
+
+                    sectioned("Premium") { premiumCard }
 
                     sectioned("Sync") { syncCard }
 
@@ -58,6 +66,10 @@ struct SettingsView: View {
             .background(BBColor.surface)
             .navigationTitle("Settings")
             .sheet(isPresented: $showingPending) { PendingChangesView() }
+            .sheet(isPresented: $showPaywall) { PremiumScreen() }
+            .sheet(isPresented: $showTrialOffer) {
+                TrialOfferView().presentationDetents([.medium])
+            }
             .sheet(item: $debugConflict) { c in
                 NavigationStack { ConflictResolutionView(conflict: c) }
             }
@@ -248,6 +260,125 @@ struct SettingsView: View {
                     .tint(BBColor.primary)
                     .disabled(!lock.biometryAvailable)
             }
+        }
+    }
+
+    // MARK: Premium
+
+    /// Subscription status and actions. Upgrade / Start Free Trial disappear once Pro is owned; the
+    /// trial offer only appears when the customer has never started a trial.
+    private var premiumCard: some View {
+        card {
+            statusRow
+
+            if !purchases.hasPremium && !trial.hasStartedTrial {
+                rowDivider
+                actionRow(symbol: "gift.fill", tint: BBColor.success, title: "Start Free Trial") {
+                    showTrialOffer = true
+                }
+            }
+
+            if !purchases.hasPremium {
+                rowDivider
+                actionRow(symbol: "sparkles", tint: BBColor.brand, title: "Upgrade") {
+                    Analytics.upgradePressed()
+                    showPaywall = true
+                }
+            }
+
+            rowDivider
+            restoreRow
+
+            rowDivider
+            NavigationLink { ManagePurchaseView() } label: {
+                SettingsRow(symbol: "creditcard", tint: BBColor.brandAccent, title: "Manage Purchases") {
+                    disclosure
+                }
+            }
+            .buttonStyle(.plain)
+
+            rowDivider
+            linkRow(symbol: "hand.raised", title: "Privacy Policy", url: PremiumLinks.privacyPolicy)
+
+            rowDivider
+            linkRow(symbol: "doc.text", title: "Terms of Service", url: PremiumLinks.termsOfService)
+        }
+    }
+
+    /// The current entitlement standing, shown as a colored badge.
+    private var statusRow: some View {
+        SettingsRow(symbol: "crown.fill", tint: statusTint, title: "Baby Buddy Pro") {
+            Text(statusText)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(statusTint)
+        }
+    }
+
+    private var restoreRow: some View {
+        Button {
+            Task { isRestoring = true; await purchases.restore(); isRestoring = false }
+        } label: {
+            SettingsRow(symbol: "arrow.clockwise", tint: BBColor.info, title: "Restore Purchases") {
+                if isRestoring { ProgressView().controlSize(.small) }
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(isRestoring)
+    }
+
+    /// A tappable row with a trailing chevron, used for the in-app actions (trial / upgrade).
+    private func actionRow(symbol: String, tint: Color, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            SettingsRow(symbol: symbol, tint: tint, title: title) { disclosure }
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// A row that opens an external URL (keeps the native row styling rather than a tinted `Link`).
+    private func linkRow(symbol: String, title: String, url: URL) -> some View {
+        Button { openURL(url) } label: {
+            SettingsRow(symbol: symbol, tint: BBColor.note, title: title) {
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var disclosure: some View {
+        Image(systemName: "chevron.right")
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(.tertiary)
+    }
+
+    /// Which of the five display states the customer is in.
+    private enum PremiumStatus { case premium, trialActive(Int), trialAvailable, trialExpired, free }
+
+    private var premiumStatus: PremiumStatus {
+        if purchases.hasPremium { return .premium }
+        if trial.isTrialActive { return .trialActive(trial.daysRemaining) }
+        if trial.hasStartedTrial { return .trialExpired }          // started but no longer active
+        if purchases.isConfigured { return .trialAvailable }        // eligible to start a trial
+        return .free                                                // no purchases configured, no trial
+    }
+
+    private var statusText: String {
+        switch premiumStatus {
+        case .premium:               return "Purchased"
+        case .trialActive(let days): return "Trial · \(days) day\(days == 1 ? "" : "s") left"
+        case .trialAvailable:        return "Trial available"
+        case .trialExpired:          return "Trial expired"
+        case .free:                  return "Free"
+        }
+    }
+
+    private var statusTint: Color {
+        switch premiumStatus {
+        case .premium:                    return BBColor.success
+        case .trialActive, .trialAvailable: return BBColor.brandAccent
+        case .trialExpired:               return BBColor.restart
+        case .free:                       return BBColor.note
         }
     }
 

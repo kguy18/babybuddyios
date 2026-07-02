@@ -84,7 +84,9 @@ struct DashboardView: View {
                 EntityEditorView(kind: entity.kind, childID: selectedChildID, entity: entity)
             }
             .sheet(isPresented: $startingTimer) {
-                StartTimerSheet(childID: selectedChildID)
+                PremiumGate(feature: .timers) {
+                    StartTimerSheet(childID: selectedChildID)
+                }
             }
             .sheet(item: $convertRequest) { request in
                 EntityEditorView(kind: request.kind,

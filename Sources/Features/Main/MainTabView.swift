@@ -18,8 +18,10 @@ struct MainTabView: View {
                 .tabItem { Label("Home", systemImage: "house.fill") }.tag(0)
             TimelineView(selectedChildID: childBinding)
                 .tabItem { Label("Timeline", systemImage: "list.bullet") }.tag(1)
-            InsightsView(selectedChildID: childBinding)
-                .tabItem { Label("Trends", systemImage: "chart.bar.fill") }.tag(2)
+            PremiumGate(feature: .statistics) {
+                InsightsView(selectedChildID: childBinding)
+            }
+            .tabItem { Label("Trends", systemImage: "chart.bar.fill") }.tag(2)
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape.fill") }.tag(3)
         }
