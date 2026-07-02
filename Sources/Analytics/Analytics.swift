@@ -114,6 +114,62 @@ extension Analytics {
         signal("Error.network", parameters: ["reason": reason])
     }
 
+    // MARK: In-app purchases & premium
+    //
+    // Purchase/premium funnel. Like every event here these carry only coarse, non-identifying
+    // values — a feature key or an error code — never customer, receipt, or price data.
+
+    /// The upgrade paywall was shown.
+    static func paywallViewed() {
+        signal("Paywall.viewed")
+    }
+
+    /// An "Upgrade" call-to-action was tapped (which opens the paywall).
+    static func upgradePressed() {
+        signal("Paywall.upgradePressed")
+    }
+
+    /// A purchase flow began (the StoreKit sheet was requested).
+    static func purchaseStarted() {
+        signal("Purchase.started")
+    }
+
+    /// A purchase completed successfully.
+    static func purchaseCompleted() {
+        signal("Purchase.completed")
+    }
+
+    /// A purchase failed. `reason` is a coarse code (e.g. a RevenueCat error code), never a message.
+    static func purchaseFailed(reason: String) {
+        signal("Purchase.failed", parameters: ["reason": reason])
+    }
+
+    /// The customer invoked "Restore Purchases".
+    static func restorePurchases() {
+        signal("Purchase.restored")
+    }
+
+    /// The premium entitlement transitioned to active (via a purchase or restore).
+    static func premiumActivated() {
+        signal("Premium.activated")
+    }
+
+    /// The local free trial was started by an explicit user action.
+    static func trialStarted() {
+        signal("Trial.started")
+    }
+
+    /// The local free trial elapsed (reported once, when first observed as expired).
+    static func trialEnded() {
+        signal("Trial.ended")
+    }
+
+    /// A locked premium feature's lock/paywall was viewed. `feature` is the coarse feature key
+    /// (a ``PremiumFeature`` raw value) — the "Feature Name" — never any user data.
+    static func lockedFeatureViewed(feature: String) {
+        signal("Feature.locked", parameters: ["feature": feature])
+    }
+
     /// Coarse error reporting from API failures — category + a short, non-identifying reason.
     /// Never carries the server's message text (which could include user data).
     static func report(_ error: APIError) {

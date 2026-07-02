@@ -7,7 +7,8 @@ import WidgetKit
 struct BabyBuddyApp: App {
     @State private var session: AppSession
     @State private var sync: SyncEngine
-    @State private var subscriptions: Subscriptions
+    @State private var purchases: PurchaseManager
+    @State private var trial = TrialManager()
     @State private var lock = AppLockManager()
     @State private var router = DeepLinkRouter()
     @Environment(\.scenePhase) private var scenePhase
@@ -19,12 +20,12 @@ struct BabyBuddyApp: App {
         Analytics.start()
         let container = LocalStore.makeContainer()
         let session = AppSession()
-        let subscriptions = Subscriptions()
-        subscriptions.start()
+        let purchases = PurchaseManager()
+        purchases.start()
         self.container = container
         _session = State(initialValue: session)
         _sync = State(initialValue: SyncEngine(session: session, context: container.mainContext))
-        _subscriptions = State(initialValue: subscriptions)
+        _purchases = State(initialValue: purchases)
     }
 
     var body: some Scene {
@@ -32,7 +33,8 @@ struct BabyBuddyApp: App {
             RootView()
                 .environment(session)
                 .environment(sync)
-                .environment(subscriptions)
+                .environment(purchases)
+                .environment(trial)
                 .environment(lock)
                 .environment(router)
                 .modelContainer(container)
@@ -42,6 +44,7 @@ struct BabyBuddyApp: App {
             switch phase {
             case .active:
                 lock.willEnterForeground()
+                trial.reportTrialEndIfNeeded()
                 if session.isAuthenticated && !lock.isLocked { Task { await sync.sync() } }
             case .background:
                 lock.didEnterBackground()
