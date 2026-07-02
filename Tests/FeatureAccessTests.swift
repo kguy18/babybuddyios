@@ -28,14 +28,21 @@ final class FeatureAccessTests: XCTestCase {
         }
     }
 
-    func testFreeUnlocksOnlyFeedingAndDiapers() {
+    func testFreeUnlocksOnlyDiapers() {
         for feature in PremiumFeature.allCases {
-            let expected = (feature == .feeding || feature == .diapers)
+            let expected = (feature == .diapers)
             XCTAssertEqual(
                 FeatureAccess.isUnlocked(feature: feature, hasPremium: false, isTrial: false),
                 expected,
                 "\(feature) free-tier access should be \(expected)")
         }
+    }
+
+    func testFeedingIsGatedForFreeUsers() {
+        XCTAssertFalse(FeatureAccess.isUnlocked(feature: .feeding, hasPremium: false, isTrial: false))
+        // …but available on premium or trial.
+        XCTAssertTrue(FeatureAccess.isUnlocked(feature: .feeding, hasPremium: true, isTrial: false))
+        XCTAssertTrue(FeatureAccess.isUnlocked(feature: .feeding, hasPremium: false, isTrial: true))
     }
 
     func testHasProReflectsPremiumOrTrial() {
@@ -47,12 +54,12 @@ final class FeatureAccessTests: XCTestCase {
 
     // MARK: Catalog split
 
-    func testFreeFeaturesAreExactlyFeedingAndDiapers() {
-        XCTAssertEqual(FeatureAccess.freeFeatures, [.feeding, .diapers])
+    func testFreeFeaturesAreExactlyDiapers() {
+        XCTAssertEqual(FeatureAccess.freeFeatures, [.diapers])
     }
 
     func testPremiumFeaturesAreTheComplementOfFree() {
-        XCTAssertFalse(FeatureAccess.premiumFeatures.contains(.feeding))
+        XCTAssertTrue(FeatureAccess.premiumFeatures.contains(.feeding)) // feeding is now premium
         XCTAssertFalse(FeatureAccess.premiumFeatures.contains(.diapers))
         // Every case is accounted for exactly once across the two sets.
         XCTAssertEqual(
@@ -97,10 +104,10 @@ final class FeatureAccessTests: XCTestCase {
             return FeatureAccess.isUnlocked(feature: feature, hasPremium: false, isTrial: false)
         }
         // Free / ungated:
-        XCTAssertTrue(unlockedForFree(.feeding))
-        XCTAssertTrue(unlockedForFree(.change))
-        XCTAssertTrue(unlockedForFree(.medication))
-        // Premium:
+        XCTAssertTrue(unlockedForFree(.change))      // diapers
+        XCTAssertTrue(unlockedForFree(.medication))  // not in the catalog
+        // Premium (incl. feeding, now gated):
+        XCTAssertFalse(unlockedForFree(.feeding))
         XCTAssertFalse(unlockedForFree(.sleep))
         XCTAssertFalse(unlockedForFree(.pumping))
         XCTAssertFalse(unlockedForFree(.tummyTime))
