@@ -158,7 +158,7 @@ Final verification after App Review approval.
 ## Regression checklist (run before each release)
 
 - [ ] Unit tests green (`TrialManager`, `FeatureAccess`, `PurchaseManager` + full suite).
-- [ ] Free user: premium features show the lock + Upgrade, feeding/diapers work, existing data is
+- [ ] Free user: premium features show the lock + Upgrade, diaper logging works (feeding is gated), existing data is
       viewable (timeline editing shows the view-only banner).
 - [ ] Trial: Start Free Trial (once only), unlocks everything for 14 days, expires to locked, cannot
       restart.
