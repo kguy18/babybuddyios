@@ -35,10 +35,17 @@ enum FeatureAccess {
         !freeFeatures.contains($0)
     }
 
+    /// Whether the customer has full premium access — they own Pro or are in an active trial. The
+    /// single definition of "has Pro," shared by ``isUnlocked(feature:hasPremium:isTrial:)`` and
+    /// available to callers that need the overall standing rather than a per-feature check.
+    static func hasPro(hasPremium: Bool, isTrial: Bool) -> Bool {
+        hasPremium || isTrial
+    }
+
     /// Whether `feature` is available to a customer with the given tier.
     static func isUnlocked(feature: PremiumFeature, hasPremium: Bool, isTrial: Bool) -> Bool {
         // Premium and trial customers get everything.
-        if hasPremium || isTrial { return true }
+        if hasPro(hasPremium: hasPremium, isTrial: isTrial) { return true }
         // Free customers get only the allow-listed features.
         return freeFeatures.contains(feature)
     }

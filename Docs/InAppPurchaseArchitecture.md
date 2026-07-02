@@ -44,7 +44,8 @@ Five layers, each with one job. Dependencies point downward only; nothing lower 
 
 ## Invariants (enforced by review / tests)
 
-1. `import RevenueCat` appears only in `PurchaseManager.swift`.
+1. `import RevenueCat` appears only in `PurchaseManager.swift`; `import RevenueCatUI` only in
+   `RevenueCatPaywallView.swift` (the sole UI boundary). No feature view names a RevenueCat type.
 2. Managers are constructed once, at the composition root (`BabyBuddyApp`), and injected with
    `.environment(...)`; everything else reads them from the environment.
 3. Feature **gating** always goes through `FeatureAccess.isUnlocked`. Direct reads of `hasPremium` /

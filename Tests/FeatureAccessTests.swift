@@ -38,6 +38,13 @@ final class FeatureAccessTests: XCTestCase {
         }
     }
 
+    func testHasProReflectsPremiumOrTrial() {
+        XCTAssertTrue(FeatureAccess.hasPro(hasPremium: true, isTrial: false))
+        XCTAssertTrue(FeatureAccess.hasPro(hasPremium: false, isTrial: true))
+        XCTAssertTrue(FeatureAccess.hasPro(hasPremium: true, isTrial: true))
+        XCTAssertFalse(FeatureAccess.hasPro(hasPremium: false, isTrial: false))
+    }
+
     // MARK: Catalog split
 
     func testFreeFeaturesAreExactlyFeedingAndDiapers() {

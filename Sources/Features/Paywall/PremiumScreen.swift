@@ -1,27 +1,19 @@
 import SwiftUI
-#if canImport(RevenueCatUI)
-import RevenueCatUI
-#endif
 
 /// The upgrade paywall: what Pro unlocks, why to upgrade, and the purchase / restore actions.
 ///
-/// This view holds **no business logic** — it renders state from ``PurchaseManager`` and routes the
-/// two actions (purchase, restore) back to it. Feature copy comes from the ``FeatureAccess`` /
-/// ``PremiumFeature`` catalog. When the optional `RevenueCatUI` package is linked, RevenueCat's
-/// prebuilt `PaywallView` is used instead of the hand-built layout below.
+/// This view holds **no business logic and no RevenueCat coupling** — it renders state from
+/// ``PurchaseManager`` and routes the two actions (purchase, restore) back to it. Feature copy comes
+/// from the ``FeatureAccess`` / ``PremiumFeature`` catalog. The optional RevenueCat-prebuilt paywall
+/// is vended by ``RevenueCatPaywallView`` (the sole UI boundary that touches RevenueCatUI); this view
+/// supplies the hand-built layout as its fallback.
 struct PremiumScreen: View {
     @Environment(PurchaseManager.self) private var purchases
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        #if canImport(RevenueCatUI)
-        // Prebuilt, remotely-configured paywall — used automatically when RevenueCatUI is available.
-        PaywallView()
+        RevenueCatPaywallView { customPaywall }
             .onAppear { Analytics.paywallViewed() }
-        #else
-        customPaywall
-            .onAppear { Analytics.paywallViewed() }
-        #endif
     }
 
     // MARK: - Hand-built paywall
