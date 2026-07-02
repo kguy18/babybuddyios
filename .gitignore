@@ -23,3 +23,8 @@ Config/Secrets.xcconfig
 
 # macOS
 .DS_Store
+
+# iCloud / Finder conflict copies (e.g. "Foo 2.swift") — never commit; they cause duplicate
+# type declarations once XcodeGen globs them into the project.
+* 2.swift
+* 2.md
