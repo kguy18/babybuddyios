@@ -28,11 +28,6 @@ no accounts) → **RevenueCat Test Store** → **Sandbox** → **TestFlight** �
    Rebuild so it lands in the app's `Info.plist` `RevenueCatAPIKey`. With no key the SDK never
    configures and everything stays free (by design).
 
-> Demoing the premium UI without a purchase: launch with `BB_PREMIUM=1` (e.g.
-> `SIMCTL_CHILD_BB_PREMIUM=1`) to force premium access on — every gated feature unlocks and the
-> Settings status reads "Purchased". This is a screenshot/dev aid only; it can't be set on a shipped
-> build. It does **not** exercise the real StoreKit path — use the scenarios below for that.
-
 ### What to watch during every scenario
 
 - **Analytics funnel** (TelemetryDeck): `Paywall.viewed` → `Paywall.upgradePressed` → `Purchase.started`

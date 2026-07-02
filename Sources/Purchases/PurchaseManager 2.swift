@@ -27,17 +27,11 @@ final class PurchaseManager {
     /// Entitlement identifier (configured in the RevenueCat dashboard) that unlocks premium features.
     static let entitlementID = "premium"
 
-    /// Dev/demo override: launching with `BB_PREMIUM=1` forces premium access on, so `BB_DEMO` (and
-    /// dev builds) can showcase every premium feature. Environment variables can't be set on a
-    /// shipped App Store build, so this is inert in production.
-    static let forcedPremium = ProcessInfo.processInfo.environment["BB_PREMIUM"] == "1"
-
     // MARK: - Observable state
 
-    /// Whether the current customer has premium access. Derived from ``customerInfo`` (the source of
-    /// truth), or forced on by ``forcedPremium``. `false` until the first `CustomerInfo` arrives and
-    /// whenever purchases are off.
-    private(set) var hasPremium = PurchaseManager.forcedPremium
+    /// Whether the current customer has the premium entitlement active. Derived solely from
+    /// ``customerInfo``; `false` until the first `CustomerInfo` arrives and whenever purchases are off.
+    private(set) var hasPremium = false
 
     /// A `true` once the SDK has been configured with an API key (purchases are available).
     private(set) var isConfigured = false
@@ -190,7 +184,7 @@ final class PurchaseManager {
     private func apply(_ info: CustomerInfo) {
         let wasPremium = hasPremium
         customerInfo = info
-        hasPremium = Self.forcedPremium || info.entitlements[Self.entitlementID]?.isActive == true
+        hasPremium = info.entitlements[Self.entitlementID]?.isActive == true
         if hasLoadedInitial, hasPremium, !wasPremium {
             Analytics.premiumActivated()
         }
