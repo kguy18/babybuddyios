@@ -12,7 +12,6 @@ struct SettingsView: View {
     @Environment(AppLockManager.self) private var lock
     @Environment(PurchaseManager.self) private var purchases
     @Environment(TrialManager.self) private var trial
-    @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var context
 
     @State private var photoItem: PhotosPickerItem?
@@ -28,9 +27,6 @@ struct SettingsView: View {
     @State private var debugConflict: ConflictRecord?
     @State private var debugIcons = false
     @State private var showingPending = false
-    @State private var showPaywall = false
-    @State private var showTrialOffer = false
-    @State private var isRestoring = false
 
     var body: some View {
         NavigationStack {
@@ -38,11 +34,11 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     masthead
 
+                    sectioned("Premium") { premiumCard }
+
                     if case .authenticated(let config) = session.state {
                         sectioned("Server") { serverCard(config) }
                     }
-
-                    sectioned("Premium") { premiumCard }
 
                     sectioned("Sync") { syncCard }
 
@@ -57,6 +53,10 @@ struct SettingsView: View {
                             .padding(.top, 2)
                     }
 
+                    #if DEBUG
+                    sectioned("Developer") { developerCard }
+                    #endif
+
                     signOutCard.padding(.top, 4)
                 }
                 .padding(.horizontal, 16)
@@ -66,10 +66,6 @@ struct SettingsView: View {
             .background(BBColor.surface)
             .navigationTitle("Settings")
             .sheet(isPresented: $showingPending) { PendingChangesView() }
-            .sheet(isPresented: $showPaywall) { PremiumScreen() }
-            .sheet(isPresented: $showTrialOffer) {
-                TrialOfferView().presentationDetents([.medium])
-            }
             .sheet(item: $debugConflict) { c in
                 NavigationStack { ConflictResolutionView(conflict: c) }
             }
@@ -265,86 +261,47 @@ struct SettingsView: View {
 
     // MARK: Premium
 
-    /// Subscription status and actions. Upgrade / Start Free Trial disappear once Pro is owned; the
-    /// trial offer only appears when the customer has never started a trial.
+    /// The Premium section is a single row showing current status; tapping it opens the detail
+    /// screen (``PremiumDetailView``) with the upgrade / trial / restore / manage / legal actions.
     private var premiumCard: some View {
         card {
-            statusRow
-
-            if !purchases.hasPremium && !trial.hasStartedTrial {
-                rowDivider
-                actionRow(symbol: "gift.fill", tint: BBColor.success, title: "Start Free Trial") {
-                    showTrialOffer = true
-                }
-            }
-
-            if !purchases.hasPremium {
-                rowDivider
-                actionRow(symbol: "sparkles", tint: BBColor.brand, title: "Upgrade") {
-                    Analytics.upgradePressed()
-                    showPaywall = true
-                }
-            }
-
-            rowDivider
-            restoreRow
-
-            rowDivider
-            NavigationLink { ManagePurchaseView() } label: {
-                SettingsRow(symbol: "creditcard", tint: BBColor.brandAccent, title: "Manage Purchases") {
-                    disclosure
-                }
-            }
-            .buttonStyle(.plain)
-
-            rowDivider
-            linkRow(symbol: "hand.raised", title: "Privacy Policy", url: PremiumLinks.privacyPolicy)
-
-            rowDivider
-            linkRow(symbol: "doc.text", title: "Terms of Service", url: PremiumLinks.termsOfService)
+            NavigationLink { PremiumDetailView() } label: { premiumStatusRow }
+                .buttonStyle(.plain)
         }
     }
 
-    /// The current entitlement standing, shown as a colored badge.
-    private var statusRow: some View {
-        SettingsRow(symbol: "crown.fill", tint: statusTint, title: "Baby Buddy Pro") {
-            Text(statusText)
+    private var premiumStatusRow: some View {
+        HStack(spacing: 12) {
+            premiumGlyph
+            Text("Baby Buddy Pro").font(.system(size: 16))
+            Spacer(minLength: 8)
+            Text(premiumRowText)
                 .font(.subheadline.weight(.medium))
-                .foregroundStyle(statusTint)
+                .foregroundStyle(hasProAccess ? BBColor.success : .secondary)
+            disclosure
         }
+        .padding(.vertical, 11)
+        .contentShape(Rectangle())
     }
 
-    private var restoreRow: some View {
-        Button {
-            Task { isRestoring = true; await purchases.restore(); isRestoring = false }
-        } label: {
-            SettingsRow(symbol: "arrow.clockwise", tint: BBColor.info, title: "Restore Purchases") {
-                if isRestoring { ProgressView().controlSize(.small) }
+    /// Free → a poop glyph; premium/trial → the yellow crown — each in the app's tinted glyph tile.
+    private var premiumGlyph: some View {
+        RoundedRectangle(cornerRadius: 9, style: .continuous)
+            .fill((hasProAccess ? BBColor.stop : BBColor.change).opacity(0.15))
+            .frame(width: 30, height: 30)
+            .overlay {
+                if hasProAccess {
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(BBColor.stop) // yellow crown
+                } else {
+                    Text("💩").font(.system(size: 17))
+                }
             }
-        }
-        .buttonStyle(.plain)
-        .disabled(isRestoring)
     }
 
-    /// A tappable row with a trailing chevron, used for the in-app actions (trial / upgrade).
-    private func actionRow(symbol: String, tint: Color, title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            SettingsRow(symbol: symbol, tint: tint, title: title) { disclosure }
-        }
-        .buttonStyle(.plain)
-    }
-
-    /// A row that opens an external URL (keeps the native row styling rather than a tinted `Link`).
-    private func linkRow(symbol: String, title: String, url: URL) -> some View {
-        Button { openURL(url) } label: {
-            SettingsRow(symbol: symbol, tint: BBColor.note, title: title) {
-                Image(systemName: "arrow.up.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .buttonStyle(.plain)
-    }
+    /// Whether the customer currently has premium access (a purchase or an active trial).
+    private var hasProAccess: Bool { purchases.hasPremium || trial.isTrialActive }
 
     private var disclosure: some View {
         Image(systemName: "chevron.right")
@@ -352,7 +309,23 @@ struct SettingsView: View {
             .foregroundStyle(.tertiary)
     }
 
-    /// Which of the five display states the customer is in.
+    #if DEBUG
+    /// Debug-only switch to force premium on/off while testing free vs premium. Compiled out of
+    /// release (TestFlight/App Store) builds.
+    private var developerCard: some View {
+        card {
+            SettingsRow(symbol: "wand.and.stars", tint: BBColor.warning, title: "Premium mode") {
+                Toggle("", isOn: Binding(
+                    get: { purchases.debugForcedPremium },
+                    set: { purchases.setDebugPremium($0) }))
+                    .labelsHidden()
+                    .tint(BBColor.primary)
+            }
+        }
+    }
+    #endif
+
+    /// Which of the display states the customer is in.
     private enum PremiumStatus { case premium, trialActive(Int), trialAvailable, trialExpired, free }
 
     private var premiumStatus: PremiumStatus {
@@ -363,22 +336,11 @@ struct SettingsView: View {
         return .free                                                // no purchases configured, no trial
     }
 
-    private var statusText: String {
+    private var premiumRowText: String {
         switch premiumStatus {
-        case .premium:               return "Purchased"
+        case .premium:               return "Premium"
         case .trialActive(let days): return "Trial · \(days) day\(days == 1 ? "" : "s") left"
-        case .trialAvailable:        return "Trial available"
-        case .trialExpired:          return "Trial expired"
-        case .free:                  return "Free"
-        }
-    }
-
-    private var statusTint: Color {
-        switch premiumStatus {
-        case .premium:                    return BBColor.success
-        case .trialActive, .trialAvailable: return BBColor.brandAccent
-        case .trialExpired:               return BBColor.restart
-        case .free:                       return BBColor.note
+        case .trialAvailable, .trialExpired, .free: return "Free"
         }
     }
 
@@ -492,7 +454,8 @@ struct SettingsView: View {
 
 /// One grouped-settings row: a small tinted glyph tile, a title, and trailing content
 /// (a value, a status, a toggle, or a chevron). Mirrors ``ActivityTile``'s tint wash.
-private struct SettingsRow<Trailing: View>: View {
+/// Shared by ``SettingsView`` and ``PremiumDetailView``.
+struct SettingsRow<Trailing: View>: View {
     @Environment(\.colorScheme) private var scheme
     let symbol: String
     let tint: Color
