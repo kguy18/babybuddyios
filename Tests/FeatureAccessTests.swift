@@ -28,9 +28,9 @@ final class FeatureAccessTests: XCTestCase {
         }
     }
 
-    func testFreeUnlocksOnlyDiapers() {
+    func testFreeUnlocksOnlyDiapersAndStatistics() {
         for feature in PremiumFeature.allCases {
-            let expected = (feature == .diapers)
+            let expected = (feature == .diapers || feature == .statistics)
             XCTAssertEqual(
                 FeatureAccess.isUnlocked(feature: feature, hasPremium: false, isTrial: false),
                 expected,
@@ -54,13 +54,14 @@ final class FeatureAccessTests: XCTestCase {
 
     // MARK: Catalog split
 
-    func testFreeFeaturesAreExactlyDiapers() {
-        XCTAssertEqual(FeatureAccess.freeFeatures, [.diapers])
+    func testFreeFeaturesAreExactlyDiapersAndStatistics() {
+        XCTAssertEqual(FeatureAccess.freeFeatures, [.diapers, .statistics])
     }
 
     func testPremiumFeaturesAreTheComplementOfFree() {
         XCTAssertTrue(FeatureAccess.premiumFeatures.contains(.feeding)) // feeding is now premium
         XCTAssertFalse(FeatureAccess.premiumFeatures.contains(.diapers))
+        XCTAssertFalse(FeatureAccess.premiumFeatures.contains(.statistics)) // trends is free
         // Every case is accounted for exactly once across the two sets.
         XCTAssertEqual(
             Set(FeatureAccess.premiumFeatures).union(FeatureAccess.freeFeatures),

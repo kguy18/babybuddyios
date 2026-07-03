@@ -15,9 +15,9 @@ import Foundation
 /// **Tiering rules**
 /// - Premium customers: everything unlocked.
 /// - Trial customers: everything unlocked.
-/// - Free customers: only the features in ``freeFeatures`` (diaper changes). Viewing existing data
-///   is never gated here — reads are always allowed; this function governs active use of a feature,
-///   not read access.
+/// - Free customers: only the features in ``freeFeatures`` (diaper changes and statistics). Viewing
+///   existing data is never gated here — reads are always allowed; this function governs active use
+///   of a feature, not read access.
 ///
 /// **Adding a feature is trivial:** add a `case` to ``PremiumFeature`` and it is premium by default
 /// (locked for free users). To make a new feature free instead, add it to ``freeFeatures``. There is
@@ -25,7 +25,8 @@ import Foundation
 enum FeatureAccess {
     /// Features available on the free tier. Everything not listed here is premium-only.
     static let freeFeatures: Set<PremiumFeature> = [
-        .diapers
+        .diapers,
+        .statistics
     ]
 
     /// The premium-only features, in catalog order — the complement of ``freeFeatures``. Lets a

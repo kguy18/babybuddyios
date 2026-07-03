@@ -32,12 +32,30 @@ final class PurchaseManager {
     /// shipped App Store build, so this is inert in production.
     static let forcedPremium = ProcessInfo.processInfo.environment["BB_PREMIUM"] == "1"
 
+    #if DEBUG
+    private static let debugPremiumKey = "debug.forcePremium"
+    /// Debug-only manual override toggled from the Settings ▸ Developer switch, persisted so it
+    /// survives relaunch during testing. Entirely compiled out of release (TestFlight/App Store)
+    /// builds, so it can never affect production.
+    private(set) var debugForcedPremium = UserDefaults.standard.bool(forKey: PurchaseManager.debugPremiumKey)
+
+    /// Debug-only: flip the forced-premium override and recompute access immediately.
+    func setDebugPremium(_ on: Bool) {
+        debugForcedPremium = on
+        UserDefaults.standard.set(on, forKey: Self.debugPremiumKey)
+        recompute()
+    }
+    #endif
+
     // MARK: - Observable state
 
-    /// Whether the current customer has premium access. Derived from ``customerInfo`` (the source of
-    /// truth), or forced on by ``forcedPremium``. `false` until the first `CustomerInfo` arrives and
-    /// whenever purchases are off.
-    private(set) var hasPremium = PurchaseManager.forcedPremium
+    /// Whether the current customer has premium access. Recomputed from the RevenueCat entitlement
+    /// (the source of truth) plus the ``forcedPremium`` / debug overrides.
+    private(set) var hasPremium = false
+
+    init() {
+        recompute()
+    }
 
     /// A `true` once the SDK has been configured with an API key (purchases are available).
     private(set) var isConfigured = false
@@ -171,6 +189,19 @@ final class PurchaseManager {
 
     // MARK: - Private
 
+    /// Re-derive ``hasPremium`` from every source: the RevenueCat entitlement (the source of truth)
+    /// plus the launch (`forcedPremium`) and debug overrides. The single place premium is computed.
+    private func recompute() {
+        var value = Self.forcedPremium
+        #if DEBUG
+        value = value || debugForcedPremium
+        #endif
+        #if canImport(RevenueCat)
+        value = value || (customerInfo?.entitlements[Self.entitlementID]?.isActive == true)
+        #endif
+        hasPremium = value
+    }
+
     #if canImport(RevenueCat)
     /// Stream `CustomerInfo` updates (the cached value is delivered immediately, then any changes).
     private func observe() {
@@ -185,12 +216,12 @@ final class PurchaseManager {
     /// only on a genuine mid-session transition, not on the initial stream snapshot at every launch.
     private var hasLoadedInitial = false
 
-    /// Store the latest `CustomerInfo` and re-derive ``hasPremium`` from it — the one place premium
-    /// state is computed. Emits `Premium.activated` when the entitlement flips on after launch.
+    /// Store the latest `CustomerInfo` and re-derive ``hasPremium``. Emits `Premium.activated` when
+    /// the entitlement flips on after launch.
     private func apply(_ info: CustomerInfo) {
         let wasPremium = hasPremium
         customerInfo = info
-        hasPremium = Self.forcedPremium || info.entitlements[Self.entitlementID]?.isActive == true
+        recompute()
         if hasLoadedInitial, hasPremium, !wasPremium {
             Analytics.premiumActivated()
         }
