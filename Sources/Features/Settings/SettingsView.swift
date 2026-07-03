@@ -36,11 +36,7 @@ struct SettingsView: View {
 
                     sectioned("Premium") { premiumCard }
 
-                    if case .authenticated(let config) = session.state {
-                        sectioned("Server") { serverCard(config) }
-                    }
-
-                    sectioned("Sync") { syncCard }
+                    sectioned("Server") { serverCard }
 
                     sectioned("Security") {
                         securityCard
@@ -144,25 +140,15 @@ struct SettingsView: View {
 
     // MARK: Server
 
-    private func serverCard(_ config: ServerConfig) -> some View {
+    /// The server connection plus the offline-first sync truth (last sync, queued writes, conflicts)
+    /// — combined into one "Server" card.
+    private var serverCard: some View {
         card {
-            SettingsRow(symbol: "cloud", tint: BBColor.brand,
-                        glyphColor: BBColor.brandAccent, title: "Server") {
-                HStack(spacing: 6) {
-                    Circle().fill(BBColor.success).frame(width: 7, height: 7)
-                    Text(config.baseURL.host() ?? config.baseURL.absoluteString)
-                        .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-                }
+            if case .authenticated(let config) = session.state {
+                serverRow(config)
+                rowDivider
             }
-        }
-    }
 
-    // MARK: Sync
-
-    /// The offline-first truth: when we last synced, how many writes are queued, and any
-    /// conflicts waiting to be resolved.
-    private var syncCard: some View {
-        card {
             Button { Task { await sync.sync() } } label: {
                 SettingsRow(symbol: "arrow.triangle.2.circlepath", tint: BBColor.info,
                             title: "Sync now") { syncTrailing }
@@ -177,6 +163,17 @@ struct SettingsView: View {
             rowDivider
 
             conflictRow
+        }
+    }
+
+    private func serverRow(_ config: ServerConfig) -> some View {
+        SettingsRow(symbol: "cloud", tint: BBColor.brand,
+                    glyphColor: BBColor.brandAccent, title: "Server") {
+            HStack(spacing: 6) {
+                Circle().fill(BBColor.success).frame(width: 7, height: 7)
+                Text(config.baseURL.host() ?? config.baseURL.absoluteString)
+                    .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+            }
         }
     }
 
