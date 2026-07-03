@@ -27,6 +27,12 @@ baby-tracking server. Offline-first, with conflict-aware sync and optional Face 
   and to watch the running timer with live elapsed time and a one-tap Stop that logs the
   activity. Lock Screen and StandBy accessories show the running timer at a glance. Widget
   actions push to the server immediately (falling back to the sync queue when offline).
+- **Live Activity & Dynamic Island** — a running timer also appears as a Live Activity on the
+  Lock Screen and in the Dynamic Island, with self-ticking elapsed time and the activity's tint.
+  Stop mirrors the widget: sleep/tummy log in one tap, feeding/pumping open the pre-filled form.
+  The app starts and ends the activity as timers start/stop in-app, and reconciles it whenever it
+  becomes active — so a timer started or stopped from the widget or Siri (whose intents run in the
+  extension process, where ActivityKit can't be driven) syncs the banner on the next foreground.
 - **Merged timeline** — day-grouped activity feed across all event types, with tap-to-edit,
   swipe-to-delete, and inline colored tag chips on each row. **Search** (notes, tags, type,
   child) and a **type + date-range filter** narrow it instantly, all offline over the cache.

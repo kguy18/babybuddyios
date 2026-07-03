@@ -52,6 +52,7 @@ targets:
       properties:
         TelemetryDeckAppID: "$(TELEMETRYDECK_APP_ID)"
         RevenueCatAPIKey: "$(REVENUECAT_API_KEY)"
+        NSSupportsLiveActivities: true
         BGTaskSchedulerPermittedIdentifiers:
           - com.kurtisguy.BabyBuddy.sync
         CFBundleURLTypes:
