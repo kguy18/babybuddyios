@@ -16,6 +16,7 @@ struct DayTimelineView: View {
     @Query(sort: \LocalEntity.timestamp, order: .reverse) private var allEntities: [LocalEntity]
     @Query private var cachedTags: [CachedTag]
     @State private var editing: LocalEntity?
+    @State private var adding = false
 
     /// Lowercased tag name → server `#RRGGBB` color, for tinting timeline chips.
     private var tagColors: [String: String] {
@@ -66,14 +67,28 @@ struct DayTimelineView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(BBColor.surface)
+        // Leave room so the last row can scroll clear of the floating add button.
+        .contentMargins(.bottom, 88, for: .scrollContent)
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await sync.sync() }
         .sheet(item: $editing) { entity in
             EntityEditorView(kind: entity.kind, childID: childID, entity: entity)
         }
+        .sheet(isPresented: $adding) {
+            // Log a new event of this view's kind. The editor self-gates premium kinds on create,
+            // matching the Dashboard quick-add behavior.
+            EntityEditorView(kind: kind, childID: childID)
+        }
         .overlay {
             if events.isEmpty { emptyState }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            FloatingAddButton(accessibilityLabelText: "Add \(kind.displayName)") {
+                adding = true
+            }
+            .padding(.trailing, 20)
+            .padding(.bottom, 16)
         }
     }
 
