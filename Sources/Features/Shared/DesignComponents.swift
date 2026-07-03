@@ -256,6 +256,32 @@ struct BBSegmentedControl<Value: Hashable>: View {
     }
 }
 
+// MARK: Floating add button
+
+/// The floating circular "+" action button — brand-filled, shadowed, 58pt. Shared between the
+/// Dashboard's quick-add stack (where `rotated` morphs it into an "×" while the stack is open)
+/// and the scoped day-timeline screens (a plain add action). Callers position it (padding /
+/// overlay alignment) and provide the accessibility label for their context.
+struct FloatingAddButton: View {
+    /// Rotates the glyph 45° (the "+"→"×" morph); left false where there's no open/close state.
+    var rotated: Bool = false
+    var accessibilityLabelText: String = "Add"
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "plus")
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(.white)
+                .rotationEffect(.degrees(rotated ? 45 : 0))
+                .frame(width: 58, height: 58)
+                .background(BBColor.brand, in: Circle())
+                .shadow(color: .black.opacity(0.18), radius: 8, y: 4)
+        }
+        .accessibilityLabel(accessibilityLabelText)
+    }
+}
+
 // MARK: Buttons
 
 /// Full-width filled button carrying the action-color grammar (stop=yellow, primary=blue…).

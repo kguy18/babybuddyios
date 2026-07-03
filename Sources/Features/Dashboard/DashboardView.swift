@@ -428,18 +428,10 @@ private struct QuickAddMenu: View {
     }
 
     private var fab: some View {
-        Button {
+        FloatingAddButton(rotated: isOpen,
+                          accessibilityLabelText: isOpen ? "Close" : "Add") {
             withAnimation(spring) { isOpen.toggle() }
-        } label: {
-            Image(systemName: "plus")
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(.white)
-                .rotationEffect(.degrees(isOpen ? 45 : 0))
-                .frame(width: 58, height: 58)
-                .background(BBColor.brand, in: Circle())
-                .shadow(color: .black.opacity(0.18), radius: 8, y: 4)
         }
-        .accessibilityLabel(isOpen ? "Close" : "Add")
     }
 
     /// A labeled quick action: a tinted glyph tile beside a pill label. Closes the menu, then
