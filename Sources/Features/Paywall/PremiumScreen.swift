@@ -1,158 +1,165 @@
 import SwiftUI
 
-/// The upgrade paywall: what Pro unlocks, why to upgrade, and the purchase / restore actions.
+/// The upgrade paywall — a single, non-scrolling screen: a crown hero, a colorful grid of the
+/// premium activities, and a one-time "Buy Premium" purchase.
 ///
-/// This view holds **no business logic and no RevenueCat coupling** — it renders state from
-/// ``PurchaseManager`` and routes the two actions (purchase, restore) back to it. Feature copy comes
-/// from the ``FeatureAccess`` / ``PremiumFeature`` catalog. The optional RevenueCat-prebuilt paywall
-/// is vended by ``RevenueCatPaywallView`` (the sole UI boundary that touches RevenueCatUI); this view
-/// supplies the hand-built layout as its fallback.
+/// Holds **no business logic and no RevenueCat coupling** — it renders state from ``PurchaseManager``
+/// and routes purchase / restore back to it. The optional RevenueCat-prebuilt paywall is vended by
+/// ``RevenueCatPaywallView`` (the sole UI boundary that touches RevenueCatUI); this view is the
+/// hand-built fallback.
 struct PremiumScreen: View {
     @Environment(PurchaseManager.self) private var purchases
     @Environment(\.dismiss) private var dismiss
+
+    private struct Chip: Identifiable {
+        let kind: EntityKind
+        let label: String
+        var id: String { label }
+    }
+
+    /// Uses the app's own activity glyphs + colors (via ``EntityKind``) so the chips match the
+    /// dashboard, timeline, and editor exactly.
+    private let chips: [Chip] = [
+        Chip(kind: .feeding, label: "Feeding"),
+        Chip(kind: .sleep, label: "Sleep"),
+        Chip(kind: .pumping, label: "Pumping"),
+        Chip(kind: .timer, label: "Timers"),
+        Chip(kind: .note, label: "Notes"),
+        Chip(kind: .weight, label: "Growth")
+    ]
 
     var body: some View {
         RevenueCatPaywallView { customPaywall }
             .onAppear { Analytics.paywallViewed() }
     }
 
-    // MARK: - Hand-built paywall
+    // MARK: - Hand-built paywall (single screen, no scrolling)
 
     private var customPaywall: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 28) {
-                    header
-                    featuresSection
-                    whyUpgradeSection
-                    purchaseSection
-                    legalFooter
-                }
-                .padding(20)
+        VStack(spacing: 0) {
+            closeBar
+
+            Spacer(minLength: 12)
+
+            VStack(spacing: 0) {
+                hero
+                chipGrid
+                    .padding(.horizontal, 20)
+                    .padding(.top, 26)
+                bulletList
+                    .padding(.horizontal, 24)
+                    .padding(.top, 24)
+                footer
+                    .padding(.horizontal, 20)
+                    .padding(.top, 30)
             }
-            .background(BBColor.surface.ignoresSafeArea())
-            .navigationTitle("Baby Buddy Pro")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Close") { dismiss() }
-                }
-            }
+
+            Spacer(minLength: 12)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(BBColor.card.ignoresSafeArea())
     }
 
-    private var header: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "star.circle.fill")
-                .font(.system(size: 56))
-                .foregroundStyle(BBColor.brand)
-                .accessibilityHidden(true)
+    private var closeBar: some View {
+        HStack {
+            Spacer()
+            Button { dismiss() } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 30, height: 30)
+                    .background(BBColor.controlFill, in: Circle())
+            }
+            .accessibilityLabel("Close")
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+    }
+
+    // MARK: Hero
+
+    private var hero: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                Circle().fill(BBColor.stop.opacity(0.18)).frame(width: 88, height: 88)
+                Image(systemName: "crown.fill")
+                    .font(.system(size: 42))
+                    .foregroundStyle(BBColor.stop)
+            }
+            .accessibilityHidden(true)
+
             Text("Unlock everything")
                 .font(.title.bold())
-            Text("Track every activity, see deeper insights, and support ongoing development.")
+            Text("Track every activity, see the trends, and support the app.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+                .padding(.horizontal, 36)
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 8)
     }
 
-    // MARK: Premium Features
+    // MARK: Feature chips
 
-    private var featuresSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader("Premium Features")
-            BBCard {
-                VStack(spacing: 0) {
-                    ForEach(Array(FeatureAccess.premiumFeatures.enumerated()), id: \.element) { index, feature in
-                        if index > 0 { Divider().foregroundStyle(BBColor.divider) }
-                        featureRow(feature)
-                            .padding(.vertical, 10)
-                    }
-                }
-            }
+    private var chipGrid: some View {
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: 10),
+                            GridItem(.flexible(), spacing: 10)], spacing: 10) {
+            ForEach(chips) { chipView($0) }
         }
     }
 
-    private func featureRow(_ feature: PremiumFeature) -> some View {
-        HStack(alignment: .center, spacing: 14) {
-            Image(systemName: feature.systemImage)
-                .font(.title3)
-                .foregroundStyle(BBColor.brand)
-                .frame(width: 30)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(feature.title).font(.headline)
-                Text(feature.summary)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
+    private func chipView(_ chip: Chip) -> some View {
+        let color = BBColor.activity(chip.kind)
+        return HStack(spacing: 9) {
+            chip.kind.icon(19)
+                .frame(width: 22)
+            Text(chip.label)
+                .font(.subheadline.weight(.medium))
             Spacer(minLength: 0)
         }
+        .foregroundStyle(color)
+        .padding(.vertical, 11)
+        .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityElement(children: .combine)
     }
 
-    // MARK: Why Upgrade
+    // MARK: Benefit bullets
 
-    private var whyUpgradeSection: some View {
+    private var bulletList: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader("Why Upgrade")
-            BBCard {
-                VStack(alignment: .leading, spacing: 14) {
-                    reason("heart.fill", "Support development",
-                           "Baby Buddy is built and maintained by a small team. Pro keeps it going.")
-                    reason("lock.shield.fill", "Private by design",
-                           "Your family's data stays yours — Pro adds features, not tracking.")
-                    reason("infinity", "Everything, forever-improving",
-                           "One upgrade unlocks every premium feature, including future additions.")
-                }
-            }
+            bullet("Track feeding, sleep, pumping, and tummy time")
+            bullet("Live timers, notes, and detailed insights")
+            bullet("Support ongoing development")
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func reason(_ symbol: String, _ title: String, _ detail: String) -> some View {
-        HStack(alignment: .top, spacing: 14) {
-            Image(systemName: symbol)
-                .font(.title3)
-                .foregroundStyle(BBColor.brandAccent)
-                .frame(width: 30)
+    private func bullet(_ text: String) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(BBColor.success)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.headline)
-                Text(detail).font(.subheadline).foregroundStyle(.secondary)
-            }
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
         }
-        .accessibilityElement(children: .combine)
     }
 
-    // MARK: Purchase / Restore
+    // MARK: Price / purchase / legal
 
-    private var purchaseSection: some View {
-        VStack(spacing: 12) {
+    private var footer: some View {
+        VStack(spacing: 14) {
             if purchases.hasPremium {
-                Label("You have Baby Buddy Pro", systemImage: "checkmark.seal.fill")
+                Label("You have Premium", systemImage: "checkmark.seal.fill")
                     .font(.headline)
                     .foregroundStyle(BBColor.success)
             } else {
-                Button {
-                    Task { await purchases.purchase() }
-                } label: {
-                    if purchases.isLoading {
-                        ProgressView().tint(.white)
-                    } else {
-                        Text("Continue")
-                    }
-                }
-                .buttonStyle(.bbPrimary)
-                .disabled(!purchases.isConfigured || purchases.isLoading)
-
-                Button("Restore Purchases") {
-                    Task { await purchases.restore() }
-                }
-                .font(.subheadline)
-                .disabled(!purchases.isConfigured || purchases.isLoading)
+                priceBlock
+                buyButton
 
                 if let message = purchases.errorMessage {
                     Text(message)
@@ -160,17 +167,50 @@ struct PremiumScreen: View {
                         .foregroundStyle(BBColor.danger)
                         .multilineTextAlignment(.center)
                 }
-
                 if !purchases.isConfigured {
                     Text("Purchases aren't available in this build.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
+
+            restoreButton
+            legalFooter
         }
     }
 
-    // MARK: Legal
+    private var priceBlock: some View {
+        VStack(spacing: 2) {
+            Text("$9.99")
+                .font(.system(size: 30, weight: .bold))
+            Text("Unlock forever · one-time purchase")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var buyButton: some View {
+        Button {
+            Task { await purchases.purchase() }
+        } label: {
+            if purchases.isLoading {
+                ProgressView().tint(.white)
+            } else {
+                Text("Buy Premium")
+            }
+        }
+        .buttonStyle(.bbPrimary)
+        .disabled(!purchases.isConfigured || purchases.isLoading)
+    }
+
+    private var restoreButton: some View {
+        Button("Restore Purchases") {
+            Task { await purchases.restore() }
+        }
+        .font(.subheadline)
+        .tint(BBColor.brandAccent)
+        .disabled(!purchases.isConfigured || purchases.isLoading)
+    }
 
     private var legalFooter: some View {
         HStack(spacing: 6) {
@@ -180,7 +220,6 @@ struct PremiumScreen: View {
         }
         .font(.footnote)
         .tint(BBColor.brandAccent)
-        .padding(.top, 4)
     }
 }
 
