@@ -62,11 +62,17 @@ struct TrialOfferView: View {
                 }
                 .buttonStyle(.bbPrimary)
 
-                Button("Not Now") { dismiss() }
+                Button("Not Now") {
+                    Analytics.trialDeclined()
+                    dismiss()
+                }
                     .font(.headline)
                     .foregroundStyle(.secondary)
             }
         }
+        // Only the offerable state counts as an "offer viewed" — the already-used/expired state
+        // (`alreadyUsedContent`) is informational and must not inflate the trial-offer denominator.
+        .onAppear { Analytics.trialOfferViewed() }
     }
 
     // MARK: Already started / expired

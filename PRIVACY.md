@@ -42,6 +42,10 @@ designed to be **anonymous and non-attributed**:
     (Face ID / Touch ID / none).
   - **Sync & errors** — that a sync completed or raised a conflict, and coarse error categories
     (e.g. network vs. server-rejected). Error reports never include the server's message text.
+  - **Premium & purchases** — that the paywall or a locked feature was viewed, that an upgrade was
+    tapped, and the coarse outcome of a purchase (started, completed, cancelled, failed, or restored)
+    or free trial (offer viewed, started, declined, or ended). These carry only a feature key or a
+    coarse status/error code — never price, receipt, customer, or transaction details.
 - Analytics are **not tied to your identity**. TelemetryDeck does not use cookies or stable
   advertising identifiers; any user count is derived from a one-way, non-reversible hash and cannot
   be traced back to you. Your IP address is not stored.
