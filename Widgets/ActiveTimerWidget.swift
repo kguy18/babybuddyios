@@ -179,13 +179,13 @@ struct ActiveTimerView: View {
     /// feeding/pumping need extra fields, so they open a pre-filled in-app form via a deep
     /// link; an unrecognized timer name opens the generic timer actions.
     @ViewBuilder private func stopControl(_ timer: TimerSnapshot) -> some View {
-        if let activity = timer.activity, activity.isInstantLoggable {
-            Button(intent: LogTimerIntent(timerLocalID: timer.localID)) { stopLabel }
+        let route = TimerStopRoute.resolve(localID: timer.localID, activity: timer.activity)
+        switch route {
+        case .log(let id):
+            Button(intent: LogTimerIntent(timerLocalID: id)) { stopLabel }
                 .buttonStyle(.plain)
-        } else if let activity = timer.activity {
-            Link(destination: URL(string: "babybuddy://convert/\(timer.localID)/\(activity.convertKind.rawValue)")!) { stopLabel }
-        } else {
-            Link(destination: URL(string: "babybuddy://timer/\(timer.localID)")!) { stopLabel }
+        case .convertForm, .openActions:
+            Link(destination: route.deepLink!) { stopLabel }
         }
     }
 

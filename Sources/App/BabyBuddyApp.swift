@@ -11,6 +11,7 @@ struct BabyBuddyApp: App {
     @State private var trial = TrialManager()
     @State private var lock = AppLockManager()
     @State private var router = DeepLinkRouter()
+    @State private var liveActivity = LiveActivityManager()
     @Environment(\.scenePhase) private var scenePhase
     private let container: ModelContainer
 
@@ -37,6 +38,7 @@ struct BabyBuddyApp: App {
                 .environment(trial)
                 .environment(lock)
                 .environment(router)
+                .environment(liveActivity)
                 .modelContainer(container)
                 .onOpenURL { router.handle($0) }
         }
@@ -46,6 +48,9 @@ struct BabyBuddyApp: App {
                 lock.willEnterForeground()
                 trial.reportTrialEndIfNeeded()
                 if session.isAuthenticated && !lock.isLocked { Task { await sync.sync() } }
+                // Sync the Live Activity to the current running timer — covers timers started or
+                // stopped from the widget/Siri, whose extension-process intents can't touch it.
+                Task { await liveActivity.reconcile() }
             case .background:
                 lock.didEnterBackground()
                 scheduleBackgroundSync()

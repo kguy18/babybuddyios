@@ -8,6 +8,7 @@ import SwiftData
 struct StartTimerSheet: View {
     @Environment(\.modelContext) private var context
     @Environment(SyncEngine.self) private var sync
+    @Environment(LiveActivityManager.self) private var liveActivity
     @Environment(\.dismiss) private var dismiss
 
     let childID: Int
@@ -125,6 +126,7 @@ struct StartTimerSheet: View {
         let activity = kind.flatMap { TimerActivity(convertKind: $0) }?.rawValue ?? "other"
         Analytics.timerStarted(activity: activity, source: .app)
         Task { await sync.sync() }
+        Task { await liveActivity.reconcile() } // start the Live Activity for the new timer
         dismiss()
     }
 }

@@ -9,6 +9,7 @@ import PhotosUI
 struct EntityEditorView: View {
     @Environment(\.modelContext) private var context
     @Environment(SyncEngine.self) private var sync
+    @Environment(LiveActivityManager.self) private var liveActivity
     @Environment(PurchaseManager.self) private var purchases
     @Environment(TrialManager.self) private var trial
     @Environment(\.dismiss) private var dismiss
@@ -654,6 +655,8 @@ struct EntityEditorView: View {
             repo.enqueueImageUpload(for: target, imageData: pickedImageData)
         }
         Task { await sync.sync() }
+        // Converting a source timer ends the Live Activity for that timer; a plain log is a no-op.
+        Task { await liveActivity.reconcile() }
         dismiss()
     }
 
@@ -669,6 +672,7 @@ struct EntityEditorView: View {
         LocalRepository(context: context).create(kind: .timer, payload: payload)
         Analytics.timerStarted(activity: activity.rawValue, source: .app)
         Task { await sync.sync() }
+        Task { await liveActivity.reconcile() } // start the Live Activity for the new timer
         dismiss()
     }
 
@@ -676,6 +680,8 @@ struct EntityEditorView: View {
         guard let entity else { return }
         LocalRepository(context: context).delete(entity)
         Task { await sync.sync() }
+        // Deleting a running timer ends its Live Activity; harmless for other kinds.
+        Task { await liveActivity.reconcile() }
         dismiss()
     }
 

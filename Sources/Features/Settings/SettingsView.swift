@@ -12,6 +12,7 @@ struct SettingsView: View {
     @Environment(AppLockManager.self) private var lock
     @Environment(PurchaseManager.self) private var purchases
     @Environment(TrialManager.self) private var trial
+    @Environment(LiveActivityManager.self) private var liveActivity
     @Environment(\.modelContext) private var context
 
     @State private var photoItem: PhotosPickerItem?
@@ -23,6 +24,8 @@ struct SettingsView: View {
 
     // Shared with the Dashboard/Timeline tabs and the widget, so "Switch" here moves them too.
     @AppStorage("selectedChildID", store: SharedDefaults.suite) private var selectedChildID = 0
+    // Mirrors SharedDefaults.liveActivitiesEnabled; keep the key and default in sync.
+    @AppStorage("liveActivitiesEnabled", store: SharedDefaults.suite) private var liveActivitiesEnabled = true
 
     @State private var debugConflict: ConflictRecord?
     @State private var debugIcons = false
@@ -43,6 +46,15 @@ struct SettingsView: View {
                         Text(lock.biometryAvailable
                              ? "Locks the app when reopened after being in the background."
                              : "Set up Face ID, Touch ID, or a device passcode to enable app lock.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
+                            .padding(.top, 2)
+                    }
+
+                    sectioned("Notifications") {
+                        notificationsCard
+                        Text("Show a running timer on the Lock Screen and Dynamic Island.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 4)
@@ -252,6 +264,26 @@ struct SettingsView: View {
                     .labelsHidden()
                     .tint(BBColor.primary)
                     .disabled(!lock.biometryAvailable)
+            }
+        }
+    }
+
+    // MARK: Notifications
+
+    /// A running timer shown as a Live Activity / Dynamic Island. Toggling it reconciles
+    /// immediately, so turning it off ends any live banner and turning it on starts one for a
+    /// currently-running timer.
+    private var notificationsCard: some View {
+        card {
+            SettingsRow(symbol: "clock.badge", tint: BBColor.info, title: "Live Activity") {
+                Toggle("", isOn: Binding(
+                    get: { liveActivitiesEnabled },
+                    set: { newValue in
+                        liveActivitiesEnabled = newValue
+                        Task { await liveActivity.reconcile() }
+                    }))
+                    .labelsHidden()
+                    .tint(BBColor.primary)
             }
         }
     }

@@ -7,6 +7,7 @@ struct DashboardView: View {
     @Environment(SyncEngine.self) private var sync
     @Environment(\.modelContext) private var context
     @Environment(DeepLinkRouter.self) private var router
+    @Environment(LiveActivityManager.self) private var liveActivity
     @Binding var selectedChildID: Int
 
     @Query(sort: \LocalEntity.timestamp, order: .reverse) private var allEntities: [LocalEntity]
@@ -306,6 +307,7 @@ struct DashboardView: View {
         let activity = TimerActivity(convertKind: kind)?.rawValue ?? "other"
         Analytics.timerStopped(activity: activity, source: .app)
         Task { await sync.sync() }
+        Task { await liveActivity.reconcile() } // end the Live Activity for the stopped timer
         stoppingTimer = nil
     }
 
@@ -313,6 +315,7 @@ struct DashboardView: View {
     private func discardTimer(_ timer: LocalEntity) {
         LocalRepository(context: context).delete(timer)
         Task { await sync.sync() }
+        Task { await liveActivity.reconcile() } // end the Live Activity for the discarded timer
     }
 
     // MARK: Derived data
