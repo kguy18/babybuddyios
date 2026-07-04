@@ -78,4 +78,22 @@ final class LiveActivityTests: XCTestCase {
         let feeding = LocalRepository(context: context).create(kind: .feeding, payload: ["child": 1])!
         XCTAssertNil(RunningTimerAttributes.from(timer: feeding))
     }
+
+    // MARK: Header title (child-name prefix)
+
+    func testTitlePrefixesChildNameWhenPresent() {
+        let timer = LocalRepository(context: context).create(
+            kind: .timer, payload: ["child": 1, "start": iso, "name": "Sleep"], timerActivity: .sleep)!
+        let built = RunningTimerAttributes.from(timer: timer, childName: "Patrick")
+        XCTAssertEqual(built?.state.childName, "Patrick")
+        XCTAssertEqual(built?.state.title, "Patrick · Sleep")
+    }
+
+    func testTitleFallsBackToTimerNameWithoutChild() {
+        let timer = LocalRepository(context: context).create(
+            kind: .timer, payload: ["child": 1, "start": iso, "name": "Feeding"])!
+        let built = RunningTimerAttributes.from(timer: timer) // no child name resolved
+        XCTAssertNil(built?.state.childName)
+        XCTAssertEqual(built?.state.title, "Feeding")
+    }
 }

@@ -22,7 +22,7 @@ struct RunningTimerLiveActivity: Widget {
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     Label {
-                        Text(context.state.timerName).lineLimit(1)
+                        Text(context.state.title).lineLimit(1)
                     } icon: {
                         Image(systemName: icon).foregroundStyle(tint)
                     }
@@ -70,7 +70,7 @@ struct RunningTimerLiveActivity: Widget {
                     Image(systemName: context.state.activity?.systemImage ?? "timer")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(tint)
-                    Text(context.state.timerName)
+                    Text(context.state.title)
                         .font(.system(size: 15, weight: .medium))
                         .lineLimit(1)
                 }

@@ -19,8 +19,9 @@ final class LiveActivityManager {
     /// Reconcile the Live Activity with the shared store's most-recent running timer: end stale
     /// activities, update a changed one, and request a missing one. Safe to call repeatedly.
     func reconcile() async {
-        // If the user turned Live Activities off, clear anything we have and stop.
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+        // Respect the in-app setting and the system permission — if either is off, clear anything
+        // we have and stop.
+        guard SharedDefaults.liveActivitiesEnabled, ActivityAuthorizationInfo().areActivitiesEnabled else {
             await endAll()
             return
         }
@@ -75,6 +76,21 @@ final class LiveActivityManager {
         guard let timers = try? context.fetch(descriptor),
               let timer = timers.first(where: { $0.syncState != .pendingDelete })
         else { return nil }
-        return RunningTimerAttributes.from(timer: timer)
+        return RunningTimerAttributes.from(timer: timer,
+                                           childName: childFirstName(for: timer.childID, in: context))
+    }
+
+    /// The first name of the child with `childID` in the shared store, or `nil` if unassigned or
+    /// not found. Used to prefix the Live Activity header (e.g. "Patrick · Sleep").
+    private func childFirstName(for childID: Int?, in context: ModelContext) -> String? {
+        guard let childID else { return nil }
+        let descriptor = FetchDescriptor<LocalEntity>(predicate: #Predicate { $0.kindRaw == "child" })
+        guard let children = try? context.fetch(descriptor),
+              let child = children.first(where: { $0.serverID == childID }) else { return nil }
+        let payload = child.payloadObject
+        let first = (payload["first_name"] as? String) ?? ""
+        if !first.isEmpty { return first }
+        let last = (payload["last_name"] as? String) ?? ""
+        return last.isEmpty ? nil : last
     }
 }
