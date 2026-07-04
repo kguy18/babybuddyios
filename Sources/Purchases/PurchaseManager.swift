@@ -139,12 +139,16 @@ final class PurchaseManager {
         do {
             let result = try await Purchases.shared.purchase(package: package)
             // User cancellations are an expected outcome, not an error to surface.
-            guard !result.userCancelled else { return hasPremium }
+            guard !result.userCancelled else {
+                Analytics.purchaseCancelled()
+                return hasPremium
+            }
             apply(result.customerInfo)
             errorMessage = nil
             Analytics.purchaseCompleted()
         } catch ErrorCode.purchaseCancelledError {
             // Cancelled from the StoreKit sheet — leave state as-is, no error.
+            Analytics.purchaseCancelled()
         } catch {
             handle(error)
             Analytics.purchaseFailed(reason: Self.analyticsReason(for: error))
@@ -176,12 +180,15 @@ final class PurchaseManager {
         guard isConfigured else { return false }
         isLoading = true
         defer { isLoading = false }
-        Analytics.restorePurchases()
         do {
             apply(try await Purchases.shared.restorePurchases())
             errorMessage = nil
+            // `apply` already emits `Premium.activated` on a genuine flip; this reports the restore's
+            // own outcome so "restored but nothing found" is distinguishable from a real activation.
+            Analytics.restorePurchases(result: hasPremium ? .activated : .nothing)
         } catch {
             handle(error)
+            Analytics.restorePurchases(result: .failed)
         }
         #endif
         return hasPremium

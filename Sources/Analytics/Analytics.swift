@@ -144,14 +144,43 @@ extension Analytics {
         signal("Purchase.failed", parameters: ["reason": reason])
     }
 
-    /// The customer invoked "Restore Purchases".
-    static func restorePurchases() {
-        signal("Purchase.restored")
+    /// The customer cancelled the StoreKit purchase sheet — the expected "started but didn't buy"
+    /// terminal, distinct from ``purchaseFailed(reason:)``. Lets the funnel measure sheet abandonment.
+    static func purchaseCancelled() {
+        signal("Purchase.cancelled")
+    }
+
+    /// The outcome of a "Restore Purchases" attempt.
+    enum RestoreResult: String {
+        /// Restore found an entitlement and premium is now active.
+        case activated
+        /// Restore succeeded but found nothing to restore (a common support case).
+        case nothing
+        /// Restore errored.
+        case failed
+    }
+
+    /// A "Restore Purchases" attempt finished. `result` distinguishes activated / nothing-found /
+    /// errored so restore-found-nothing is visible rather than looking like a silent success.
+    static func restorePurchases(result: RestoreResult) {
+        signal("Purchase.restored", parameters: ["result": result.rawValue])
     }
 
     /// The premium entitlement transitioned to active (via a purchase or restore).
     static func premiumActivated() {
         signal("Premium.activated")
+    }
+
+    /// The free-trial offer modal was shown in its offerable state (trial not yet started). The
+    /// denominator for trial-offer conversion against ``trialStarted()``.
+    static func trialOfferViewed() {
+        signal("Trial.offerViewed")
+    }
+
+    /// The customer explicitly declined the trial offer (e.g. tapped "Not Now") — distinct from
+    /// silently abandoning the modal.
+    static func trialDeclined() {
+        signal("Trial.declined")
     }
 
     /// The local free trial was started by an explicit user action.
