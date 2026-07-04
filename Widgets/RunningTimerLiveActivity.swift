@@ -64,26 +64,39 @@ struct RunningTimerLiveActivity: Widget {
     @ViewBuilder
     private func lockScreen(_ context: ActivityViewContext<RunningTimerAttributes>) -> some View {
         let tint = context.state.activity.map(BBColor.tint(for:)) ?? BBColor.brand
-        HStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Image(systemName: context.state.activity?.systemImage ?? "timer")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(tint)
-                    Text(context.state.title)
-                        .font(.system(size: 15, weight: .medium))
+        HStack(spacing: 0) {
+            // Accent rail: the activity tint down the leading edge.
+            Rectangle()
+                .fill(tint)
+                .frame(width: 4)
+            HStack(spacing: 11) {
+                // Tinted glyph tile — the activity icon over the app's ActivityTile-style wash.
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(tint.opacity(0.2))
+                    .frame(width: 38, height: 38)
+                    .overlay {
+                        Image(systemName: context.state.activity?.systemImage ?? "timer")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(tint)
+                    }
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(context.state.title)
+                            .font(.system(size: 14, weight: .medium))
+                            .lineLimit(1)
+                        Circle().fill(BBColor.success).frame(width: 7, height: 7) // running
+                    }
+                    Text(context.state.start, style: .timer)
+                        .font(.system(size: 30, weight: .medium, design: .rounded))
+                        .monospacedDigit()
                         .lineLimit(1)
+                        .minimumScaleFactor(0.6)
                 }
-                Text(context.state.start, style: .timer)
-                    .font(.system(size: 34, weight: .medium, design: .rounded))
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
+                Spacer(minLength: 8)
+                stopControl(context).frame(width: 92)
             }
-            Spacer(minLength: 8)
-            stopControl(context).frame(width: 92)
+            .padding(14)
         }
-        .padding(16)
         .widgetURL(bodyURL(context))
     }
 
