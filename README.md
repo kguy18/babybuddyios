@@ -150,3 +150,13 @@ Pass via `SIMCTL_CHILD_<NAME>` env vars to `xcrun simctl launch`:
 | `BB_OPEN=feeding\|change\|…` | Auto-present a new-entry editor |
 | `BB_LOAD_OLDER=<n>` | Auto-page the timeline back `n` history chunks on launch (with `BB_DEMO`) |
 | `BB_LOCK=1` | Force the Face ID lock on |
+
+## Acknowledgements
+
+Baby Buddy for iOS is an unofficial client for the open-source
+[Baby Buddy](https://github.com/babybuddy/babybuddy) baby-tracking server, and is
+not affiliated with that project. The app's activity glyphs are extracted from
+Baby Buddy's Fontello icon font (Font Awesome, MFG Labs, Entypo — all under the
+SIL Open Font License 1.1). Full third-party license notices are in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and are also reproduced in-app
+under **Settings → Acknowledgements**.
