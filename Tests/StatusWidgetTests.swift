@@ -77,6 +77,32 @@ final class StatusWidgetTests: XCTestCase {
         XCTAssertEqual(child2.childName, "Bo")
     }
 
+    func testRunningTimerSurfaced() throws {
+        let now = Date(timeIntervalSince1970: 1_720_000_000)
+        seedChild(id: 1, first: "Patrick")
+        XCTAssertNil(ChildStatus.compute(from: try entities(), childID: 1, now: now).runningTimer)
+
+        let started = now.addingTimeInterval(-22 * 60)
+        _ = repo.create(kind: .timer, payload: ["child": 1, "name": "Sleep", "start": iso(started)])
+        let running = ChildStatus.compute(from: try entities(), childID: 1, now: now).runningTimer
+        XCTAssertEqual(running?.name, "Sleep")
+        XCTAssertEqual(running.map { Int($0.start.timeIntervalSince1970) },
+                       Int(started.timeIntervalSince1970))
+    }
+
+    func testCompactAgeFormatting() {
+        let now = Date(timeIntervalSince1970: 1_720_000_000)
+        func age(_ seconds: TimeInterval) -> String {
+            ChildStatus.compactAge(from: now.addingTimeInterval(-seconds), to: now)
+        }
+        XCTAssertEqual(age(30), "now")
+        XCTAssertEqual(age(20 * 60), "20m")
+        XCTAssertEqual(age(2 * 3600), "2h")
+        XCTAssertEqual(age(2 * 3600 + 15 * 60), "2h 15m")
+        XCTAssertEqual(age(44 * 3600), "1d 20h")
+        XCTAssertEqual(age(48 * 3600), "2d")
+    }
+
     func testPendingDeleteExcluded() throws {
         let now = Date(timeIntervalSince1970: 1_720_000_000)
         seedChild(id: 1, first: "Ada")

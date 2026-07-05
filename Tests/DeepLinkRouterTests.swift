@@ -25,6 +25,20 @@ final class DeepLinkRouterTests: XCTestCase {
         XCTAssertNil(router.convertTarget)
     }
 
+    /// The status widget builds `babybuddy://day/<kindRaw>` for a tile tap; the router must parse
+    /// it into the day kind.
+    func testDayLinkParsesKind() {
+        let router = DeepLinkRouter()
+        XCTAssertTrue(router.handle(URL(string: "babybuddy://day/change")!))
+        XCTAssertEqual(router.openDayKind, .change)
+    }
+
+    func testDayLinkWithUnknownKindIsIgnored() {
+        let router = DeepLinkRouter()
+        XCTAssertTrue(router.handle(URL(string: "babybuddy://day/notakind")!))
+        XCTAssertNil(router.openDayKind)
+    }
+
     func testForeignSchemeIsRejected() {
         let router = DeepLinkRouter()
         XCTAssertFalse(router.handle(URL(string: "https://example.com")!))

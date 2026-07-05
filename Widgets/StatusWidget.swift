@@ -66,7 +66,8 @@ extension ChildStatus {
         sleep: KindStatus(kind: .sleep, last: .now.addingTimeInterval(-45 * 60),
                           detail: "1h 10m · Nap", todayCount: 3),
         change: KindStatus(kind: .change, last: .now.addingTimeInterval(-35 * 60),
-                           detail: "Wet", todayCount: 6))
+                           detail: "Wet", todayCount: 6),
+        runningTimer: nil)
 }
 
 // MARK: - Views
@@ -77,6 +78,11 @@ struct StatusWidgetView: View {
 
     private var status: ChildStatus { entry.status }
     private let homeURL = URL(string: "babybuddy://home")
+
+    /// Deep link to a kind's day timeline (matches the in-app "Today" tile).
+    private func dayURL(_ kind: EntityKind) -> URL {
+        URL(string: "babybuddy://day/\(kind.rawValue)")!
+    }
 
     var body: some View {
         switch family {
@@ -94,16 +100,37 @@ struct StatusWidgetView: View {
     /// so a narrow tile never has to fit a label and a long "1 day, 20 hr" on one line.
     @ViewBuilder private var small: some View {
         if status.hasChild {
-            VStack(alignment: .leading, spacing: 9) {
-                childHeading(size: 14)
+            VStack(alignment: .leading, spacing: 6) {
+                smallHeader
                 VStack(spacing: 9) {
                     ForEach(status.all, id: \.kind) { smallRow($0) }
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .widgetURL(homeURL)
         } else {
             noChild.widgetURL(homeURL)
+        }
+    }
+
+    /// Small header: the child's name, or a condensed running-timer line — name on the left,
+    /// elapsed and the running dot right-aligned.
+    @ViewBuilder private var smallHeader: some View {
+        if let timer = status.runningTimer {
+            HStack(spacing: 5) {
+                Text(timer.name).font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                Spacer(minLength: 2)
+                Text(timer.start, style: .timer)
+                    .font(.system(size: 12, weight: .semibold)).monospacedDigit()
+                    .foregroundStyle(BBColor.success)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                    .frame(width: 48, alignment: .trailing)
+                runningDot(diameter: 11, dot: 6)
+            }
+        } else {
+            Text(status.childName ?? "Baby Buddy")
+                .font(.system(size: 14, weight: .semibold)).lineLimit(1)
         }
     }
 
@@ -125,66 +152,101 @@ struct StatusWidgetView: View {
 
     // MARK: Home Screen — medium
 
-    /// Wide layout: label (+ detail) on the left, then fixed-width right-aligned LAST and TODAY
-    /// columns so the times and counts line up across all three rows.
+    /// Colour-tile layout: a header (child name, or the running-timer line) over three tinted
+    /// activity tiles, each with a solid glyph chip, its "last" age, and today's count.
     @ViewBuilder private var medium: some View {
         if status.hasChild {
             VStack(alignment: .leading, spacing: 8) {
-                childHeading(size: 15)
-                VStack(spacing: 8) {
-                    mediumHeaderRow
-                    ForEach(status.all, id: \.kind) { mediumRow($0) }
+                mediumHeader
+                HStack(spacing: 10) {
+                    ForEach(status.all, id: \.kind) { s in
+                        // Each tile opens that kind's day timeline — same as the in-app "Today"
+                        // tile. (Links work in medium/large widgets; small uses widgetURL.)
+                        Link(destination: dayURL(s.kind)) { colourTile(s) }
+                    }
                 }
+                .frame(maxHeight: .infinity)   // tiles flex to fill the height below the header
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .widgetURL(homeURL)
         } else {
             noChild.widgetURL(homeURL)
         }
     }
 
-    /// Column widths shared by the medium header and rows so everything aligns.
-    private let lastColumn: CGFloat = 96
-    private let todayColumn: CGFloat = 48
-
-    private var mediumHeaderRow: some View {
-        HStack(spacing: 10) {
-            Spacer().frame(width: 26)               // under the glyph
-            Spacer(minLength: 0)                     // under the flexible label column
-            Text("LAST").frame(width: lastColumn, alignment: .trailing)
-            Text("TODAY").frame(width: todayColumn, alignment: .trailing)
+    /// Medium header: the child's name on the left; when a timer is running, the timer name and
+    /// its live counting-up elapsed time are right-aligned, with a green running dot. The elapsed
+    /// text gets an explicit fixed-width frame — `Text(style: .timer)` reports a greedy width that
+    /// otherwise squeezes the names out (or, with `.fixedSize`, blanks the widget entirely).
+    @ViewBuilder private var mediumHeader: some View {
+        if let timer = status.runningTimer {
+            HStack(spacing: 6) {
+                Text(status.childName ?? "Baby Buddy")
+                    .font(.system(size: 15, weight: .semibold))
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                Spacer(minLength: 6)
+                Text(timer.name)
+                    .font(.system(size: 15, weight: .semibold)).foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text(timer.start, style: .timer)
+                    .font(.system(size: 15, weight: .semibold)).monospacedDigit()
+                    .foregroundStyle(BBColor.success)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                    .frame(width: 58, alignment: .trailing)
+                runningDot(diameter: 13, dot: 7)
+            }
+        } else {
+            Text(status.childName ?? "Baby Buddy")
+                .font(.system(size: 15, weight: .semibold)).lineLimit(1)
         }
-        .font(.system(size: 9, weight: .semibold))
-        .kerning(0.3)
-        .foregroundStyle(.secondary)
     }
 
-    private func mediumRow(_ s: KindStatus) -> some View {
-        HStack(spacing: 10) {
-            glyph(s, side: 26, icon: 13)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(s.shortLabel).font(.system(size: 14, weight: .semibold)).lineLimit(1)
-                if let detail = s.detail, !detail.isEmpty {
-                    Text(detail).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            relative(s)
-                .font(.system(size: 13, weight: .medium)).monospacedDigit()
-                .lineLimit(1).minimumScaleFactor(0.7)
-                .frame(width: lastColumn, alignment: .trailing)
-            Text("\(s.todayCount)")
-                .font(.system(size: 14, weight: .semibold)).monospacedDigit()
-                .frame(width: todayColumn, alignment: .trailing)
+    private func colourTile(_ s: KindStatus) -> some View {
+        let tint = BBColor.activity(s.kind)
+        return VStack(alignment: .leading, spacing: 2) {
+            Image(systemName: s.kind.systemImage)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 32, height: 32)
+                .background(tint, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            Spacer(minLength: 6)
+            Text(tileLabel(s.kind))
+                .font(.system(size: 12, weight: .semibold)).foregroundStyle(tint).lineLimit(1)
+            Text(lastAge(s))
+                .font(.system(size: 18, weight: .semibold)).foregroundStyle(.primary)
+                .lineLimit(1).minimumScaleFactor(0.6)
+            Text("\(s.todayCount) today")
+                .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(11)
+        .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
     }
 
     // MARK: Shared pieces
 
-    private func childHeading(size: CGFloat) -> some View {
-        Text(status.childName ?? "Baby Buddy")
-            .font(.system(size: size, weight: .semibold))
-            .lineLimit(1)
+    /// Short tile caption per kind ("Feeding", "Sleep", "Diaper").
+    private func tileLabel(_ kind: EntityKind) -> String {
+        switch kind {
+        case .feeding: return "Feeding"
+        case .sleep: return "Sleep"
+        case .change: return "Diaper"
+        default: return kind.displayName
+        }
+    }
+
+    /// A green running dot with a faint halo — matches the app's `RunningDot`.
+    private func runningDot(diameter: CGFloat, dot: CGFloat) -> some View {
+        ZStack {
+            Circle().fill(BBColor.success.opacity(0.25)).frame(width: diameter, height: diameter)
+            Circle().fill(BBColor.success).frame(width: dot, height: dot)
+        }
+    }
+
+    /// Compact "last" age for a tile ("20m", "2h", "1d 20h"), relative to the entry time, or "—".
+    private func lastAge(_ s: KindStatus) -> String {
+        guard let last = s.last else { return "—" }
+        return ChildStatus.compactAge(from: last, to: entry.date)
     }
 
     private func glyph(_ s: KindStatus, side: CGFloat, icon: CGFloat) -> some View {
