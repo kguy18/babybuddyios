@@ -30,6 +30,7 @@ struct SettingsView: View {
     @State private var debugConflict: ConflictRecord?
     @State private var debugIcons = false
     @State private var showingPending = false
+    @State private var showingAcknowledgements = false
 
     var body: some View {
         NavigationStack {
@@ -66,6 +67,8 @@ struct SettingsView: View {
                     #endif
 
                     signOutCard.padding(.top, 4)
+
+                    acknowledgementsFooter
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
@@ -73,6 +76,7 @@ struct SettingsView: View {
             }
             .background(BBColor.surface)
             .navigationTitle("Settings")
+            .sheet(isPresented: $showingAcknowledgements) { AcknowledgementsView() }
             .sheet(isPresented: $showingPending) { PendingChangesView() }
             .sheet(item: $debugConflict) { c in
                 NavigationStack { ConflictResolutionView(conflict: c) }
@@ -389,6 +393,22 @@ struct SettingsView: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: Acknowledgements
+
+    /// A deliberately quiet footer link — third-party license disclosures and the Baby Buddy
+    /// open-source credit live one tap away, without competing with the settings above.
+    private var acknowledgementsFooter: some View {
+        Button { showingAcknowledgements = true } label: {
+            Text("Acknowledgements")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 10)
     }
 
     // MARK: Layout helpers
