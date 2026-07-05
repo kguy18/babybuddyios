@@ -83,21 +83,21 @@ struct StatusWidgetView: View {
         case .accessoryInline: inline
         case .accessoryCircular: circular
         case .accessoryRectangular: rectangular
-        case .systemMedium: home(compact: false)
-        default: home(compact: true)
+        case .systemMedium: medium
+        default: small
         }
     }
 
-    // MARK: Home Screen (small / medium)
+    // MARK: Home Screen — small
 
-    @ViewBuilder private func home(compact: Bool) -> some View {
+    /// Compact layout: the relative time sits under the label, with today's count on the right,
+    /// so a narrow tile never has to fit a label and a long "1 day, 20 hr" on one line.
+    @ViewBuilder private var small: some View {
         if status.hasChild {
-            VStack(alignment: .leading, spacing: compact ? 7 : 9) {
-                header
-                VStack(spacing: compact ? 6 : 8) {
-                    ForEach(status.all, id: \.kind) { kind in
-                        StatusRowView(status: kind, showDetail: !compact)
-                    }
+            VStack(alignment: .leading, spacing: 9) {
+                childHeading(size: 14)
+                VStack(spacing: 9) {
+                    ForEach(status.all, id: \.kind) { smallRow($0) }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -107,15 +107,101 @@ struct StatusWidgetView: View {
         }
     }
 
-    private var header: some View {
-        HStack(spacing: 4) {
-            Text(status.childName ?? "Baby Buddy")
-                .font(.system(size: 13, weight: .semibold))
-                .lineLimit(1)
-            Spacer(minLength: 0)
-            Image(systemName: "heart.fill")
-                .font(.system(size: 11))
-                .foregroundStyle(BBColor.brand)
+    private func smallRow(_ s: KindStatus) -> some View {
+        HStack(spacing: 8) {
+            glyph(s, side: 24, icon: 12)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(s.shortLabel).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                relative(s).font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+            }
+            Spacer(minLength: 2)
+            VStack(alignment: .trailing, spacing: 0) {
+                Text("\(s.todayCount)").font(.system(size: 14, weight: .semibold)).monospacedDigit()
+                Text("today").font(.system(size: 9)).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    // MARK: Home Screen — medium
+
+    /// Wide layout: label (+ detail) on the left, then fixed-width right-aligned LAST and TODAY
+    /// columns so the times and counts line up across all three rows.
+    @ViewBuilder private var medium: some View {
+        if status.hasChild {
+            VStack(alignment: .leading, spacing: 8) {
+                childHeading(size: 15)
+                VStack(spacing: 8) {
+                    mediumHeaderRow
+                    ForEach(status.all, id: \.kind) { mediumRow($0) }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .widgetURL(homeURL)
+        } else {
+            noChild.widgetURL(homeURL)
+        }
+    }
+
+    /// Column widths shared by the medium header and rows so everything aligns.
+    private let lastColumn: CGFloat = 96
+    private let todayColumn: CGFloat = 48
+
+    private var mediumHeaderRow: some View {
+        HStack(spacing: 10) {
+            Spacer().frame(width: 26)               // under the glyph
+            Spacer(minLength: 0)                     // under the flexible label column
+            Text("LAST").frame(width: lastColumn, alignment: .trailing)
+            Text("TODAY").frame(width: todayColumn, alignment: .trailing)
+        }
+        .font(.system(size: 9, weight: .semibold))
+        .kerning(0.3)
+        .foregroundStyle(.secondary)
+    }
+
+    private func mediumRow(_ s: KindStatus) -> some View {
+        HStack(spacing: 10) {
+            glyph(s, side: 26, icon: 13)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(s.shortLabel).font(.system(size: 14, weight: .semibold)).lineLimit(1)
+                if let detail = s.detail, !detail.isEmpty {
+                    Text(detail).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            relative(s)
+                .font(.system(size: 13, weight: .medium)).monospacedDigit()
+                .lineLimit(1).minimumScaleFactor(0.7)
+                .frame(width: lastColumn, alignment: .trailing)
+            Text("\(s.todayCount)")
+                .font(.system(size: 14, weight: .semibold)).monospacedDigit()
+                .frame(width: todayColumn, alignment: .trailing)
+        }
+    }
+
+    // MARK: Shared pieces
+
+    private func childHeading(size: CGFloat) -> some View {
+        Text(status.childName ?? "Baby Buddy")
+            .font(.system(size: size, weight: .semibold))
+            .lineLimit(1)
+    }
+
+    private func glyph(_ s: KindStatus, side: CGFloat, icon: CGFloat) -> some View {
+        let tint = BBColor.activity(s.kind)
+        return Image(systemName: s.kind.systemImage)
+            .font(.system(size: icon, weight: .semibold))
+            .foregroundStyle(tint)
+            .frame(width: side, height: side)
+            .background(tint.opacity(0.15), in: RoundedRectangle(cornerRadius: side * 0.28))
+    }
+
+    /// The kind's relative "last" time, self-updating via `Text(_, style: .relative)`, or "—".
+    @ViewBuilder private func relative(_ s: KindStatus) -> some View {
+        if let last = s.last {
+            Text(last, style: .relative)
+        } else {
+            Text("—")
         }
     }
 
@@ -193,41 +279,5 @@ struct StatusWidgetView: View {
     /// The most recently occurring tracked kind (for the single-line inline accessory).
     private var mostRecent: KindStatus? {
         status.all.filter { $0.last != nil }.max { ($0.last ?? .distantPast) < ($1.last ?? .distantPast) }
-    }
-}
-
-/// One Home Screen row: tinted glyph, label (+ optional detail), relative "last" time and today's
-/// count. The relative time self-updates via `Text(_, style: .relative)`.
-private struct StatusRowView: View {
-    let status: KindStatus
-    var showDetail: Bool
-
-    var body: some View {
-        let tint = BBColor.activity(status.kind)
-        HStack(spacing: 8) {
-            Image(systemName: status.kind.systemImage)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(tint)
-                .frame(width: 22, height: 22)
-                .background(tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 7))
-            VStack(alignment: .leading, spacing: 1) {
-                Text(status.shortLabel).font(.system(size: 13, weight: .medium)).lineLimit(1)
-                if showDetail, let detail = status.detail, !detail.isEmpty {
-                    Text(detail).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
-                }
-            }
-            Spacer(minLength: 4)
-            VStack(alignment: .trailing, spacing: 1) {
-                if let last = status.last {
-                    Text(last, style: .relative)
-                        .font(.system(size: 12, weight: .semibold)).monospacedDigit()
-                        .lineLimit(1)
-                } else {
-                    Text("—").font(.system(size: 12, weight: .semibold))
-                }
-                Text("\(status.todayCount) today")
-                    .font(.system(size: 10)).foregroundStyle(.secondary)
-            }
-        }
     }
 }
