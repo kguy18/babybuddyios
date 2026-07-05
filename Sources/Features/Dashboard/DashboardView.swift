@@ -11,6 +11,8 @@ struct DashboardView: View {
     @Binding var selectedChildID: Int
 
     @Query(sort: \LocalEntity.timestamp, order: .reverse) private var allEntities: [LocalEntity]
+    /// Navigation path for the day-timeline pushes (in-app "Today" tiles + the status widget).
+    @State private var navPath: [EntityKind] = []
     @State private var addKind: EntityKind?
     @State private var editing: LocalEntity?
     @State private var startingTimer = false
@@ -37,7 +39,7 @@ struct DashboardView: View {
     private let recentKinds: [EntityKind] = [.feeding, .change, .sleep, .tummyTime, .pumping]
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navPath) {
             ScrollView {
                 VStack(spacing: 18) {
                     header
@@ -105,10 +107,12 @@ struct DashboardView: View {
             .refreshable { await sync.sync() }
             .onChange(of: router.openTimerLocalID) { _, id in openTimerActions(id) }
             .onChange(of: router.convertTarget) { _, target in openConvert(target) }
+            .onChange(of: router.openDayKind) { _, kind in openDay(kind) }
             .onAppear {
                 // handle a deep link that arrived before this view existed
                 openTimerActions(router.openTimerLocalID)
                 openConvert(router.convertTarget)
+                openDay(router.openDayKind)
                 #if DEBUG
                 if let raw = ProcessInfo.processInfo.environment["BB_OPEN"], !children.isEmpty {
                     if raw == "timer", !startingTimer {
@@ -285,6 +289,14 @@ struct DashboardView: View {
         else { return }
         convertRequest = ConvertRequest(timer: timer, kind: target.kind)
         router.convertTarget = nil
+    }
+
+    /// Push a kind's day timeline for a status-widget tile tap (same destination as the in-app
+    /// "Today" tiles).
+    private func openDay(_ kind: EntityKind?) {
+        guard let kind else { return }
+        navPath = [kind]
+        router.openDayKind = nil
     }
 
     /// File a stopped timer as the chosen activity. Sleep/tummy time log in one tap; feeding and

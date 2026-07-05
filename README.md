@@ -27,6 +27,11 @@ baby-tracking server. Offline-first, with conflict-aware sync and optional Face 
   and to watch the running timer with live elapsed time and a one-tap Stop that logs the
   activity. Lock Screen and StandBy accessories show the running timer at a glance. Widget
   actions push to the server immediately (falling back to the sync queue when offline).
+- **Status widget** — an at-a-glance Home Screen widget (small/medium) for the selected child:
+  when they last **fed / slept / were changed** (live relative times) plus **today's counts**.
+  Lock Screen / StandBy accessories condense it further (inline "Fed 2h ago", circular, and a
+  three-line rectangular). Read-only from the local cache — no network — and it tracks the same
+  child the dashboard is focused on.
 - **Live Activity & Dynamic Island** — a running timer also appears as a Live Activity on the
   Lock Screen and in the Dynamic Island, headed with the child and activity ("Patrick · Sleep"),
   with self-ticking elapsed time and the activity's tint. Stop mirrors the widget: sleep/tummy log

@@ -36,6 +36,9 @@ struct MainTabView: View {
         .onChange(of: router.convertTarget) { _, target in
             if target != nil { selectedTab = 0 }
         }
+        .onChange(of: router.openDayKind) { _, kind in
+            if kind != nil { selectedTab = 0 } // a status-widget tile targets the Home tab
+        }
         .safeAreaInset(edge: .top) {
             if !sync.isOnline {
                 Label("Offline — changes will sync when reconnected", systemImage: "wifi.slash")

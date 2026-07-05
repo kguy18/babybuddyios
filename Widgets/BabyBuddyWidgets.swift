@@ -7,6 +7,7 @@ struct BabyBuddyWidgets: WidgetBundle {
     var body: some Widget {
         QuickStartWidget()
         ActiveTimerWidget()
+        StatusWidget()
         RunningTimerLiveActivity()
     }
 }

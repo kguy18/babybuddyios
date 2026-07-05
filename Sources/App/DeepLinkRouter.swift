@@ -19,6 +19,10 @@ final class DeepLinkRouter {
     /// Set when a widget asks to convert a specific timer; cleared once handled.
     var convertTarget: ConvertTarget?
 
+    /// Set when the status widget asks to open a kind's day timeline (a tile tap); cleared once
+    /// handled.
+    var openDayKind: EntityKind?
+
     /// Parse a `babybuddy://` URL into router state. Returns `true` if it was recognized.
     @discardableResult
     func handle(_ url: URL) -> Bool {
@@ -32,6 +36,9 @@ final class DeepLinkRouter {
             if parts.count >= 2, let id = UUID(uuidString: parts[0]), let kind = EntityKind(rawValue: parts[1]) {
                 convertTarget = ConvertTarget(localID: id, kind: kind)
             }
+            return true
+        case "day": // babybuddy://day/<kindRaw> — open that kind's day timeline
+            if let raw = parts.first, let kind = EntityKind(rawValue: raw) { openDayKind = kind }
             return true
         case "home":
             return true
