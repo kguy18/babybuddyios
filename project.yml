@@ -51,6 +51,7 @@ targets:
       path: Sources/Info.plist
       properties:
         TelemetryDeckAppID: "$(TELEMETRYDECK_APP_ID)"
+        TelemetryDeckSalt: "$(TELEMETRYDECK_SALT)"
         RevenueCatAPIKey: "$(REVENUECAT_API_KEY)"
         NSSupportsLiveActivities: true
         BGTaskSchedulerPermittedIdentifiers:
@@ -92,6 +93,7 @@ targets:
       path: Widgets/Info.plist
       properties:
         TelemetryDeckAppID: "$(TELEMETRYDECK_APP_ID)"
+        TelemetryDeckSalt: "$(TELEMETRYDECK_SALT)"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:

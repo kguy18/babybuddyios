@@ -101,10 +101,26 @@ final class PurchaseManager {
         guard let key = Self.apiKey else { return }
         Purchases.configure(withAPIKey: key)
         isConfigured = true
+        linkTelemetryDeck()
         observe()
         Task { await refresh() }
         #endif
     }
+
+    #if canImport(RevenueCat)
+    /// Tag this RevenueCat customer with the TelemetryDeck App ID + anonymous hashed user, so
+    /// RevenueCat's server-side webhook can route its purchase events into TelemetryDeck and
+    /// correlate them with our client signals. A no-op when analytics are disabled (no App ID), so
+    /// open-source / forked builds send nothing. The attribute keys are RevenueCat's reserved
+    /// integration keys (see TelemetryDeck's RevenueCat integration guide).
+    private func linkTelemetryDeck() {
+        guard let identity = Analytics.telemetryDeckIdentity else { return }
+        Purchases.shared.attribution.setAttributes([
+            "$telemetryDeckUserId": identity.hashedUser,
+            "$telemetryDeckAppId": identity.appID
+        ])
+    }
+    #endif
 
     // MARK: - Actions
 

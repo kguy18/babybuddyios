@@ -11,9 +11,18 @@ import TelemetryDeck
 enum Analytics {
     /// The App ID injected into Info.plist, or `nil` if none was configured.
     private static var appID: String? {
-        guard let value = Bundle.main.object(forInfoDictionaryKey: "TelemetryDeckAppID") as? String else {
-            return nil
-        }
+        infoValue(forKey: "TelemetryDeckAppID")
+    }
+
+    /// Optional hashing salt injected into Info.plist, or `nil` if none was configured. When present
+    /// it salts the anonymous per-device user hash so it can't be reversed from a device identifier.
+    private static var salt: String? {
+        infoValue(forKey: "TelemetryDeckSalt")
+    }
+
+    /// A non-empty, trimmed Info.plist string value, or `nil`.
+    private static func infoValue(forKey key: String) -> String? {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
     }
@@ -29,9 +38,20 @@ enum Analytics {
         guard ProcessInfo.processInfo.environment["BB_DEMO"] != "1" else { return }
         guard let appID else { return }
 
-        let config = TelemetryDeck.Config(appID: appID)
+        let config = TelemetryDeck.Config(appID: appID, salt: salt)
         TelemetryDeck.initialize(config: config)
         isEnabled = true
+    }
+
+    /// TelemetryDeck identity for correlating RevenueCat's server-side webhook events with our
+    /// signals: the App ID plus the anonymous, salted per-device user hash TelemetryDeck stamps on
+    /// every signal. `nil` unless analytics are enabled. The hash matches the signal `clientUser`
+    /// because we never set a custom default user (iOS defaults it to `identifierForVendor`).
+    /// See ``PurchaseManager`` for where these are handed to RevenueCat.
+    @MainActor
+    static var telemetryDeckIdentity: (appID: String, hashedUser: String)? {
+        guard isEnabled, let appID else { return nil }
+        return (appID, TelemetryManager.shared.hashedDefaultUser)
     }
 
     /// Sends a signal if analytics are enabled; a no-op otherwise.
