@@ -8,6 +8,15 @@ enum SharedDefaults {
 
     private static let selectedChildKey = "selectedChildID"
     private static let liveActivitiesEnabledKey = "liveActivitiesEnabled"
+    private static let isPremiumKey = "isPremium"
+
+    /// Whether the customer has premium access. Written by the app (from ``PurchaseManager``) and
+    /// read by the widgets / App Intents to gate the premium "Home Screen Widgets" feature across
+    /// the process boundary. Defaults to `false` (locked) until the app writes it.
+    static var isPremium: Bool {
+        get { suite.object(forKey: isPremiumKey) as? Bool ?? false }
+        set { suite.set(newValue, forKey: isPremiumKey) }
+    }
 
     /// The child the dashboard is currently focused on, so widget-started timers attach to the
     /// same child. `nil` means "unassigned" (Baby Buddy timers allow a null child).

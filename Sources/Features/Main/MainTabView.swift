@@ -39,6 +39,10 @@ struct MainTabView: View {
         .onChange(of: router.openDayKind) { _, kind in
             if kind != nil { selectedTab = 0 } // a status-widget tile targets the Home tab
         }
+        .sheet(isPresented: Binding(get: { router.showPremium },
+                                    set: { router.showPremium = $0 })) {
+            PremiumScreen()
+        }
         .safeAreaInset(edge: .top) {
             if !sync.isOnline {
                 Label("Offline — changes will sync when reconnected", systemImage: "wifi.slash")
