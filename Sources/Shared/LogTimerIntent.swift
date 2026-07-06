@@ -22,6 +22,10 @@ struct LogTimerIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         // The intent runs in a separate process from the app, so analytics must be started here.
         Analytics.start()
+        guard SharedDefaults.isPremium else {
+            Analytics.widgetIntent("LogTimerBlocked")
+            throw PremiumRequiredError()
+        }
         Analytics.widgetIntent("LogTimer")
         let container = try ModelContainer(
             for: LocalStore.schema,

@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import WidgetKit
 #if canImport(RevenueCat)
 import RevenueCat
 #endif
@@ -199,6 +200,7 @@ final class PurchaseManager {
     /// Re-derive ``hasPremium`` from every source: the RevenueCat entitlement (the source of truth)
     /// plus the launch (`forcedPremium`) and debug overrides. The single place premium is computed.
     private func recompute() {
+        let previous = hasPremium
         var value = Self.forcedPremium
         #if DEBUG
         value = value || debugForcedPremium
@@ -207,6 +209,10 @@ final class PurchaseManager {
         value = value || (customerInfo?.entitlements[Self.entitlementID]?.isActive == true)
         #endif
         hasPremium = value
+        // Bridge the entitlement to the widget / App-Intents process, and refresh the widgets so a
+        // change to premium (purchase, restore, trial, debug toggle) locks/unlocks them.
+        SharedDefaults.isPremium = value
+        if value != previous { WidgetCenter.shared.reloadAllTimelines() }
     }
 
     #if canImport(RevenueCat)

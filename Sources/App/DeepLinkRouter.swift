@@ -23,6 +23,9 @@ final class DeepLinkRouter {
     /// handled.
     var openDayKind: EntityKind?
 
+    /// Set when a locked Home Screen widget is tapped, to present the paywall; cleared once handled.
+    var showPremium = false
+
     /// Parse a `babybuddy://` URL into router state. Returns `true` if it was recognized.
     @discardableResult
     func handle(_ url: URL) -> Bool {
@@ -39,6 +42,9 @@ final class DeepLinkRouter {
             return true
         case "day": // babybuddy://day/<kindRaw> — open that kind's day timeline
             if let raw = parts.first, let kind = EntityKind(rawValue: raw) { openDayKind = kind }
+            return true
+        case "premium": // babybuddy://premium — a locked widget tap; present the paywall
+            showPremium = true
             return true
         case "home":
             return true

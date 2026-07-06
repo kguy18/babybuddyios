@@ -7,8 +7,8 @@ import AppIntents
 /// timer is running, so it's always useful.
 struct QuickStartWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "BabyBuddyQuickStart", provider: QuickStartProvider()) { _ in
-            QuickStartView()
+        StaticConfiguration(kind: "BabyBuddyQuickStart", provider: QuickStartProvider()) { entry in
+            QuickStartView(entry: entry)
                 .containerBackground(.background, for: .widget)
         }
         .configurationDisplayName("Quick start timer")
@@ -19,22 +19,29 @@ struct QuickStartWidget: Widget {
 
 struct QuickStartEntry: TimelineEntry {
     let date: Date
+    let isPremium: Bool
 }
 
 struct QuickStartProvider: TimelineProvider {
-    func placeholder(in context: Context) -> QuickStartEntry { QuickStartEntry(date: .now) }
+    func placeholder(in context: Context) -> QuickStartEntry { QuickStartEntry(date: .now, isPremium: true) }
 
     func getSnapshot(in context: Context, completion: @escaping (QuickStartEntry) -> Void) {
-        completion(QuickStartEntry(date: .now))
+        completion(QuickStartEntry(date: .now, isPremium: context.isPreview || SharedDefaults.isPremium))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<QuickStartEntry>) -> Void) {
-        completion(Timeline(entries: [QuickStartEntry(date: .now)], policy: .never))
+        completion(Timeline(entries: [QuickStartEntry(date: .now, isPremium: SharedDefaults.isPremium)], policy: .never))
     }
 }
 
 struct QuickStartView: View {
+    let entry: QuickStartEntry
+
     var body: some View {
+        if entry.isPremium { grid } else { WidgetLockedView() }
+    }
+
+    private var grid: some View {
         VStack(spacing: 7) {
             HStack(spacing: 4) {
                 Text("Start a timer")
