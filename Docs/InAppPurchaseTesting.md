@@ -20,7 +20,8 @@ no accounts) → **RevenueCat Test Store** → **Sandbox** → **TestFlight** �
    - an entitlement with identifier **`premium`** (must match `PurchaseManager.entitlementID`),
    - one or more products attached to it,
    - an **Offering** (the paywall shows `currentOffering.availablePackages`).
-2. In **App Store Connect**, create the matching auto-renewable subscription / product IDs.
+2. In **App Store Connect**, create the matching **Non-Consumable** in-app purchase (Premium is a
+   one-time "unlock forever" purchase, not a subscription) with the same product ID.
 3. Put the **public Apple RevenueCat API key** in `Config/Secrets.xcconfig` (gitignored):
    ```
    REVENUECAT_API_KEY = appl_XXXXXXXXXXXXXXXXXXXX
@@ -67,10 +68,11 @@ Fastest loop; runs entirely on-device/simulator with a synthetic store.
    → expect `Purchase.failed` with a coarse `reason` code and a non-crashing error message.
 6. **Restore**: delete + reinstall (or use *Debug ▸ StoreKit ▸ Manage Transactions* to clear), then
    **Settings ▸ Restore Purchases** → `Purchase.restored`; entitlement returns.
-7. **Manage Purchases** row opens the subscription management screen without error.
+7. **Manage Purchase** screen shows the correct status and a working **Restore** (there is no
+   subscription to cancel for a one-time purchase, so no management link is shown).
 
-**StoreKit transaction manager** (`Debug ▸ StoreKit ▸ Manage Transactions`) lets you refund,
-expire, or delete transactions to exercise renewal/lapse without waiting.
+**StoreKit transaction manager** (`Debug ▸ StoreKit ▸ Manage Transactions`) lets you refund or
+delete the transaction to re-exercise the purchase / restore path without reinstalling.
 
 ---
 
@@ -105,14 +107,14 @@ Exercises the true App Store purchase pipeline end-to-end.
 3. Install a **signed** build (device) using the production RevenueCat key + real product IDs.
 
 **Steps**
-1. Purchase the subscription → sandbox payment sheet → confirm. Sandbox renewals are accelerated
-   (e.g. a month ≈ minutes), so you can watch renewals and, after the sandbox retry limit, a lapse.
+1. Purchase the non-consumable → sandbox payment sheet → confirm. As a one-time purchase it does not
+   renew or expire — once bought, `premium` stays active for that Apple ID permanently.
 2. Verify `premium` activates in-app and in the RevenueCat dashboard (Sandbox customer).
 3. **Restore**: delete/reinstall, then **Restore Purchases** → entitlement returns.
 4. **Interrupted purchase**: trigger *Ask to Buy* (sandbox) and approve/deny → confirm pending and
    failure paths don't crash.
-5. **Lapse**: let the sandbox subscription expire (or expire it via StoreKit transaction manager on a
-   simulator build) → gating re-locks live once `customerInfoStream` pushes the inactive entitlement.
+5. **Refund re-lock**: refund/delete the transaction via the StoreKit transaction manager (simulator
+   build) → gating re-locks live once `customerInfoStream` pushes the inactive entitlement.
 6. Confirm the **local trial is independent** of purchases: start the trial, verify all premium
    features unlock for 14 days (use `BB_*` note below to fast-forward via device date only for
    throwaway checks), and that after `hasStartedTrial` it can never restart.
@@ -143,15 +145,13 @@ Closest thing to production; uses the **Sandbox** billing environment automatica
 Final verification after App Review approval.
 
 **Steps**
-1. Ensure the subscription is **"Approved" / "Ready for Sale"** in App Store Connect and the RevenueCat
-   production entitlement/offering is live.
+1. Ensure the in-app purchase is **"Approved" / "Ready for Sale"** in App Store Connect and the
+   RevenueCat production entitlement/offering is live.
 2. With a **real** Apple ID, make one real purchase (refund it afterward via App Store Connect if
    desired) to confirm the production key + product IDs resolve and `premium` activates.
 3. Confirm **Restore Purchases** works for a customer on a new device.
 4. Monitor the RevenueCat + TelemetryDeck dashboards for the live funnel (`Purchase.completed`,
    `Premium.activated`) and error rates (`Purchase.failed` reason codes).
-5. Verify the **App Store subscription management** deep link (Manage Purchases) opens the real
-   management page.
 
 ---
 

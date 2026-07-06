@@ -1,15 +1,14 @@
 import SwiftUI
 
-/// Shows the current Pro status and lets the customer restore or manage their subscription.
+/// Shows the current Premium status and lets the customer restore their purchase.
 ///
-/// **Not presented anywhere yet.** Placeholder for a future Settings row. The "Manage Subscription"
-/// link opens Apple's system subscription management; restore uses ``PurchaseManager``.
+/// **Not presented anywhere yet.** Placeholder for a future Settings row. Premium is a one-time
+/// non-consumable purchase, so there is nothing to "manage" or cancel — Restore is the only action.
+/// Restore uses ``PurchaseManager``.
 struct ManagePurchaseView: View {
     @Environment(PurchaseManager.self) private var purchases
 
     @State private var isRestoring = false
-
-    private let manageSubscriptionsURL = URL(string: "https://apps.apple.com/account/subscriptions")!
 
     var body: some View {
         List {
@@ -22,7 +21,7 @@ struct ManagePurchaseView: View {
                             .foregroundStyle(BBColor.success)
                             .labelStyle(.titleAndIcon)
                     } else {
-                        Text("Not subscribed")
+                        Text("Not purchased")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -43,10 +42,6 @@ struct ManagePurchaseView: View {
                     }
                 }
                 .disabled(!purchases.isConfigured || isRestoring)
-
-                Link(destination: manageSubscriptionsURL) {
-                    Text("Manage Subscription")
-                }
             } footer: {
                 if !purchases.isConfigured {
                     Text("In-app purchases are not available in this build.")

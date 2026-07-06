@@ -112,20 +112,21 @@ Analytics are also skipped automatically in `BB_DEMO` mode.
 
 ### In-app purchases (optional)
 
-The app integrates the [RevenueCat](https://www.revenuecat.com) SDK for managing
-subscriptions. Like analytics, **it is disabled by default and this repository ships
-without an API key**, so clone builds never reach the purchase backend. Configure it
-the same way — in the same gitignored `Config/Secrets.xcconfig`:
+The app integrates the [RevenueCat](https://www.revenuecat.com) SDK for a one-time
+"unlock forever" Premium purchase (a non-consumable, not a subscription). Like
+analytics, **it is disabled by default and this repository ships without an API key**,
+so clone builds never reach the purchase backend and run fully as the free tier.
+Configure it the same way — in the same gitignored `Config/Secrets.xcconfig`:
 
 ```sh
 # in Config/Secrets.xcconfig
 REVENUECAT_API_KEY = <your-revenuecat-public-apple-sdk-key>   # begins with appl_
 ```
 
-The key flows into the `RevenueCatAPIKey` Info.plist key, and `Subscriptions.start()`
+The key flows into the `RevenueCatAPIKey` Info.plist key, and `PurchaseManager.start()`
 configures RevenueCat only when it's non-empty (and never in `BB_DEMO`). Entitlement
-state is exposed app-wide via the `Subscriptions` observable (`isSubscribed`); no
-paywall or feature gating is wired up yet.
+state is exposed app-wide via the `PurchaseManager` observable (`hasPremium`), which
+drives the paywall and feature gating. See `Docs/InAppPurchaseArchitecture.md`.
 
 ### Connecting
 

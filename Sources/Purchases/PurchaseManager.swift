@@ -77,6 +77,20 @@ final class PurchaseManager {
     private(set) var currentOffering: Offering?
     #endif
 
+    /// The store-localized price string for the default package of ``currentOffering`` (e.g. "$9.99",
+    /// "4,99 €"), or `nil` when purchases aren't configured or no offering has loaded yet. Lets the
+    /// paywall show the real, currency-localized App Store price instead of a hardcoded figure — so it
+    /// localizes correctly and never drifts from the price set in App Store Connect. Derived from the
+    /// observed ``currentOffering``, so SwiftUI updates when the offering loads; exposes no RevenueCat
+    /// type to callers.
+    var localizedPrice: String? {
+        #if canImport(RevenueCat)
+        return currentOffering?.availablePackages.first?.storeProduct.localizedPriceString
+        #else
+        return nil
+        #endif
+    }
+
     private var observer: Task<Void, Never>?
 
     /// The public Apple SDK key injected into Info.plist, or `nil` if none was configured.
