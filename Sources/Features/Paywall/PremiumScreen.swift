@@ -181,7 +181,9 @@ struct PremiumScreen: View {
 
     private var priceBlock: some View {
         VStack(spacing: 2) {
-            Text("$9.99")
+            // Prefer the real, currency-localized App Store price; fall back to a placeholder only in
+            // builds without a configured offering (open-source clone, or before the offering loads).
+            Text(purchases.localizedPrice ?? "$9.99")
                 .font(.system(size: 30, weight: .bold))
             Text("Unlock forever · one-time purchase")
                 .font(.footnote)
