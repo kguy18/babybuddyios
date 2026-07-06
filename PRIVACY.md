@@ -68,6 +68,12 @@ versions ship without a RevenueCat API key**, so they initialize no purchase SDK
 See RevenueCat's [privacy policy](https://www.revenuecat.com/privacy/) for how it processes purchase
 data.
 
+In the App Store version, RevenueCat forwards its purchase events (e.g. a purchase, renewal, or
+refund) to TelemetryDeck on the server side so they appear alongside the analytics above. These are
+keyed only by the same anonymous, salted per-device hash used for analytics — never your Apple ID,
+receipt, or any identifying detail. This forwarding cannot happen in open-source / self-built
+versions, which ship without either a RevenueCat key or an analytics App ID.
+
 ## Biometric authentication
 
 If you enable the Face ID / passcode lock, authentication is performed by iOS via

@@ -25,5 +25,7 @@
 	</dict>
 	<key>TelemetryDeckAppID</key>
 	<string>$(TELEMETRYDECK_APP_ID)</string>
+	<key>TelemetryDeckSalt</key>
+	<string>$(TELEMETRYDECK_SALT)</string>
 </dict>
 </plist>

@@ -11,6 +11,13 @@
 // is gitignored and overrides the empty default below.
 TELEMETRYDECK_APP_ID =
 
+// Optional TelemetryDeck hashing salt, injected via the `TelemetryDeckSalt`
+// Info.plist key. When set, the anonymous per-device user hash is salted so it
+// can't be reversed from a known device identifier. Ships EMPTY in the public
+// repo (forked builds send nothing anyway); set the real salt in
+// `Secrets.xcconfig` so it stays out of the public source.
+TELEMETRYDECK_SALT =
+
 // RevenueCat public Apple SDK key (begins with `appl_`), injected into the
 // `RevenueCatAPIKey` Info.plist key. Ships EMPTY in the public repo: in-app
 // purchases only initialize when this is non-empty (see
