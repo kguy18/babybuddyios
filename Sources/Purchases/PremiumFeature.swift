@@ -17,7 +17,6 @@ enum PremiumFeature: String, CaseIterable, Identifiable, Sendable {
     case statistics
     case widgets
     case notes
-    case exports
     case timelineEditing
 
     var id: String { rawValue }
@@ -35,7 +34,6 @@ enum PremiumFeature: String, CaseIterable, Identifiable, Sendable {
         case .statistics:     return "Statistics"
         case .widgets:        return "Home Screen Widgets"
         case .notes:          return "Notes"
-        case .exports:        return "Data Export"
         case .timelineEditing: return "Timeline Editing"
         }
     }
@@ -53,7 +51,6 @@ enum PremiumFeature: String, CaseIterable, Identifiable, Sendable {
         case .statistics:     return "Trends, insights, and breakdowns."
         case .widgets:        return "Start and stop timers from the Home Screen."
         case .notes:          return "Add notes and photos to your log."
-        case .exports:        return "Export your data to share or back up."
         case .timelineEditing: return "Edit and delete past entries."
         }
     }
@@ -71,7 +68,6 @@ enum PremiumFeature: String, CaseIterable, Identifiable, Sendable {
         case .statistics:     return "chart.line.uptrend.xyaxis"
         case .widgets:        return "square.grid.2x2.fill"
         case .notes:          return "note.text"
-        case .exports:        return "square.and.arrow.up"
         case .timelineEditing: return "pencil.and.list.clipboard"
         }
     }
