@@ -5,10 +5,10 @@ import SwiftUI
 /// Buddy changes carry `wet`/`solid` booleans, and each diaper case fixes that pair so a single
 /// tap logs a complete, meaningful change (always with at least one flag set: Baby Buddy's own
 /// diaper form requires one, and a change with neither would be a no-op record). `quickFeed` is
-/// a deliberately separate, opt-in action that logs a feeding with fixed defaults (breast milk /
-/// both breasts, start = end = now) — those defaults won't suit every family, so it's surfaced
-/// as its own distinct tile rather than blended into the diaper set. `kind` keeps the intent
-/// general across both record types.
+/// a deliberately separate, opt-in action that logs a feeding with configurable defaults (the
+/// type/method set in Settings, `start = end = now`) — since those defaults won't suit every
+/// family it's both editable and surfaced as its own distinct tile rather than blended into the
+/// diaper set. `kind` keeps the intent general across both record types.
 enum QuickLogAction: String, AppEnum, CaseIterable {
     case wetDiaper, solidDiaper, wetAndSolidDiaper, quickFeed
 
@@ -48,11 +48,13 @@ enum QuickLogAction: String, AppEnum, CaseIterable {
     /// a child, so the caller must supply a valid id (the intent guards for one).
     ///
     /// - Diaper actions build a `changes` body (child + time + wet/solid), always ≥1 flag true.
-    /// - `quickFeed` builds a `feedings` body with one-tap defaults: breast milk / both breasts,
-    ///   start = end = now (a zero-length feed). Baby Buddy requires child + start + end + type +
-    ///   method on a feeding; amount is optional and omitted. Raw values verified against
-    ///   `FeedingType`/`FeedingMethod` and the live Baby Buddy `Feeding` model's TYPE/METHOD
-    ///   choices (`validate_duration` accepts end == start).
+    /// - `quickFeed` builds a `feedings` body with start = end = now (a zero-length feed) and the
+    ///   type/method the customer chose in Settings (``SharedDefaults/quickFeedType`` /
+    ///   ``SharedDefaults/quickFeedMethod``; default breast milk / both breasts). Baby Buddy
+    ///   requires child + start + end + type + method on a feeding; amount is optional and
+    ///   omitted. Raw values are constrained to `FeedingType`/`FeedingMethod`, verified against
+    ///   the live Baby Buddy `Feeding` model's TYPE/METHOD choices (`validate_duration` accepts
+    ///   end == start).
     func payload(childID: Int, now: Date) -> [String: Any] {
         let iso = APIDate.isoDateTime.string(from: now)
         switch self {
@@ -62,8 +64,8 @@ enum QuickLogAction: String, AppEnum, CaseIterable {
         case .quickFeed:
             return [
                 "child": childID, "start": iso, "end": iso,
-                "type": FeedingType.breastMilk.rawValue,
-                "method": FeedingMethod.bothBreasts.rawValue,
+                "type": SharedDefaults.quickFeedType.rawValue,
+                "method": SharedDefaults.quickFeedMethod.rawValue,
             ]
         }
     }

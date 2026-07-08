@@ -55,14 +55,25 @@ final class QuickLogTests: XCTestCase {
         XCTAssertEqual(QuickLogAction.quickFeed.kind, .feeding)
     }
 
-    /// `quickFeed` builds a `feedings` body with the fixed one-tap defaults (breast milk / both
-    /// breasts, start = end = now) and none of the diaper fields. Baby Buddy requires child +
-    /// start + end + type + method on a feeding; amount is optional and omitted here.
-    func testQuickFeedPayloadUsesFeedingDefaults() {
-        let payload = QuickLogAction.quickFeed.payload(childID: 7, now: .now)
+    /// `quickFeed` builds a `feedings` body (start = end = now, no diaper fields) using the
+    /// type/method configured in Settings — default breast milk / both breasts — and editing
+    /// those defaults changes what a one-tap feed logs. Baby Buddy requires child + start + end +
+    /// type + method on a feeding; amount is optional and omitted here.
+    func testQuickFeedPayloadReadsConfiguredDefaults() {
+        let originalType = SharedDefaults.quickFeedType
+        let originalMethod = SharedDefaults.quickFeedMethod
+        defer {
+            SharedDefaults.quickFeedType = originalType
+            SharedDefaults.quickFeedMethod = originalMethod
+        }
+
+        // Default configuration → breast milk / both breasts.
+        SharedDefaults.quickFeedType = .breastMilk
+        SharedDefaults.quickFeedMethod = .bothBreasts
+        var payload = QuickLogAction.quickFeed.payload(childID: 7, now: .now)
         XCTAssertEqual(payload["child"] as? Int, 7)
-        XCTAssertEqual(payload["type"] as? String, FeedingType.breastMilk.rawValue)     // "breast milk"
-        XCTAssertEqual(payload["method"] as? String, FeedingMethod.bothBreasts.rawValue) // "both breasts"
+        XCTAssertEqual(payload["type"] as? String, "breast milk")
+        XCTAssertEqual(payload["method"] as? String, "both breasts")
 
         let start = payload["start"] as? String
         let end = payload["end"] as? String
@@ -74,6 +85,13 @@ final class QuickLogTests: XCTestCase {
         XCTAssertNil(payload["wet"])
         XCTAssertNil(payload["solid"])
         XCTAssertNil(payload["time"])
+
+        // Editing the default in Settings changes what a one-tap feed records.
+        SharedDefaults.quickFeedType = .formula
+        SharedDefaults.quickFeedMethod = .bottle
+        payload = QuickLogAction.quickFeed.payload(childID: 7, now: .now)
+        XCTAssertEqual(payload["type"] as? String, "formula")
+        XCTAssertEqual(payload["method"] as? String, "bottle")
     }
 
     /// The feed tile relies on `LocalRepository.create` turning the feeding payload into a

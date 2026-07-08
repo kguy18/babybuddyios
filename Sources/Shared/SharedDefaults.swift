@@ -9,6 +9,8 @@ enum SharedDefaults {
     private static let selectedChildKey = "selectedChildID"
     private static let liveActivitiesEnabledKey = "liveActivitiesEnabled"
     private static let isPremiumKey = "isPremium"
+    private static let quickFeedTypeKey = "quickFeedType"
+    private static let quickFeedMethodKey = "quickFeedMethod"
 
     /// Whether the customer has premium access. Written by the app (from ``PurchaseManager``) and
     /// read by the widgets / App Intents to gate the premium "Home Screen Widgets" feature across
@@ -26,6 +28,20 @@ enum SharedDefaults {
             if let newValue { suite.set(newValue, forKey: selectedChildKey) }
             else { suite.removeObject(forKey: selectedChildKey) }
         }
+    }
+
+    /// The feeding type/method the Quick Log widget's one-tap "Feeding" tile logs. Edited in the
+    /// app's Settings and read here by the widget's App Intent across the process boundary, so a
+    /// tap always records the customer's current default. Default to breast milk / both breasts.
+    /// Keys/defaults are mirrored by the `@AppStorage` bindings in Settings — keep them in sync.
+    static var quickFeedType: FeedingType {
+        get { suite.string(forKey: quickFeedTypeKey).flatMap(FeedingType.init(rawValue:)) ?? .breastMilk }
+        set { suite.set(newValue.rawValue, forKey: quickFeedTypeKey) }
+    }
+
+    static var quickFeedMethod: FeedingMethod {
+        get { suite.string(forKey: quickFeedMethodKey).flatMap(FeedingMethod.init(rawValue:)) ?? .bothBreasts }
+        set { suite.set(newValue.rawValue, forKey: quickFeedMethodKey) }
     }
 
     /// Whether a running timer is shown as a Live Activity / Dynamic Island. Defaults to on;
