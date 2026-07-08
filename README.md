@@ -27,6 +27,15 @@ baby-tracking server. Offline-first, with conflict-aware sync and optional Face 
   and to watch the running timer with live elapsed time and a one-tap Stop that logs the
   activity. Lock Screen and StandBy accessories show the running timer at a glance. Widget
   actions push to the server immediately (falling back to the sync queue when offline).
+- **Quick Log widget** — a Home Screen widget (small / medium) that logs a **complete diaper
+  change** — **Wet**, **Solid**, or **Wet + Solid** — in a single tap, with no timer and no
+  form. It also carries a one-tap **Feeding** tile whose type/method default is editable under
+  **Settings → Quick Log** (breast milk / both breasts out of the box). Entries attach to the
+  child the dashboard is focused on and are **offline-first** — each write goes through the
+  local cache and is pushed to the server immediately, falling back to the sync queue when
+  offline, the same path as the timer widgets. As interactive Home Screen widgets that write
+  data, they're a **Pro** feature and show a locked state (tap to upgrade) until unlocked —
+  consistent with the timer widgets' gating.
 - **Status widget** — an at-a-glance Home Screen widget (small/medium) for the selected child:
   when they last **fed / slept / were changed** (live relative times) plus **today's counts**.
   Lock Screen / StandBy accessories condense it further (inline "Fed 2h ago", circular, and a
