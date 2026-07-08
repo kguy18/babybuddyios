@@ -1,18 +1,22 @@
 import AppIntents
 import SwiftUI
 
-/// The one-tap diaper actions a Quick Log widget tile can perform. Baby Buddy diaper changes
-/// carry `wet`/`solid` booleans; each case fixes that pair so a single tap logs a complete,
-/// meaningful change with no timer and no form — always with at least one flag set (Baby
-/// Buddy's own diaper form requires one, and a change with neither would be a no-op record).
-/// Kept general (`kind`) so more one-tap log actions can be added here later.
+/// The one-tap actions a Quick Log widget tile can perform. Most are diaper changes — Baby
+/// Buddy changes carry `wet`/`solid` booleans, and each diaper case fixes that pair so a single
+/// tap logs a complete, meaningful change (always with at least one flag set: Baby Buddy's own
+/// diaper form requires one, and a change with neither would be a no-op record). `quickFeed` is
+/// a deliberately separate, opt-in action that logs a feeding with fixed defaults (breast milk /
+/// both breasts, start = end = now) — those defaults won't suit every family, so it's surfaced
+/// as its own distinct tile rather than blended into the diaper set. `kind` keeps the intent
+/// general across both record types.
 enum QuickLogAction: String, AppEnum, CaseIterable {
-    case wetDiaper, solidDiaper, wetAndSolidDiaper
+    case wetDiaper, solidDiaper, wetAndSolidDiaper, quickFeed
 
-    static var typeDisplayRepresentation: TypeDisplayRepresentation { "Diaper" }
+    static var typeDisplayRepresentation: TypeDisplayRepresentation { "Quick Log" }
 
     static var caseDisplayRepresentations: [QuickLogAction: DisplayRepresentation] {
-        [.wetDiaper: "Wet", .solidDiaper: "Solid", .wetAndSolidDiaper: "Wet + Solid"]
+        [.wetDiaper: "Wet", .solidDiaper: "Solid", .wetAndSolidDiaper: "Wet + Solid",
+         .quickFeed: "Feeding"]
     }
 
     /// Short label for the widget tile.
@@ -21,36 +25,50 @@ enum QuickLogAction: String, AppEnum, CaseIterable {
         case .wetDiaper: return "Wet"
         case .solidDiaper: return "Solid"
         case .wetAndSolidDiaper: return "Wet + Solid"
+        case .quickFeed: return "Feeding"
         }
     }
 
-    /// The record kind this action logs. Diaper change for now; kept general so more one-tap
-    /// actions can be added without touching the intent.
-    var kind: EntityKind { .change }
+    /// The record kind this action logs — a diaper change, or a feeding for `quickFeed`. Drives
+    /// the tile icon and tint, and tells the intent which collection to create in.
+    var kind: EntityKind {
+        switch self {
+        case .wetDiaper, .solidDiaper, .wetAndSolidDiaper: return .change
+        case .quickFeed: return .feeding
+        }
+    }
 
     var systemImage: String { kind.systemImage }
 
-    /// Accent/tint for the widget tile, matching the diaper-change activity color coding.
+    /// Accent/tint for the widget tile, matching the record kind's activity color coding (warm
+    /// tan for changes, green for feedings) — so the feed tile reads as distinct from the diapers.
     var tint: Color { BBColor.activity(kind) }
 
-    /// The `wet`/`solid` pair this action sets. Always has at least one `true`, so every posted
-    /// change is a real event (matching Baby Buddy's own diaper form, which requires one).
-    private var flags: (wet: Bool, solid: Bool) {
+    /// The create payload for this action against `childID`, stamped to `now`. A record REQUIRES
+    /// a child, so the caller must supply a valid id (the intent guards for one).
+    ///
+    /// - Diaper actions build a `changes` body (child + time + wet/solid), always ≥1 flag true.
+    /// - `quickFeed` builds a `feedings` body with one-tap defaults: breast milk / both breasts,
+    ///   start = end = now (a zero-length feed). Baby Buddy requires child + start + end + type +
+    ///   method on a feeding; amount is optional and omitted. Raw values verified against
+    ///   `FeedingType`/`FeedingMethod` and the live Baby Buddy `Feeding` model's TYPE/METHOD
+    ///   choices (`validate_duration` accepts end == start).
+    func payload(childID: Int, now: Date) -> [String: Any] {
+        let iso = APIDate.isoDateTime.string(from: now)
         switch self {
-        case .wetDiaper: return (wet: true, solid: false)
-        case .solidDiaper: return (wet: false, solid: true)
-        case .wetAndSolidDiaper: return (wet: true, solid: true)
+        case .wetDiaper:         return change(childID, iso, wet: true, solid: false)
+        case .solidDiaper:       return change(childID, iso, wet: false, solid: true)
+        case .wetAndSolidDiaper: return change(childID, iso, wet: true, solid: true)
+        case .quickFeed:
+            return [
+                "child": childID, "start": iso, "end": iso,
+                "type": FeedingType.breastMilk.rawValue,
+                "method": FeedingMethod.bothBreasts.rawValue,
+            ]
         }
     }
 
-    /// The create payload for a diaper change against `childID`, stamped to `now`. A change
-    /// REQUIRES a child, so the caller must supply a valid id (the intent guards for one).
-    func payload(childID: Int, now: Date) -> [String: Any] {
-        [
-            "child": childID,
-            "time": APIDate.isoDateTime.string(from: now),
-            "wet": flags.wet,
-            "solid": flags.solid,
-        ]
+    private func change(_ childID: Int, _ iso: String, wet: Bool, solid: Bool) -> [String: Any] {
+        ["child": childID, "time": iso, "wet": wet, "solid": solid]
     }
 }

@@ -45,4 +45,55 @@ final class QuickLogTests: XCTestCase {
         XCTAssertEqual(mutations.first?.op, .create)
         XCTAssertEqual(mutations.first?.kind, .change)
     }
+
+    /// The diaper actions log changes; `quickFeed` logs a feeding — its `kind` routes the intent
+    /// to the right collection.
+    func testActionKinds() {
+        XCTAssertEqual(QuickLogAction.wetDiaper.kind, .change)
+        XCTAssertEqual(QuickLogAction.solidDiaper.kind, .change)
+        XCTAssertEqual(QuickLogAction.wetAndSolidDiaper.kind, .change)
+        XCTAssertEqual(QuickLogAction.quickFeed.kind, .feeding)
+    }
+
+    /// `quickFeed` builds a `feedings` body with the fixed one-tap defaults (breast milk / both
+    /// breasts, start = end = now) and none of the diaper fields. Baby Buddy requires child +
+    /// start + end + type + method on a feeding; amount is optional and omitted here.
+    func testQuickFeedPayloadUsesFeedingDefaults() {
+        let payload = QuickLogAction.quickFeed.payload(childID: 7, now: .now)
+        XCTAssertEqual(payload["child"] as? Int, 7)
+        XCTAssertEqual(payload["type"] as? String, FeedingType.breastMilk.rawValue)     // "breast milk"
+        XCTAssertEqual(payload["method"] as? String, FeedingMethod.bothBreasts.rawValue) // "both breasts"
+
+        let start = payload["start"] as? String
+        let end = payload["end"] as? String
+        XCTAssertNotNil(start.flatMap(APIDate.parse), "start parseable")
+        XCTAssertNotNil(end.flatMap(APIDate.parse), "end parseable")
+        XCTAssertEqual(start, end, "one-tap feed is zero-length: start == end == now")
+
+        // A feeding payload carries none of the diaper-change fields.
+        XCTAssertNil(payload["wet"])
+        XCTAssertNil(payload["solid"])
+        XCTAssertNil(payload["time"])
+    }
+
+    /// The feed tile relies on `LocalRepository.create` turning the feeding payload into a
+    /// pending-create feeding with the right child — mirror the payload the intent builds.
+    func testQuickFeedEnqueuesPendingCreateFeeding() throws {
+        let container = LocalStore.makeContainer(inMemory: true)
+        let context = container.mainContext
+        LocalRepository(context: context).create(
+            kind: .feeding, payload: QuickLogAction.quickFeed.payload(childID: 4, now: .now))
+
+        let feedings = try context.fetch(
+            FetchDescriptor<LocalEntity>(predicate: #Predicate { $0.kindRaw == "feeding" }))
+        XCTAssertEqual(feedings.count, 1)
+        XCTAssertEqual(feedings.first?.childID, 4)
+        XCTAssertEqual(feedings.first?.syncState, .pendingCreate)
+        XCTAssertNotEqual(feedings.first?.timestamp, .distantPast) // start parsed → real timestamp
+
+        let mutations = try context.fetch(FetchDescriptor<PendingMutation>())
+        XCTAssertEqual(mutations.count, 1)
+        XCTAssertEqual(mutations.first?.op, .create)
+        XCTAssertEqual(mutations.first?.kind, .feeding)
+    }
 }

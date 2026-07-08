@@ -12,7 +12,7 @@ struct QuickLogWidget: Widget {
                 .containerBackground(.background, for: .widget)
         }
         .configurationDisplayName("Quick log")
-        .description("Log a diaper change with one tap.")
+        .description("Log a diaper change or feeding with one tap.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
@@ -37,6 +37,11 @@ struct QuickLogProvider: TimelineProvider {
 struct QuickLogView: View {
     let entry: QuickLogEntry
 
+    /// The tiles shown, in order. Explicit (not `allCases`) so the widget's composition is
+    /// deliberate: the three diaper actions first, then `quickFeed` as a distinct green tile —
+    /// its feeding defaults are opt-in, so it's set apart from the diaper set rather than blended.
+    private let actions: [QuickLogAction] = [.wetDiaper, .solidDiaper, .wetAndSolidDiaper, .quickFeed]
+
     var body: some View {
         if entry.isPremium { panel } else { WidgetLockedView() }
     }
@@ -44,16 +49,16 @@ struct QuickLogView: View {
     private var panel: some View {
         VStack(spacing: 7) {
             HStack(spacing: 4) {
-                Text("Log a change")
+                Text("Quick log")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
-                Image(systemName: EntityKind.change.systemImage)
+                Image(systemName: "square.and.pencil")
                     .font(.system(size: 12))
-                    .foregroundStyle(BBColor.activity(.change))
+                    .foregroundStyle(BBColor.brand)
             }
             VStack(spacing: 7) {
-                ForEach(QuickLogAction.allCases, id: \.self) { tile($0) }
+                ForEach(actions, id: \.self) { tile($0) }
             }
         }
     }
