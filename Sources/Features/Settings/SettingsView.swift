@@ -66,13 +66,17 @@ struct SettingsView: View {
                             .padding(.top, 2)
                     }
 
-                    sectioned("Quick Log") {
-                        quickFeedCard
-                        Text("Defaults for the one-tap Feeding tile in the Quick Log widget.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 4)
-                            .padding(.top, 2)
+                    // Quick Log widgets are Pro (they write data), so only offer their defaults
+                    // to customers who can actually use them.
+                    if hasProAccess {
+                        sectioned("Quick Log") {
+                            quickFeedCard
+                            Text("Defaults for the one-tap Feeding tile in the Quick Log widget.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 4)
+                                .padding(.top, 2)
+                        }
                     }
 
                     #if DEBUG
