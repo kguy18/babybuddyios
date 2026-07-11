@@ -37,20 +37,36 @@ actor SyncActor {
         } catch {
             return PullOutcome(error: error.localizedDescription, changed: changed)
         }
+        var serverError: String?     // last 5xx seen; surfaced only if *every* kind fails this way
+        var pulledAnyKind = false
         for kind in EntityKind.allCases {
             do {
                 try await pull(kind: kind, client: client, windowDays: windowDays)
                 if modelContext.hasChanges { changed = true } // real insert/update/delete this kind
                 try modelContext.save()      // commit per kind so the UI fills in progressively
+                pulledAnyKind = true
             } catch APIError.notFound {
-                continue                      // endpoint absent on this server version (e.g. medications)
+                continue                      // endpoint absent on this server version
             } catch APIError.unauthorized {
                 return PullOutcome(error: Self.unauthorized, changed: changed)
+            } catch let error as APIError where error.isServer {
+                // A 5xx on one kind is transient and must not abort the whole pull — skip this
+                // kind so the others still sync, and let the next sync retry it. Discard the
+                // failed kind's partial upserts so a half-pulled page never gets committed by the
+                // next kind's save. Only if *every* kind 5xxes (server broadly unhealthy) is the
+                // error surfaced, after the loop.
+                modelContext.rollback()
+                serverError = error.userMessage
+                continue
             } catch let error as APIError {
                 return PullOutcome(error: error.userMessage, changed: changed)
             } catch {
                 return PullOutcome(error: error.localizedDescription, changed: changed)
             }
+        }
+        // Surface a server error only when nothing synced at all; a partial pull keeps its data.
+        if !pulledAnyKind, let serverError {
+            return PullOutcome(error: serverError, changed: changed)
         }
         return PullOutcome(error: nil, changed: changed)
     }
@@ -101,6 +117,8 @@ actor SyncActor {
     /// rolling window — are never dropped. Returns `nil` on success, or an error message.
     func pullOlderWindow(config: ServerConfig, dateMin: Date, dateMax: Date) async -> String? {
         let client = APIClient(config: config)
+        var serverError: String?     // last 5xx seen; surfaced only if *every* kind fails this way
+        var pulledAnyKind = false
         for kind in EntityKind.allCases where kind.isWindowed {
             do {
                 var query = ListQuery(ordering: "-\(kind.timeField)")
@@ -112,16 +130,25 @@ actor SyncActor {
                     LocalStore.upsertFromServer(record, kind: kind, in: modelContext)
                 }
                 try modelContext.save()       // commit per kind so the UI fills in progressively
+                pulledAnyKind = true
             } catch APIError.notFound {
                 continue                       // endpoint absent on this server version
             } catch APIError.unauthorized {
                 return Self.unauthorized
+            } catch let error as APIError where error.isServer {
+                // 5xx on one kind: skip it so the rest of the window still loads, and let a
+                // later "load older" retry it. Discard the failed kind's partial upserts.
+                modelContext.rollback()
+                serverError = error.userMessage
+                continue
             } catch let error as APIError {
                 return error.userMessage
             } catch {
                 return error.localizedDescription
             }
         }
+        // Fail the load only if nothing loaded at all; a partial window keeps what it fetched.
+        if !pulledAnyKind, let serverError { return serverError }
         return nil
     }
 

@@ -29,6 +29,14 @@ enum APIError: Error, Equatable {
         }
     }
 
+    /// A server-side 5xx specifically (excludes `offline`). Used to skip a single failing kind
+    /// during a bulk pull without aborting the whole sync, while still treating a lost
+    /// connection as a hard stop.
+    var isServer: Bool {
+        if case .server = self { return true }
+        return false
+    }
+
     var userMessage: String {
         switch self {
         case .offline: return "No connection to the Baby Buddy server."

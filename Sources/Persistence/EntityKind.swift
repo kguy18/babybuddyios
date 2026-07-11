@@ -37,7 +37,7 @@ enum EntityKind: String, Codable, CaseIterable, Identifiable {
         case .headCircumference: return "head-circumference"
         case .temperature: return "temperature"
         case .bmi: return "bmi"
-        case .medication: return "medications"
+        case .medication: return "medication"
         }
     }
 
