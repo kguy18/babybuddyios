@@ -10,9 +10,11 @@ import SwiftData
 /// start-without-ending (or vice-versa).
 ///
 /// `reconcile()` also runs whenever the app becomes active. That's what syncs the Live Activity up
-/// after a timer is started or stopped from the **widget or Siri** — those App Intents run in the
-/// widget-extension process, where `Activity.request`/`end` aren't available, so they can't touch
-/// the activity themselves. The banner therefore appears/clears on the app's next foreground.
+/// after a timer is started (or a feeding/pumping timer stopped via the convert form) from the
+/// **widget or Siri** — those App Intents run in the widget-extension process, where
+/// `Activity.request` isn't available, so they can't start the activity themselves; the banner
+/// appears on the app's next foreground. (The one-tap Stop button is the exception: its
+/// `LogTimerIntent` is a `LiveActivityIntent` that runs in-app and ends its own banner directly.)
 @MainActor
 @Observable
 final class LiveActivityManager {

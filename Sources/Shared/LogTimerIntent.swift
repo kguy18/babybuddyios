@@ -1,3 +1,4 @@
+import ActivityKit
 import AppIntents
 import SwiftData
 import WidgetKit
@@ -8,7 +9,13 @@ import WidgetKit
 /// time). Feeding/pumping require type/method/amount, so the widget routes those to the
 /// in-app form instead. The created activity is pushed to the server immediately (best-effort
 /// via ``TimerPush``); on failure it stays queued for the app's next sync.
-struct LogTimerIntent: AppIntent {
+///
+/// Conforms to ``LiveActivityIntent`` so the system runs `perform()` in the **app's** process
+/// (foreground or a background launch) rather than the widget extension. That's what lets the
+/// same Stop button on the running-timer Live Activity end its Lock Screen / Dynamic Island
+/// banner immediately — the widget-extension process can't touch the app-owned activity, so
+/// without this the banner would linger until the app's next foreground reconcile.
+struct LogTimerIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Stop and log timer"
     static var description = IntentDescription("Stops a running timer and records it as a completed activity.")
 
@@ -20,7 +27,7 @@ struct LogTimerIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        // The intent runs in a separate process from the app, so analytics must be started here.
+        // May run in a fresh background launch of the app process, so start analytics defensively.
         Analytics.start()
         guard SharedDefaults.isPremium else {
             Analytics.widgetIntent("LogTimerBlocked")
@@ -48,7 +55,22 @@ struct LogTimerIntent: AppIntent {
             Analytics.timerStopped(activity: activity.rawValue, source: .widget)
             if let logged { await TimerPush.pushCreate(localID: logged.localID, in: context) }
         }
+        // Running in the app's process (via `LiveActivityIntent`), so end the timer's Live Activity
+        // right here — the Lock Screen / Dynamic Island banner clears the instant Stop is tapped
+        // instead of waiting for the app's next foreground reconcile.
+        await endLiveActivity(timerLocalID: timerLocalID)
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
+    }
+
+    /// End any running-timer Live Activity for `timerLocalID`. No-op when none exists (e.g. the
+    /// Stop came from the Home-screen widget with Live Activities off) or when this runs in the
+    /// widget-extension copy of the type, where `activities` is empty.
+    @MainActor
+    private func endLiveActivity(timerLocalID: String) async {
+        for activity in Activity<RunningTimerAttributes>.activities
+        where activity.attributes.timerLocalID == timerLocalID {
+            await activity.end(nil, dismissalPolicy: .immediate)
+        }
     }
 }
