@@ -132,6 +132,7 @@ struct PremiumDetailView: View {
             VStack(alignment: .leading, spacing: 11) {
                 bullet("Track feeding, sleep, pumping, and tummy time")
                 bullet("Live timers, notes, and detailed insights")
+                bullet("One-tap logging with Home Screen widgets")
                 bullet("Support ongoing development")
             }
         }

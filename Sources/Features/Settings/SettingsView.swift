@@ -26,6 +26,10 @@ struct SettingsView: View {
     @AppStorage("selectedChildID", store: SharedDefaults.suite) private var selectedChildID = 0
     // Mirrors SharedDefaults.liveActivitiesEnabled; keep the key and default in sync.
     @AppStorage("liveActivitiesEnabled", store: SharedDefaults.suite) private var liveActivitiesEnabled = true
+    // Mirror SharedDefaults.quickFeedType/Method — the Quick Log widget's one-tap Feeding
+    // defaults, read by the widget's intent. Keep the keys and defaults in sync.
+    @AppStorage("quickFeedType", store: SharedDefaults.suite) private var quickFeedType: FeedingType = .breastMilk
+    @AppStorage("quickFeedMethod", store: SharedDefaults.suite) private var quickFeedMethod: FeedingMethod = .bothBreasts
 
     @State private var debugConflict: ConflictRecord?
     @State private var debugIcons = false
@@ -60,6 +64,19 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 4)
                             .padding(.top, 2)
+                    }
+
+                    // Quick Log widgets are Pro (they write data), so only offer their defaults
+                    // to customers who can actually use them.
+                    if hasProAccess {
+                        sectioned("Quick Log") {
+                            quickFeedCard
+                            Text("Defaults for the one-tap Feeding tile in the Quick Log widget.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 4)
+                                .padding(.top, 2)
+                        }
                     }
 
                     #if DEBUG
@@ -289,6 +306,45 @@ struct SettingsView: View {
                     .labelsHidden()
                     .tint(BBColor.primary)
             }
+        }
+    }
+
+    // MARK: Quick Log
+
+    /// The type + method the Quick Log widget's one-tap Feeding tile records. Stored in the App
+    /// Group so the widget's App Intent reads the same values across the process boundary; changing
+    /// them here changes what a future tap logs. Any FeedingType/Method combination is valid to the
+    /// Baby Buddy API, so all choices are offered.
+    private var quickFeedCard: some View {
+        card {
+            SettingsRow(symbol: "drop.fill", tint: BBColor.feeding, title: "Feeding type") {
+                Menu {
+                    Picker("Feeding type", selection: $quickFeedType) {
+                        ForEach(FeedingType.allCases) { Text($0.label).tag($0) }
+                    }
+                } label: { menuValue(quickFeedType.label) }
+            }
+            rowDivider
+            SettingsRow(symbol: "fork.knife", tint: BBColor.feeding, title: "Feeding method") {
+                Menu {
+                    Picker("Feeding method", selection: $quickFeedMethod) {
+                        ForEach(FeedingMethod.allCases) { Text($0.label).tag($0) }
+                    }
+                } label: { menuValue(quickFeedMethod.label) }
+            }
+        }
+    }
+
+    /// Trailing label for a menu-backed settings row: the current value plus an up/down chevron,
+    /// styled like the masthead's "Switch" affordance.
+    private func menuValue(_ text: String) -> some View {
+        HStack(spacing: 4) {
+            Text(text)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(BBColor.brandAccent)
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.tertiary)
         }
     }
 

@@ -49,7 +49,7 @@ enum PremiumFeature: String, CaseIterable, Identifiable, Sendable {
         case .measurements:   return "Weight, height, and head circumference."
         case .timers:         return "Live start/stop timers for any activity."
         case .statistics:     return "Trends, insights, and breakdowns."
-        case .widgets:        return "Start and stop timers from the Home Screen."
+        case .widgets:        return "Start timers and one-tap log diapers and feeds from the Home Screen."
         case .notes:          return "Add notes and photos to your log."
         case .timelineEditing: return "Edit and delete past entries."
         }
