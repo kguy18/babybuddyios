@@ -10,8 +10,10 @@ import WidgetKit
 /// Tapping the body opens the app to that timer (`babybuddy://timer/<localID>`).
 ///
 /// Hosted by the widget extension. The app owns the activity's lifecycle (see
-/// `LiveActivityManager`); the widget-extension intents can't start/stop it, so the Stop button's
-/// `LogTimerIntent` logs the timer and the banner clears on the app's next foreground reconcile.
+/// `LiveActivityManager`). The Stop button's `LogTimerIntent` is a `LiveActivityIntent`, so it
+/// runs in the app's process and ends this banner itself the moment Stop is tapped. The
+/// convert-form / open-actions Stop routes instead open the app, which clears the banner on its
+/// next foreground reconcile.
 struct RunningTimerLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: RunningTimerAttributes.self) { context in
