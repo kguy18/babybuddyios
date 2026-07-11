@@ -202,7 +202,7 @@ struct BMIDTO: APIResource {
 }
 
 struct MedicationDTO: APIResource {
-    static let path = "medications"
+    static let path = "medication"
     var id: Int?
     var child: Int
     var name: String
