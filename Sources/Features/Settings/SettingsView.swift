@@ -36,6 +36,19 @@ struct SettingsView: View {
     @State private var showingPending = false
     @State private var showingAcknowledgements = false
 
+    // Contact Support: the row offers to attach diagnostics, then presents the mail composer
+    // (or falls back to a mailto: link when no Mail account is set up).
+    @State private var showingContactOptions = false
+    @State private var mailPayload: MailPayload?
+    @State private var showingMailUnavailable = false
+    @Environment(\.openURL) private var openURL
+
+    /// Wraps the seeded email body so `.sheet(item:)` has an `Identifiable` to present.
+    private struct MailPayload: Identifiable {
+        let id = UUID()
+        let body: String
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -79,6 +92,15 @@ struct SettingsView: View {
                         }
                     }
 
+                    sectioned("Support") {
+                        supportCard
+                        Text("Questions, feedback, or a bug? We'd love to hear from you.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
+                            .padding(.top, 2)
+                    }
+
                     #if DEBUG
                     sectioned("Developer") { developerCard }
                     #endif
@@ -93,6 +115,24 @@ struct SettingsView: View {
             }
             .background(BBColor.surface)
             .navigationTitle("Settings")
+            .confirmationDialog("Contact Support", isPresented: $showingContactOptions, titleVisibility: .visible) {
+                Button("Include Device Details") { presentMail(includeDiagnostics: true) }
+                Button("Don't Include") { presentMail(includeDiagnostics: false) }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Attach your device model, iOS version, and app version to help us investigate? Nothing else is shared.")
+            }
+            .sheet(item: $mailPayload) { payload in
+                MailComposeView(recipient: SupportContact.recipient,
+                                subject: SupportContact.subject,
+                                body: payload.body) { mailPayload = nil }
+                    .ignoresSafeArea()
+            }
+            .alert("Set Up Mail", isPresented: $showingMailUnavailable) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("No email account is set up on this device. You can reach us at \(SupportContact.recipient).")
+            }
             .sheet(isPresented: $showingAcknowledgements) { AcknowledgementsView() }
             .sheet(isPresented: $showingPending) { PendingChangesView() }
             .sheet(item: $debugConflict) { c in
@@ -430,6 +470,35 @@ struct SettingsView: View {
         case .premium:               return "Premium"
         case .trialActive(let days): return "Trial · \(days) day\(days == 1 ? "" : "s") left"
         case .trialAvailable, .trialExpired, .free: return "Free"
+        }
+    }
+
+    // MARK: Support
+
+    /// A single "Contact Support" row that opens an email to the Baby Buddy team. Tapping first
+    /// offers to attach diagnostics, then presents the in-app mail composer.
+    private var supportCard: some View {
+        card {
+            Button { showingContactOptions = true } label: {
+                SettingsRow(symbol: "envelope", tint: BBColor.info, title: "Contact Support") {
+                    disclosure
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// Present the mail composer seeded with (optionally) diagnostics. Falls back to a `mailto:`
+    /// link, then a "set up Mail" alert, when the in-app composer can't be shown.
+    private func presentMail(includeDiagnostics: Bool) {
+        if SupportContact.canSendMail {
+            mailPayload = MailPayload(body: SupportContact.body(includeDiagnostics: includeDiagnostics))
+        } else if let url = SupportContact.mailtoURL(includeDiagnostics: includeDiagnostics) {
+            openURL(url) { accepted in
+                if !accepted { showingMailUnavailable = true }
+            }
+        } else {
+            showingMailUnavailable = true
         }
     }
 
