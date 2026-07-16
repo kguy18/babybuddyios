@@ -61,7 +61,7 @@ Fastest loop; runs entirely on-device/simulator with a synthetic store.
 2. Tap a locked feature (e.g. **Trends** tab, or add a **Sleep** entry) → the lock panel appears and
    `Feature.locked` fires with the feature name. Tap **Upgrade** → paywall (`Paywall.viewed`).
 3. Tap the purchase button → StoreKit test sheet → **confirm**. Expect `Purchase.started` then
-   `Purchase.completed` + `Premium.activated`; the paywall reflects "You have Pro" and gating unlocks.
+   `Purchase.completed` + `Premium.activated`; the paywall reflects "You have Premium" and gating unlocks.
 4. **Cancel** flow: repeat step 3 but cancel the sheet → no `Purchase.completed`, no error banner,
    status unchanged.
 5. **Force a failure**: in the StoreKit config editor, enable *Ask to Buy* / a failing product, retry

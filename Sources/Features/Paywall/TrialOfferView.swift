@@ -46,7 +46,7 @@ struct TrialOfferView: View {
     private var offerContent: some View {
         VStack(spacing: 24) {
             VStack(spacing: 10) {
-                Text("Try Pro free for 14 days")
+                Text("Try Premium free for 14 days")
                     .font(.title2.bold())
                     .multilineTextAlignment(.center)
                 Text("Unlock every premium feature for two weeks. No subscription required, nothing is charged, and it won't auto-renew — the trial simply ends.")
@@ -99,7 +99,7 @@ struct TrialOfferView: View {
             let days = trial.daysRemaining
             return "You have \(days) day\(days == 1 ? "" : "s") of premium features remaining. Enjoy!"
         } else {
-            return "Your 14-day trial is over. Upgrade to Pro any time to keep your premium features."
+            return "Your 14-day trial is over. Upgrade to Premium any time to keep your premium features."
         }
     }
 }

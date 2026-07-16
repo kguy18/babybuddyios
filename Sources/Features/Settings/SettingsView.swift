@@ -362,7 +362,7 @@ struct SettingsView: View {
     private var premiumStatusRow: some View {
         HStack(spacing: 12) {
             premiumGlyph
-            Text("Baby Buddy Pro").font(.system(size: 16))
+            Text("Baby Buddy Premium").font(.system(size: 16))
             Spacer(minLength: 8)
             Text(premiumRowText)
                 .font(.subheadline.weight(.medium))

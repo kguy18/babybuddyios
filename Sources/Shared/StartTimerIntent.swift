@@ -55,6 +55,6 @@ struct StartTimerIntent: AppIntent {
 /// message. The widget UI already shows a locked state; this covers Siri / Shortcuts invocations.
 struct PremiumRequiredError: Error, CustomLocalizedStringResourceConvertible {
     var localizedStringResource: LocalizedStringResource {
-        "Baby Buddy Pro is required to use timer widgets."
+        "Baby Buddy Premium is required to use timer widgets."
     }
 }
