@@ -1,13 +1,13 @@
 import SwiftUI
 
-/// Detail screen reached by tapping "Baby Buddy Pro" in Settings. Holds the premium actions —
+/// Detail screen reached by tapping "Baby Buddy Premium" in Settings. Holds the premium actions —
 /// start trial, upgrade, restore, manage, and legal links — so the Settings row itself shows only
 /// the current status.
 ///
 /// No business logic: it reads ``PurchaseManager`` / ``TrialManager`` and routes actions back to
 /// them (Start Free Trial pops the ``TrialOfferView`` modal; Upgrade opens ``PremiumScreen``). The
 /// conditional rows mirror the tier rules — Start Free Trial only when no trial was ever started,
-/// Upgrade only when Pro isn't owned.
+/// Upgrade only when Premium isn't owned.
 struct PremiumDetailView: View {
     @Environment(PurchaseManager.self) private var purchases
     @Environment(TrialManager.self) private var trial
@@ -60,7 +60,7 @@ struct PremiumDetailView: View {
             .padding(.bottom, 28)
         }
         .background(BBColor.surface)
-        .navigationTitle("Baby Buddy Pro")
+        .navigationTitle("Baby Buddy Premium")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showPaywall) { PremiumScreen() }
         .sheet(isPresented: $showTrialOffer) {
@@ -71,7 +71,7 @@ struct PremiumDetailView: View {
     // MARK: Upsell header
 
     /// A brand banner (crown + pitch + state pill) over three value bullets, sitting above the
-    /// actions. Adapts its copy/pill to whether the customer has Pro, a trial, or neither.
+    /// actions. Adapts its copy/pill to whether the customer has Premium, a trial, or neither.
     private var proHeader: some View {
         VStack(spacing: 12) {
             banner
@@ -89,7 +89,7 @@ struct PremiumDetailView: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Baby Buddy Pro")
+                Text("Baby Buddy Premium")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(.white)
                 Text(bannerSubtitle)

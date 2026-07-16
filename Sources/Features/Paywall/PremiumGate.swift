@@ -2,7 +2,7 @@ import SwiftUI
 
 // The reusable building blocks for gating premium features. Locked features are never hidden — they
 // are shown disabled with an explanation and an upgrade path to ``PremiumScreen``. All gating UI is
-// centralized here so no screen re-implements the "what you tried / why it's locked / what Pro
+// centralized here so no screen re-implements the "what you tried / why it's locked / what Premium
 // unlocks" treatment.
 
 /// Shared legal links used by the paywall and the Settings premium section. Replace these with the
@@ -26,11 +26,11 @@ struct UpgradeButton<Label: View>: View {
 
 extension UpgradeButton where Label == Text {
     /// Convenience for a plain-text upgrade button (e.g. `UpgradeButton().buttonStyle(.bbPrimary)`).
-    init(_ title: String = "Upgrade to Pro") { self.init { Text(title) } }
+    init(_ title: String = "Upgrade to Premium") { self.init { Text(title) } }
 }
 
 /// Full, centered "this is locked" panel used to replace a premium screen or form the user cannot
-/// yet use. Explains the feature, why it's locked, and what Pro unlocks, then offers the upgrade.
+/// yet use. Explains the feature, why it's locked, and what Premium unlocks, then offers the upgrade.
 ///
 /// Deliberately contains no `NavigationStack` of its own so it can be dropped inside an existing one
 /// (e.g. the editor) as well as stand alone (e.g. a tab).
@@ -49,7 +49,7 @@ struct PremiumLockView: View {
                 Text(feature.title)
                     .font(.title3.bold())
                 // Why it's locked.
-                Text("This is a Baby Buddy Pro feature.")
+                Text("This is a Baby Buddy Premium feature.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -60,8 +60,8 @@ struct PremiumLockView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
-            // …and what Pro unlocks overall.
-            Text("Baby Buddy Pro unlocks every premium feature — sleep, pumping, timers, trends, notes, and more.")
+            // …and what Premium unlocks overall.
+            Text("Baby Buddy Premium unlocks every premium feature — sleep, pumping, timers, trends, notes, and more.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -80,7 +80,7 @@ struct PremiumLockView: View {
 /// Compact inline banner used where the surrounding content stays visible (e.g. viewing an existing
 /// entry) but a premium action is disabled. Explains the limitation and offers the upgrade.
 struct PremiumLockBanner: View {
-    var message: String = "Editing entries is a Baby Buddy Pro feature. You can still view this entry — upgrade to make changes."
+    var message: String = "Editing entries is a Baby Buddy Premium feature. You can still view this entry — upgrade to make changes."
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -91,7 +91,7 @@ struct PremiumLockBanner: View {
                 Text(message)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                UpgradeButton("Upgrade to Pro")
+                UpgradeButton("Upgrade to Premium")
                     .font(.subheadline.weight(.semibold))
                     .tint(BBColor.brandAccent)
             }

@@ -34,7 +34,7 @@ baby-tracking server. Offline-first, with conflict-aware sync and optional Face 
   child the dashboard is focused on and are **offline-first** — each write goes through the
   local cache and is pushed to the server immediately, falling back to the sync queue when
   offline, the same path as the timer widgets. As interactive Home Screen widgets that write
-  data, they're a **Pro** feature and show a locked state (tap to upgrade) until unlocked —
+  data, they're a **Premium** feature and show a locked state (tap to upgrade) until unlocked —
   consistent with the timer widgets' gating.
 - **Status widget** — an at-a-glance Home Screen widget (small/medium) for the selected child:
   when they last **fed / slept / were changed** (live relative times) plus **today's counts**.

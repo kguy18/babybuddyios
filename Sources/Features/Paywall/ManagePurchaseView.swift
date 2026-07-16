@@ -14,7 +14,7 @@ struct ManagePurchaseView: View {
         List {
             Section("Status") {
                 HStack {
-                    Text("Baby Buddy Pro")
+                    Text("Baby Buddy Premium")
                     Spacer()
                     if purchases.hasPremium {
                         Label("Active", systemImage: "checkmark.seal.fill")
