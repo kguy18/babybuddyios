@@ -1,4 +1,4 @@
-# Baby Buddy for iOS
+# Baby Buddy Companion for iOS
 
 A native SwiftUI client for the self-hosted [Baby Buddy](https://github.com/babybuddy/babybuddy)
 baby-tracking server. Offline-first, with conflict-aware sync and optional Face ID lock.
