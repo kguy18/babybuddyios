@@ -134,32 +134,36 @@ extension Analytics {
         signal("Error.network", parameters: ["reason": reason])
     }
 
-    // MARK: In-app purchases & premium
+    // MARK: In-app purchases & supporter status
     //
-    // Purchase/premium funnel. Like every event here these carry only coarse, non-identifying
-    // values — a feature key or an error code — never customer, receipt, or price data.
+    // Tip funnel. Every feature is free; these track the optional supporter tips. Like every event
+    // here they carry only coarse, non-identifying values — a tip tier or an error code — never
+    // customer, receipt, or price data.
 
-    /// The upgrade paywall was shown.
-    static func paywallViewed() {
-        signal("Paywall.viewed")
+    /// The supporter sheet was shown.
+    static func supporterSheetViewed() {
+        signal("Supporter.sheetViewed")
     }
 
-    /// An "Upgrade" call-to-action was tapped (which opens the paywall).
+    /// A supporter call-to-action was tapped (which opens the supporter sheet).
     static func upgradePressed() {
-        signal("Paywall.upgradePressed")
+        signal("Supporter.ctaPressed")
     }
 
-    /// A purchase flow began (the StoreKit sheet was requested).
-    static func purchaseStarted() {
-        signal("Purchase.started")
+    /// A tip purchase began (the StoreKit sheet was requested). `tier` is the coarse tip size
+    /// ("small" / "medium" / "large"), or "unknown" for a package that matches no tier.
+    static func tipPurchaseStarted(tier: String) {
+        signal("Tip.purchaseStarted", parameters: ["tier": tier])
     }
 
-    /// A purchase completed successfully.
-    static func purchaseCompleted() {
-        signal("Purchase.completed")
+    /// A tip purchase completed successfully. Tips are consumable and repeatable, so this can fire
+    /// more than once for the same customer.
+    static func tipPurchased(tier: String) {
+        signal("Tip.purchased", parameters: ["tier": tier])
     }
 
-    /// A purchase failed. `reason` is a coarse code (e.g. a RevenueCat error code), never a message.
+    /// A tip purchase failed. `reason` is a coarse code (e.g. a RevenueCat error code), never a
+    /// message.
     static func purchaseFailed(reason: String) {
         signal("Purchase.failed", parameters: ["reason": reason])
     }
@@ -172,7 +176,7 @@ extension Analytics {
 
     /// The outcome of a "Restore Purchases" attempt.
     enum RestoreResult: String {
-        /// Restore found an entitlement and premium is now active.
+        /// Restore found a past purchase and supporter status is now active.
         case activated
         /// Restore succeeded but found nothing to restore (a common support case).
         case nothing
@@ -186,9 +190,9 @@ extension Analytics {
         signal("Purchase.restored", parameters: ["result": result.rawValue])
     }
 
-    /// The premium entitlement transitioned to active (via a purchase or restore).
-    static func premiumActivated() {
-        signal("Premium.activated")
+    /// Supporter status transitioned to active (via a tip or a restore).
+    static func supporterActivated() {
+        signal("Supporter.activated")
     }
 
     /// Coarse error reporting from API failures — category + a short, non-identifying reason.

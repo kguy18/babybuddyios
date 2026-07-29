@@ -121,10 +121,12 @@ Analytics are also skipped automatically in `BB_DEMO` mode.
 
 ### In-app purchases (optional)
 
-The app integrates the [RevenueCat](https://www.revenuecat.com) SDK for a one-time
-"unlock forever" Premium purchase (a non-consumable, not a subscription). Like
-analytics, **it is disabled by default and this repository ships without an API key**,
-so clone builds never reach the purchase backend and run fully as the free tier.
+Every feature in the app is free. The app integrates the
+[RevenueCat](https://www.revenuecat.com) SDK only so customers can leave an optional
+one-time tip (three consumables, not a subscription); tipping marks them a supporter
+and unlocks nothing. Like analytics, **it is disabled by default and this repository
+ships without an API key**, so clone builds never reach the purchase backend — and
+because nothing is gated, they run with the full feature set regardless.
 Configure it the same way — in the same gitignored `Config/Secrets.xcconfig`:
 
 ```sh
@@ -133,9 +135,10 @@ REVENUECAT_API_KEY = <your-revenuecat-public-apple-sdk-key>   # begins with appl
 ```
 
 The key flows into the `RevenueCatAPIKey` Info.plist key, and `PurchaseManager.start()`
-configures RevenueCat only when it's non-empty (and never in `BB_DEMO`). Entitlement
-state is exposed app-wide via the `PurchaseManager` observable (`hasPremium`), which
-drives the paywall and feature gating. See `Docs/InAppPurchaseArchitecture.md`.
+configures RevenueCat only when it's non-empty (and never in `BB_DEMO`). Supporter
+status is exposed app-wide via the `PurchaseManager` observable (`isSupporter`), which
+drives the thank-you state only — never access to a feature. See
+`Docs/InAppPurchaseArchitecture.md`.
 
 ### Connecting
 

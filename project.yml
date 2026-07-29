@@ -63,6 +63,9 @@ targets:
     entitlements:
       path: Sources/BabyBuddy.entitlements
       properties:
+        com.apple.developer.associated-domains:
+          - applinks:babybuddy.app
+          - applinks:www.babybuddy.app
         com.apple.security.application-groups:
           - group.com.kurtisguy.BabyBuddy
         keychain-access-groups:
@@ -121,6 +124,10 @@ schemes:
       targets:
         BabyBuddy: all
         BabyBuddyTests: [test]
+    run:
+      # Synthetic local store for the supporter tips — lets purchases be exercised in the simulator
+      # with no App Store Connect / RevenueCat account. See Docs/InAppPurchaseTesting.md.
+      storeKitConfiguration: Config/BabyBuddy.storekit
     test:
       targets:
         - BabyBuddyTests

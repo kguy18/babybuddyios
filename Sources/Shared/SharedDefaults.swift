@@ -8,16 +8,17 @@ enum SharedDefaults {
 
     private static let selectedChildKey = "selectedChildID"
     private static let liveActivitiesEnabledKey = "liveActivitiesEnabled"
-    private static let isPremiumKey = "isPremium"
+    private static let isSupporterKey = "isSupporter"
     private static let quickFeedTypeKey = "quickFeedType"
     private static let quickFeedMethodKey = "quickFeedMethod"
 
-    /// Whether the customer has premium access. Written by the app (from ``PurchaseManager``) and
-    /// read by the widgets / App Intents to gate the premium "Home Screen Widgets" feature across
-    /// the process boundary. Defaults to `false` (locked) until the app writes it.
-    static var isPremium: Bool {
-        get { suite.object(forKey: isPremiumKey) as? Bool ?? false }
-        set { suite.set(newValue, forKey: isPremiumKey) }
+    /// Whether the customer has tipped at least once. Written by the app (from ``PurchaseManager``)
+    /// and readable by the widgets / App Intents across the process boundary. Nothing is gated on
+    /// it — every feature is free; it's bridged here for supporter-only cosmetics later. Defaults to
+    /// `false` until the app writes it.
+    static var isSupporter: Bool {
+        get { suite.object(forKey: isSupporterKey) as? Bool ?? false }
+        set { suite.set(newValue, forKey: isSupporterKey) }
     }
 
     /// The child the dashboard is currently focused on, so widget-started timers attach to the
