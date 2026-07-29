@@ -20,12 +20,6 @@ struct StartTimerIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         // The intent runs in a separate process from the app, so analytics must be started here.
         Analytics.start()
-        // Home Screen widgets / timer intents are a premium feature. Free users are blocked here too
-        // (not just in the widget UI) so Siri / Shortcuts can't bypass the gate.
-        guard SharedDefaults.isPremium else {
-            Analytics.widgetIntent("StartTimerBlocked")
-            throw PremiumRequiredError()
-        }
         Analytics.widgetIntent("StartTimer")
         let container = try ModelContainer(
             for: LocalStore.schema,
@@ -48,13 +42,5 @@ struct StartTimerIntent: AppIntent {
         if let timer { await TimerPush.pushCreate(localID: timer.localID, in: context) }
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
-    }
-}
-
-/// Thrown by the widget timer intents when the customer isn't premium — the system surfaces the
-/// message. The widget UI already shows a locked state; this covers Siri / Shortcuts invocations.
-struct PremiumRequiredError: Error, CustomLocalizedStringResourceConvertible {
-    var localizedStringResource: LocalizedStringResource {
-        "Baby Buddy Premium is required to use timer widgets."
     }
 }

@@ -19,18 +19,17 @@ struct QuickLogWidget: Widget {
 
 struct QuickLogEntry: TimelineEntry {
     let date: Date
-    let isPremium: Bool
 }
 
 struct QuickLogProvider: TimelineProvider {
-    func placeholder(in context: Context) -> QuickLogEntry { QuickLogEntry(date: .now, isPremium: true) }
+    func placeholder(in context: Context) -> QuickLogEntry { QuickLogEntry(date: .now) }
 
     func getSnapshot(in context: Context, completion: @escaping (QuickLogEntry) -> Void) {
-        completion(QuickLogEntry(date: .now, isPremium: context.isPreview || SharedDefaults.isPremium))
+        completion(QuickLogEntry(date: .now))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<QuickLogEntry>) -> Void) {
-        completion(Timeline(entries: [QuickLogEntry(date: .now, isPremium: SharedDefaults.isPremium)], policy: .never))
+        completion(Timeline(entries: [QuickLogEntry(date: .now)], policy: .never))
     }
 }
 
@@ -43,7 +42,7 @@ struct QuickLogView: View {
     private let actions: [QuickLogAction] = [.wetDiaper, .solidDiaper, .wetAndSolidDiaper, .quickFeed]
 
     var body: some View {
-        if entry.isPremium { panel } else { WidgetLockedView() }
+        panel
     }
 
     private var panel: some View {

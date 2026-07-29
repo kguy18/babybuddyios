@@ -31,26 +31,22 @@ struct TimerSnapshot {
 struct ActiveTimerEntry: TimelineEntry {
     let date: Date
     let timer: TimerSnapshot?
-    let isPremium: Bool
 }
 
 struct ActiveTimerProvider: TimelineProvider {
     func placeholder(in context: Context) -> ActiveTimerEntry {
         ActiveTimerEntry(date: .now, timer: TimerSnapshot(
-            localID: "", name: "Sleep", start: .now.addingTimeInterval(-3725), activity: .sleep),
-            isPremium: true)
+            localID: "", name: "Sleep", start: .now.addingTimeInterval(-3725), activity: .sleep))
     }
 
     func getSnapshot(in context: Context, completion: @escaping (ActiveTimerEntry) -> Void) {
-        completion(ActiveTimerEntry(date: .now, timer: Self.currentTimer(),
-                                    isPremium: context.isPreview || SharedDefaults.isPremium))
+        completion(ActiveTimerEntry(date: .now, timer: Self.currentTimer()))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<ActiveTimerEntry>) -> Void) {
         // Elapsed time renders via `Text(_, style: .timer)`, so no periodic reloads are needed;
         // the start/stop intents and the app explicitly reload when a timer changes.
-        completion(Timeline(entries: [ActiveTimerEntry(date: .now, timer: Self.currentTimer(),
-                                                       isPremium: SharedDefaults.isPremium)],
+        completion(Timeline(entries: [ActiveTimerEntry(date: .now, timer: Self.currentTimer())],
                             policy: .never))
     }
 
@@ -83,9 +79,7 @@ struct ActiveTimerView: View {
         case .accessoryCircular: circular
         case .accessoryInline: inline
         default:
-            // Home Screen widget is a premium feature; Lock Screen accessories stay as free glances.
-            if !entry.isPremium { WidgetLockedView() }
-            else if let timer = entry.timer { running(timer) } else { empty }
+            if let timer = entry.timer { running(timer) } else { empty }
         }
     }
 

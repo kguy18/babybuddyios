@@ -191,34 +191,6 @@ extension Analytics {
         signal("Premium.activated")
     }
 
-    /// The free-trial offer modal was shown in its offerable state (trial not yet started). The
-    /// denominator for trial-offer conversion against ``trialStarted()``.
-    static func trialOfferViewed() {
-        signal("Trial.offerViewed")
-    }
-
-    /// The customer explicitly declined the trial offer (e.g. tapped "Not Now") — distinct from
-    /// silently abandoning the modal.
-    static func trialDeclined() {
-        signal("Trial.declined")
-    }
-
-    /// The local free trial was started by an explicit user action.
-    static func trialStarted() {
-        signal("Trial.started")
-    }
-
-    /// The local free trial elapsed (reported once, when first observed as expired).
-    static func trialEnded() {
-        signal("Trial.ended")
-    }
-
-    /// A locked premium feature's lock/paywall was viewed. `feature` is the coarse feature key
-    /// (a ``PremiumFeature`` raw value) — the "Feature Name" — never any user data.
-    static func lockedFeatureViewed(feature: String) {
-        signal("Feature.locked", parameters: ["feature": feature])
-    }
-
     /// Coarse error reporting from API failures — category + a short, non-identifying reason.
     /// Never carries the server's message text (which could include user data).
     static func report(_ error: APIError) {

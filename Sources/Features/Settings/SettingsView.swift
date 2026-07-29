@@ -11,7 +11,6 @@ struct SettingsView: View {
     @Environment(SyncEngine.self) private var sync
     @Environment(AppLockManager.self) private var lock
     @Environment(PurchaseManager.self) private var purchases
-    @Environment(TrialManager.self) private var trial
     @Environment(LiveActivityManager.self) private var liveActivity
     @Environment(\.modelContext) private var context
 
@@ -79,17 +78,13 @@ struct SettingsView: View {
                             .padding(.top, 2)
                     }
 
-                    // Quick Log widgets are Pro (they write data), so only offer their defaults
-                    // to customers who can actually use them.
-                    if hasProAccess {
-                        sectioned("Quick Log") {
-                            quickFeedCard
-                            Text("Defaults for the one-tap Feeding tile in the Quick Log widget.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 4)
-                                .padding(.top, 2)
-                        }
+                    sectioned("Quick Log") {
+                        quickFeedCard
+                        Text("Defaults for the one-tap Feeding tile in the Quick Log widget.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
+                            .padding(.top, 2)
                     }
 
                     sectioned("Support") {
@@ -391,7 +386,7 @@ struct SettingsView: View {
     // MARK: Premium
 
     /// The Premium section is a single row showing current status; tapping it opens the detail
-    /// screen (``PremiumDetailView``) with the upgrade / trial / restore / manage / legal actions.
+    /// screen (``PremiumDetailView``) with the upgrade / restore / manage / legal actions.
     private var premiumCard: some View {
         card {
             NavigationLink { PremiumDetailView() } label: { premiumStatusRow }
@@ -404,22 +399,22 @@ struct SettingsView: View {
             premiumGlyph
             Text("Baby Buddy Premium").font(.system(size: 16))
             Spacer(minLength: 8)
-            Text(premiumRowText)
+            Text(purchases.hasPremium ? "Premium" : "Free")
                 .font(.subheadline.weight(.medium))
-                .foregroundStyle(hasProAccess ? BBColor.success : .secondary)
+                .foregroundStyle(purchases.hasPremium ? BBColor.success : .secondary)
             disclosure
         }
         .padding(.vertical, 11)
         .contentShape(Rectangle())
     }
 
-    /// Free → a poop glyph; premium/trial → the yellow crown — each in the app's tinted glyph tile.
+    /// Free → a poop glyph; premium → the yellow crown — each in the app's tinted glyph tile.
     private var premiumGlyph: some View {
         RoundedRectangle(cornerRadius: 9, style: .continuous)
-            .fill((hasProAccess ? BBColor.stop : BBColor.change).opacity(0.15))
+            .fill((purchases.hasPremium ? BBColor.stop : BBColor.change).opacity(0.15))
             .frame(width: 30, height: 30)
             .overlay {
-                if hasProAccess {
+                if purchases.hasPremium {
                     Image(systemName: "crown.fill")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(BBColor.stop) // yellow crown
@@ -428,9 +423,6 @@ struct SettingsView: View {
                 }
             }
     }
-
-    /// Whether the customer currently has premium access (a purchase or an active trial).
-    private var hasProAccess: Bool { purchases.hasPremium || trial.isTrialActive }
 
     private var disclosure: some View {
         Image(systemName: "chevron.right")
@@ -453,25 +445,6 @@ struct SettingsView: View {
         }
     }
     #endif
-
-    /// Which of the display states the customer is in.
-    private enum PremiumStatus { case premium, trialActive(Int), trialAvailable, trialExpired, free }
-
-    private var premiumStatus: PremiumStatus {
-        if purchases.hasPremium { return .premium }
-        if trial.isTrialActive { return .trialActive(trial.daysRemaining) }
-        if trial.hasStartedTrial { return .trialExpired }          // started but no longer active
-        if purchases.isConfigured { return .trialAvailable }        // eligible to start a trial
-        return .free                                                // no purchases configured, no trial
-    }
-
-    private var premiumRowText: String {
-        switch premiumStatus {
-        case .premium:               return "Premium"
-        case .trialActive(let days): return "Trial · \(days) day\(days == 1 ? "" : "s") left"
-        case .trialAvailable, .trialExpired, .free: return "Free"
-        }
-    }
 
     // MARK: Support
 

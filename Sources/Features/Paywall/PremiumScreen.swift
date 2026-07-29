@@ -1,5 +1,12 @@
 import SwiftUI
 
+/// Shared legal links used by the paywall and the Settings premium section. Replace these with the
+/// hosted policy URLs before shipping.
+enum PremiumLinks {
+    static let privacyPolicy = URL(string: "https://github.com/kguy18/babybuddyios/blob/main/PRIVACY.md")!
+    static let termsOfService = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
+}
+
 /// The upgrade paywall — a single, non-scrolling screen: a crown hero, a colorful grid of the
 /// premium activities, and a one-time "Buy Premium" purchase.
 ///
