@@ -1,20 +1,16 @@
 import SwiftUI
 
 /// Detail screen reached by tapping "Baby Buddy Premium" in Settings. Holds the premium actions —
-/// start trial, upgrade, restore, manage, and legal links — so the Settings row itself shows only
-/// the current status.
+/// upgrade, restore, manage, and legal links — so the Settings row itself shows only the current
+/// status.
 ///
-/// No business logic: it reads ``PurchaseManager`` / ``TrialManager`` and routes actions back to
-/// them (Start Free Trial pops the ``TrialOfferView`` modal; Upgrade opens ``PremiumScreen``). The
-/// conditional rows mirror the tier rules — Start Free Trial only when no trial was ever started,
-/// Upgrade only when Premium isn't owned.
+/// No business logic: it reads ``PurchaseManager`` and routes actions back to it (Upgrade opens
+/// ``PremiumScreen``). The Upgrade row appears only when Premium isn't already owned.
 struct PremiumDetailView: View {
     @Environment(PurchaseManager.self) private var purchases
-    @Environment(TrialManager.self) private var trial
     @Environment(\.openURL) private var openURL
 
     @State private var showPaywall = false
-    @State private var showTrialOffer = false
     @State private var isRestoring = false
 
     var body: some View {
@@ -23,13 +19,6 @@ struct PremiumDetailView: View {
                 proHeader
 
                 card {
-                    if !purchases.hasPremium && !trial.hasStartedTrial {
-                        actionRow(symbol: "gift.fill", tint: BBColor.success, title: "Start Free Trial") {
-                            showTrialOffer = true
-                        }
-                        rowDivider
-                    }
-
                     if !purchases.hasPremium {
                         actionRow(symbol: "sparkles", tint: BBColor.brand, title: "Upgrade") {
                             Analytics.upgradePressed()
@@ -63,15 +52,12 @@ struct PremiumDetailView: View {
         .navigationTitle("Baby Buddy Premium")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showPaywall) { PremiumScreen() }
-        .sheet(isPresented: $showTrialOffer) {
-            TrialOfferView().presentationDetents([.medium])
-        }
     }
 
     // MARK: Upsell header
 
     /// A brand banner (crown + pitch + state pill) over three value bullets, sitting above the
-    /// actions. Adapts its copy/pill to whether the customer has Premium, a trial, or neither.
+    /// actions. Adapts its copy/pill to whether the customer has Premium.
     private var proHeader: some View {
         VStack(spacing: 12) {
             banner
@@ -106,24 +92,12 @@ struct PremiumDetailView: View {
     }
 
     @ViewBuilder private var bannerPill: some View {
-        if hasPro {
+        if purchases.hasPremium {
             Label("Active", systemImage: "checkmark")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(BBColor.brandAccent)
                 .padding(.horizontal, 10).padding(.vertical, 4)
                 .background(.white, in: Capsule())
-        } else if trialAvailable {
-            Button {
-                showTrialOffer = true
-            } label: {
-                Text("14-day trial")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Color(uiColor: UIColor(hex: "5C4300")))
-                    .padding(.horizontal, 10).padding(.vertical, 4)
-                    .background(Color(uiColor: UIColor(hex: "FFD873")), in: Capsule())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Start 14-day free trial")
         }
     }
 
@@ -151,10 +125,8 @@ struct PremiumDetailView: View {
         }
     }
 
-    private var hasPro: Bool { purchases.hasPremium || trial.isTrialActive }
-    private var trialAvailable: Bool { !purchases.hasPremium && !trial.hasStartedTrial }
     private var bannerSubtitle: String {
-        hasPro ? "You have full access" : "Unlock every premium feature"
+        purchases.hasPremium ? "You have full access" : "Unlock every premium feature"
     }
 
     // MARK: Rows

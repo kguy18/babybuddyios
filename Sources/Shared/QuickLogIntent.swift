@@ -22,12 +22,6 @@ struct QuickLogIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         // The intent runs in a separate process from the app, so analytics must be started here.
         Analytics.start()
-        // Home Screen widgets / log intents are a premium feature. Free users are blocked here too
-        // (not just in the widget UI) so Siri / Shortcuts can't bypass the gate.
-        guard SharedDefaults.isPremium else {
-            Analytics.widgetIntent("QuickLogBlocked")
-            throw PremiumRequiredError()
-        }
         // A diaper change requires a child; fail cleanly rather than posting an invalid record.
         guard let child = SharedDefaults.selectedChildID, child > 0 else {
             throw NoChildSelectedError()
@@ -49,7 +43,6 @@ struct QuickLogIntent: AppIntent {
 
 /// Thrown by ``QuickLogIntent`` when no child is selected — a diaper change requires one, so
 /// rather than posting an invalid record the intent fails and the system surfaces this message.
-/// Styled like ``PremiumRequiredError`` (declared in `StartTimerIntent.swift`).
 struct NoChildSelectedError: Error, CustomLocalizedStringResourceConvertible {
     var localizedStringResource: LocalizedStringResource {
         "Open Baby Buddy and select a child first."

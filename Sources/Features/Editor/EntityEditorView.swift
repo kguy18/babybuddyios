@@ -10,8 +10,6 @@ struct EntityEditorView: View {
     @Environment(\.modelContext) private var context
     @Environment(SyncEngine.self) private var sync
     @Environment(LiveActivityManager.self) private var liveActivity
-    @Environment(PurchaseManager.self) private var purchases
-    @Environment(TrialManager.self) private var trial
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
 
@@ -101,7 +99,7 @@ struct EntityEditorView: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save", action: save).disabled(!isValid || isFeatureLocked).tint(BBColor.brandAccent)
+                    Button("Save", action: save).disabled(!isValid).tint(BBColor.brandAccent)
                 }
             }
             .confirmationDialog("Delete this \(kind.displayName.lowercased())?",
@@ -112,37 +110,11 @@ struct EntityEditorView: View {
         }
     }
 
-    // MARK: Premium gating
-
-    /// The feature that gates this editor: creating a record is gated by the kind's feature; editing
-    /// an existing one is gated by `.timelineEditing` (viewing stays free). `nil` when not gated.
-    private var gatedFeature: PremiumFeature? {
-        isEditing ? .timelineEditing : kind.premiumFeature
-    }
-
-    /// Whether the gating feature is currently locked for this customer.
-    private var isFeatureLocked: Bool {
-        guard let feature = gatedFeature else { return false }
-        return !FeatureAccess.isUnlocked(feature: feature,
-                                         hasPremium: purchases.hasPremium,
-                                         isTrial: trial.isTrialActive)
-    }
-
-    /// Creating a premium record the customer can't access — the form is replaced by the lock panel.
-    private var createLocked: Bool { !isEditing && isFeatureLocked }
-    /// Viewing an existing record but editing is locked — the form stays visible but disabled.
-    private var editLocked: Bool { isEditing && isFeatureLocked }
-
-    /// The editor's scrolling content, with premium gating applied. The activity selector stays
-    /// visible while creating so the customer can switch back to a free activity (e.g. Feeding).
+    /// The editor's scrolling content: the activity selector (while creating, so the customer can
+    /// switch kinds without reopening the editor) above the form itself.
     @ViewBuilder private var editorContent: some View {
         if showsActivitySelector { activitySelector }
-        if createLocked, let feature = gatedFeature {
-            PremiumLockView(feature: feature)
-        } else {
-            if editLocked { PremiumLockBanner() }
-            formSections.disabled(editLocked)
-        }
+        formSections
     }
 
     /// The editable form (everything below the activity selector).

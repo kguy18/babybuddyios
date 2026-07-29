@@ -29,10 +29,6 @@ struct LogTimerIntent: LiveActivityIntent {
     func perform() async throws -> some IntentResult {
         // May run in a fresh background launch of the app process, so start analytics defensively.
         Analytics.start()
-        guard SharedDefaults.isPremium else {
-            Analytics.widgetIntent("LogTimerBlocked")
-            throw PremiumRequiredError()
-        }
         Analytics.widgetIntent("LogTimer")
         let container = try ModelContainer(
             for: LocalStore.schema,

@@ -23,25 +23,23 @@ struct StatusWidget: Widget {
 struct StatusEntry: TimelineEntry {
     let date: Date
     let status: ChildStatus
-    let isPremium: Bool
 }
 
 struct StatusProvider: TimelineProvider {
     func placeholder(in context: Context) -> StatusEntry {
-        StatusEntry(date: .now, status: .sample, isPremium: true)
+        StatusEntry(date: .now, status: .sample)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (StatusEntry) -> Void) {
         let status = context.isPreview ? .sample : Self.currentStatus()
-        completion(StatusEntry(date: .now, status: status,
-                               isPremium: context.isPreview || SharedDefaults.isPremium))
+        completion(StatusEntry(date: .now, status: status))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<StatusEntry>) -> Void) {
         // Relative times refresh themselves via `Text(_, style: .relative)`; the counts are
         // computed here, so ask WidgetKit to refresh in ~30 min to keep them (and the midnight
         // rollover) current. The app also reloads timelines whenever it writes a record.
-        let entry = StatusEntry(date: .now, status: Self.currentStatus(), isPremium: SharedDefaults.isPremium)
+        let entry = StatusEntry(date: .now, status: Self.currentStatus())
         let next = Date.now.addingTimeInterval(30 * 60)
         completion(Timeline(entries: [entry], policy: .after(next)))
     }
@@ -91,9 +89,8 @@ struct StatusWidgetView: View {
         case .accessoryInline: inline
         case .accessoryCircular: circular
         case .accessoryRectangular: rectangular
-        // Home Screen widgets are a premium feature; Lock Screen accessories stay as free glances.
-        case .systemMedium: if entry.isPremium { medium } else { WidgetLockedView() }
-        default: if entry.isPremium { small } else { WidgetLockedView() }
+        case .systemMedium: medium
+        default: small
         }
     }
 
