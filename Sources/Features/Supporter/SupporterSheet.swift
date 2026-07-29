@@ -77,7 +77,7 @@ struct SupporterSheet: View {
             if showsAmounts {
                 amounts
                 tipButton
-            } else if purchases.isConfigured {
+            } else if canTip {
                 // A supporter has already tipped, so the amounts stay folded away behind a quieter
                 // button — the thank-you is the point of the screen for them, not another ask.
                 tipAgainButton
@@ -94,10 +94,18 @@ struct SupporterSheet: View {
         .frame(maxWidth: .infinity)
     }
 
+    /// Whether there is actually something to buy. Being configured isn't enough: the offering has to
+    /// have yielded tips. A configured build with no tips — a dashboard offering that carries no
+    /// products, or a first fetch that failed — must not show amounts, because tipping one would find
+    /// no package and silently do nothing.
+    private var canTip: Bool {
+        purchases.isConfigured && !purchases.tips.isEmpty
+    }
+
     /// Whether the amounts are on screen: there has to be something to sell, and a supporter has to
     /// have asked to tip again.
     private var showsAmounts: Bool {
-        purchases.isConfigured && (!purchases.isSupporter || showingAmounts)
+        canTip && (!purchases.isSupporter || showingAmounts)
     }
 
     /// A heart in the brand tint — the same tinted-glyph-tile motif the rest of the app uses.
@@ -161,10 +169,13 @@ struct SupporterSheet: View {
             .padding(.top, 2)
     }
 
-    /// Builds without a RevenueCat key — the public repository, forks, and demo mode — keep the
-    /// sheet reachable but have nothing to sell.
+    /// Why there are no amounts. Two different situations, and the distinction matters: a build
+    /// without a RevenueCat key (the public repository, forks, demo mode) will never sell anything,
+    /// whereas a configured build whose tips didn't load may well work on the next try.
     private var unavailableNotice: some View {
-        Text("Purchases aren't available in this build.")
+        Text(purchases.isConfigured
+             ? "Tips aren't available right now — please try again later."
+             : "Purchases aren't available in this build.")
             .font(.footnote)
             .foregroundStyle(.secondary)
             .padding(.top, 20)
