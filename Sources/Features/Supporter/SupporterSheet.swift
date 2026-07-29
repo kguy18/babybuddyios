@@ -43,6 +43,12 @@ struct SupporterSheet: View {
         .presentationBackground(BBColor.card)
         .onPreferenceChange(ContentHeightKey.self) { contentHeight = $0 }
         .onAppear { Analytics.supporterSheetViewed() }
+        .task {
+            // An offering fetch that failed at launch would otherwise be sticky for the whole session,
+            // leaving the sheet with nothing to offer until the app is relaunched. Retrying as it opens
+            // lets it heal itself; a no-op once the tips are in hand, so the normal case is untouched.
+            if purchases.tips.isEmpty { await purchases.refresh() }
+        }
     }
 
     /// Fit the sheet to its content. `.medium` covers the first frame only, before the measurement

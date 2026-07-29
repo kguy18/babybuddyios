@@ -120,7 +120,111 @@ final class PurchaseManagerTests: XCTestCase {
         XCTAssertTrue(PurchaseManager.isSupporter(from: info))
     }
 
+    // MARK: - Error messages
+
+    /// The regression this exists for: the supporter sheet renders ``PurchaseManager/errorMessage``
+    /// verbatim, and a misconfigured store used to put *"The operation couldn't be completed.
+    /// (RevenueCat.ErrorCode error 23.)"* on screen — Foundation's placeholder, produced because a
+    /// bare `ErrorCode` carries no `NSLocalizedDescriptionKey`.
+    func testMessageForConfigurationErrorIsNotTheFoundationPlaceholder() {
+        let message = PurchaseManager.userMessage(for: Self.publicError(.configurationError))
+        XCTAssertEqual(message, "Tips aren't available right now — please try again later.")
+    }
+
+    /// Every code the SDK can throw must map to customer-readable copy: no Foundation placeholder, no
+    /// RevenueCat internals, no documentation links. Covers codes added by future SDK versions too,
+    /// since it walks `ErrorCode.allCases`.
+    func testMessageForEveryErrorCodeIsPresentableToACustomer() {
+        for code in ErrorCode.allCases {
+            let message = PurchaseManager.userMessage(for: Self.publicError(code))
+            XCTAssertFalse(message.isEmpty, "\(code) produced an empty message")
+            XCTAssertFalse(
+                message.contains("RevenueCat") || message.contains("couldn't be completed"),
+                "\(code) leaked Foundation's placeholder: \(message)"
+            )
+            XCTAssertFalse(
+                message.localizedCaseInsensitiveContains("rev.cat")
+                    || message.contains("http")
+                    || message.contains("API key")
+                    || message.contains("dashboard"),
+                "\(code) leaked developer-facing detail: \(message)"
+            )
+            XCTAssertTrue(message.hasSuffix("."), "\(code) should read as a sentence: \(message)")
+        }
+    }
+
+    /// A few codes get their own copy because the customer can act on them; assert the distinctions
+    /// hold rather than collapsing into the generic fallback.
+    func testMessagesDistinguishTheActionableFailures() {
+        let offline = PurchaseManager.userMessage(for: Self.publicError(.offlineConnectionError))
+        XCTAssertEqual(offline, PurchaseManager.userMessage(for: Self.publicError(.networkError)))
+        XCTAssertTrue(offline.contains("connection"))
+
+        let notAllowed = PurchaseManager.userMessage(for: Self.publicError(.purchaseNotAllowedError))
+        XCTAssertTrue(notAllowed.contains("Screen Time"))
+
+        let pending = PurchaseManager.userMessage(for: Self.publicError(.paymentPendingError))
+        XCTAssertTrue(pending.contains("approval"))
+
+        // …and the buckets really are different messages.
+        XCTAssertEqual(Set([offline, notAllowed, pending]).count, 3)
+    }
+
+    /// An error the SDK didn't produce takes the generic sentence rather than its own description.
+    /// Asserting the literal copy matters: forwarding `localizedDescription` is what produced the bug
+    /// in the first place, and a foreign `NSError` carrying no description of its own would land right
+    /// back on Foundation's "(SomeDomain error -1234.)" placeholder.
+    func testMessageForNonRevenueCatErrorIsGeneric() {
+        XCTAssertEqual(PurchaseManager.userMessage(for: URLError(.notConnectedToInternet)),
+                       "Something went wrong. Please try again.")
+
+        let descriptionless = NSError(domain: "com.example.Whatever", code: -1234, userInfo: [:])
+        XCTAssertTrue(descriptionless.localizedDescription.contains("error -1234"),
+                      "precondition: a userInfo-less NSError yields Foundation's placeholder")
+        XCTAssertEqual(PurchaseManager.userMessage(for: descriptionless),
+                       "Something went wrong. Please try again.")
+    }
+
+    /// Guards the assumption the mapping is built on, straight from the SDK: a thrown `PublicError`
+    /// **is** castable to `ErrorCode` (`PurchasesError.asPublicError`), yet the cast value's
+    /// `localizedDescription` is the useless placeholder — which is exactly why
+    /// ``PurchaseManager/userMessage(for:)`` can't just forward it. If a future SDK release gives
+    /// `ErrorCode` an `NSLocalizedDescriptionKey`, this fails and the mapping can be reconsidered.
+    func testRevenueCatPublicErrorBridgingAssumptions() throws {
+        let error = Self.publicError(.configurationError)
+        let code = try XCTUnwrap(error as? ErrorCode, "PublicError must be castable to ErrorCode")
+        XCTAssertEqual(code, .configurationError)
+        XCTAssertTrue(
+            code.localizedDescription.contains("RevenueCat.ErrorCode error 23"),
+            "unexpected bare-ErrorCode description: \(code.localizedDescription)"
+        )
+        // The rich text does exist on the thrown error — it's just not customer-facing.
+        XCTAssertTrue(error.localizedDescription.contains("rev.cat"))
+    }
+
     // MARK: - Fixtures
+
+    /// A stand-in for what RevenueCat actually throws. `Purchases.offerings()` surfaces
+    /// `result.error?.asPublicError`, and `PurchasesError.asPublicError` builds exactly this:
+    /// `NSError(domain: ErrorCode.errorDomain, code: <code>, userInfo:)` with the code's description
+    /// plus the internal message under `NSLocalizedDescriptionKey`. The message used here is the real
+    /// one the SDK emits for this app's symptom (an offering whose products don't resolve), so the
+    /// test exercises the true bridging behaviour rather than a synthetic error.
+    private static func publicError(_ code: ErrorCode) -> Error {
+        let internalMessage = """
+        You have configured the SDK with an App Store API key, but there are no App Store products \
+        registered in the RevenueCat dashboard for your offerings. \
+        More information: https://rev.cat/why-are-offerings-empty
+        """
+        return NSError(
+            domain: ErrorCode.errorDomain,
+            code: code.rawValue,
+            userInfo: [
+                NSLocalizedDescriptionKey: "\(code.description) \(internalMessage)",
+                "readable_error_code": code.description
+            ]
+        )
+    }
 
     private static let referenceDate = Date(timeIntervalSince1970: 1_700_000_000)
 

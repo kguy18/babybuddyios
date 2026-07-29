@@ -97,8 +97,9 @@ final class PurchaseManager {
     /// A network request (refresh / purchase / restore) is in flight.
     private(set) var isLoading = false
 
-    /// User-presentable message for the most recent failure, or `nil` if the last operation
-    /// succeeded (or was cancelled by the user, which is not treated as an error).
+    /// User-presentable message for the most recent failure of something the customer *asked* for — a
+    /// tip or a restore — or `nil` if the last operation succeeded (or was cancelled by the user, which
+    /// is not treated as an error). A background ``refresh()`` never populates it; see that method.
     private(set) var errorMessage: String?
 
     #if canImport(RevenueCat)
@@ -175,7 +176,13 @@ final class PurchaseManager {
     // MARK: - Actions
 
     /// Refreshes the cached `CustomerInfo` and the current offering from RevenueCat. A no-op (leaving
-    /// state untouched) when purchases are not configured. Failures land in ``errorMessage``.
+    /// state untouched) when purchases are not configured.
+    ///
+    /// Unlike a tip or a restore, a failure here is **not** reported through ``errorMessage``: nobody
+    /// asked for this work — it runs at launch, and again when the supporter sheet opens — and its only
+    /// consequence is already visible in the right place, as ``tips`` being empty and the sheet saying
+    /// so in plain language. Surfacing it too would put a red error under copy that explains the same
+    /// thing. The SDK logs the underlying error either way.
     func refresh() async {
         #if canImport(RevenueCat)
         guard isConfigured else { return }
@@ -188,7 +195,7 @@ final class PurchaseManager {
             currentOffering = try await offerings.current
             errorMessage = nil
         } catch {
-            handle(error)
+            // Intentionally silent — see above.
         }
         #endif
     }
@@ -341,7 +348,47 @@ final class PurchaseManager {
 
     /// Map an SDK error onto ``errorMessage`` without leaking backend details.
     private func handle(_ error: Error) {
-        errorMessage = (error as? ErrorCode)?.localizedDescription ?? error.localizedDescription
+        errorMessage = Self.userMessage(for: error)
+    }
+
+    /// Generic copy for a failure we can't say anything more useful about. Names neither a cause nor
+    /// an operation, because ``handle(_:)`` is reached from a tip and a restore alike.
+    static let genericFailureMessage = "Something went wrong. Please try again."
+
+    /// The sentence shown to the customer when a tip or a restore fails — pure, so the whole mapping
+    /// is unit-testable (the SDK flows that produce these errors need live StoreKit and aren't).
+    ///
+    /// RevenueCat's public API throws a `PublicError`: an `NSError` in `ErrorCode.errorDomain` whose
+    /// `userInfo` carries a developer-facing `NSLocalizedDescriptionKey` — the code's description plus
+    /// an internal message, naming "your configuration" and "the RevenueCat dashboard" and linking to
+    /// rev.cat. Casting that to ``ErrorCode`` succeeds but is **lossy**: the runtime re-derives the
+    /// bare enum from the error's domain and code and drops the `userInfo` entirely, and `ErrorCode`'s
+    /// own `CustomNSError` supplies only `NSDebugDescriptionErrorKey` — never a localized description.
+    /// So asking the cast value for `localizedDescription` gets Foundation's placeholder instead,
+    /// "The operation couldn't be completed. (RevenueCat.ErrorCode error 23.)", which is exactly what
+    /// used to reach the screen. Neither string belongs in front of a parent, so codes are translated
+    /// into our own copy here.
+    static func userMessage(for error: Error) -> String {
+        // Everything the SDK hands back carries a code. Anything else would be a programming error
+        // rather than something to explain, and a foreign `NSError` with no description of its own
+        // would land us back on the same Foundation placeholder — so it takes the generic sentence.
+        guard let code = error as? ErrorCode else { return genericFailureMessage }
+        switch code {
+        case .networkError, .offlineConnectionError, .productRequestTimedOut, .apiEndpointBlockedError:
+            return "Couldn't reach the App Store. Check your connection and try again."
+        case .purchaseNotAllowedError, .insufficientPermissionsError:
+            return "Purchases aren't allowed on this device. Check Screen Time restrictions and try again."
+        case .paymentPendingError:
+            return "Your tip needs approval before it completes. It'll be applied once that's done."
+        case .productNotAvailableForPurchaseError, .configurationError, .unsupportedError:
+            // Deliberately the same sentence the supporter sheet shows when it has no amounts to
+            // offer, so the two can never contradict each other.
+            return "Tips aren't available right now — please try again later."
+        default:
+            // Store outages, backend hiccups, receipt problems, and whatever a future SDK adds: the
+            // customer can only retry, so don't name a cause we aren't sure of.
+            return genericFailureMessage
+        }
     }
 
     /// A coarse, non-identifying reason string for analytics — the RevenueCat error code only,

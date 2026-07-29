@@ -5,9 +5,11 @@ app is free; purchases only mark the customer a **supporter** (see
 `Docs/InAppPurchaseArchitecture.md`). The deterministic parts are covered by automated unit tests:
 
 - `Tests/PurchaseManagerTests.swift` — unconfigured/offline calls are safe no-ops that never touch
-  `Purchases.shared`, the store identifiers, and the supporter rule (`isSupporter` defaults to false,
+  `Purchases.shared`, the store identifiers, the supporter rule (`isSupporter` defaults to false,
   flips on an active `supporter` entitlement, and flips on a non-subscription purchase even with no
-  entitlement).
+  entitlement), and the error copy (`userMessage(for:)` maps every `ErrorCode` to a customer-readable
+  sentence — never Foundation's "(RevenueCat.ErrorCode error 23.)" placeholder, and never the SDK's
+  own developer-facing text with its `rev.cat` links).
 
 The scenarios below require live StoreKit and cannot be unit-tested, because RevenueCat's
 `Purchases.shared` singleton is not mockable. Work top to bottom: **StoreKit Configuration** (fastest,
