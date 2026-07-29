@@ -37,8 +37,8 @@ struct MainTabView: View {
         .onChange(of: router.openDayKind) { _, kind in
             if kind != nil { selectedTab = 0 } // a status-widget tile targets the Home tab
         }
-        .sheet(isPresented: Binding(get: { router.showPremium },
-                                    set: { router.showPremium = $0 })) {
+        .sheet(isPresented: Binding(get: { router.showSupporter },
+                                    set: { router.showSupporter = $0 })) {
             PremiumScreen()
         }
         .safeAreaInset(edge: .top) {

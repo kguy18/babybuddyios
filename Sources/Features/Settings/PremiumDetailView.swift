@@ -19,7 +19,7 @@ struct PremiumDetailView: View {
                 proHeader
 
                 card {
-                    if !purchases.hasPremium {
+                    if !purchases.isSupporter {
                         actionRow(symbol: "sparkles", tint: BBColor.brand, title: "Upgrade") {
                             Analytics.upgradePressed()
                             showPaywall = true
@@ -92,7 +92,7 @@ struct PremiumDetailView: View {
     }
 
     @ViewBuilder private var bannerPill: some View {
-        if purchases.hasPremium {
+        if purchases.isSupporter {
             Label("Active", systemImage: "checkmark")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(BBColor.brandAccent)
@@ -126,7 +126,7 @@ struct PremiumDetailView: View {
     }
 
     private var bannerSubtitle: String {
-        purchases.hasPremium ? "You have full access" : "Unlock every premium feature"
+        purchases.isSupporter ? "You have full access" : "Unlock every premium feature"
     }
 
     // MARK: Rows

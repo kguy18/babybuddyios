@@ -23,10 +23,10 @@ final class DeepLinkRouter {
     /// handled.
     var openDayKind: EntityKind?
 
-    /// Set when a link asks to present the paywall; cleared once handled. Nothing in the app emits
-    /// `babybuddy://premium` today — the locked widgets that did are gone — but the route stays live
-    /// so an existing link still lands somewhere sensible.
-    var showPremium = false
+    /// Set when a link asks to present the supporter screen; cleared once handled. Nothing in the
+    /// app emits `babybuddy://supporter` today — the locked widgets that did are gone — but the
+    /// route stays live so an existing link still lands somewhere sensible.
+    var showSupporter = false
 
     /// Parse a `babybuddy://` URL into router state. Returns `true` if it was recognized.
     @discardableResult
@@ -45,8 +45,8 @@ final class DeepLinkRouter {
         case "day": // babybuddy://day/<kindRaw> — open that kind's day timeline
             if let raw = parts.first, let kind = EntityKind(rawValue: raw) { openDayKind = kind }
             return true
-        case "premium": // babybuddy://premium — present the paywall
-            showPremium = true
+        case "supporter": // babybuddy://supporter — present the supporter screen
+            showSupporter = true
             return true
         case "home":
             return true

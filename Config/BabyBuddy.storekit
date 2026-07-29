@@ -1,0 +1,115 @@
+{
+  "identifier" : "B7E4A1C6-3D82-4F5B-9A07-1E6C8D2F4B30",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "1A2B3C4D",
+      "localizations" : [
+        {
+          "description" : "A kind one-time tip supporting development of Baby Buddy Companion.",
+          "displayName" : "Kind Tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.kurtisguy.BabyBuddy.tip.small",
+      "referenceName" : "Kind Tip",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "9.99",
+      "familyShareable" : false,
+      "internalID" : "2B3C4D5E",
+      "localizations" : [
+        {
+          "description" : "A generous one-time tip supporting development of Baby Buddy Companion.",
+          "displayName" : "Generous Tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.kurtisguy.BabyBuddy.tip.medium",
+      "referenceName" : "Generous Tip",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "19.99",
+      "familyShareable" : false,
+      "internalID" : "3C4D5E6F",
+      "localizations" : [
+        {
+          "description" : "An amazing one-time tip supporting development of Baby Buddy Companion.",
+          "displayName" : "Amazing Tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.kurtisguy.BabyBuddy.tip.large",
+      "referenceName" : "Amazing Tip",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "",
+    "_developerTeamID" : "547DWTTFY6",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 0,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

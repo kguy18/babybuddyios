@@ -16,7 +16,7 @@ struct ManagePurchaseView: View {
                 HStack {
                     Text("Baby Buddy Premium")
                     Spacer()
-                    if purchases.hasPremium {
+                    if purchases.isSupporter {
                         Label("Active", systemImage: "checkmark.seal.fill")
                             .foregroundStyle(BBColor.success)
                             .labelStyle(.titleAndIcon)

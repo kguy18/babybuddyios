@@ -37,7 +37,7 @@ struct PremiumScreen: View {
 
     var body: some View {
         RevenueCatPaywallView { customPaywall }
-            .onAppear { Analytics.paywallViewed() }
+            .onAppear { Analytics.supporterSheetViewed() }
     }
 
     // MARK: - Hand-built paywall (single screen, no scrolling)
@@ -161,7 +161,7 @@ struct PremiumScreen: View {
 
     private var footer: some View {
         VStack(spacing: 14) {
-            if purchases.hasPremium {
+            if purchases.isSupporter {
                 Label("You have Premium", systemImage: "checkmark.seal.fill")
                     .font(.headline)
                     .foregroundStyle(BBColor.success)
@@ -191,7 +191,8 @@ struct PremiumScreen: View {
         VStack(spacing: 2) {
             // Prefer the real, currency-localized App Store price; fall back to a placeholder only in
             // builds without a configured offering (open-source clone, or before the offering loads).
-            Text(purchases.localizedPrice ?? "$9.99")
+            // Shows the medium tip — what this screen's single buy button purchases.
+            Text(purchases.tips.first { $0.tier == .medium }?.localizedPrice ?? "$9.99")
                 .font(.system(size: 30, weight: .bold))
             Text("Unlock forever · one-time purchase")
                 .font(.footnote)

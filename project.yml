@@ -121,6 +121,10 @@ schemes:
       targets:
         BabyBuddy: all
         BabyBuddyTests: [test]
+    run:
+      # Synthetic local store for the supporter tips — lets purchases be exercised in the simulator
+      # with no App Store Connect / RevenueCat account. See Docs/InAppPurchaseTesting.md.
+      storeKitConfiguration: Config/BabyBuddy.storekit
     test:
       targets:
         - BabyBuddyTests

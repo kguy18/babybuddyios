@@ -54,7 +54,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     masthead
 
-                    sectioned("Premium") { premiumCard }
+                    sectioned("Support") { premiumCard }
 
                     sectioned("Server") { serverCard }
 
@@ -399,9 +399,9 @@ struct SettingsView: View {
             premiumGlyph
             Text("Baby Buddy Premium").font(.system(size: 16))
             Spacer(minLength: 8)
-            Text(purchases.hasPremium ? "Premium" : "Free")
+            Text(purchases.isSupporter ? "Supporter" : "Free")
                 .font(.subheadline.weight(.medium))
-                .foregroundStyle(purchases.hasPremium ? BBColor.success : .secondary)
+                .foregroundStyle(purchases.isSupporter ? BBColor.success : .secondary)
             disclosure
         }
         .padding(.vertical, 11)
@@ -411,10 +411,10 @@ struct SettingsView: View {
     /// Free → a poop glyph; premium → the yellow crown — each in the app's tinted glyph tile.
     private var premiumGlyph: some View {
         RoundedRectangle(cornerRadius: 9, style: .continuous)
-            .fill((purchases.hasPremium ? BBColor.stop : BBColor.change).opacity(0.15))
+            .fill((purchases.isSupporter ? BBColor.stop : BBColor.change).opacity(0.15))
             .frame(width: 30, height: 30)
             .overlay {
-                if purchases.hasPremium {
+                if purchases.isSupporter {
                     Image(systemName: "crown.fill")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(BBColor.stop) // yellow crown
@@ -431,14 +431,14 @@ struct SettingsView: View {
     }
 
     #if DEBUG
-    /// Debug-only switch to force premium on/off while testing free vs premium. Compiled out of
-    /// release (TestFlight/App Store) builds.
+    /// Debug-only switch to force supporter status on/off while testing the thank-you state.
+    /// Compiled out of release (TestFlight/App Store) builds.
     private var developerCard: some View {
         card {
-            SettingsRow(symbol: "wand.and.stars", tint: BBColor.warning, title: "Premium mode") {
+            SettingsRow(symbol: "wand.and.stars", tint: BBColor.warning, title: "Supporter mode") {
                 Toggle("", isOn: Binding(
-                    get: { purchases.debugForcedPremium },
-                    set: { purchases.setDebugPremium($0) }))
+                    get: { purchases.debugForcedSupporter },
+                    set: { purchases.setDebugSupporter($0) }))
                     .labelsHidden()
                     .tint(BBColor.primary)
             }
