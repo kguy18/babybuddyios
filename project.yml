@@ -63,6 +63,9 @@ targets:
     entitlements:
       path: Sources/BabyBuddy.entitlements
       properties:
+        com.apple.developer.associated-domains:
+          - applinks:babybuddy.app
+          - applinks:www.babybuddy.app
         com.apple.security.application-groups:
           - group.com.kurtisguy.BabyBuddy
         keychain-access-groups:
