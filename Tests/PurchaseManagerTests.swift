@@ -45,18 +45,11 @@ final class PurchaseManagerTests: XCTestCase {
         XCTAssertTrue(manager.tips.isEmpty)
     }
 
-    func testPurchaseWhenUnconfiguredIsSafeNoOp() async {
-        let manager = PurchaseManager()
-        let result = await manager.purchase() // must not touch Purchases.shared / crash
-        XCTAssertFalse(result)
-        XCTAssertFalse(manager.isSupporter)
-        XCTAssertFalse(manager.isLoading)
-    }
-
-    /// Every tier must be an equally safe no-op, not just the one the shim buys.
+    /// Every tier must be an equally safe no-op.
     func testPurchaseTierWhenUnconfiguredIsSafeNoOp() async {
         let manager = PurchaseManager()
         for tier in TipTier.allCases {
+            // must not touch Purchases.shared / crash
             let result = await manager.purchase(tier: tier)
             XCTAssertFalse(result, "\(tier) should be a no-op when unconfigured")
             XCTAssertFalse(manager.isSupporter)

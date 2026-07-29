@@ -240,13 +240,6 @@ final class PurchaseManager {
     }
     #endif
 
-    /// Buys the medium tip — a temporary single-action entry point for the outgoing paywall UI,
-    /// which is replaced by the tiered supporter sheet in the next change.
-    @discardableResult
-    func purchase() async -> Bool {
-        await purchase(tier: .medium)
-    }
-
     /// Restores previously-purchased entitlements (e.g. a Settings "Restore Purchases" action).
     /// Returns whether the customer is a supporter afterward; a no-op returning `false` when
     /// purchases are off.
