@@ -71,7 +71,7 @@ multiple children run through all of it.
 | | |
 |---|---|
 | ⏱️ **Timers from a widget** | Start a feeding, sleep, tummy-time or pumping timer from the App Home Screen — stopping it files the record. |
-| ⚡ **One-tap Quick Log** | A widget that files a complete diaper change — wet, solid or both — or a feeding, with customizable default. |
+| ⚡ **One-tap Quick Log** | A widget that files a complete diaper change — wet, solid or both — or a feeding, with a customizable default. |
 | 🔴 **Live Activity** | A running timer ticks away on the Lock Screen and in the Dynamic Island. |
 | 🕐 **Status at a glance** | Home Screen, Lock Screen and StandBy widgets show the last feed, sleep and change, plus today's counts. |
 | ☁️ **Offline-first** | Every change saves instantly and syncs when your server is reachable. Waiting writes are listed and reversible. |
@@ -86,9 +86,10 @@ multiple children run through all of it.
 
 ## Your baby's records stay with you
 
-Baby tracking data syncs only between the app and your [Baby Buddy](https://github.com/babybuddy/babybuddy) server — no developer account,
-no cloud relay, all your data only on your device. The App Store build adds anonymous feature telemetry and purchase-receipt
-handling for the optional tip, both described in [PRIVACY.md](PRIVACY.md).
+Baby tracking data syncs only between the app and your
+[Baby Buddy](https://github.com/babybuddy/babybuddy) server — no developer account, no cloud
+relay. The App Store build adds anonymous feature telemetry and purchase-receipt handling for
+the optional tip, both described in [PRIVACY.md](PRIVACY.md).
 
 **Builds you make from a clone send nothing anywhere.** This repository ships without a
 TelemetryDeck App ID and without a RevenueCat key, so both integrations stay switched off
