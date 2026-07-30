@@ -26,9 +26,7 @@
 
 ### Baby tracking that lives on your phone and your server.
 A fast, native iPhone client for your self-hosted [Baby Buddy](https://github.com/babybuddy/babybuddy).
-Log feedings, sleep, diapers and more in a tap — with widgets, trends and private sync.
-
-**Free. Every feature included.** No subscription, no trial, nothing locked.
+Log feedings, sleep, diapers and more in a tap — with widgets, trends and private sync. **Free. Every feature included.** No subscription, no trial, nothing locked.
 Requires iOS 17+ and your own Baby Buddy server.
 
 </div>
