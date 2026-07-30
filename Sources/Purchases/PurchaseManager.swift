@@ -67,17 +67,55 @@ final class PurchaseManager {
     static let forcedSupporter = ProcessInfo.processInfo.environment["BB_SUPPORTER"] == "1"
 
     #if DEBUG
-    private static let debugSupporterKey = "debug.forceSupporter"
-    /// Debug-only manual override toggled from the Settings ▸ Developer switch, persisted so it
-    /// survives relaunch during testing. Entirely compiled out of release (TestFlight/App Store)
-    /// builds, so it can never affect production.
-    private(set) var debugForcedSupporter = UserDefaults.standard.bool(forKey: PurchaseManager.debugSupporterKey)
+    /// Debug-only override for supporter status, set from Settings ▸ Developer.
+    ///
+    /// Three-way rather than a switch, because both directions are needed: ``on`` shows the
+    /// thank-you state without paying, and ``off`` is the only way to exercise the ask — and the
+    /// support nudges — on a device or account that has genuinely tipped, since a real purchase
+    /// otherwise pins ``isSupporter`` on forever.
+    enum DebugSupporterOverride: String, CaseIterable, Identifiable {
+        /// No override: whatever the store says. The shipping behavior.
+        case store
+        /// Force supporter on.
+        case on
+        /// Force supporter off, real purchase or not.
+        case off
 
-    /// Debug-only: flip the forced-supporter override and recompute status immediately.
-    func setDebugSupporter(_ on: Bool) {
-        debugForcedSupporter = on
-        UserDefaults.standard.set(on, forKey: Self.debugSupporterKey)
+        var id: String { rawValue }
+
+        /// How the override reads in the Settings row.
+        var label: String {
+            switch self {
+            case .store: return "Store"
+            case .on: return "Forced on"
+            case .off: return "Forced off"
+            }
+        }
+    }
+
+    private static let debugOverrideKey = "debug.supporterOverride"
+
+    /// Debug-only manual override, persisted so it survives relaunch during testing. Entirely
+    /// compiled out of release (TestFlight/App Store) builds, so it can never affect production.
+    private(set) var debugSupporterOverride = UserDefaults.standard.string(forKey: PurchaseManager.debugOverrideKey)
+        .flatMap(DebugSupporterOverride.init(rawValue:)) ?? .store
+
+    /// Debug-only: change the override and recompute status immediately.
+    func setDebugSupporter(_ override: DebugSupporterOverride) {
+        debugSupporterOverride = override
+        UserDefaults.standard.set(override.rawValue, forKey: Self.debugOverrideKey)
         recompute()
+    }
+
+    /// How the override combines with what the store says — pure, so the precedence the whole
+    /// device-testing story rests on (``DebugSupporterOverride/off`` outranking a genuine purchase) is
+    /// unit-testable, rather than only reachable by actually tipping on a real device.
+    static func resolveSupporter(storeSays: Bool, override: DebugSupporterOverride) -> Bool {
+        switch override {
+        case .store: return storeSays
+        case .on: return true
+        case .off: return false
+        }
     }
     #endif
 
@@ -296,11 +334,13 @@ final class PurchaseManager {
     private func recompute() {
         let previous = isSupporter
         var value = Self.forcedSupporter
-        #if DEBUG
-        value = value || debugForcedSupporter
-        #endif
         #if canImport(RevenueCat)
         value = value || Self.isSupporter(from: customerInfo)
+        #endif
+        #if DEBUG
+        // The developer override is last, and wins in *both* directions — a plain OR could only ever
+        // force supporter on, which leaves a device that has really tipped with no way back to the ask.
+        value = Self.resolveSupporter(storeSays: value, override: debugSupporterOverride)
         #endif
         isSupporter = value
         // Bridge supporter status to the widget / App-Intents process. Nothing is gated on it today;

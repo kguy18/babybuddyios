@@ -244,8 +244,12 @@ struct DashboardView: View {
     }
 
     /// Put a due nudge on screen and record that it was shown (which restarts the 21-day cap).
+    ///
+    /// The silencing check is here as well as at each render site so all three surfaces obey it
+    /// identically — the milestone sheet has no `if` of its own to hang it off, and without this the
+    /// `BB_NUDGE` force would show a milestone to a supporter while suppressing the other two.
     private func present(_ nudge: SupportNudge) {
-        guard nudge != .none else { return }
+        guard nudge != .none, !nudgesSilenced else { return }
         SupportNudgeStore.shared.markShown(nudge)
         acceptedNudge = false
         if let count = nudge.milestoneCount {

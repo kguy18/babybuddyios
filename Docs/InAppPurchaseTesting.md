@@ -41,9 +41,32 @@ no accounts) → **RevenueCat Test Store** → **Sandbox** → **TestFlight** �
    invariant that keeps open-source / forked builds working).
 
 > Demoing the supporter thank-you state without a purchase: launch with `BB_SUPPORTER=1` (e.g.
-> `SIMCTL_CHILD_BB_SUPPORTER=1`), or flip **Settings ▸ Developer ▸ Supporter mode** in a DEBUG build.
-> Both are screenshot/dev aids only and can't be set on a shipped build. Neither exercises the real
-> StoreKit path — use the scenarios below for that.
+> `SIMCTL_CHILD_BB_SUPPORTER=1`), or set **Settings ▸ Developer ▸ Supporter mode** to _Forced on_ in a
+> DEBUG build. Both are screenshot/dev aids only and can't be set on a shipped build. Neither
+> exercises the real StoreKit path — use the scenarios below for that.
+>
+> Going the other way — **Supporter mode → _Forced off_** — is how you get back to the ask (and to the
+> support nudges) on a device or account that has genuinely tipped. A real purchase otherwise pins
+> `isSupporter` on forever, because `CustomerInfo` is the source of truth; the override is the only
+> thing that outranks it, and only in DEBUG.
+
+### Testing the support nudges
+
+Every surface is silenced for supporters, gated behind day 7 + 10 logged records, and capped at one
+nudge per 21 days — so none of it appears to order. Two ways in, both DEBUG-only:
+
+- **Force a surface** (visual check): `BB_NUDGE=gentle|milestone|banner`, e.g.
+  `SIMCTL_CHILD_BB_NUDGE=milestone`, or as an environment variable on the Run scheme (which also works
+  on a physical device). This bypasses the cadence but still honors supporter silence, so pair it with
+  Supporter mode → _Forced off_ if you have tipped.
+- **Exercise the real policy** (behavioral check): **Settings ▸ Developer ▸ Arm support nudge** ages
+  the counters past every gate and clears the snooze, then go to Home — the policy itself decides what
+  is due, so an untouched install gets the gentle ask and one that has seen it gets its next
+  milestone. **Reset support nudges** puts the counters back to a fresh install, to confirm a new
+  customer is left alone.
+
+Prefer the second for anything about cadence: it is the only path that proves the gate rather than the
+artwork.
 
 ### What to watch during every scenario
 

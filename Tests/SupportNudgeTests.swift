@@ -304,6 +304,48 @@ final class SupportNudgeStoreTests: XCTestCase {
         XCTAssertTrue(store.manager.isRetired(store.state))
     }
 
+    #if DEBUG
+    // The debug affordances are how the day-7 and milestone gates get checked by hand — a real
+    // purchase pins `isSupporter` on, and nobody can age an install seven days to order — so they
+    // are worth pinning themselves.
+
+    /// Arming an untouched install must produce the *opener*, decided by the real policy.
+    func testDebugArmOffersTheGentleAskOnAFreshInstall() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        store.debugArm(now: now)
+        XCTAssertEqual(store.pending(now: now, isSupporter: false), .gentleAsk)
+    }
+
+    /// …and arming an install that has already seen the opener must produce its next milestone,
+    /// not the opener again. Arming clears the snooze; it must not erase the history.
+    func testDebugArmOffersTheNextMilestoneOnceTheOpenerIsSpent() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        store.markShown(.gentleAsk, now: now)
+        for _ in 0..<60 { store.recordLoggedEntry() }
+        store.debugArm(now: now)
+        XCTAssertEqual(store.pending(now: now, isSupporter: false), .milestone(50))
+    }
+
+    /// A supporter stays silent even when armed — the affordance loosens the gates, not the rules.
+    func testDebugArmStillRespectsSupporterSilence() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        store.debugArm(now: now)
+        XCTAssertEqual(store.pending(now: now, isSupporter: true), .none)
+    }
+
+    func testDebugResetReturnsToAFreshInstall() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        store.registerFirstLaunch(now: now)
+        store.recordLoggedEntry()
+        store.markShown(.milestone(50), now: now)
+        store.markDismissed(.milestone)
+
+        store.debugReset()
+        XCTAssertEqual(store.state, SupportNudgeState())
+        XCTAssertEqual(store.pending(now: now, isSupporter: false), .none)
+    }
+    #endif
+
     /// The store's counters must reach the policy — the whole point of the persistence layer.
     func testPendingReflectsThePersistedCounters() {
         let calendar = Calendar(identifier: .gregorian)

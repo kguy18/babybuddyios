@@ -299,5 +299,37 @@ final class SupportNudgeStore {
         default: return nil
         }
     }
+
+    /// Debug-only: back to a fresh install — no first launch, no counters, no history. Use it to
+    /// check that a new customer is left alone.
+    func debugReset() {
+        for key in [Key.firstLaunch, Key.loggedEntries, Key.lastNudge,
+                    Key.lastMilestone, Key.dismissCount] {
+            defaults.removeObject(forKey: key)
+        }
+    }
+
+    /// Debug-only: age this install past every gate and clear the snooze, so the **real** policy —
+    /// not the `BB_NUDGE` force — offers whatever is genuinely next on the following Dashboard visit.
+    ///
+    /// Deliberately does not erase the history that decides *which* surface that is: a `nil`
+    /// `lastNudge` still means the gentle ask hasn't happened, so an untouched install arms the
+    /// opener while one that has seen it arms its next unclaimed milestone.
+    func debugArm(now: Date = .now) {
+        let calendar = manager.calendar
+        let state = self.state
+
+        defaults.set(calendar.date(byAdding: .day, value: -(SupportNudgeManager.firstAskDays + 1), to: now),
+                     forKey: Key.firstLaunch)
+        if state.loggedEntries < SupportNudgeManager.firstAskEntries {
+            defaults.set(SupportNudgeManager.firstAskEntries, forKey: Key.loggedEntries)
+        }
+        // Far enough back to clear the banner's 30-day window as well as the 21-day cap.
+        if state.lastNudge != nil {
+            defaults.set(calendar.date(byAdding: .day,
+                                       value: -(SupportNudgeManager.bannerIntervalDays + 1), to: now),
+                         forKey: Key.lastNudge)
+        }
+    }
     #endif
 }

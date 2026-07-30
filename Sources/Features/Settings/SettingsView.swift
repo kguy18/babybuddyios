@@ -462,17 +462,45 @@ struct SettingsView: View {
     }
 
     #if DEBUG
-    /// Debug-only switch to force supporter status on/off while testing the thank-you state.
-    /// Compiled out of release (TestFlight/App Store) builds.
+    /// Debug-only controls for the supporter/nudge states, which are otherwise slow or impossible to
+    /// reach by hand. Compiled out of release (TestFlight/App Store) builds.
+    ///
+    /// "Supporter mode" overrides status in both directions — forcing it *off* is the only way to see
+    /// the ask, and the nudges, on a device that has genuinely tipped. "Arm support nudge" ages the
+    /// counters past every gate so the real policy fires on the next Dashboard visit, and "Reset"
+    /// puts them back to a fresh install.
     private var developerCard: some View {
         card {
             SettingsRow(symbol: "wand.and.stars", tint: BBColor.warning, title: "Supporter mode") {
-                Toggle("", isOn: Binding(
-                    get: { purchases.debugForcedSupporter },
-                    set: { purchases.setDebugSupporter($0) }))
-                    .labelsHidden()
-                    .tint(BBColor.primary)
+                Menu {
+                    Picker("Supporter mode", selection: Binding(
+                        get: { purchases.debugSupporterOverride },
+                        set: { purchases.setDebugSupporter($0) })) {
+                        ForEach(PurchaseManager.DebugSupporterOverride.allCases) {
+                            Text($0.label).tag($0)
+                        }
+                    }
+                } label: { menuValue(purchases.debugSupporterOverride.label) }
             }
+
+            rowDivider
+
+            Button { SupportNudgeStore.shared.debugArm() } label: {
+                SettingsRow(symbol: "bell.badge", tint: BBColor.pumping, title: "Arm support nudge") {
+                    Text("Go to Home").font(.subheadline).foregroundStyle(.secondary)
+                }
+            }
+            .buttonStyle(.plain)
+
+            rowDivider
+
+            Button { SupportNudgeStore.shared.debugReset() } label: {
+                SettingsRow(symbol: "arrow.counterclockwise", tint: BBColor.restart,
+                            title: "Reset support nudges") {
+                    Text("Fresh install").font(.subheadline).foregroundStyle(.secondary)
+                }
+            }
+            .buttonStyle(.plain)
         }
     }
     #endif
