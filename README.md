@@ -49,7 +49,7 @@ Requires iOS 17+ and your own Baby Buddy server.
 
 ---
 
-## Two a.m. One hand. No signal.
+## 2 a.m. One hand. No signal.
 
 |  |  |
 |---|---|
@@ -57,9 +57,8 @@ Requires iOS 17+ and your own Baby Buddy server.
 | **Face ID lock** | Private on your iPhone |
 | **Widgets** | Home Screen, Lock Screen and StandBy |
 
-Everything important, without the extra steps.
 
-## Every record type, colour-coded like the app
+## Every record type, color-coded like the app
 
 **Feedings** · **Sleep** · **Tummy time** · **Pumping** · **Diapers** · **Medications** ·
 **Growth** · **Notes**
@@ -71,24 +70,24 @@ multiple children run through all of it.
 
 | | |
 |---|---|
-| ⏱️ **Timers from a widget** | Start a feeding, sleep, tummy-time or pumping timer from the Home Screen — stopping it files the record. |
-| ⚡ **One-tap Quick Log** | A widget that files a complete diaper change — wet, solid or both — or a feeding, with no form at all. |
-| 🔴 **Live Activity** | A running timer ticks away on the Lock Screen and in the Dynamic Island, with Stop right there. |
+| ⏱️ **Timers from a widget** | Start a feeding, sleep, tummy-time or pumping timer from the App Home Screen — stopping it files the record. |
+| ⚡ **One-tap Quick Log** | A widget that files a complete diaper change — wet, solid or both — or a feeding, with customizable default. |
+| 🔴 **Live Activity** | A running timer ticks away on the Lock Screen and in the Dynamic Island. |
 | 🕐 **Status at a glance** | Home Screen, Lock Screen and StandBy widgets show the last feed, sleep and change, plus today's counts. |
-| ☁️ **Offline-first, always** | Every change saves instantly and syncs when your server is reachable. Waiting writes are listed and reversible. |
+| ☁️ **Offline-first** | Every change saves instantly and syncs when your server is reachable. Waiting writes are listed and reversible. |
 | 🔀 **Conflict-aware sync** | Resolve competing edits with Keep Mine, Keep Server or field-by-field Merge. |
 | 📊 **Trends at a glance** | Daily sleep, feedings and wet-vs-solid diapers over 7, 14 or 30 days — charted from the local cache. |
 | 📋 **One merged timeline** | Search and filter every record type in one offline, day-grouped feed, then load older activity on demand. |
 | 👶 **Every child, one switch** | Swap between children and the dashboard, trends, timeline and widgets all follow. |
 | 📷 **Photos & notes** | Add profile photos and note images now; uploads finish when you reconnect. |
-| 🏷️ **Tags that match** | Reuse your server's colour-coded tags or create one inline. |
-| 🔒 **Locked down** | Credentials stay in Keychain, with an optional Face ID, Touch ID or passcode lock. |
+| 🏷️ **Tags that match** | Reuse your server's color-coded tags or create one inline. |
+| 🔒 **Locked down** | Credentials stay in your Keychain, with an optional Face ID or Touch ID lock. |
 | 🎨 **Six app icons** | Swap the Home Screen icon under **Settings → Appearance → App Icon**. |
 
 ## Your baby's records stay with you
 
-Tracking data syncs only between the app and your Baby Buddy server — no developer account,
-no cloud relay. The App Store build adds anonymous feature telemetry and purchase-receipt
+Baby tracking data syncs only between the app and your [Baby Buddy](https://github.com/babybuddy/babybuddy) server — no developer account,
+no cloud relay, all your data only on your device. The App Store build adds anonymous feature telemetry and purchase-receipt
 handling for the optional tip, both described in [PRIVACY.md](PRIVACY.md).
 
 **Builds you make from a clone send nothing anywhere.** This repository ships without a
@@ -99,11 +98,11 @@ unless you supply your own (see [Docs/DEVELOPMENT.md](Docs/DEVELOPMENT.md)).
 
 Every activity type, live timer, widget, trend and photo is in the free app. If you want to
 say thanks, **Settings → Baby Buddy App Supporter** offers three one-time amounts. Tipping
-unlocks nothing — and it supports this companion app, not the Baby Buddy open-source project.
+unlocks nothing — and it supports development of this companion app.
 
 ---
 
-# Build it for your own iPhone
+# Build it for your own device
 
 You can build and run Baby Buddy Companion on your own device. The steps below produce a
 signed build under **your** Apple Developer team.
@@ -125,7 +124,7 @@ git clone https://github.com/kguy18/babybuddyios.git && cd babybuddyios
 
 ### 2. Make the identifiers yours
 
-The project is wired to the original author's team and bundle prefix. Signing will fail — and
+The project is wired to my personal team and bundle prefix. Signing will fail — and
 the Keychain will fail *silently* — until you replace both. Pick your own reverse-DNS prefix
 (e.g. `com.yourname`) and run:
 
@@ -146,7 +145,7 @@ page](https://developer.apple.com/account#MembershipDetailsCard).
 > [!IMPORTANT]
 > `Sources/Auth/KeychainStore.swift` hardcodes the access group as
 > `<TEAMID>.com.kurtisguy.BabyBuddy`. If you change the bundle prefix but not the team ID,
-> the app builds and launches, then fails to save your server credentials with no visible error.
+> the app builds and launches, then fails to save your server credentials with **no visible error**.
 
 Finally, open `project.yml` and **delete the `com.apple.developer.associated-domains` block**
 (the two `applinks:babybuddy.app` entries around line 74). Those universal links are bound to
@@ -214,6 +213,9 @@ Baby Buddy's Fontello icon font (Font Awesome, MFG Labs, Entypo — all under th
 License 1.1). Full third-party license notices are in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and are reproduced in-app under
 **Settings → Acknowledgements**.
+
+## Development
+I used both Claude and Codex to build this project, it has been a fun experiment burning hundreds of thousands of tokens to create this app. I hope you find it useful.
 
 ## License
 
