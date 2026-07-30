@@ -1,176 +1,223 @@
+<div align="center">
+
+<img src="Sources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png" width="112" alt="Baby Buddy Companion app icon">
+
 # Baby Buddy Companion for iOS
 
-A native SwiftUI client for the self-hosted [Baby Buddy](https://github.com/babybuddy/babybuddy)
-baby-tracking server. Offline-first, with conflict-aware sync and optional Face ID lock.
+### Baby tracking that lives on your phone and your server.
+
+A fast, native iPhone client for your self-hosted [Baby Buddy](https://github.com/babybuddy/babybuddy).
+Log feedings, sleep, diapers and more in a tap — with widgets, trends and private sync.
+
+<!-- ══ APP STORE BADGE ══════════════════════════════════════════════════════
+     Pre-launch state: the shields.io "Coming soon" badge below.
+
+     ON LAUNCH — replace the single badge line under this comment with Apple's
+     official badge, which is already committed at Docs/app-store-badge.svg:
+
+       [![Download on the App Store](Docs/app-store-badge.svg)](https://apps.apple.com/app/id<APP_ID>)
+
+     Then set `appStoreURL` in the babybuddyweb repo's hugo.toml so the
+     marketing site's badge flips to a live link at the same time.
+     ═════════════════════════════════════════════════════════════════════════ -->
+
+[![App Store — coming soon](https://img.shields.io/badge/App_Store-Coming_soon-0D96F6?style=for-the-badge&logo=apple&logoColor=white)](https://babybuddy.app)
+
+[![iOS 17+](https://img.shields.io/badge/iOS-17%2B-333333?style=flat-square&logo=apple&logoColor=white)](#build-it-for-your-own-iphone)
+[![License: MIT](https://img.shields.io/badge/License-MIT-4C9A5B?style=flat-square)](LICENSE.md)
+[![babybuddy.app](https://img.shields.io/badge/babybuddy.app-4C9A5B?style=flat-square&logo=safari&logoColor=white)](https://babybuddy.app)
+
+**Free. Every feature included.** No subscription, no trial, nothing locked.
+Requires iOS 17+ and your own Baby Buddy server.
+
+</div>
+
+---
+
+<div align="center">
+
+<img src="Docs/screenshots/dashboard.png" width="200" alt="Dashboard with a running sleep timer and today's totals">
+<img src="Docs/screenshots/timeline.png" width="200" alt="Merged timeline of feedings, diapers, notes and sleep">
+<img src="Docs/screenshots/trends.png" width="200" alt="Trends tab charting daily sleep and feedings">
+<img src="Docs/screenshots/settings.png" width="200" alt="Settings showing sync status, conflicts and Face ID controls">
+
+<br><br>
+
+<img src="Docs/screenshots/widgets.png" width="440" alt="Home Screen widgets: status, timer starter, and a running tummy-time timer with Stop">
+
+</div>
+
+---
+
+## 2 a.m. One hand. No signal.
+
+|  |  |
+|---|---|
+| **Works offline** | Log now, sync when you reconnect |
+| **Face ID lock** | Private on your iPhone |
+| **Widgets** | Home Screen, Lock Screen and StandBy |
+
+
+## Every record type, color-coded like the app
+
+**Feedings** · **Sleep** · **Tummy time** · **Pumping** · **Diapers** · **Medications** ·
+**Growth** · **Notes**
+
+Growth covers weight, height, head circumference, temperature and BMI. Tags, photos and
+multiple children run through all of it.
 
 ## Features
 
-- **Feature parity tracking** — feedings, diaper changes, sleep, tummy time, pumping, notes,
-  medications, and measurements (weight, height, head circumference, temperature, BMI), with tags
-  and multiple children.
-- **Tag chip picker** — add tags as removable colored chips with live autocomplete over the
-  server's existing tags (cached for offline use), or create a new tag inline. Chip colors and
-  text contrast match the Baby Buddy web app.
-- **Dashboard** — last-event cards, active timers, and today's running totals. Each "Today" tile
-  (feedings/sleep/diapers/tummy time) taps through to a scoped timeline of just that activity for
-  the day, and each "Latest" card taps to open the editor for that entry. The "+" button fans up a
-  quick-action stack — Start timer plus the everyday record types — over a "More…" row that opens
-  the full activity picker (every log + measurement as a tinted glyph tile). Start a timer for a
-  specific activity (feeding/sleep/tummy time/pumping) and stopping it files straight to that
-  record — no "convert to…?" step — or start an uncategorized timer.
-- **Trends** — a Charts-powered analytics tab, scoped to the selected child over a 7 / 14 / 30-day
-  window: daily **sleep** hours, **feedings** per day (plus a total-amount-in-ml sub-chart when
-  amounts are recorded), and **diaper changes** per day split into wet vs solid. All aggregated
-  from the local cache — no extra network — and each chart falls back to a placeholder when the
-  window has no data.
-- **Timer widgets** — Home Screen widgets to start a timer (feeding/sleep/tummy time/pumping)
-  and to watch the running timer with live elapsed time and a one-tap Stop that logs the
-  activity. Lock Screen and StandBy accessories show the running timer at a glance. Widget
-  actions push to the server immediately (falling back to the sync queue when offline).
-- **Quick Log widget** — a Home Screen widget (small / medium) that logs a **complete diaper
-  change** — **Wet**, **Solid**, or **Wet + Solid** — in a single tap, with no timer and no
-  form. It also carries a one-tap **Feeding** tile whose type/method default is editable under
-  **Settings → Quick Log** (breast milk / both breasts out of the box). Entries attach to the
-  child the dashboard is focused on and are **offline-first** — each write goes through the
-  local cache and is pushed to the server immediately, falling back to the sync queue when
-  offline, the same path as the timer widgets.
-- **Status widget** — an at-a-glance Home Screen widget (small/medium) for the selected child:
-  when they last **fed / slept / were changed** (live relative times) plus **today's counts**.
-  Lock Screen / StandBy accessories condense it further (inline "Fed 2h ago", circular, and a
-  three-line rectangular). Read-only from the local cache — no network — and it tracks the same
-  child the dashboard is focused on.
-- **Live Activity & Dynamic Island** — a running timer also appears as a Live Activity on the
-  Lock Screen and in the Dynamic Island, headed with the child and activity ("Patrick · Sleep"),
-  with self-ticking elapsed time and the activity's tint. Stop mirrors the widget: sleep/tummy log
-  in one tap, feeding/pumping open the pre-filled form. The app starts and ends the activity as
-  timers start/stop in-app, and reconciles it whenever it becomes active — so a timer started or
-  stopped from the widget or Siri (whose intents run in the extension process, where ActivityKit
-  can't be driven) syncs the banner on the next foreground. Toggle it under **Settings →
-  Notifications → Live Activity**.
-- **Merged timeline** — day-grouped activity feed across all event types, with tap-to-edit,
-  swipe-to-delete, and inline colored tag chips on each row. **Search** (notes, tags, type,
-  child) and a **type + date-range filter** narrow it instantly, all offline over the cache.
-  Sync keeps a rolling 30-day window; **Load older activity** at the foot of the timeline
-  pages further back on demand (down to the child's birth) without dropping anything cached.
-- **Photos** — a child's profile picture is shown as the avatar in the dashboard and child
-  switcher, and a note's attached image appears as a thumbnail in the timeline and inside the
-  note editor. Images are fetched with same-origin auth (cleartext `http` upgraded to `https`)
-  and cached on disk. Pick a note image (in the note editor) or a child photo (tap the avatar in
-  Settings) straight from your library; the picked image shows instantly and uploads as a
-  `multipart/form-data` PATCH. Uploads are **offline-safe** — the bytes are held on disk and the
-  photo is sent once the record exists on the server, so a photo added on a plane lands when you
-  reconnect.
-- **Offline-first** — the local SwiftData store is the source of truth; every change is applied
-  instantly and queued for delivery. An offline banner shows when the server is unreachable.
-  Settings' **Pending changes** row opens the queue: each waiting write is listed (added / edited /
-  deleted), and swiping discards one — reverting the cached record to the server's last-known state.
-- **Conflict-aware sync** — because Baby Buddy exposes no server-side change marker, edits are
-  diffed against a base snapshot of the record they were derived from. Concurrent server changes
-  raise a conflict you resolve with **Keep Mine / Keep Server / field-by-field Merge**.
-- **App icons** — six Home Screen icons of the Baby Buddy mascot, swapped from **Settings →
-  Appearance → App Icon**. All six are free, like everything else in the app.
-- **Security** — server URL + API token stored in the Keychain; optional Face ID / passcode lock.
+| | |
+|---|---|
+| ⏱️ **Timers from a widget** | Start a feeding, sleep, tummy-time or pumping timer from the App Home Screen — stopping it files the record. |
+| ⚡ **One-tap Quick Log** | A widget that files a complete diaper change — wet, solid or both — or a feeding, with a customizable default. |
+| 🔴 **Live Activity** | A running timer ticks away on the Lock Screen and in the Dynamic Island. |
+| 🕐 **Status at a glance** | Home Screen, Lock Screen and StandBy widgets show the last feed, sleep and change, plus today's counts. |
+| ☁️ **Offline-first** | Every change saves instantly and syncs when your server is reachable. Waiting writes are listed and reversible. |
+| 🔀 **Conflict-aware sync** | Resolve competing edits with Keep Mine, Keep Server or field-by-field Merge. |
+| 📊 **Trends at a glance** | Daily sleep, feedings and wet-vs-solid diapers over 7, 14 or 30 days — charted from the local cache. |
+| 📋 **One merged timeline** | Search and filter every record type in one offline, day-grouped feed, then load older activity on demand. |
+| 👶 **Every child, one switch** | Swap between children and the dashboard, trends, timeline and widgets all follow. |
+| 📷 **Photos & notes** | Add profile photos and note images now; uploads finish when you reconnect. |
+| 🏷️ **Tags that match** | Reuse your server's color-coded tags or create one inline. |
+| 🔒 **Locked down** | Credentials stay in your Keychain, with an optional Face ID or Touch ID lock. |
+| 🎨 **Six app icons** | Swap the Home Screen icon under **Settings → Appearance → App Icon**. |
 
-## Architecture
+## Your baby's records stay with you
 
-```
-SwiftUI Views ─► @Query (SwiftData)        ← local source of truth
-        │                ▲
-        ▼                │
-  LocalRepository ──► LocalEntity / PendingMutation / ConflictRecord
-                         │
-                    SyncEngine  (pull + push + conflict detection)
-                         │
-                    APIClient ─► Baby Buddy REST API
+Baby tracking data syncs only between the app and your
+[Baby Buddy](https://github.com/babybuddy/babybuddy) server — no developer account, no cloud
+relay. The App Store build adds anonymous feature telemetry and purchase-receipt handling for
+the optional tip, both described in [PRIVACY.md](PRIVACY.md).
+
+**Builds you make from a clone send nothing anywhere.** This repository ships without a
+TelemetryDeck App ID and without a RevenueCat key, so both integrations stay switched off
+unless you supply your own (see [Docs/DEVELOPMENT.md](Docs/DEVELOPMENT.md)).
+
+## Free, with an optional tip
+
+Every activity type, live timer, widget, trend and photo is in the free app. If you want to
+say thanks, **Settings → Baby Buddy App Supporter** offers three one-time amounts. Tipping
+unlocks nothing — and it supports development of this companion app.
+
+---
+
+# Build it for your own device
+
+You can build and run Baby Buddy Companion on your own device. The steps below produce a
+signed build under **your** Apple Developer team.
+
+### What you need
+
+- **macOS with Xcode 16 or newer**
+- **[XcodeGen](https://github.com/yonaskolb/XcodeGen)** — `brew install xcodegen`
+- **A paid Apple Developer Program membership.** This is not optional. The app and its widget
+  share data through an **App Group**, and App Groups are unavailable to free personal teams.
+  On a free account the widgets cannot read your data at all.
+- **A running Baby Buddy server** you can reach from your phone.
+
+### 1. Clone
+
+```bash
+git clone https://github.com/kguy18/babybuddyios.git && cd babybuddyios
 ```
 
-All 14 record types share a single generic `LocalEntity` envelope (kind + raw JSON payload +
-denormalized timestamp/child + sync state + base snapshot), which keeps the timeline, sync engine,
-and conflict diff uniform. See `Sources/Persistence`, `Sources/Networking`, `Sources/Sync`.
+### 2. Make the identifiers yours
 
-## Build & run
+The project is wired to my personal team and bundle prefix. Signing will fail — and
+the Keychain will fail *silently* — until you replace both. Pick your own reverse-DNS prefix
+(e.g. `com.yourname`) and run:
 
-Requires Xcode 16+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+```bash
+grep -rl 'com\.kurtisguy' project.yml Sources Widgets Config Tests | xargs sed -i '' 's/com\.kurtisguy/com.yourname/g'
+```
 
-```sh
+Then replace the two team IDs — the project default and the one baked into the Keychain
+access group:
+
+```bash
+sed -i '' 's/547DWTTFY6/YOURTEAMID/g' project.yml Sources/Auth/KeychainStore.swift Config/BabyBuddy.storekit
+```
+
+Your 10-character Team ID is on the [Apple Developer membership
+page](https://developer.apple.com/account#MembershipDetailsCard).
+
+> [!IMPORTANT]
+> `Sources/Auth/KeychainStore.swift` hardcodes the access group as
+> `<TEAMID>.com.kurtisguy.BabyBuddy`. If you change the bundle prefix but not the team ID,
+> the app builds and launches, then fails to save your server credentials with **no visible error**.
+
+Finally, open `project.yml` and **delete the `com.apple.developer.associated-domains` block**
+(the two `applinks:babybuddy.app` entries around line 74). Those universal links are bound to
+the original app's team and bundle ID; they will never verify for your build, and leaving them
+in can hold up provisioning.
+
+### 3. Generate and open
+
+```bash
+xcodegen generate && open BabyBuddy.xcodeproj
+```
+
+`Sources/Info.plist` and both `.entitlements` files are generated from `project.yml` — edit the
+YAML, not the generated files, and re-run `xcodegen generate` after any change.
+
+### 4. Run on your iPhone
+
+1. Plug in your iPhone and select it as the run destination.
+2. In **Signing & Capabilities** for both the **BabyBuddy** and **BabyBuddyWidgets** targets,
+   confirm your team is selected and Xcode has created provisioning profiles. Automatic signing
+   registers the App Group and App IDs for you.
+3. Press **Run**. On first launch, approve the developer certificate on the phone under
+   **Settings → General → VPN & Device Management**.
+
+### 5. Connect to your server
+
+- **Scan a QR code** (fastest) — on your Baby Buddy site open **User → Add a Device** and tap
+  **Scan QR Code** in the app. The QR carries both the server URL and API key, so the connection
+  is filled in and validated automatically. Works for any self-hosted domain.
+- **Enter manually** — type your server URL and the API token from your web **User → Settings**
+  page.
+
+### Building for the simulator
+
+No signing or developer account needed:
+
+```bash
 xcodegen generate
 xcodebuild -project BabyBuddy.xcodeproj -scheme BabyBuddy \
   -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
-Run the tests with `test` instead of `build`.
+Swap `build` for `test` to run the test suite. The simulator also has a demo mode that needs no
+server at all — see [Docs/DEVELOPMENT.md](Docs/DEVELOPMENT.md).
 
-### Analytics (optional)
+---
 
-The app integrates [TelemetryDeck](https://telemetrydeck.com), a privacy-focused,
-cookieless analytics service. **It is disabled by default and this repository ships
-without an App ID**, so builds you make from a clone send no data anywhere.
+## Under the hood
 
-Analytics only run when a TelemetryDeck App ID is configured at build time:
-
-```sh
-cp Config/Secrets.example.xcconfig Config/Secrets.xcconfig
-# then edit Config/Secrets.xcconfig and set TELEMETRYDECK_APP_ID = <your-app-id>
-```
-
-`Config/Secrets.xcconfig` is gitignored and must never be committed. The ID flows
-into the app's `TelemetryDeckAppID` Info.plist key (see `Config/BabyBuddy.xcconfig`)
-and `Analytics.start()` initializes the SDK only when that value is non-empty.
-Analytics are also skipped automatically in `BB_DEMO` mode.
-
-### In-app purchases (optional)
-
-Every feature in the app is free. The app integrates the
-[RevenueCat](https://www.revenuecat.com) SDK only so customers can leave an optional
-one-time tip (three consumables, not a subscription); tipping marks them a supporter
-and unlocks nothing. Like analytics, **it is disabled by default and this repository
-ships without an API key**, so clone builds never reach the purchase backend — and
-because nothing is gated, they run with the full feature set regardless.
-Configure it the same way — in the same gitignored `Config/Secrets.xcconfig`:
-
-```sh
-# in Config/Secrets.xcconfig
-REVENUECAT_API_KEY = <your-revenuecat-public-apple-sdk-key>   # begins with appl_
-```
-
-The key flows into the `RevenueCatAPIKey` Info.plist key, and `PurchaseManager.start()`
-configures RevenueCat only when it's non-empty (and never in `BB_DEMO`). Supporter
-status is exposed app-wide via the `PurchaseManager` observable (`isSupporter`), which
-drives the thank-you state only — never access to a feature. See
-`Docs/InAppPurchaseArchitecture.md`.
-
-### Connecting
-
-On first launch you can sign in two ways:
-
-- **Scan a QR code** (fastest) — on your Baby Buddy site open **User → Add a Device**
-  and tap **Scan QR Code** in the app. The QR encodes both your server URL and API key,
-  so the connection is filled in and validated automatically — no copy/paste, and it
-  works for any self-hosted domain.
-- **Enter manually** — type your server URL and the API token from your web
-  **User → Settings** page.
-
-### Debug launch flags (simulator)
-
-Pass via `SIMCTL_CHILD_<NAME>` env vars to `xcrun simctl launch`:
-
-| Flag | Effect |
-|------|--------|
-| `BB_DEMO=1` | Seed sample data and skip the network (no server needed) |
-| `BB_SEED_CONFLICT=1` | Also seed a sample sync conflict |
-| `BB_START_TAB=timeline\|trends\|settings` | Open on a specific tab |
-| `BB_OPEN=feeding\|change\|…` | Auto-present a new-entry editor |
-| `BB_LOAD_OLDER=<n>` | Auto-page the timeline back `n` history chunks on launch (with `BB_DEMO`) |
-| `BB_LOCK=1` | Force the Face ID lock on |
-| `BB_NUDGE=gentle\|milestone\|banner` | Force a support-nudge surface on the Dashboard |
+- **[Docs/ARCHITECTURE.md](Docs/ARCHITECTURE.md)** — the offline-first data flow, the single
+  generic `LocalEntity` envelope shared by all 14 record types, and how conflict detection works
+  against a server with no change marker.
+- **[Docs/DEVELOPMENT.md](Docs/DEVELOPMENT.md)** — debug launch flags, demo mode, and the
+  optional TelemetryDeck / RevenueCat configuration.
+- **[Docs/InAppPurchaseArchitecture.md](Docs/InAppPurchaseArchitecture.md)** — how the optional
+  supporter tip is wired.
 
 ## Acknowledgements
 
-Baby Buddy for iOS is an unofficial client for the open-source
-[Baby Buddy](https://github.com/babybuddy/babybuddy) baby-tracking server, and is
-not affiliated with that project. The app's activity glyphs are extracted from
-Baby Buddy's Fontello icon font (Font Awesome, MFG Labs, Entypo — all under the
-SIL Open Font License 1.1). Full third-party license notices are in
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and are also reproduced in-app
-under **Settings → Acknowledgements**.
+Baby Buddy Companion is an **unofficial** client for the open-source
+[Baby Buddy](https://github.com/babybuddy/babybuddy) baby-tracking server, and is not affiliated
+with, endorsed by, or sponsored by that project. The app's activity glyphs are extracted from
+Baby Buddy's Fontello icon font (Font Awesome, MFG Labs, Entypo — all under the SIL Open Font
+License 1.1). Full third-party license notices are in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and are reproduced in-app under
+**Settings → Acknowledgements**.
+
+## Development
+I used both Claude and Codex to build this project, it has been a fun experiment burning hundreds of thousands of tokens to create this app. I hope you find it useful.
+
+## License
+
+MIT — see [LICENSE.md](LICENSE.md).
