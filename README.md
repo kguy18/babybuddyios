@@ -24,7 +24,7 @@ Log feedings, sleep, diapers and more in a tap — with widgets, trends and priv
 [![App Store — coming soon](https://img.shields.io/badge/App_Store-Coming_soon-0D96F6?style=for-the-badge&logo=apple&logoColor=white)](https://babybuddy.app)
 
 [![iOS 17+](https://img.shields.io/badge/iOS-17%2B-333333?style=flat-square&logo=apple&logoColor=white)](#build-it-for-your-own-iphone)
-[![License: MIT](https://img.shields.io/badge/License-MIT-4C9A5B?style=flat-square)](LICENSE.md)
+[![License: BSD-2-Clause](https://img.shields.io/badge/License-BSD--2--Clause-4C9A5B?style=flat-square)](LICENSE.md)
 [![babybuddy.app](https://img.shields.io/badge/babybuddy.app-4C9A5B?style=flat-square&logo=safari&logoColor=white)](https://babybuddy.app)
 
 **Free. Every feature included.** No subscription, no trial, nothing locked.
@@ -217,4 +217,4 @@ I used both Claude and Codex to build this project, it has been a fun experiment
 
 ## License
 
-MIT — see [LICENSE.md](LICENSE.md).
+BSD 2-Clause — see [LICENSE.md](LICENSE.md).
