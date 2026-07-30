@@ -43,7 +43,7 @@ struct SupportGentleAskCard: View {
 
     private var card: some View {
         VStack(spacing: 0) {
-            NudgeHero(systemImage: "heart.fill")
+            SupporterHero()
 
             // Non-breaking spaces through the app's name: the title is two lines at default type on
             // a narrow card, and the break belongs after "Enjoying" rather than inside the name (the
@@ -95,7 +95,8 @@ struct SupportMilestoneSheet: View {
         FittedSheet {
             content
                 .padding(.horizontal, 22)
-                .padding(.top, 10)
+                // Enough that the mascot's head clears the sheet's drag indicator.
+                .padding(.top, 18)
                 .padding(.bottom, 24)
                 .overlay(alignment: .top) { Confetti() }
         }
@@ -103,7 +104,9 @@ struct SupportMilestoneSheet: View {
 
     private var content: some View {
         VStack(spacing: 0) {
-            NudgeHero(systemImage: "sparkles")
+            // Same badge as the ask surfaces, keeping its own sparkles glyph — the milestone is the
+            // most celebratory of the three, so a wave belongs here most of all.
+            SupporterHero(systemImage: "sparkles")
 
             Text("Milestone")
                 .font(.caption2.weight(.semibold))
@@ -314,24 +317,6 @@ private struct BannerChrome: ViewModifier {
 }
 
 // MARK: - Shared pieces
-
-/// The tinted glyph tile fronting a nudge — the same motif as the supporter sheet's hero, in
-/// whatever glyph the surface calls for (a heart for the ask, sparkles for a milestone).
-private struct NudgeHero: View {
-    let systemImage: String
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: BBRadius.tile, style: .continuous)
-            .fill(BBColor.brandTint)
-            .frame(width: 54, height: 54)
-            .overlay {
-                Image(systemName: systemImage)
-                    .font(.system(size: 25))
-                    .foregroundStyle(BBColor.brandAccent)
-            }
-            .accessibilityHidden(true)
-    }
-}
 
 /// The quiet "no" under a nudge's blue button — full-width and easy to hit, but visually secondary.
 /// Matches the supporter sheet's own dismiss button, so declining looks the same everywhere.
