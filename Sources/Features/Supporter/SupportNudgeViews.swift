@@ -16,6 +16,15 @@ struct SupportGentleAskCard: View {
     var onSupport: () -> Void
     var onDismiss: () -> Void
 
+    /// About half the card's width — big enough for the wave to read, small enough that he tops the
+    /// card rather than competing with it.
+    private let mascotWidth: CGFloat = 172
+    /// Native 924×617, so the aspect is fixed here rather than left to the layout.
+    private let mascotAspect: CGFloat = 617.0 / 924.0
+    /// How far his flat bottom edge tucks behind the card. The card is opaque, so this only has to
+    /// be enough that the straight cut can never show along its rounded top.
+    private let overlap: CGFloat = 12
+
     var body: some View {
         ZStack {
             // Matches the quick-add stack's dim, the app's other full-screen scrim.
@@ -30,7 +39,7 @@ struct SupportGentleAskCard: View {
             // is silently truncated mid-sentence, which is the one thing a card of copy can't afford.
             GeometryReader { proxy in
                 ScrollView {
-                    card
+                    peekingCard
                         .padding(.horizontal, 28)
                         .padding(.vertical, 24)
                         .frame(minHeight: proxy.size.height, alignment: .center)
@@ -41,16 +50,32 @@ struct SupportGentleAskCard: View {
         }
     }
 
+    /// Baby Buddy leaning on the card, waving over its top edge.
+    ///
+    /// A negative `VStack` spacing does the whole trick: it pulls the card up over his flat bottom
+    /// edge, and because the card is laid out *after* him it also draws on top — so he is genuinely
+    /// behind it rather than merely above it. Keeping the pair in one layout block means they centre
+    /// and scroll together, instead of him hanging off an offset that layout can't see.
+    private var peekingCard: some View {
+        VStack(spacing: -overlap) {
+            Image("mascot_peek_wave")
+                .resizable()
+                // The asset is ~3× its drawn size, so downscaling is what has to look good.
+                .interpolation(.high)
+                .scaledToFit()
+                .frame(width: mascotWidth, height: mascotWidth * mascotAspect)
+                .accessibilityHidden(true) // charm, not information
+            card
+        }
+    }
+
     private var card: some View {
         VStack(spacing: 0) {
-            SupporterHero()
-
             // Non-breaking spaces through the app's name: the title is two lines at default type on
             // a narrow card, and the break belongs after "Enjoying" rather than inside the name (the
             // mockup pins the same pair together for the same reason).
             Text("Enjoying Baby\u{00a0}Buddy\u{00a0}Companion?")
                 .font(.system(size: 20, weight: .semibold))
-                .padding(.top, 14)
 
             Text("Every feature is free — no locks, no subscriptions. If the app has earned a place in your routine, you can chip in to keep it growing.")
                 .font(.subheadline)
@@ -95,8 +120,7 @@ struct SupportMilestoneSheet: View {
         FittedSheet {
             content
                 .padding(.horizontal, 22)
-                // Enough that the mascot's head clears the sheet's drag indicator.
-                .padding(.top, 18)
+                .padding(.top, 10)
                 .padding(.bottom, 24)
                 .overlay(alignment: .top) { Confetti() }
         }
@@ -104,9 +128,7 @@ struct SupportMilestoneSheet: View {
 
     private var content: some View {
         VStack(spacing: 0) {
-            // Same badge as the ask surfaces, keeping its own sparkles glyph — the milestone is the
-            // most celebratory of the three, so a wave belongs here most of all.
-            SupporterHero(systemImage: "sparkles")
+            SupporterBadge(systemImage: "sparkles")
 
             Text("Milestone")
                 .font(.caption2.weight(.semibold))

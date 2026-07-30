@@ -35,8 +35,7 @@ struct SupporterSheet: View {
         FittedSheet {
             content
                 .padding(.horizontal, 22)
-                // Enough that the mascot's head clears the sheet's drag indicator.
-                .padding(.top, 18)
+                .padding(.top, 10)
                 .padding(.bottom, 30)
         }
         .onAppear { Analytics.supporterSheetViewed(source: source) }
@@ -99,10 +98,9 @@ struct SupporterSheet: View {
         canTip && (!purchases.isSupporter || showingAmounts)
     }
 
-    /// A heart in the brand tint — the same tinted-glyph-tile motif the rest of the app uses — with
-    /// Baby Buddy waving over the top of it.
+    /// A heart in the brand tint — the same tinted-glyph-tile motif the rest of the app uses.
     private var hero: some View {
-        SupporterHero()
+        SupporterBadge()
     }
 
     // MARK: Tips
