@@ -19,20 +19,46 @@ import RevenueCat
 final class PurchaseManagerTests: XCTestCase {
 
     #if DEBUG
-    private var savedDebugOverride = false
+    private var savedDebugOverride = PurchaseManager.DebugSupporterOverride.store
 
-    /// The DEBUG "Supporter mode" switch persists in `UserDefaults`, and these tests are hosted by
-    /// the app — so they share its defaults. Without this, a developer who left the switch on in the
+    /// The DEBUG "Supporter mode" override persists in `UserDefaults`, and these tests are hosted by
+    /// the app — so they share its defaults. Without this, a developer who left it forced on in the
     /// simulator would fail every assertion about the default (non-supporter) state. Neutralize it
     /// for the duration and put it back afterwards, so running tests doesn't silently change their
     /// setting either.
     override func setUp() async throws {
-        savedDebugOverride = PurchaseManager().debugForcedSupporter
-        PurchaseManager().setDebugSupporter(false)
+        savedDebugOverride = PurchaseManager().debugSupporterOverride
+        PurchaseManager().setDebugSupporter(.store)
     }
 
     override func tearDown() async throws {
         PurchaseManager().setDebugSupporter(savedDebugOverride)
+    }
+
+    /// The precedence the device-testing story rests on: "forced off" has to outrank a genuine
+    /// purchase, or someone who has actually tipped can never see the ask — or the support nudges —
+    /// on that device again.
+    func testDebugOverrideOutranksTheStoreInBothDirections() {
+        XCTAssertFalse(PurchaseManager.resolveSupporter(storeSays: true, override: .off),
+                       "a real purchase must be overridable, not just augmentable")
+        XCTAssertTrue(PurchaseManager.resolveSupporter(storeSays: false, override: .on))
+        // And with no override, the store is the only word that counts.
+        XCTAssertTrue(PurchaseManager.resolveSupporter(storeSays: true, override: .store))
+        XCTAssertFalse(PurchaseManager.resolveSupporter(storeSays: false, override: .store))
+    }
+
+    /// The override has to survive the relaunch you need it across, and take effect immediately.
+    func testDebugOverridePersistsAndAppliesAtOnce() {
+        let manager = PurchaseManager()
+
+        manager.setDebugSupporter(.on)
+        XCTAssertTrue(manager.isSupporter)
+        XCTAssertEqual(PurchaseManager().debugSupporterOverride, .on, "must outlive the instance")
+        XCTAssertTrue(PurchaseManager().isSupporter)
+
+        manager.setDebugSupporter(.off)
+        XCTAssertFalse(manager.isSupporter)
+        XCTAssertEqual(PurchaseManager().debugSupporterOverride, .off)
     }
     #endif
 
@@ -50,7 +76,7 @@ final class PurchaseManagerTests: XCTestCase {
         let manager = PurchaseManager()
         for tier in TipTier.allCases {
             // must not touch Purchases.shared / crash
-            let result = await manager.purchase(tier: tier)
+            let result = await manager.purchase(tier: tier, source: .settings)
             XCTAssertFalse(result, "\(tier) should be a no-op when unconfigured")
             XCTAssertFalse(manager.isSupporter)
             XCTAssertFalse(manager.isLoading)

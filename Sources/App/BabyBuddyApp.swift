@@ -16,8 +16,30 @@ struct BabyBuddyApp: App {
 
     private static let refreshTaskID = "com.kurtisguy.BabyBuddy.sync"
 
+    /// Whether this process is running the unit-test suite rather than serving a customer.
+    ///
+    /// `BabyBuddyTests` is hosted *in* the app (`TEST_HOST`), so this initializer runs before the
+    /// tests do. Left unguarded, a plain `xcodebuild test` stamps a first launch and counts every
+    /// record the persistence tests create into the real support-nudge counters — leaving any
+    /// simulator that has run the suite with a pre-aged, pre-counted install that can't be used to
+    /// check the day-7 / 10-entry gate by hand. ``PurchaseManagerTests`` guards its own defaults the
+    /// same way, by save-and-restore; automatic wiring has no test to do that from.
+    ///
+    /// XCTest is never loaded into a release build, so this is always `false` in the shipped app.
+    private static var isHostingTests: Bool {
+        NSClassFromString("XCTestCase") != nil
+    }
+
     init() {
         Analytics.start()
+        if !Self.isHostingTests {
+            // Stamped before any Dashboard can ask whether a support nudge is due — every time-based
+            // rule in the policy hangs off it.
+            SupportNudgeStore.shared.registerFirstLaunch()
+            // Count records logged in the app, which is the nudge policy's usage gate. See the hook's
+            // documentation for why `LocalRepository` doesn't reach for the store directly.
+            LocalRepository.didLogActivity = { SupportNudgeStore.shared.recordLoggedEntry() }
+        }
         let container = LocalStore.makeContainer()
         let session = AppSession()
         let purchases = PurchaseManager()

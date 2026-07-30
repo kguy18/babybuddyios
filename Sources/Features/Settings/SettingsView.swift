@@ -29,12 +29,19 @@ struct SettingsView: View {
     // defaults, read by the widget's intent. Keep the keys and defaults in sync.
     @AppStorage("quickFeedType", store: SharedDefaults.suite) private var quickFeedType: FeedingType = .breastMilk
     @AppStorage("quickFeedMethod", store: SharedDefaults.suite) private var quickFeedMethod: FeedingMethod = .bothBreasts
+    // The support-nudge switch. App-only defaults, not the App Group — nudges are an app-process
+    // concern; the key comes from ``SupportNudgeStore`` so the two can't drift apart.
+    @AppStorage(SupportNudgeStore.remindersEnabledKey) private var supportRemindersEnabled = true
 
     @State private var debugConflict: ConflictRecord?
     @State private var debugIcons = false
     @State private var showingPending = false
     @State private var showingAcknowledgements = false
     @State private var showingSupporter = false
+    /// Whether a nudge has been shown yet, which is what reveals the "Support reminders" switch.
+    /// Refreshed on appear rather than observed: nudges only ever fire from the Dashboard, so this
+    /// tab is re-entered after any change.
+    @State private var hasSeenNudge = false
 
     // Contact Support: the row offers to attach diagnostics, then presents the mail composer
     // (or falls back to a mailto: link when no Mail account is set up).
@@ -136,7 +143,7 @@ struct SettingsView: View {
             } message: {
                 Text("No email account is set up on this device. You can reach us at \(SupportContact.recipient).")
             }
-            .sheet(isPresented: $showingSupporter) { SupporterSheet() }
+            .sheet(isPresented: $showingSupporter) { SupporterSheet(source: .settings) }
             .sheet(isPresented: $showingAcknowledgements) { AcknowledgementsView() }
             .sheet(isPresented: $showingPending) { PendingChangesView() }
             .sheet(item: $debugConflict) { c in
@@ -148,6 +155,7 @@ struct SettingsView: View {
                 #endif
             }
             .onAppear {
+                hasSeenNudge = SupportNudgeStore.shared.hasShownANudge
                 #if DEBUG
                 if ProcessInfo.processInfo.environment["BB_OPEN_CONFLICT"] == "1" {
                     debugConflict = conflicts.first
@@ -412,6 +420,31 @@ struct SettingsView: View {
                 }
             }
             .buttonStyle(.plain)
+
+            supportRemindersRow
+        }
+    }
+
+    /// The opt-out for the support nudges (see ``SupportNudgeManager``), on by default.
+    ///
+    /// Held back until the first nudge has actually been shown. A switch offered before then asks
+    /// someone to decide about something they have never seen — and pre-emptively turning it off
+    /// would silence an ask they'd never have minded. Once they have met one, the control is theirs.
+    /// It also disappears for supporters, who are never nudged at all, rather than sitting there
+    /// governing nothing.
+    @ViewBuilder private var supportRemindersRow: some View {
+        if !purchases.isSupporter, hasSeenNudge {
+            rowDivider
+            SettingsRow(symbol: "sparkles", tint: BBColor.pumping, title: "Support reminders") {
+                Toggle("", isOn: Binding(
+                    get: { supportRemindersEnabled },
+                    set: { newValue in
+                        supportRemindersEnabled = newValue
+                        Analytics.settingChanged("supportReminders", enabled: newValue)
+                    }))
+                    .labelsHidden()
+                    .tint(BBColor.primary)
+            }
         }
     }
 
@@ -438,17 +471,45 @@ struct SettingsView: View {
     }
 
     #if DEBUG
-    /// Debug-only switch to force supporter status on/off while testing the thank-you state.
-    /// Compiled out of release (TestFlight/App Store) builds.
+    /// Debug-only controls for the supporter/nudge states, which are otherwise slow or impossible to
+    /// reach by hand. Compiled out of release (TestFlight/App Store) builds.
+    ///
+    /// "Supporter mode" overrides status in both directions — forcing it *off* is the only way to see
+    /// the ask, and the nudges, on a device that has genuinely tipped. "Arm support nudge" ages the
+    /// counters past every gate so the real policy fires on the next Dashboard visit, and "Reset"
+    /// puts them back to a fresh install.
     private var developerCard: some View {
         card {
             SettingsRow(symbol: "wand.and.stars", tint: BBColor.warning, title: "Supporter mode") {
-                Toggle("", isOn: Binding(
-                    get: { purchases.debugForcedSupporter },
-                    set: { purchases.setDebugSupporter($0) }))
-                    .labelsHidden()
-                    .tint(BBColor.primary)
+                Menu {
+                    Picker("Supporter mode", selection: Binding(
+                        get: { purchases.debugSupporterOverride },
+                        set: { purchases.setDebugSupporter($0) })) {
+                        ForEach(PurchaseManager.DebugSupporterOverride.allCases) {
+                            Text($0.label).tag($0)
+                        }
+                    }
+                } label: { menuValue(purchases.debugSupporterOverride.label) }
             }
+
+            rowDivider
+
+            Button { SupportNudgeStore.shared.debugArm() } label: {
+                SettingsRow(symbol: "bell.badge", tint: BBColor.pumping, title: "Arm support nudge") {
+                    Text("Go to Home").font(.subheadline).foregroundStyle(.secondary)
+                }
+            }
+            .buttonStyle(.plain)
+
+            rowDivider
+
+            Button { SupportNudgeStore.shared.debugReset() } label: {
+                SettingsRow(symbol: "arrow.counterclockwise", tint: BBColor.restart,
+                            title: "Reset support nudges") {
+                    Text("Fresh install").font(.subheadline).foregroundStyle(.secondary)
+                }
+            }
+            .buttonStyle(.plain)
         }
     }
     #endif

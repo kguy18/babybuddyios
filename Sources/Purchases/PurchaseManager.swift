@@ -67,17 +67,55 @@ final class PurchaseManager {
     static let forcedSupporter = ProcessInfo.processInfo.environment["BB_SUPPORTER"] == "1"
 
     #if DEBUG
-    private static let debugSupporterKey = "debug.forceSupporter"
-    /// Debug-only manual override toggled from the Settings ▸ Developer switch, persisted so it
-    /// survives relaunch during testing. Entirely compiled out of release (TestFlight/App Store)
-    /// builds, so it can never affect production.
-    private(set) var debugForcedSupporter = UserDefaults.standard.bool(forKey: PurchaseManager.debugSupporterKey)
+    /// Debug-only override for supporter status, set from Settings ▸ Developer.
+    ///
+    /// Three-way rather than a switch, because both directions are needed: ``on`` shows the
+    /// thank-you state without paying, and ``off`` is the only way to exercise the ask — and the
+    /// support nudges — on a device or account that has genuinely tipped, since a real purchase
+    /// otherwise pins ``isSupporter`` on forever.
+    enum DebugSupporterOverride: String, CaseIterable, Identifiable {
+        /// No override: whatever the store says. The shipping behavior.
+        case store
+        /// Force supporter on.
+        case on
+        /// Force supporter off, real purchase or not.
+        case off
 
-    /// Debug-only: flip the forced-supporter override and recompute status immediately.
-    func setDebugSupporter(_ on: Bool) {
-        debugForcedSupporter = on
-        UserDefaults.standard.set(on, forKey: Self.debugSupporterKey)
+        var id: String { rawValue }
+
+        /// How the override reads in the Settings row.
+        var label: String {
+            switch self {
+            case .store: return "Store"
+            case .on: return "Forced on"
+            case .off: return "Forced off"
+            }
+        }
+    }
+
+    private static let debugOverrideKey = "debug.supporterOverride"
+
+    /// Debug-only manual override, persisted so it survives relaunch during testing. Entirely
+    /// compiled out of release (TestFlight/App Store) builds, so it can never affect production.
+    private(set) var debugSupporterOverride = UserDefaults.standard.string(forKey: PurchaseManager.debugOverrideKey)
+        .flatMap(DebugSupporterOverride.init(rawValue:)) ?? .store
+
+    /// Debug-only: change the override and recompute status immediately.
+    func setDebugSupporter(_ override: DebugSupporterOverride) {
+        debugSupporterOverride = override
+        UserDefaults.standard.set(override.rawValue, forKey: Self.debugOverrideKey)
         recompute()
+    }
+
+    /// How the override combines with what the store says — pure, so the precedence the whole
+    /// device-testing story rests on (``DebugSupporterOverride/off`` outranking a genuine purchase) is
+    /// unit-testable, rather than only reachable by actually tipping on a real device.
+    static func resolveSupporter(storeSays: Bool, override: DebugSupporterOverride) -> Bool {
+        switch override {
+        case .store: return storeSays
+        case .on: return true
+        case .off: return false
+        }
     }
     #endif
 
@@ -203,11 +241,15 @@ final class PurchaseManager {
     /// Buys the given tip tier. Returns whether the customer is a supporter afterward. A no-op when
     /// purchases are off or the offering has no package for that tier; cancellation is silent, other
     /// failures land in ``errorMessage``.
+    ///
+    /// `source` is the entry point that led here (Settings, a deep link, or one of the nudges). It
+    /// is carried onto every signal this flow emits, which is how a tip is attributed back to the
+    /// door it came through — see ``Analytics/SupporterSource``.
     @discardableResult
-    func purchase(tier: TipTier) async -> Bool {
+    func purchase(tier: TipTier, source: Analytics.SupporterSource) async -> Bool {
         #if canImport(RevenueCat)
         guard isConfigured, let package = package(for: tier) else { return isSupporter }
-        return await purchase(package: package)
+        return await purchase(package: package, source: source)
         #else
         return isSupporter
         #endif
@@ -218,7 +260,7 @@ final class PurchaseManager {
     /// silent no-op (returning the current value) when purchases are off or the user cancels; other
     /// failures land in ``errorMessage``.
     @discardableResult
-    func purchase(package: Package) async -> Bool {
+    func purchase(package: Package, source: Analytics.SupporterSource) async -> Bool {
         guard isConfigured else { return isSupporter }
         isLoading = true
         defer { isLoading = false }
@@ -226,20 +268,20 @@ final class PurchaseManager {
         // dimension. An unrecognized package reports "unknown" rather than dropping the event.
         let tier = Self.tier(for: package)?.rawValue ?? "unknown"
         let wasSupporter = isSupporter
-        Analytics.tipPurchaseStarted(tier: tier)
+        Analytics.tipPurchaseStarted(tier: tier, source: source)
         do {
             let result = try await Purchases.shared.purchase(package: package)
             // User cancellations are an expected outcome, not an error to surface.
             guard !result.userCancelled else {
-                Analytics.purchaseCancelled()
+                Analytics.purchaseCancelled(source: source)
                 return isSupporter
             }
             apply(result.customerInfo)
             errorMessage = nil
-            Analytics.tipPurchased(tier: tier)
+            Analytics.tipPurchased(tier: tier, source: source)
         } catch ErrorCode.purchaseCancelledError {
             // Cancelled from the StoreKit sheet — leave state as-is, no error.
-            Analytics.purchaseCancelled()
+            Analytics.purchaseCancelled(source: source)
         } catch {
             // This call can throw over a tip that actually went through — sandbox especially, where a
             // slow hand-off to RevenueCat's backend outlives the request while the transaction itself
@@ -251,10 +293,10 @@ final class PurchaseManager {
             // active — so that keeps reporting the failure.)
             if isSupporter, !wasSupporter {
                 errorMessage = nil
-                Analytics.tipPurchased(tier: tier)
+                Analytics.tipPurchased(tier: tier, source: source)
             } else {
                 handle(error)
-                Analytics.purchaseFailed(reason: Self.analyticsReason(for: error))
+                Analytics.purchaseFailed(reason: Self.analyticsReason(for: error), source: source)
             }
         }
         return isSupporter
@@ -292,11 +334,13 @@ final class PurchaseManager {
     private func recompute() {
         let previous = isSupporter
         var value = Self.forcedSupporter
-        #if DEBUG
-        value = value || debugForcedSupporter
-        #endif
         #if canImport(RevenueCat)
         value = value || Self.isSupporter(from: customerInfo)
+        #endif
+        #if DEBUG
+        // The developer override is last, and wins in *both* directions — a plain OR could only ever
+        // force supporter on, which leaves a device that has really tipped with no way back to the ask.
+        value = Self.resolveSupporter(storeSays: value, override: debugSupporterOverride)
         #endif
         isSupporter = value
         // Bridge supporter status to the widget / App-Intents process. Nothing is gated on it today;
