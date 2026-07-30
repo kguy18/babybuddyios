@@ -1,0 +1,12 @@
+{
+  "images": [
+    {
+      "filename": "appicon_sidePeekLeft.png",
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}

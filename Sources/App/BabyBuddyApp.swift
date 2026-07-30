@@ -11,6 +11,7 @@ struct BabyBuddyApp: App {
     @State private var lock = AppLockManager()
     @State private var router = DeepLinkRouter()
     @State private var liveActivity = LiveActivityManager()
+    @State private var icons = AppIconManager()
     @Environment(\.scenePhase) private var scenePhase
     private let container: ModelContainer
 
@@ -59,6 +60,7 @@ struct BabyBuddyApp: App {
                 .environment(lock)
                 .environment(router)
                 .environment(liveActivity)
+                .environment(icons)
                 .modelContainer(container)
                 .onOpenURL { router.handle($0) }
         }

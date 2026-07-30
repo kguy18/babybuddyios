@@ -12,6 +12,7 @@ struct SettingsView: View {
     @Environment(AppLockManager.self) private var lock
     @Environment(PurchaseManager.self) private var purchases
     @Environment(LiveActivityManager.self) private var liveActivity
+    @Environment(AppIconManager.self) private var icons
     @Environment(\.modelContext) private var context
 
     @State private var photoItem: PhotosPickerItem?
@@ -35,6 +36,7 @@ struct SettingsView: View {
 
     @State private var debugConflict: ConflictRecord?
     @State private var debugIcons = false
+    @State private var showingAppIcons = false
     @State private var showingPending = false
     @State private var showingAcknowledgements = false
     @State private var showingSupporter = false
@@ -93,6 +95,17 @@ struct SettingsView: View {
                             .padding(.top, 2)
                     }
 
+                    if icons.isSupported {
+                        sectioned("Appearance") {
+                            appearanceCard
+                            Text("Pick the Home Screen icon. All six are free.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 4)
+                                .padding(.top, 2)
+                        }
+                    }
+
                     sectioned("Quick Log") {
                         quickFeedCard
                         Text("Defaults for the one-tap Feeding tile in the Quick Log widget.")
@@ -149,6 +162,10 @@ struct SettingsView: View {
             .sheet(item: $debugConflict) { c in
                 NavigationStack { ConflictResolutionView(conflict: c) }
             }
+            #if DEBUG
+            // Second route to the picker, for `BB_APP_ICON=1` — the real one is the Appearance row.
+            .navigationDestination(isPresented: $showingAppIcons) { AppIconPickerView() }
+            #endif
             .sheet(isPresented: $debugIcons) {
                 #if DEBUG
                 NavigationStack { IconGalleryView() }
@@ -165,6 +182,9 @@ struct SettingsView: View {
                 }
                 if ProcessInfo.processInfo.environment["BB_SUPPORTER_SHEET"] == "1" {
                     showingSupporter = true
+                }
+                if ProcessInfo.processInfo.environment["BB_APP_ICON"] == "1" {
+                    showingAppIcons = true
                 }
                 #endif
             }
@@ -365,6 +385,27 @@ struct SettingsView: View {
                     .labelsHidden()
                     .tint(BBColor.primary)
             }
+        }
+    }
+
+    // MARK: Appearance
+
+    /// The Home Screen icon, shown by name with the picker one tap away. Free for everyone — the
+    /// row carries no lock, badge, or price, and never consults ``PurchaseManager``.
+    private var appearanceCard: some View {
+        card {
+            NavigationLink {
+                AppIconPickerView()
+            } label: {
+                SettingsRow(symbol: "paintbrush.fill", tint: BBColor.tummy, title: "App Icon") {
+                    HStack(spacing: 4) {
+                        Text(icons.selected.displayName)
+                            .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                        disclosure
+                    }
+                }
+            }
+            .buttonStyle(.plain)
         }
     }
 

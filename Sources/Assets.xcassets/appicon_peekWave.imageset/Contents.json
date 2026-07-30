@@ -1,0 +1,12 @@
+{
+  "images": [
+    {
+      "filename": "appicon_peekWave.png",
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
