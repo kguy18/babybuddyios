@@ -257,6 +257,7 @@ final class SyncEngine {
         }
         context.delete(conflict)
         try? context.save()
+        Analytics.syncConflictResolved(choice: .mine, kind: conflict.kind.rawValue)
         Task { await sync() }
     }
 
@@ -272,6 +273,7 @@ final class SyncEngine {
         }
         context.delete(conflict)
         try? context.save()
+        Analytics.syncConflictResolved(choice: .server, kind: conflict.kind.rawValue)
     }
 
     /// Keep a field-by-field merged payload, overwriting the server.
@@ -284,6 +286,7 @@ final class SyncEngine {
             payload: merged, baseSnapshot: conflict.serverPayload, serverID: conflict.serverID))
         context.delete(conflict)
         try? context.save()
+        Analytics.syncConflictResolved(choice: .merge, kind: conflict.kind.rawValue)
         Task { await sync() }
     }
 

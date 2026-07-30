@@ -19,8 +19,16 @@ struct LocalRepository {
 
     // MARK: Create
 
+    /// Create a record locally and queue it for the server.
+    ///
+    /// `source` is which path is doing the creating; it rides onto `Activity.logged`. This method is
+    /// the app's **only** emitter of that signal (``QuickLogIntent`` documents the same invariant),
+    /// so the distinction can't be recovered downstream — it has to be threaded in from here. It
+    /// defaults to ``Analytics/ActivitySource/editor``, the sheet-and-save path every other caller
+    /// is a variation on.
     @discardableResult
-    func create(kind: EntityKind, payload: [String: Any], timerActivity: EntityKind? = nil) -> LocalEntity? {
+    func create(kind: EntityKind, payload: [String: Any], timerActivity: EntityKind? = nil,
+                source: Analytics.ActivitySource = .editor) -> LocalEntity? {
         guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return nil }
         let entity = LocalEntity(
             kind: kind, serverID: nil, childID: kind.childID(from: payload),
@@ -33,7 +41,7 @@ struct LocalRepository {
         // else here is a completed record being logged (incl. timer conversions, which route
         // through this method). Timer start/stop are tracked separately at their call sites.
         if kind != .timer && kind != .child {
-            Analytics.activityLogged(kind: kind.rawValue)
+            Analytics.activityLogged(kind: kind.rawValue, source: source)
             Self.didLogActivity?()
         }
         return entity
@@ -105,7 +113,7 @@ struct LocalRepository {
     func convertTimer(_ timer: LocalEntity, to kind: EntityKind, payload: [String: Any]) -> LocalEntity? {
         var body = payload
         if let serverID = timer.serverID { body["timer"] = serverID }
-        let activity = create(kind: kind, payload: body)
+        let activity = create(kind: kind, payload: body, source: .timerStop)
         removeLocally(timer)
         return activity
     }
@@ -132,7 +140,7 @@ struct LocalRepository {
         if p["time"] is String { p["time"] = iso(now) }
         if p["date"] is String { p["date"] = APIDate.dateOnly.string(from: now) }
 
-        return create(kind: entity.kind, payload: p)
+        return create(kind: entity.kind, payload: p, source: .repeat)
     }
 
     // MARK: Image uploads

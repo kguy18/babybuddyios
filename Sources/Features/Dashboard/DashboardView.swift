@@ -240,10 +240,11 @@ struct DashboardView: View {
         guard !Task.isCancelled, !isBusy,
               UIApplication.shared.applicationState == .active
         else { return }
-        present(SupportNudgeStore.shared.pending(isSupporter: purchases.isSupporter))
+        present(SupportNudgeStore.shared.pending(isSupporter: purchases.isSupporter,
+                                                 config: purchases.supporterConfig))
     }
 
-    /// Put a due nudge on screen and record that it was shown (which restarts the 21-day cap).
+    /// Put a due nudge on screen and record that it was shown (which restarts the interval cap).
     ///
     /// The silencing check is here as well as at each render site so all three surfaces obey it
     /// identically — the milestone sheet has no `if` of its own to hang it off, and without this the
@@ -267,9 +268,9 @@ struct DashboardView: View {
     }
 
     /// The quiet button, the scrim, or the banner's "×": one tap, counted against the retirement
-    /// tally, and snoozed for at least three weeks.
+    /// tally, and snoozed for the configured quiet window (three weeks by default).
     private func dismissNudge(_ variant: Analytics.NudgeVariant) {
-        SupportNudgeStore.shared.markDismissed(variant)
+        SupportNudgeStore.shared.markDismissed(variant, config: purchases.supporterConfig)
         withAnimation(.snappy(duration: 0.2)) { inlineNudge = .none }
     }
 
@@ -284,7 +285,7 @@ struct DashboardView: View {
         } else if !nudgesSilenced {
             // Withdrawn by ``withdrawNudges()`` rather than turned down — a tip from Settings or the
             // reminders switch isn't a refusal, so it must not count toward retirement.
-            SupportNudgeStore.shared.markDismissed(.milestone)
+            SupportNudgeStore.shared.markDismissed(.milestone, config: purchases.supporterConfig)
         }
     }
 

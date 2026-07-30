@@ -70,10 +70,16 @@ artwork.
 
 ### What to watch during every scenario
 
-- **Analytics funnel** (TelemetryDeck): `Supporter.sheetViewed` → `Supporter.ctaPressed` →
-  `Tip.purchaseStarted` (with `tier`) → `Tip.purchased` (with `tier`) / `Purchase.failed` /
-  `Purchase.cancelled` → `Supporter.activated`; plus `Purchase.restored`. Confirm **no PII** ever
-  appears in event parameters — only coarse tip tiers / error codes.
+- **Analytics funnel** (TelemetryDeck): `Supporter.sheetViewed` (with `source`, `state`, `offering`)
+  → `Tip.purchaseStarted` (with `tier`, `source`) → `Tip.purchased` (with `tier`, `source`,
+  `offering`) / `Purchase.failed` / `Purchase.cancelled` → `Supporter.activated`; plus
+  `Purchase.restored`, and `Supporter.tipAgainPressed` from the thank-you state. Check that `source`
+  matches the door you actually came through — it is the entire conversion attribution, so a wrong
+  one is worse than none. Confirm **no PII** ever appears in event parameters — only coarse tip
+  tiers, sheet states, offering names, and error codes.
+- **The `state` parameter** should read `ask` in the normal case. `unavailableNoTips` means the
+  offering yielded nothing (the failure that is otherwise silent — see `refresh()`); it is expected
+  only when you have deliberately broken the store configuration.
 - **Nothing is gated.** Every feature must work identically before and after a tip. The only visible
   change is the supporter/thank-you state.
 - **Status flips live**: once a tip completes, the Settings status changes without relaunch (driven

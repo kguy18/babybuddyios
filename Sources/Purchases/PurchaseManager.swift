@@ -166,6 +166,29 @@ final class PurchaseManager {
         #endif
     }
 
+    /// The serving offering's identifier, or `nil` when none has loaded. A dashboard-side label
+    /// (e.g. "default"), never anything about the customer — it rides along on the supporter funnel
+    /// signals so those can be sliced by offering, and so by Experiments variant.
+    var offeringIdentifier: String? {
+        #if canImport(RevenueCat)
+        return currentOffering?.identifier
+        #else
+        return nil
+        #endif
+    }
+
+    /// Remote tuning for the supporter sheet and the support nudges, read from the serving
+    /// offering's metadata. Compiled defaults whenever there is no offering, no metadata, or no
+    /// RevenueCat at all — see ``SupporterRemoteConfig``. Derived from the observed
+    /// ``currentOffering``, so SwiftUI re-reads it when the offering lands.
+    var supporterConfig: SupporterRemoteConfig {
+        #if canImport(RevenueCat)
+        return SupporterRemoteConfig(metadata: currentOffering?.metadata)
+        #else
+        return .defaults
+        #endif
+    }
+
     private var observer: Task<Void, Never>?
 
     /// The public Apple SDK key injected into Info.plist, or `nil` if none was configured.
@@ -267,6 +290,7 @@ final class PurchaseManager {
         // Tips are consumable and repeatable, so the tier — not "did they buy" — is the funnel's
         // dimension. An unrecognized package reports "unknown" rather than dropping the event.
         let tier = Self.tier(for: package)?.rawValue ?? "unknown"
+        let offering = offeringIdentifier
         let wasSupporter = isSupporter
         Analytics.tipPurchaseStarted(tier: tier, source: source)
         do {
@@ -278,7 +302,7 @@ final class PurchaseManager {
             }
             apply(result.customerInfo)
             errorMessage = nil
-            Analytics.tipPurchased(tier: tier, source: source)
+            Analytics.tipPurchased(tier: tier, source: source, offering: offering)
         } catch ErrorCode.purchaseCancelledError {
             // Cancelled from the StoreKit sheet — leave state as-is, no error.
             Analytics.purchaseCancelled(source: source)
@@ -293,7 +317,7 @@ final class PurchaseManager {
             // active — so that keeps reporting the failure.)
             if isSupporter, !wasSupporter {
                 errorMessage = nil
-                Analytics.tipPurchased(tier: tier, source: source)
+                Analytics.tipPurchased(tier: tier, source: source, offering: offering)
             } else {
                 handle(error)
                 Analytics.purchaseFailed(reason: Self.analyticsReason(for: error), source: source)
@@ -372,9 +396,19 @@ final class PurchaseManager {
 
     /// The tier a package represents, or `nil` if it isn't one of the tips.
     private static func tier(for package: Package) -> TipTier? {
+        tier(packageIdentifier: package.identifier,
+             productIdentifier: package.storeProduct.productIdentifier)
+    }
+
+    /// The matching rule itself, over the two identifiers it actually reads.
+    ///
+    /// Split out from the `Package` overload because this is what decides the `tier` band on every
+    /// signal in the tip funnel, and a `Package` can't be built in a unit test without live
+    /// StoreKit. Getting it wrong doesn't break buying — it silently mislabels the analytics.
+    static func tier(packageIdentifier: String, productIdentifier: String) -> TipTier? {
         TipTier.allCases.first { tier in
-            package.identifier == tier.packageIdentifier
-                || package.storeProduct.productIdentifier.hasSuffix(".\(tier.packageIdentifier)")
+            packageIdentifier == tier.packageIdentifier
+                || productIdentifier.hasSuffix(".\(tier.packageIdentifier)")
         }
     }
 

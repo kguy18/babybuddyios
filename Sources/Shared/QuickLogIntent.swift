@@ -33,7 +33,7 @@ struct QuickLogIntent: AppIntent {
 
         // create() already fires Analytics.activityLogged for non-timer kinds, so don't double-log.
         let entity = LocalRepository(context: context).create(
-            kind: action.kind, payload: action.payload(childID: child, now: .now))
+            kind: action.kind, payload: action.payload(childID: child, now: .now), source: .intent)
         Analytics.widgetIntent("QuickLog:\(action.rawValue)")
         if let entity { await TimerPush.pushCreate(localID: entity.localID, in: context) }
         WidgetCenter.shared.reloadAllTimelines()

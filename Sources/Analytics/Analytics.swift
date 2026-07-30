@@ -56,9 +56,23 @@ enum Analytics {
 
     /// Sends a signal if analytics are enabled; a no-op otherwise.
     static func signal(_ name: String, parameters: [String: String] = [:]) {
+        #if DEBUG
+        if let recorder { recorder(name, parameters); return }
+        #endif
         guard isEnabled else { return }
         TelemetryDeck.signal(name, parameters: parameters)
     }
+
+    #if DEBUG
+    /// Test seam: while set, signals are handed here instead of TelemetryDeck — regardless of
+    /// whether analytics are configured, so a test host with no App ID still sees them.
+    ///
+    /// This is how the typed helpers below are covered: the funnel's whole value rests on the right
+    /// dimensions reaching the right signal (a tip attributed to the wrong entry point is worse than
+    /// no attribution), and the flows that emit them run through `Purchases.shared` and can't be
+    /// exercised without live StoreKit. Compiled out of release entirely.
+    static var recorder: ((_ name: String, _ parameters: [String: String]) -> Void)?
+    #endif
 }
 
 // MARK: - Events
@@ -107,11 +121,33 @@ extension Analytics {
         signal("Timer.stopped", parameters: ["activity": activity, "source": source.rawValue])
     }
 
+    /// Which path created an activity record.
+    enum ActivitySource: String {
+        /// The add/edit sheet — someone filled in a form and saved it.
+        case editor
+        /// "Repeat" on an existing record in the timeline.
+        case `repeat`
+        /// A running timer being stopped and logged, from anywhere (dashboard, editor, widget).
+        case timerStop
+        /// An App Intent — a Quick Log widget tile or Siri.
+        case intent
+    }
+
     /// A completed activity record was logged (created), of any kind — e.g. a diaper change,
     /// feeding, note, or measurement. Fires for manual entries, "repeat", and timer
     /// conversions alike (a converted timer also emits `Timer.stopped`).
-    static func activityLogged(kind: String) {
-        signal("Activity.logged", parameters: ["kind": kind])
+    ///
+    /// `source` is which path created it, so the split between typing a record out, repeating one,
+    /// stopping a timer, and tapping a widget is visible — the four are very different amounts of
+    /// work for the same result. Coarse and closed: never what was logged, only how.
+    static func activityLogged(kind: String, source: ActivitySource) {
+        signal("Activity.logged", parameters: ["kind": kind, "source": source.rawValue])
+    }
+
+    /// The Trends tab was opened, or its window changed. `period` is the rolling window in days
+    /// ("7" / "14" / "30") — the only thing the screen is parameterized by.
+    static func insightsViewed(periodDays: Int) {
+        signal("Insights.viewed", parameters: ["period": String(periodDays)])
     }
 
     /// A widget/App Intent was performed (e.g. from a Home Screen widget button or Siri).
@@ -127,6 +163,24 @@ extension Analytics {
     /// A push raised a conflict that needs user resolution.
     static func syncConflictRaised(kind: String, op: String) {
         signal("Sync.conflictRaised", parameters: ["kind": kind, "op": op])
+    }
+
+    /// How a conflict was settled.
+    enum ConflictChoice: String {
+        /// Keep the local version, overwriting the server.
+        case mine
+        /// Discard the local change and adopt the server's version.
+        case server
+        /// Keep a field-by-field merge of the two.
+        case merge
+    }
+
+    /// A raised conflict was resolved, and how — the other half of ``syncConflictRaised(kind:op:)``.
+    /// Together they show both how often conflicts happen and whether the resolution screen is
+    /// understood (a merge is the considered choice; all-server suggests people are giving up).
+    /// Carries the choice and the record kind only, never either version's contents.
+    static func syncConflictResolved(choice: ConflictChoice, kind: String) {
+        signal("Sync.conflictResolved", parameters: ["choice": choice.rawValue, "kind": kind])
     }
 
     /// A network/connectivity error with a short, non-identifying reason.
@@ -164,14 +218,43 @@ extension Analytics {
         case nudgeBanner
     }
 
-    /// The supporter sheet was shown, and which entry point opened it.
-    static func supporterSheetViewed(source: SupporterSource) {
-        signal("Supporter.sheetViewed", parameters: ["source": source.rawValue])
+    /// What the supporter sheet actually had to show when it opened.
+    ///
+    /// The point of recording it is the two `unavailable` cases. ``PurchaseManager/refresh()``
+    /// swallows a failed offering fetch deliberately (nobody asked for that work, and the sheet
+    /// already says so in plain language) — which means a shipped build whose sheet has nothing to
+    /// sell looks, in the funnel, exactly like one nobody chose to tip from. This tells them apart.
+    enum SupporterSheetState: String {
+        /// The amounts are on screen — the ask, as intended.
+        case ask
+        /// The thank-you: this customer has already tipped.
+        case thankYou
+        /// Configured to sell, but the offering yielded no tips — a failed fetch, or a dashboard
+        /// offering carrying no products. The one to alert on.
+        case unavailableNoTips
+        /// No RevenueCat key in this build (open source, a fork, or demo mode). Expected, and
+        /// unreachable in the App Store build.
+        case unavailableUnconfigured
     }
 
-    /// A supporter call-to-action was tapped (which opens the supporter sheet).
-    static func upgradePressed() {
-        signal("Supporter.ctaPressed")
+    /// The supporter sheet was shown: which entry point opened it, what it had to offer, and the
+    /// identifier of the offering serving it (absent when none has loaded).
+    ///
+    /// `offering` is the RevenueCat offering's own name — a dashboard-side label, not customer data
+    /// — so funnels can be sliced by it once Experiments serves variant offerings.
+    static func supporterSheetViewed(source: SupporterSource,
+                                     state: SupporterSheetState,
+                                     offering: String? = nil) {
+        var parameters = ["source": source.rawValue, "state": state.rawValue]
+        if let offering { parameters["offering"] = offering }
+        signal("Supporter.sheetViewed", parameters: parameters)
+    }
+
+    /// A supporter reopened the amounts from the thank-you state ("Tip again"). Distinct from
+    /// ``supporterSheetViewed(source:state:offering:)``, which fires for merely arriving: this is
+    /// someone who has already paid choosing to look at the amounts a second time.
+    static func supporterTipAgainPressed() {
+        signal("Supporter.tipAgainPressed")
     }
 
     /// A tip purchase began (the StoreKit sheet was requested). `tier` is the coarse tip size
@@ -182,9 +265,15 @@ extension Analytics {
     }
 
     /// A tip purchase completed successfully. Tips are consumable and repeatable, so this can fire
-    /// more than once for the same customer.
-    static func tipPurchased(tier: String, source: SupporterSource) {
-        signal("Tip.purchased", parameters: ["tier": tier, "source": source.rawValue])
+    /// more than once for the same customer. `offering` is the serving offering's identifier, so a
+    /// conversion is attributable to the offering (and so the Experiments variant) that produced it.
+    ///
+    /// Deliberately no amount: revenue reaches TelemetryDeck server-side through RevenueCat's
+    /// integration, and the tier band is the only purchase dimension the client reports.
+    static func tipPurchased(tier: String, source: SupporterSource, offering: String? = nil) {
+        var parameters = ["tier": tier, "source": source.rawValue]
+        if let offering { parameters["offering"] = offering }
+        signal("Tip.purchased", parameters: parameters)
     }
 
     /// A tip purchase failed. `reason` is a coarse code (e.g. a RevenueCat error code), never a

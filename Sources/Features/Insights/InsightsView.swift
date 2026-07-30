@@ -36,6 +36,13 @@ struct InsightsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ChildSwitcher(children: children, selectedChildID: $selectedChildID) }
             .refreshable { await sync.sync() }
+            // Whether Trends earns its place in the tab bar, and which window people actually
+            // reach for. Fires on arrival and on every change of the segmented control — the tab
+            // has one screen and one parameter, so those two are the whole picture.
+            .onAppear { Analytics.insightsViewed(periodDays: period.days) }
+            .onChange(of: period) { _, newPeriod in
+                Analytics.insightsViewed(periodDays: newPeriod.days)
+            }
             .overlay {
                 if children.isEmpty {
                     ContentUnavailableView(
