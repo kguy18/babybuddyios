@@ -36,14 +36,11 @@ Requires iOS 17+ and your own Baby Buddy server.
 
 <div align="center">
 
-<img src="Docs/screenshots/dashboard.png" width="200" alt="Dashboard with a running sleep timer and today's totals">
-<img src="Docs/screenshots/timeline.png" width="200" alt="Merged timeline of feedings, diapers, notes and sleep">
-<img src="Docs/screenshots/trends.png" width="200" alt="Trends tab charting daily sleep and feedings">
-<img src="Docs/screenshots/settings.png" width="200" alt="Settings showing sync status, conflicts and Face ID controls">
-
-<br><br>
-
-<img src="Docs/screenshots/widgets.png" width="440" alt="Home Screen widgets: status, timer starter, and a running tummy-time timer with Stop">
+<img src="Docs/screenshots/dashboard.png" width="155" alt="Dashboard with a running sleep timer and today's totals">
+<img src="Docs/screenshots/timeline.png" width="155" alt="Merged timeline of feedings, diapers, notes and sleep">
+<img src="Docs/screenshots/trends.png" width="155" alt="Trends tab charting daily sleep and feedings">
+<img src="Docs/screenshots/widgets.png" width="155" alt="Home Screen widgets: status, timer starter, and a running tummy-time timer with Stop">
+<img src="Docs/screenshots/settings.png" width="155" alt="Settings showing sync status, conflicts and Face ID controls">
 
 </div>
 
