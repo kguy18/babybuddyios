@@ -228,6 +228,103 @@ final class PurchaseManagerTests: XCTestCase {
         XCTAssertTrue(error.localizedDescription.contains("rev.cat"))
     }
 
+    // MARK: - Tip-funnel attribution
+
+    /// The band that lands on every tip signal, over the two identifiers the rule reads.
+    ///
+    /// A wrong answer here doesn't break buying — the purchase still goes through — it silently
+    /// mislabels the funnel, which is the kind of defect that gets believed.
+    func testTierMatchingProducesTheAnalyticsBand() {
+        for tier in TipTier.allCases {
+            // By package identifier, which is how a correctly-configured dashboard resolves.
+            XCTAssertEqual(PurchaseManager.tier(packageIdentifier: tier.packageIdentifier,
+                                                productIdentifier: "whatever"), tier)
+            // And by product-id suffix, the fallback for a package renamed in the dashboard.
+            XCTAssertEqual(
+                PurchaseManager.tier(packageIdentifier: "$rc_custom",
+                                     productIdentifier: "com.kurtisguy.BabyBuddy.\(tier.packageIdentifier)"),
+                tier)
+        }
+    }
+
+    /// A package that is not one of the tips resolves to nothing — which the purchase flow reports
+    /// as the "unknown" band rather than dropping the event, so the funnel still counts the attempt.
+    func testUnrecognizedPackageHasNoTierAndBecomesTheUnknownBand() {
+        let tier = PurchaseManager.tier(packageIdentifier: "$rc_monthly",
+                                        productIdentifier: "com.kurtisguy.BabyBuddy.something.else")
+        XCTAssertNil(tier)
+        XCTAssertEqual(tier?.rawValue ?? "unknown", "unknown")
+    }
+
+    #if DEBUG
+    /// Every tier × every entry point must arrive intact on all four funnel signals.
+    ///
+    /// This is what makes per-entry-point conversion a single-signal query: `source` is threaded
+    /// from ``SupporterSheet`` through ``PurchaseManager/purchase(tier:source:)`` onto each of these,
+    /// deliberately instead of a separate "converted" event to join against. A source that stopped
+    /// being attached would leave a funnel that still totals correctly and attributes nothing.
+    func testEveryTierAndSourceReachesEveryFunnelSignal() {
+        let sources: [Analytics.SupporterSource] =
+            [.settings, .deeplink, .nudgeGentle, .nudgeMilestone, .nudgeBanner]
+        XCTAssertEqual(Set(sources.map(\.rawValue)).count, sources.count, "sources must be distinct")
+
+        for tier in TipTier.allCases {
+            for source in sources {
+                let recorder = SignalRecorder()
+                defer { recorder.stop() }
+
+                Analytics.tipPurchaseStarted(tier: tier.rawValue, source: source)
+                Analytics.tipPurchased(tier: tier.rawValue, source: source, offering: "default")
+                Analytics.purchaseCancelled(source: source)
+                Analytics.purchaseFailed(reason: "code-23", source: source)
+
+                XCTAssertEqual(recorder.parameters("Tip.purchaseStarted"),
+                               ["tier": tier.rawValue, "source": source.rawValue])
+                XCTAssertEqual(recorder.parameters("Tip.purchased"),
+                               ["tier": tier.rawValue, "source": source.rawValue, "offering": "default"])
+                XCTAssertEqual(recorder.parameters("Purchase.cancelled"),
+                               ["source": source.rawValue])
+                XCTAssertEqual(recorder.parameters("Purchase.failed"),
+                               ["reason": "code-23", "source": source.rawValue])
+            }
+        }
+    }
+
+    /// A completed tip omits the offering key entirely when none has loaded, rather than reporting a
+    /// placeholder that would show up as a real cohort in the dashboard.
+    func testPurchasedOmitsTheOfferingWhenThereIsNone() {
+        let recorder = SignalRecorder()
+        defer { recorder.stop() }
+        Analytics.tipPurchased(tier: "small", source: .deeplink)
+        XCTAssertEqual(recorder.parameters("Tip.purchased"),
+                       ["tier": "small", "source": "deeplink"])
+    }
+
+    /// The no-op guard sits *before* the first signal, so an unconfigured build (open source, a fork,
+    /// demo mode) can't manufacture a funnel of attempts that never happened.
+    func testUnconfiguredPurchaseEmitsNothingAtAll() async {
+        let manager = PurchaseManager()
+        let recorder = SignalRecorder()
+        defer { recorder.stop() }
+
+        for tier in TipTier.allCases {
+            _ = await manager.purchase(tier: tier, source: .settings)
+        }
+        _ = await manager.restore()
+        await manager.refresh()
+
+        XCTAssertEqual(recorder.names, [], "unconfigured purchases must be silent, not just harmless")
+    }
+
+    /// The remote-config side of the same object: no offering means the compiled defaults, which is
+    /// what every build without purchases runs on.
+    func testSupporterConfigFallsBackToCompiledDefaults() {
+        let manager = PurchaseManager()
+        XCTAssertNil(manager.offeringIdentifier)
+        XCTAssertEqual(manager.supporterConfig, .defaults)
+    }
+    #endif
+
     // MARK: - Fixtures
 
     /// A stand-in for what RevenueCat actually throws. `Purchases.offerings()` surfaces

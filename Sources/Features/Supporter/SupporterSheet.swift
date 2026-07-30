@@ -26,8 +26,11 @@ struct SupporterSheet: View {
     @Environment(PurchaseManager.self) private var purchases
     @Environment(\.dismiss) private var dismiss
 
-    /// Preselected at the middle amount, per the design.
-    @State private var selection: TipTier = .medium
+    /// The amount the customer has actually tapped. `nil` until they do — the effective selection is
+    /// then ``selectedTier``, which follows the offering's preselected default as it loads. Holding
+    /// "untouched" as its own value is what lets a late-arriving offering set the default without
+    /// ever overwriting a choice someone already made.
+    @State private var selection: TipTier?
     /// Supporters land on the thank-you; the amounts appear only if they ask to tip again.
     @State private var showingAmounts = false
 
@@ -38,13 +41,40 @@ struct SupporterSheet: View {
                 .padding(.top, 10)
                 .padding(.bottom, 30)
         }
-        .onAppear { Analytics.supporterSheetViewed(source: source) }
         .task {
             // An offering fetch that failed at launch would otherwise be sticky for the whole session,
             // leaving the sheet with nothing to offer until the app is relaunched. Retrying as it opens
             // lets it heal itself; a no-op once the tips are in hand, so the normal case is untouched.
             if purchases.tips.isEmpty { await purchases.refresh() }
+            // Reported after that retry rather than in `onAppear`, so `state` describes what the sheet
+            // settled on instead of what it looked like mid-fetch — otherwise every open on a cold
+            // launch would report `unavailableNoTips` and the signal would mean nothing. The retry is
+            // a no-op in the normal case, so this is still effectively immediate.
+            Analytics.supporterSheetViewed(source: source, state: analyticsState,
+                                           offering: purchases.offeringIdentifier)
         }
+    }
+
+    // MARK: - Remote configuration
+
+    /// The serving offering's tuning, or the compiled defaults. See ``SupporterRemoteConfig``.
+    private var config: SupporterRemoteConfig { purchases.supporterConfig }
+
+    /// The amount the tip button will buy: whatever was tapped, else the configured default.
+    private var selectedTier: TipTier { selection ?? config.defaultTier }
+
+    /// The copy this sheet speaks in — a compiled variant chosen by name; see ``SupporterCopy``.
+    private var copy: SupporterCopy { SupporterCopy(variant: config.copyVariant) }
+
+    /// What the sheet actually has to show, for the funnel.
+    ///
+    /// A supporter reports ``Analytics/SupporterSheetState/thankYou`` even if the offering is broken:
+    /// no ask is being made of them, so the two unavailable states are reserved for the population
+    /// they matter for — people who came here to tip and found nothing to buy.
+    private var analyticsState: Analytics.SupporterSheetState {
+        if purchases.isSupporter { return .thankYou }
+        if !purchases.isConfigured { return .unavailableUnconfigured }
+        return purchases.tips.isEmpty ? .unavailableNoTips : .ask
     }
 
     // MARK: - Content
@@ -53,13 +83,11 @@ struct SupporterSheet: View {
         VStack(spacing: 0) {
             hero
 
-            Text(purchases.isSupporter ? "You're a Supporter ❤️" : "Support Baby Buddy Companion")
+            Text(purchases.isSupporter ? SupporterCopy.thankYouTitle : copy.askTitle)
                 .font(.system(size: 20, weight: .semibold))
                 .padding(.top, 14)
 
-            Text(purchases.isSupporter
-                 ? "Thank you for chipping in — it keeps Baby Buddy Companion free for everyone."
-                 : "The whole app is free, and stays that way. A one-time tip supports development — thank you either way.")
+            Text(purchases.isSupporter ? SupporterCopy.thankYouBody : copy.askBody)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .padding(.top, 7)
@@ -108,7 +136,7 @@ struct SupporterSheet: View {
     private var amounts: some View {
         HStack(spacing: 9) {
             ForEach(TipTier.allCases) { tier in
-                TipTile(tier: tier, price: price(for: tier), isSelected: selection == tier) {
+                TipTile(tier: tier, price: price(for: tier), isSelected: selectedTier == tier) {
                     selection = tier
                 }
             }
@@ -119,7 +147,7 @@ struct SupporterSheet: View {
     private var tipButton: some View {
         Button {
             Task {
-                await purchases.purchase(tier: selection, source: source)
+                await purchases.purchase(tier: selectedTier, source: source)
                 // Back to the thank-you: either the tip landed, or it was cancelled and the ask has
                 // been made once already.
                 showingAmounts = false
@@ -128,7 +156,7 @@ struct SupporterSheet: View {
             if purchases.isLoading {
                 ProgressView().tint(.white)
             } else {
-                Text("Tip \(price(for: selection))")
+                Text("Tip \(price(for: selectedTier))")
             }
         }
         .buttonStyle(.bbPrimary)
@@ -138,6 +166,7 @@ struct SupporterSheet: View {
 
     private var tipAgainButton: some View {
         Button("Tip again") {
+            Analytics.supporterTipAgainPressed()
             withAnimation(.snappy(duration: 0.2)) { showingAmounts = true }
         }
         .buttonStyle(.bbTinted)
@@ -211,6 +240,32 @@ struct SupporterSheet: View {
     /// offering has loaded (a build without purchases, or before the fetch lands).
     private func price(for tier: TipTier) -> String {
         purchases.tips.first { $0.tier == tier }?.localizedPrice ?? tier.fallbackPrice
+    }
+}
+
+// MARK: - Copy
+
+/// The supporter sheet's headline and body, per ``SupporterCopyVariant``.
+///
+/// Every string here is compiled in. The remote config selects a variant *by name* and can never
+/// supply text — see ``SupporterRemoteConfig`` for why. Only the ask varies: the thank-you is what
+/// the app says to someone who has already paid, and there is nothing to test about it.
+struct SupporterCopy {
+    let askTitle: String
+    let askBody: String
+
+    static let thankYouTitle = "You're a Supporter ❤️"
+    static let thankYouBody = "Thank you for chipping in — it keeps Baby Buddy Companion free for everyone."
+
+    init(variant: SupporterCopyVariant) {
+        switch variant {
+        case .standard:
+            askTitle = "Support Baby Buddy Companion"
+            askBody = "The whole app is free, and stays that way. A one-time tip supports development — thank you either way."
+        case .warm:
+            askTitle = "Keep Baby Buddy Companion going"
+            askBody = "Every feature is free, for everyone, and always will be. If the app has earned a place in your day, a one-time tip helps it keep growing."
+        }
     }
 }
 

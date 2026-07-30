@@ -210,6 +210,131 @@ final class SupportNudgeTests: XCTestCase {
         XCTAssertEqual(manager.nudge(now: laterStill, state: state, isSupporter: true), .none)
     }
 
+    // MARK: Remote configuration
+
+    /// The acceptance criterion for making the policy tunable: with no offering metadata, the
+    /// configured manager and the untouched one must agree on **every** decision, not merely on the
+    /// headline ones. Swept across the whole state space the policy actually branches on.
+    func testCompiledDefaultsAreIndistinguishableFromTheUntunedPolicy() {
+        var configured = manager
+        configured.config = SupporterRemoteConfig(metadata: nil)
+
+        for firstLaunch in [0, 3, 6, 7, 8, 30, 900] {
+            for lastNudge in [nil, 0, 6, 7, 13, 20, 21, 29, 30, 40] as [Int?] {
+                for entries in [0, 9, 10, 49, 50, 100, 250, 500, 1000, 9_000] {
+                    for lastMilestone in [0, 50, 500] {
+                        for dismissals in [0, 1, 2, 3, 9] {
+                            for supporter in [false, true] {
+                                let state = eligible(
+                                    firstLaunch: firstLaunch, lastNudge: lastNudge,
+                                    loggedEntries: entries, lastMilestone: lastMilestone,
+                                    dismissCount: dismissals)
+                                XCTAssertEqual(
+                                    configured.nudge(now: now, state: state, isSupporter: supporter),
+                                    manager.nudge(now: now, state: state, isSupporter: supporter),
+                                    """
+                                    diverged at firstLaunch=\(firstLaunch) \
+                                    lastNudge=\(String(describing: lastNudge)) entries=\(entries) \
+                                    lastMilestone=\(lastMilestone) dismissals=\(dismissals) \
+                                    supporter=\(supporter)
+                                    """)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// A tuned manager, so the knobs are demonstrably wired to the rules they name rather than
+    /// merely parsed. Each assertion pairs with the default-behaviour test above it in this file.
+    private func tuned(_ body: [String: Any]) -> SupportNudgeManager {
+        var tuned = manager
+        tuned.config = SupporterRemoteConfig(
+            metadata: [SupporterRemoteConfig.metadataKey: body])
+        return tuned
+    }
+
+    func testRemoteKillSwitchSilencesEverySurface() {
+        let off = tuned(["nudgesEnabled": false])
+        // The three states that would otherwise each produce a different surface.
+        XCTAssertEqual(off.nudge(now: now, state: eligible(), isSupporter: false), .none)
+        XCTAssertEqual(off.nudge(now: now, state: eligible(lastNudge: 40, loggedEntries: 500),
+                                 isSupporter: false), .none)
+        XCTAssertEqual(off.nudge(now: now, state: eligible(lastNudge: 40, loggedEntries: 500,
+                                                          dismissCount: 3), isSupporter: false), .none)
+    }
+
+    func testRemoteGatesMoveTheFirstAsk() {
+        let later = tuned(["firstAskDay": 14, "minLoggedEntries": 40])
+        XCTAssertEqual(later.nudge(now: now, state: eligible(firstLaunch: 13, loggedEntries: 100),
+                                   isSupporter: false), .none, "day 13 is inside a 14-day gate")
+        XCTAssertEqual(later.nudge(now: now, state: eligible(firstLaunch: 14, loggedEntries: 39),
+                                   isSupporter: false), .none, "39 entries is under a 40 gate")
+        XCTAssertEqual(later.nudge(now: now, state: eligible(firstLaunch: 14, loggedEntries: 40),
+                                   isSupporter: false), .gentleAsk)
+    }
+
+    func testRemoteCapAndBannerWindowMoveTheirIntervals() {
+        let longer = tuned(["capDays": 60, "bannerCapDays": 90])
+        XCTAssertEqual(longer.nudge(now: now, state: eligible(lastNudge: 40, loggedEntries: 500),
+                                    isSupporter: false), .none, "40 days is inside a 60-day cap")
+        XCTAssertEqual(longer.nudge(now: now, state: eligible(lastNudge: 60, loggedEntries: 500),
+                                    isSupporter: false), .milestone(500))
+        XCTAssertEqual(longer.nudge(now: now, state: eligible(lastNudge: 60, loggedEntries: 500,
+                                                             dismissCount: 3),
+                                    isSupporter: false), .none, "the retired banner waits 90 days")
+        XCTAssertEqual(longer.nudge(now: now, state: eligible(lastNudge: 90, loggedEntries: 500,
+                                                             dismissCount: 3),
+                                    isSupporter: false), .banner)
+    }
+
+    /// The snooze applies only once someone has actually refused, and only ever lengthens the gap —
+    /// it is combined with the cap by `max`, so a shorter snooze can't undercut the routine spacing.
+    func testSnoozeOnlyLengthensAndOnlyAfterARefusal() {
+        let snoozed = tuned(["capDays": 21, "snoozeDays": 60])
+        XCTAssertEqual(snoozed.nudge(now: now, state: eligible(lastNudge: 21, loggedEntries: 500),
+                                     isSupporter: false), .milestone(500),
+                       "nobody has refused, so the routine cap applies")
+        XCTAssertEqual(snoozed.nudge(now: now, state: eligible(lastNudge: 21, loggedEntries: 500,
+                                                              dismissCount: 1),
+                                     isSupporter: false), .none, "a refusal buys the longer window")
+        XCTAssertEqual(snoozed.nudge(now: now, state: eligible(lastNudge: 60, loggedEntries: 500,
+                                                              dismissCount: 1),
+                                     isSupporter: false), .milestone(500))
+
+        let shortSnooze = tuned(["capDays": 30, "snoozeDays": 7])
+        XCTAssertEqual(shortSnooze.nudge(now: now, state: eligible(lastNudge: 21, loggedEntries: 500,
+                                                                   dismissCount: 1),
+                                         isSupporter: false), .none,
+                       "a snooze shorter than the cap must not shorten the gap")
+    }
+
+    func testRemoteMilestonesAndDismissalLimitApply() {
+        let tuned = tuned(["milestones": [200], "maxDismissals": 1])
+        XCTAssertEqual(tuned.nudge(now: now, state: eligible(lastNudge: 40, loggedEntries: 100),
+                                   isSupporter: false), .none, "100 is no longer a milestone")
+        XCTAssertEqual(tuned.nudge(now: now, state: eligible(lastNudge: 40, loggedEntries: 200),
+                                   isSupporter: false), .milestone(200))
+        XCTAssertTrue(tuned.isRetired(eligible(dismissCount: 1)))
+        XCTAssertEqual(tuned.nudge(now: now, state: eligible(lastNudge: 40, loggedEntries: 200,
+                                                             dismissCount: 1),
+                                   isSupporter: false), .banner, "one refusal now retires the popups")
+    }
+
+    /// A dashboard typo can shorten the respectful spacing but never abolish it: the floors are
+    /// enforced at parse time, so the policy can't be driven below them from outside.
+    func testFloorsHoldWhenTheDashboardAsksForNothing() {
+        let absurd = tuned(["firstAskDay": 0, "capDays": 0, "snoozeDays": 0, "bannerCapDays": 0])
+        XCTAssertEqual(absurd.nudge(now: now, state: eligible(firstLaunch: 2, loggedEntries: 100),
+                                    isSupporter: false), .none, "never on day 2, whatever is set")
+        XCTAssertEqual(absurd.nudge(now: now, state: eligible(lastNudge: 6, loggedEntries: 500),
+                                    isSupporter: false), .none, "never twice inside a week")
+        XCTAssertEqual(absurd.nudge(now: now, state: eligible(lastNudge: 13, loggedEntries: 500,
+                                                              dismissCount: 3),
+                                    isSupporter: false), .none, "the banner keeps its fortnight")
+    }
+
     // MARK: Surface metadata
 
     /// Each surface has to carry its own analytics variant and supporter-sheet source, since that

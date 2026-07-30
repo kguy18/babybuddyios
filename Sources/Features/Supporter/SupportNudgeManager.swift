@@ -82,16 +82,26 @@ struct SupportNudgeState: Equatable {
 ///
 /// The policy, in priority order:
 /// - Supporters — and anyone who turned the reminders off — see nothing, permanently.
-/// - Nothing at all before day ``firstAskDays`` **and** ``firstAskEntries`` logged records.
+/// - Nothing at all before day ``SupporterRemoteConfig/firstAskDay`` **and**
+///   ``SupporterRemoteConfig/minLoggedEntries`` logged records.
 /// - The first ask is always the gentle card (A), and it is shown exactly once.
 /// - After that, only a crossed milestone (B) earns an interruption.
-/// - Never two nudges closer together than ``minimumIntervalDays``.
-/// - After ``retirementDismissals`` dismissals the popups stop for good, leaving only the quiet
-///   banner (D) at most once per ``bannerIntervalDays``.
+/// - Never two nudges closer together than ``SupporterRemoteConfig/capDays`` — or
+///   ``SupporterRemoteConfig/snoozeDays``, whichever is longer, once one has been turned down.
+/// - After ``SupporterRemoteConfig/maxDismissals`` dismissals the popups stop for good, leaving only
+///   the quiet banner (D) at most once per ``SupporterRemoteConfig/bannerCapDays``.
+///
+/// Every one of those knobs reads from ``config``, which is the compiled ``SupporterRemoteConfig``
+/// defaults unless the serving RevenueCat offering tunes them. The compiled values are the `static
+/// let`s below, so a build with no remote config runs exactly this policy as originally shipped.
 struct SupportNudgeManager {
     /// Injectable so tests can pin a fixed time zone. Every window below is counted in whole
     /// calendar days, so a boundary doesn't shift with the hour of day someone opened the app.
     var calendar: Calendar = .current
+
+    /// The tunable knobs. Defaults to the compiled constants below, which is what every build
+    /// without reachable offering metadata uses — see ``SupporterRemoteConfig``.
+    var config: SupporterRemoteConfig = .defaults
 
     /// Days after the first launch before anything may be shown. The first week is pure product.
     static let firstAskDays = 7
@@ -111,32 +121,43 @@ struct SupportNudgeManager {
     /// The surface due right now, or ``SupportNudge/none``.
     func nudge(now: Date, state: SupportNudgeState, isSupporter: Bool) -> SupportNudge {
         // A supporter has already done the thing we would be asking for, and someone who turned the
-        // reminders off has said so in as many words. Both silence everything, for good.
-        guard !isSupporter, state.remindersEnabled else { return .none }
+        // reminders off has said so in as many words. Both silence everything, for good. The remote
+        // kill switch joins them: it can only ever quiet the app, never make it ask more.
+        guard config.nudgesEnabled, !isSupporter, state.remindersEnabled else { return .none }
 
         // No ask until the app has had a week to prove itself *and* has actually been used for
         // something. Either alone is too weak a signal to interrupt a new parent over.
         guard let firstLaunch = state.firstLaunch,
-              days(from: firstLaunch, to: now) >= Self.firstAskDays,
-              state.loggedEntries >= Self.firstAskEntries
+              days(from: firstLaunch, to: now) >= config.firstAskDay,
+              state.loggedEntries >= config.minLoggedEntries
         else { return .none }
 
         // Retired: the popups are done for good, and the banner is all that's left.
         if isRetired(state) {
-            return isDue(state.lastNudge, after: Self.bannerIntervalDays, now: now) ? .banner : .none
+            return isDue(state.lastNudge, after: config.bannerCapDays, now: now) ? .banner : .none
         }
 
         // Everything below interrupts, so it waits out the global cap first.
-        guard isDue(state.lastNudge, after: Self.minimumIntervalDays, now: now) else { return .none }
+        guard isDue(state.lastNudge, after: interval(for: state), now: now) else { return .none }
 
         // The gentle ask opens, once. After that only a milestone is worth a modal.
         guard state.lastNudge != nil else { return .gentleAsk }
         return milestone(for: state).map(SupportNudge.milestone) ?? .none
     }
 
+    /// The days that must pass before the next interruption.
+    ///
+    /// The routine gap is ``SupporterRemoteConfig/capDays``. Once someone has actually said no,
+    /// ``SupporterRemoteConfig/snoozeDays`` applies as well — and it is combined with `max`, not
+    /// substituted, so a refusal can only ever buy *more* quiet than the routine gap, never less.
+    /// The compiled defaults set the two equal, which is the shipped single-interval behaviour.
+    private func interval(for state: SupportNudgeState) -> Int {
+        state.dismissCount > 0 ? max(config.capDays, config.snoozeDays) : config.capDays
+    }
+
     /// Whether the popups have retired — the point at which only the banner may still appear.
     func isRetired(_ state: SupportNudgeState) -> Bool {
-        state.dismissCount >= Self.retirementDismissals
+        state.dismissCount >= config.maxDismissals
     }
 
     /// The highest crossed-but-uncelebrated milestone, or `nil` if there isn't one.
@@ -145,7 +166,7 @@ struct SupportNudgeManager {
     /// while the cap held a nudge back should be congratulated on 250, not walked up through a
     /// backlog of thresholds they left behind weeks ago.
     private func milestone(for state: SupportNudgeState) -> Int? {
-        Self.milestones.last { $0 <= state.loggedEntries && $0 > state.lastMilestone }
+        config.milestones.last { $0 <= state.loggedEntries && $0 > state.lastMilestone }
     }
 
     // MARK: - Transitions
@@ -252,12 +273,26 @@ final class SupportNudgeStore {
     }
 
     /// The surface due right now, or ``SupportNudge/none``.
-    func pending(now: Date = .now, isSupporter: Bool) -> SupportNudge {
+    ///
+    /// `config` is the serving offering's tuning; it defaults to the compiled values, so every
+    /// caller that has no offering to hand — tests, and any build without purchases — gets the
+    /// policy exactly as shipped.
+    func pending(now: Date = .now, isSupporter: Bool,
+                 config: SupporterRemoteConfig = .defaults) -> SupportNudge {
         let state = self.state
         #if DEBUG
         if let forced = Self.debugForcedNudge(loggedEntries: state.loggedEntries) { return forced }
         #endif
-        return manager.nudge(now: now, state: state, isSupporter: isSupporter)
+        return manager(with: config).nudge(now: now, state: state, isSupporter: isSupporter)
+    }
+
+    /// This store's policy with `config`'s knobs applied. ``SupportNudgeManager`` is a struct, so
+    /// this is a value copy per call rather than shared mutable configuration — which keeps the
+    /// tuning an argument at the point of decision instead of state that can be stale.
+    private func manager(with config: SupporterRemoteConfig) -> SupportNudgeManager {
+        var configured = manager
+        configured.config = config
+        return configured
     }
 
     // MARK: Writing
@@ -286,12 +321,17 @@ final class SupportNudgeStore {
 
     /// Note that a nudge was turned down: count it, and report the retirement on the dismissal
     /// that crosses the line — exactly once, since the tally only ever goes up.
-    func markDismissed(_ variant: Analytics.NudgeVariant) {
+    ///
+    /// `config` decides where that line is (``SupporterRemoteConfig/maxDismissals``), so it has to
+    /// be the same one the decision was made with.
+    func markDismissed(_ variant: Analytics.NudgeVariant,
+                       config: SupporterRemoteConfig = .defaults) {
+        let policy = manager(with: config)
         let before = state
-        let next = manager.state(afterDismissal: before)
+        let next = policy.state(afterDismissal: before)
         defaults.set(next.dismissCount, forKey: Key.dismissCount)
         Analytics.nudgeDismissed(variant: variant, dismissCount: next.dismissCount)
-        if manager.isRetired(next), !manager.isRetired(before) { Analytics.nudgeRetired() }
+        if policy.isRetired(next), !policy.isRetired(before) { Analytics.nudgeRetired() }
     }
 
     #if DEBUG

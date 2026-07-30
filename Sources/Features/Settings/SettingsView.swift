@@ -336,7 +336,10 @@ struct SettingsView: View {
             SettingsRow(symbol: "faceid", tint: BBColor.sleep, title: "Require Face ID") {
                 Toggle("", isOn: Binding(
                     get: { lock.isEnabled },
-                    set: { lock.isEnabled = $0 }))
+                    set: { newValue in
+                        lock.isEnabled = newValue
+                        Analytics.settingChanged("appLock", enabled: newValue)
+                    }))
                     .labelsHidden()
                     .tint(BBColor.primary)
                     .disabled(!lock.biometryAvailable)
@@ -356,6 +359,7 @@ struct SettingsView: View {
                     get: { liveActivitiesEnabled },
                     set: { newValue in
                         liveActivitiesEnabled = newValue
+                        Analytics.settingChanged("liveActivities", enabled: newValue)
                         Task { await liveActivity.reconcile() }
                     }))
                     .labelsHidden()
@@ -411,7 +415,8 @@ struct SettingsView: View {
     private var supporterCard: some View {
         card {
             Button {
-                Analytics.upgradePressed()
+                // No separate CTA signal: opening the sheet emits `Supporter.sheetViewed` with
+                // `source: .settings` on this same tap, which is the same event counted once.
                 showingSupporter = true
             } label: {
                 SettingsRow(symbol: "heart.fill", tint: BBColor.brand,
