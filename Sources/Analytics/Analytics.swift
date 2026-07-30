@@ -134,15 +134,39 @@ extension Analytics {
         signal("Error.network", parameters: ["reason": reason])
     }
 
+    /// A named setting was switched on or off. Carries the setting's name and the new boolean only
+    /// — never the value of anything the setting controls.
+    static func settingChanged(_ setting: String, enabled: Bool) {
+        signal("Settings.changed", parameters: ["setting": setting, "enabled": String(enabled)])
+    }
+
     // MARK: In-app purchases & supporter status
     //
     // Tip funnel. Every feature is free; these track the optional supporter tips. Like every event
     // here they carry only coarse, non-identifying values — a tip tier or an error code — never
     // customer, receipt, or price data.
 
-    /// The supporter sheet was shown.
-    static func supporterSheetViewed() {
-        signal("Supporter.sheetViewed")
+    /// Which door someone came through to reach the supporter sheet.
+    ///
+    /// Threaded through every signal from there on, so a tip is attributable to the entry point that
+    /// produced it from a single signal. TelemetryDeck is signal-based, so this is deliberately a
+    /// parameter on the existing events rather than a separate "converted" signal to join against.
+    enum SupporterSource: String {
+        /// Settings ▸ Baby Buddy App Supporter.
+        case settings
+        /// The `babybuddy://supporter` deep link.
+        case deeplink
+        /// The one-time gentle ask (nudge variant A).
+        case nudgeGentle
+        /// A milestone celebration (nudge variant B).
+        case nudgeMilestone
+        /// The quiet inline Dashboard banner (nudge variant D).
+        case nudgeBanner
+    }
+
+    /// The supporter sheet was shown, and which entry point opened it.
+    static func supporterSheetViewed(source: SupporterSource) {
+        signal("Supporter.sheetViewed", parameters: ["source": source.rawValue])
     }
 
     /// A supporter call-to-action was tapped (which opens the supporter sheet).
@@ -151,27 +175,29 @@ extension Analytics {
     }
 
     /// A tip purchase began (the StoreKit sheet was requested). `tier` is the coarse tip size
-    /// ("small" / "medium" / "large"), or "unknown" for a package that matches no tier.
-    static func tipPurchaseStarted(tier: String) {
-        signal("Tip.purchaseStarted", parameters: ["tier": tier])
+    /// ("small" / "medium" / "large"), or "unknown" for a package that matches no tier; `source` is
+    /// the entry point that led here.
+    static func tipPurchaseStarted(tier: String, source: SupporterSource) {
+        signal("Tip.purchaseStarted", parameters: ["tier": tier, "source": source.rawValue])
     }
 
     /// A tip purchase completed successfully. Tips are consumable and repeatable, so this can fire
     /// more than once for the same customer.
-    static func tipPurchased(tier: String) {
-        signal("Tip.purchased", parameters: ["tier": tier])
+    static func tipPurchased(tier: String, source: SupporterSource) {
+        signal("Tip.purchased", parameters: ["tier": tier, "source": source.rawValue])
     }
 
     /// A tip purchase failed. `reason` is a coarse code (e.g. a RevenueCat error code), never a
     /// message.
-    static func purchaseFailed(reason: String) {
-        signal("Purchase.failed", parameters: ["reason": reason])
+    static func purchaseFailed(reason: String, source: SupporterSource) {
+        signal("Purchase.failed", parameters: ["reason": reason, "source": source.rawValue])
     }
 
     /// The customer cancelled the StoreKit purchase sheet — the expected "started but didn't buy"
-    /// terminal, distinct from ``purchaseFailed(reason:)``. Lets the funnel measure sheet abandonment.
-    static func purchaseCancelled() {
-        signal("Purchase.cancelled")
+    /// terminal, distinct from ``purchaseFailed(reason:source:)``. Lets the funnel measure sheet
+    /// abandonment per entry point.
+    static func purchaseCancelled(source: SupporterSource) {
+        signal("Purchase.cancelled", parameters: ["source": source.rawValue])
     }
 
     /// The outcome of a "Restore Purchases" attempt.
@@ -193,6 +219,44 @@ extension Analytics {
     /// Supporter status transitioned to active (via a tip or a restore).
     static func supporterActivated() {
         signal("Supporter.activated")
+    }
+
+    // MARK: Support nudges
+    //
+    // The respectful ask (see ``SupportNudgeManager``). There is deliberately no "converted" signal:
+    // a nudge that leads to a tip shows up as a `Supporter.sheetViewed` / `Tip.*` carrying the
+    // matching ``SupporterSource``, so conversion is a single-signal query per entry point.
+
+    /// Which support-nudge surface an event is about.
+    enum NudgeVariant: String {
+        /// Variant A — the one-time centered gentle ask.
+        case gentle
+        /// Variant B — a milestone celebration.
+        case milestone
+        /// Variant D — the quiet inline Dashboard banner.
+        case banner
+    }
+
+    /// A support nudge reached the screen. `milestone` carries the round entry-count threshold that
+    /// triggered a ``NudgeVariant/milestone`` nudge (50 / 100 / 250 / 500 / 1000) and is absent for
+    /// the other variants — never what was logged, only how many.
+    static func nudgeShown(variant: NudgeVariant, milestone: Int? = nil) {
+        var parameters = ["variant": variant.rawValue]
+        if let milestone { parameters["milestone"] = String(milestone) }
+        signal("Nudge.shown", parameters: parameters)
+    }
+
+    /// A support nudge was explicitly turned down. `dismissCount` is the running tally afterward —
+    /// the thing that eventually retires the popups — so the drop-off is visible per step.
+    static func nudgeDismissed(variant: NudgeVariant, dismissCount: Int) {
+        signal("Nudge.dismissed",
+               parameters: ["variant": variant.rawValue, "dismissCount": String(dismissCount)])
+    }
+
+    /// The popups retired permanently: enough dismissals that only the quiet banner remains. Fires
+    /// once, on the dismissal that crosses the line.
+    static func nudgeRetired() {
+        signal("Nudge.retired")
     }
 
     /// Coarse error reporting from API failures — category + a short, non-identifying reason.

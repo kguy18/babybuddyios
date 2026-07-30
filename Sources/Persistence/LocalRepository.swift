@@ -9,6 +9,14 @@ import SwiftData
 struct LocalRepository {
     let context: ModelContext
 
+    /// Called once for each activity record logged on this device.
+    ///
+    /// A seam rather than a direct call because this file also compiles into the widget extension,
+    /// which can't reach the app's own `UserDefaults` (and so can't touch the support-nudge counters
+    /// that hang off this). ``BabyBuddyApp`` installs the hook at launch; in the extension it stays
+    /// `nil` and the notification is simply dropped.
+    static var didLogActivity: (() -> Void)?
+
     // MARK: Create
 
     @discardableResult
@@ -26,6 +34,7 @@ struct LocalRepository {
         // through this method). Timer start/stop are tracked separately at their call sites.
         if kind != .timer && kind != .child {
             Analytics.activityLogged(kind: kind.rawValue)
+            Self.didLogActivity?()
         }
         return entity
     }

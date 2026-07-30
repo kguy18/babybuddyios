@@ -50,7 +50,7 @@ final class PurchaseManagerTests: XCTestCase {
         let manager = PurchaseManager()
         for tier in TipTier.allCases {
             // must not touch Purchases.shared / crash
-            let result = await manager.purchase(tier: tier)
+            let result = await manager.purchase(tier: tier, source: .settings)
             XCTAssertFalse(result, "\(tier) should be a no-op when unconfigured")
             XCTAssertFalse(manager.isSupporter)
             XCTAssertFalse(manager.isLoading)

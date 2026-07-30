@@ -282,6 +282,47 @@ struct FloatingAddButton: View {
     }
 }
 
+// MARK: Content-fitted bottom sheet
+
+/// A bottom sheet exactly as tall as what's in it, over the standard card background.
+///
+/// The detent follows the laid-out content height, so a short sheet doesn't leave half a screen of
+/// empty card below it. `.medium` covers the first frame only, before the measurement lands; content
+/// taller than the sheet (large Dynamic Type) scrolls, and the system clamps an over-tall
+/// measurement to the maximum sheet height for us. Callers supply their own padding.
+struct FittedSheet<Content: View>: View {
+    /// The laid-out content height, measured from inside.
+    @State private var contentHeight: CGFloat = 0
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        ScrollView {
+            content().background { heightReader }
+        }
+        // Content taller than the detent scrolls; anything shorter doesn't.
+        .scrollBounceBehavior(.basedOnSize)
+        .presentationDetents(contentHeight > 0 ? [.height(contentHeight)] : [.medium])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(BBColor.card)
+        .onPreferenceChange(FittedSheetHeightKey.self) { contentHeight = $0 }
+    }
+
+    private var heightReader: some View {
+        GeometryReader { proxy in
+            Color.clear.preference(key: FittedSheetHeightKey.self, value: proxy.size.height)
+        }
+    }
+}
+
+/// Carries a ``FittedSheet``'s laid-out content height up to the sheet, so the detent can match it.
+/// At file scope because a generic type can hold no static storage of its own.
+private struct FittedSheetHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 // MARK: Buttons
 
 /// Full-width filled button carrying the action-color grammar (stop=yellow, primary=blue…).

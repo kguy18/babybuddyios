@@ -18,6 +18,11 @@ enum SupporterLinks {
 /// to it. Three states, in priority order — purchases unavailable (open-source or demo builds),
 /// supporter (thank-you, with a quiet path to tip again), and the amounts.
 struct SupporterSheet: View {
+    /// Which entry point opened the sheet. Carried onto every signal from here on — including the
+    /// tip itself — so a purchase is attributed to the door it came through rather than needing a
+    /// separate conversion event. See ``Analytics/SupporterSource``.
+    let source: Analytics.SupporterSource
+
     @Environment(PurchaseManager.self) private var purchases
     @Environment(\.dismiss) private var dismiss
 
@@ -25,41 +30,20 @@ struct SupporterSheet: View {
     @State private var selection: TipTier = .medium
     /// Supporters land on the thank-you; the amounts appear only if they ask to tip again.
     @State private var showingAmounts = false
-    /// The laid-out content height, so the sheet is exactly as tall as what's in it.
-    @State private var contentHeight: CGFloat = 0
 
     var body: some View {
-        ScrollView {
+        FittedSheet {
             content
                 .padding(.horizontal, 22)
                 .padding(.top, 10)
                 .padding(.bottom, 30)
-                .background { heightReader }
         }
-        // Content taller than the detent (large Dynamic Type) scrolls; anything shorter doesn't.
-        .scrollBounceBehavior(.basedOnSize)
-        .presentationDetents(detents)
-        .presentationDragIndicator(.visible)
-        .presentationBackground(BBColor.card)
-        .onPreferenceChange(ContentHeightKey.self) { contentHeight = $0 }
-        .onAppear { Analytics.supporterSheetViewed() }
+        .onAppear { Analytics.supporterSheetViewed(source: source) }
         .task {
             // An offering fetch that failed at launch would otherwise be sticky for the whole session,
             // leaving the sheet with nothing to offer until the app is relaunched. Retrying as it opens
             // lets it heal itself; a no-op once the tips are in hand, so the normal case is untouched.
             if purchases.tips.isEmpty { await purchases.refresh() }
-        }
-    }
-
-    /// Fit the sheet to its content. `.medium` covers the first frame only, before the measurement
-    /// lands; the system clamps an over-tall content height to the maximum sheet height for us.
-    private var detents: Set<PresentationDetent> {
-        contentHeight > 0 ? [.height(contentHeight)] : [.medium]
-    }
-
-    private var heightReader: some View {
-        GeometryReader { proxy in
-            Color.clear.preference(key: ContentHeightKey.self, value: proxy.size.height)
         }
     }
 
@@ -143,7 +127,7 @@ struct SupporterSheet: View {
     private var tipButton: some View {
         Button {
             Task {
-                await purchases.purchase(tier: selection)
+                await purchases.purchase(tier: selection, source: source)
                 // Back to the thank-you: either the tip landed, or it was cancelled and the ask has
                 // been made once already.
                 showingAmounts = false
@@ -313,20 +297,10 @@ private extension TipTier {
     }
 }
 
-// MARK: - Height measurement
-
-/// Carries the content's laid-out height up to the sheet, so the detent can match it.
-private struct ContentHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
-    }
-}
-
 #Preview {
     Color.clear
         .sheet(isPresented: .constant(true)) {
-            SupporterSheet()
+            SupporterSheet(source: .settings)
                 .environment(PurchaseManager())
         }
 }

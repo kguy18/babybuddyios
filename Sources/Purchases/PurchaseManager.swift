@@ -203,11 +203,15 @@ final class PurchaseManager {
     /// Buys the given tip tier. Returns whether the customer is a supporter afterward. A no-op when
     /// purchases are off or the offering has no package for that tier; cancellation is silent, other
     /// failures land in ``errorMessage``.
+    ///
+    /// `source` is the entry point that led here (Settings, a deep link, or one of the nudges). It
+    /// is carried onto every signal this flow emits, which is how a tip is attributed back to the
+    /// door it came through — see ``Analytics/SupporterSource``.
     @discardableResult
-    func purchase(tier: TipTier) async -> Bool {
+    func purchase(tier: TipTier, source: Analytics.SupporterSource) async -> Bool {
         #if canImport(RevenueCat)
         guard isConfigured, let package = package(for: tier) else { return isSupporter }
-        return await purchase(package: package)
+        return await purchase(package: package, source: source)
         #else
         return isSupporter
         #endif
@@ -218,7 +222,7 @@ final class PurchaseManager {
     /// silent no-op (returning the current value) when purchases are off or the user cancels; other
     /// failures land in ``errorMessage``.
     @discardableResult
-    func purchase(package: Package) async -> Bool {
+    func purchase(package: Package, source: Analytics.SupporterSource) async -> Bool {
         guard isConfigured else { return isSupporter }
         isLoading = true
         defer { isLoading = false }
@@ -226,20 +230,20 @@ final class PurchaseManager {
         // dimension. An unrecognized package reports "unknown" rather than dropping the event.
         let tier = Self.tier(for: package)?.rawValue ?? "unknown"
         let wasSupporter = isSupporter
-        Analytics.tipPurchaseStarted(tier: tier)
+        Analytics.tipPurchaseStarted(tier: tier, source: source)
         do {
             let result = try await Purchases.shared.purchase(package: package)
             // User cancellations are an expected outcome, not an error to surface.
             guard !result.userCancelled else {
-                Analytics.purchaseCancelled()
+                Analytics.purchaseCancelled(source: source)
                 return isSupporter
             }
             apply(result.customerInfo)
             errorMessage = nil
-            Analytics.tipPurchased(tier: tier)
+            Analytics.tipPurchased(tier: tier, source: source)
         } catch ErrorCode.purchaseCancelledError {
             // Cancelled from the StoreKit sheet — leave state as-is, no error.
-            Analytics.purchaseCancelled()
+            Analytics.purchaseCancelled(source: source)
         } catch {
             // This call can throw over a tip that actually went through — sandbox especially, where a
             // slow hand-off to RevenueCat's backend outlives the request while the transaction itself
@@ -251,10 +255,10 @@ final class PurchaseManager {
             // active — so that keeps reporting the failure.)
             if isSupporter, !wasSupporter {
                 errorMessage = nil
-                Analytics.tipPurchased(tier: tier)
+                Analytics.tipPurchased(tier: tier, source: source)
             } else {
                 handle(error)
-                Analytics.purchaseFailed(reason: Self.analyticsReason(for: error))
+                Analytics.purchaseFailed(reason: Self.analyticsReason(for: error), source: source)
             }
         }
         return isSupporter

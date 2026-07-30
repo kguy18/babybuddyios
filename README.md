@@ -161,6 +161,7 @@ Pass via `SIMCTL_CHILD_<NAME>` env vars to `xcrun simctl launch`:
 | `BB_OPEN=feeding\|change\|…` | Auto-present a new-entry editor |
 | `BB_LOAD_OLDER=<n>` | Auto-page the timeline back `n` history chunks on launch (with `BB_DEMO`) |
 | `BB_LOCK=1` | Force the Face ID lock on |
+| `BB_NUDGE=gentle\|milestone\|banner` | Force a support-nudge surface on the Dashboard |
 
 ## Acknowledgements
 

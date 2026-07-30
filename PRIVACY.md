@@ -1,6 +1,6 @@
 # Privacy Policy — Baby Buddy for iOS
 
-_Last updated: 2026-06-25_
+_Last updated: 2026-07-29_
 
 Baby Buddy for iOS is a client for a **self-hosted Baby Buddy server that you provide**. The app has
 no first-party backend operated by the developer.
@@ -42,10 +42,17 @@ designed to be **anonymous and non-attributed**:
     (Face ID / Touch ID / none).
   - **Sync & errors** — that a sync completed or raised a conflict, and coarse error categories
     (e.g. network vs. server-rejected). Error reports never include the server's message text.
-  - **Premium & purchases** — that the paywall or a locked feature was viewed, that an upgrade was
-    tapped, and the coarse outcome of a purchase (started, completed, cancelled, failed, or restored)
-    or free trial (offer viewed, started, declined, or ended). These carry only a feature key or a
-    coarse status/error code — never price, receipt, customer, or transaction details.
+  - **Supporter tips** — that the supporter sheet was viewed and which entry point opened it
+    (Settings, a link, or one of the support nudges below), and the coarse outcome of an optional tip
+    (started, completed, cancelled, failed, or restored) together with its size band (small /
+    medium / large). These carry only a coarse status/error code, a size band, and an entry-point
+    name — never price, receipt, customer, or transaction details.
+  - **Support nudges** — that a nudge inviting you to support the app was shown, dismissed, or
+    retired; which of its three variants it was; how many times nudges have been dismissed; and, for
+    a milestone nudge, the round threshold that triggered it (50 / 100 / 250 / 500 / 1000 records
+    logged on this device). Never what was logged — only how many.
+  - **Settings** — that a named setting was switched on or off. Carries the setting's name and the
+    new on/off value only, never the data the setting affects.
 - Analytics are **not tied to your identity**. TelemetryDeck does not use cookies or stable
   advertising identifiers; any user count is derived from a one-way, non-reversible hash and cannot
   be traced back to you. Your IP address is not stored.

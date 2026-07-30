@@ -29,6 +29,9 @@ struct SettingsView: View {
     // defaults, read by the widget's intent. Keep the keys and defaults in sync.
     @AppStorage("quickFeedType", store: SharedDefaults.suite) private var quickFeedType: FeedingType = .breastMilk
     @AppStorage("quickFeedMethod", store: SharedDefaults.suite) private var quickFeedMethod: FeedingMethod = .bothBreasts
+    // The support-nudge switch. App-only defaults, not the App Group — nudges are an app-process
+    // concern; the key comes from ``SupportNudgeStore`` so the two can't drift apart.
+    @AppStorage(SupportNudgeStore.remindersEnabledKey) private var supportRemindersEnabled = true
 
     @State private var debugConflict: ConflictRecord?
     @State private var debugIcons = false
@@ -136,7 +139,7 @@ struct SettingsView: View {
             } message: {
                 Text("No email account is set up on this device. You can reach us at \(SupportContact.recipient).")
             }
-            .sheet(isPresented: $showingSupporter) { SupporterSheet() }
+            .sheet(isPresented: $showingSupporter) { SupporterSheet(source: .settings) }
             .sheet(isPresented: $showingAcknowledgements) { AcknowledgementsView() }
             .sheet(isPresented: $showingPending) { PendingChangesView() }
             .sheet(item: $debugConflict) { c in
@@ -412,6 +415,27 @@ struct SettingsView: View {
                 }
             }
             .buttonStyle(.plain)
+
+            supportRemindersRow
+        }
+    }
+
+    /// The opt-out for the support nudges (see ``SupportNudgeManager``), on by default. Its mere
+    /// presence is part of what makes the ask fair — and it disappears for supporters, who are never
+    /// nudged in the first place, rather than sitting there as a switch that controls nothing.
+    @ViewBuilder private var supportRemindersRow: some View {
+        if !purchases.isSupporter {
+            rowDivider
+            SettingsRow(symbol: "sparkles", tint: BBColor.pumping, title: "Support reminders") {
+                Toggle("", isOn: Binding(
+                    get: { supportRemindersEnabled },
+                    set: { newValue in
+                        supportRemindersEnabled = newValue
+                        Analytics.settingChanged("supportReminders", enabled: newValue)
+                    }))
+                    .labelsHidden()
+                    .tint(BBColor.primary)
+            }
         }
     }
 

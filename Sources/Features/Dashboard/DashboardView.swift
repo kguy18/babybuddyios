@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 /// Baby Buddy-style overview: active timer hero, today's running totals, and the most-recent
 /// event of each kind for the selected child. Reads entirely from the local cache.
@@ -8,6 +9,9 @@ struct DashboardView: View {
     @Environment(\.modelContext) private var context
     @Environment(DeepLinkRouter.self) private var router
     @Environment(LiveActivityManager.self) private var liveActivity
+    @Environment(PurchaseManager.self) private var purchases
+    @Environment(AppLockManager.self) private var lock
+    @Environment(\.scenePhase) private var scenePhase
     @Binding var selectedChildID: Int
 
     @Query(sort: \LocalEntity.timestamp, order: .reverse) private var allEntities: [LocalEntity]
@@ -27,11 +31,39 @@ struct DashboardView: View {
     /// try to present while another sheet is still on screen.
     @State private var pendingConvert: ConvertRequest?
 
+    // MARK: Support nudge state
+    //
+    // The Dashboard is the only place the support nudges appear (see ``SupportNudgeManager``), so it
+    // owns their presentation — and the "is anything else happening?" judgement they depend on.
+
+    /// The nudge the Dashboard draws itself: the gentle-ask overlay or the inline banner. The
+    /// milestone sheet is tracked separately in `milestoneAsk`, because `.sheet(item:)` owns a
+    /// lifecycle (a swipe-down) that an overlay has no equivalent of.
+    @State private var inlineNudge: SupportNudge = .none
+    @State private var milestoneAsk: MilestoneAsk?
+    /// Set when a nudge's blue button is tapped, so closing that surface isn't counted as a refusal
+    /// and the supporter sheet takes its place.
+    @State private var acceptedNudge = false
+    @State private var showingSupporter = false
+    /// Which nudge sent the customer to the supporter sheet — the tip's attribution.
+    @State private var supporterSource: Analytics.SupporterSource = .nudgeGentle
+    /// Bumped to re-ask the policy (on foreground); `.task(id:)` also runs it on first appearance.
+    @State private var nudgeCheck = 0
+    // Watched so a surface already on screen can be taken back the moment the reminders are switched
+    // off; the key comes from ``SupportNudgeStore`` so it can't drift from the one the policy reads.
+    @AppStorage(SupportNudgeStore.remindersEnabledKey) private var supportRemindersEnabled = true
+
     /// A request to convert a specific timer into a specific activity kind.
     private struct ConvertRequest: Identifiable {
         let timer: LocalEntity
         let kind: EntityKind
         var id: String { "\(timer.localID)-\(kind.rawValue)" }
+    }
+
+    /// Wraps a milestone count so `.sheet(item:)` has an `Identifiable` to present.
+    private struct MilestoneAsk: Identifiable {
+        let count: Int
+        var id: Int { count }
     }
 
     private let columns = [GridItem(.flexible(), spacing: 9), GridItem(.flexible(), spacing: 9)]
@@ -50,6 +82,12 @@ struct DashboardView: View {
                         VStack(spacing: 12) {
                             ForEach(activeTimers) { timerHero($0) }
                         }
+                    }
+
+                    if inlineNudge == .banner, !nudgesSilenced {
+                        SupportBanner(
+                            onSupport: { acceptNudge(.banner) },
+                            onDismiss: { dismissNudge(.banner) })
                     }
 
                     todaySection
@@ -102,6 +140,13 @@ struct DashboardView: View {
                                onLog: { kind in stopTimer(timer, as: kind) },
                                onDiscard: { discardTimer(timer); stoppingTimer = nil })
             }
+            .sheet(item: $milestoneAsk, onDismiss: finishMilestoneAsk) { ask in
+                SupportMilestoneSheet(
+                    count: ask.count,
+                    onSupport: { acceptedNudge = true; milestoneAsk = nil },
+                    onDismiss: { milestoneAsk = nil })
+            }
+            .sheet(isPresented: $showingSupporter) { SupporterSheet(source: supporterSource) }
             .refreshable { await sync.sync() }
             .onChange(of: router.openTimerLocalID) { _, id in openTimerActions(id) }
             .onChange(of: router.convertTarget) { _, target in openConvert(target) }
@@ -126,7 +171,124 @@ struct DashboardView: View {
                     "No Children", systemImage: "person.crop.circle.badge.questionmark",
                     description: Text("Add a child in Baby Buddy to get started.")) }
             }
+            // Above the quick-add stack and the empty state: while the gentle ask is up it is the
+            // only thing on screen that should be reachable.
+            .overlay {
+                if inlineNudge == .gentleAsk, !nudgesSilenced {
+                    SupportGentleAskCard(
+                        onSupport: { acceptNudge(.gentle) },
+                        onDismiss: { dismissNudge(.gentle) })
+                }
+            }
+            .task(id: nudgeCheck) { await considerNudge() }
+            .onChange(of: scenePhase) { _, phase in
+                // A returning customer gets the ask, rather than only ever a cold launch.
+                if phase == .active { nudgeCheck += 1 }
+            }
+            .onChange(of: nudgesSilenced) { _, silenced in
+                if silenced { withdrawNudges() }
+            }
         }
+    }
+
+    // MARK: Support nudge
+
+    /// Whether the ask has been settled since the surface went up — by tipping from another entry
+    /// point, or by switching the reminders off.
+    ///
+    /// The policy is consulted once, at the moment a nudge is due; this is the live half of the same
+    /// two rules, because the customer can reach Settings (the tab bar stays live, and the banner
+    /// never blocked anything) while a nudge is on screen. Without it, a banner keeps asking someone
+    /// who has just paid — and `isBusy` would hold it there for the rest of the session.
+    private var nudgesSilenced: Bool {
+        purchases.isSupporter || !supportRemindersEnabled
+    }
+
+    /// Take back whatever is on screen. Not a dismissal: nobody refused this ask, it stopped being
+    /// the right thing to show — so the retirement tally and the snooze are both left alone.
+    private func withdrawNudges() {
+        withAnimation(.snappy(duration: 0.2)) { inlineNudge = .none }
+        milestoneAsk = nil
+    }
+
+    /// Whether something else has the screen. Every sheet, the editor, the quick-add stack, both
+    /// halves of the timer-stop flow, the app lock, and the no-children empty state all count: a
+    /// nudge landing on a tired parent mid-log is the exact thing this policy exists to avoid.
+    private var isBusy: Bool {
+        addKind != nil || editing != nil || startingTimer || quickAddOpen || showAllActivities
+            || pendingAddKind != nil || stoppingTimer != nil || convertRequest != nil
+            || pendingConvert != nil || showingSupporter || router.showSupporter
+            || inlineNudge != .none || milestoneAsk != nil
+            || lock.isLocked || children.isEmpty
+    }
+
+    /// Ask the policy whether a support surface is due — a beat after the Dashboard settles.
+    ///
+    /// The delay earns its keep twice: a modal that arrives with the first frame reads as an ambush,
+    /// and it gives a deep link or a restored sheet time to claim the screen first. So the guards are
+    /// re-checked on the far side of it.
+    ///
+    /// Including the foreground check, which is not redundant: backgrounding doesn't disappear this
+    /// view, so `.task` isn't cancelled and the continuation would otherwise fire during iOS's
+    /// post-background wind-down. `present` would then stamp `lastNudge` — permanently consuming the
+    /// once-ever gentle ask, or retiring a milestone — for a surface nobody ever saw. The state must
+    /// be read live rather than from the captured `scenePhase`, which is snapshotted per body pass
+    /// and is stale by the time the sleep returns.
+    private func considerNudge() async {
+        guard !isBusy else { return }
+        try? await Task.sleep(for: .seconds(1.2))
+        guard !Task.isCancelled, !isBusy,
+              UIApplication.shared.applicationState == .active
+        else { return }
+        present(SupportNudgeStore.shared.pending(isSupporter: purchases.isSupporter))
+    }
+
+    /// Put a due nudge on screen and record that it was shown (which restarts the 21-day cap).
+    private func present(_ nudge: SupportNudge) {
+        guard nudge != .none else { return }
+        SupportNudgeStore.shared.markShown(nudge)
+        acceptedNudge = false
+        if let count = nudge.milestoneCount {
+            milestoneAsk = MilestoneAsk(count: count)
+        } else {
+            withAnimation(.snappy(duration: 0.25)) { inlineNudge = nudge }
+        }
+    }
+
+    /// The blue button on the gentle ask or the banner: close the surface, then open the app's one
+    /// purchase sheet, credited to the variant that sent them there.
+    private func acceptNudge(_ variant: Analytics.NudgeVariant) {
+        withAnimation(.snappy(duration: 0.2)) { inlineNudge = .none }
+        openSupporter(from: variant == .banner ? .nudgeBanner : .nudgeGentle)
+    }
+
+    /// The quiet button, the scrim, or the banner's "×": one tap, counted against the retirement
+    /// tally, and snoozed for at least three weeks.
+    private func dismissNudge(_ variant: Analytics.NudgeVariant) {
+        SupportNudgeStore.shared.markDismissed(variant)
+        withAnimation(.snappy(duration: 0.2)) { inlineNudge = .none }
+    }
+
+    /// The milestone sheet has finished dismissing. A swipe-down is a "no" every bit as much as
+    /// "Not now" is; only the blue button isn't — and the supporter sheet can only be presented now
+    /// that this one is fully gone.
+    private func finishMilestoneAsk() {
+        let accepted = acceptedNudge
+        acceptedNudge = false
+        if accepted {
+            openSupporter(from: .nudgeMilestone)
+        } else if !nudgesSilenced {
+            // Withdrawn by ``withdrawNudges()`` rather than turned down — a tip from Settings or the
+            // reminders switch isn't a refusal, so it must not count toward retirement.
+            SupportNudgeStore.shared.markDismissed(.milestone)
+        }
+    }
+
+    /// Open the supporter sheet. The source is the whole conversion signal: a tip that follows
+    /// carries it, so there is no separate "converted" event to join against.
+    private func openSupporter(from source: Analytics.SupporterSource) {
+        supporterSource = source
+        showingSupporter = true
     }
 
     // MARK: Header
