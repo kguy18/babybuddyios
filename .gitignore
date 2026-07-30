@@ -21,6 +21,15 @@ xcuserdata/
 # Build-time secrets (TelemetryDeck App ID, etc.) — never commit
 Config/Secrets.xcconfig
 
+# Internal working files — kept local, never published to the open-source repo
+app_store_listing.md
+implement_supporter.md
+design/
+App Store Assets/
+
+# Local Claude Code configuration
+.claude/
+
 # macOS
 .DS_Store
 
