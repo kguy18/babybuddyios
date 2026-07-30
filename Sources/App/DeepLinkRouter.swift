@@ -24,8 +24,8 @@ final class DeepLinkRouter {
     var openDayKind: EntityKind?
 
     /// Set when a link asks to present the supporter screen; cleared once handled. Nothing in the
-    /// app emits `babybuddy://supporter` today — the locked widgets that did are gone — but the
-    /// route stays live so an existing link still lands somewhere sensible.
+    /// app emits `babybuddy://supporter` today, but the route stays live so an existing link still
+    /// lands somewhere sensible.
     var showSupporter = false
 
     /// Parse a `babybuddy://` URL into router state. Returns `true` if it was recognized.

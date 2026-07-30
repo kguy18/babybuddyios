@@ -7,7 +7,7 @@ enum SupporterLinks {
     static let termsOfService = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
 }
 
-/// The app's one purchase surface — a tip jar, not a paywall.
+/// The app's one purchase surface — a tip jar, nothing more.
 ///
 /// Every feature is free and stays free; this sheet only asks for an optional one-time tip, in one
 /// of three amounts, and thanks the people who leave one. It is deliberately the single destination
