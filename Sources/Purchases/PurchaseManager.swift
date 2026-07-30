@@ -225,6 +225,7 @@ final class PurchaseManager {
         // Tips are consumable and repeatable, so the tier — not "did they buy" — is the funnel's
         // dimension. An unrecognized package reports "unknown" rather than dropping the event.
         let tier = Self.tier(for: package)?.rawValue ?? "unknown"
+        let wasSupporter = isSupporter
         Analytics.tipPurchaseStarted(tier: tier)
         do {
             let result = try await Purchases.shared.purchase(package: package)
@@ -240,8 +241,21 @@ final class PurchaseManager {
             // Cancelled from the StoreKit sheet — leave state as-is, no error.
             Analytics.purchaseCancelled()
         } catch {
-            handle(error)
-            Analytics.purchaseFailed(reason: Self.analyticsReason(for: error))
+            // This call can throw over a tip that actually went through — sandbox especially, where a
+            // slow hand-off to RevenueCat's backend outlives the request while the transaction itself
+            // completes. The entitlement then lands on `customerInfoStream`, sometimes before this
+            // `catch` even runs. Supporter status comes from `CustomerInfo` alone, so if it flipped on
+            // during the call the purchase demonstrably succeeded: thank the customer instead of
+            // apologising, and never invite them to pay a second time for something they already
+            // bought. (A repeat tip can't be told apart this way — its entitlement is already
+            // active — so that keeps reporting the failure.)
+            if isSupporter, !wasSupporter {
+                errorMessage = nil
+                Analytics.tipPurchased(tier: tier)
+            } else {
+                handle(error)
+                Analytics.purchaseFailed(reason: Self.analyticsReason(for: error))
+            }
         }
         return isSupporter
     }
@@ -342,6 +356,11 @@ final class PurchaseManager {
         recompute()
         if hasLoadedInitial, isSupporter, !wasSupporter {
             Analytics.supporterActivated()
+            // The other half of the slow-hand-off case in ``purchase(package:)``: when the entitlement
+            // arrives *after* that call gave up, an apology is already on screen. Whatever failed
+            // plainly didn't stop the tip, so retract it rather than leave it contradicting the
+            // thank-you right above it.
+            errorMessage = nil
         }
         hasLoadedInitial = true
     }

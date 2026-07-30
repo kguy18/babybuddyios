@@ -136,7 +136,14 @@ Exercises the true App Store purchase pipeline end-to-end.
    entitlement.
 4. **Interrupted purchase**: trigger *Ask to Buy* (sandbox) and approve/deny → confirm pending and
    failure paths don't crash.
-5. **Refund**: refund/delete the transaction via the StoreKit transaction manager (simulator build) →
+5. **Slow hand-off** (seen repeatedly in sandbox, and the reason `purchase(package:)` re-checks
+   supporter status in its `catch`): the tip completes at StoreKit but `Purchases.purchase` still
+   throws, because the hand-off to RevenueCat's backend outlives the request. The entitlement then
+   arrives on `customerInfoStream` a moment later — sometimes before the `catch` even runs. Expect the
+   thank-you state and **no error message**: the customer must never be told to try again, and so
+   risk paying twice, for a tip that went through. Watch that `Tip.purchased` fires rather than
+   `Purchase.failed`.
+6. **Refund**: refund/delete the transaction via the StoreKit transaction manager (simulator build) →
    confirm the app doesn't crash and **no feature stops working** (nothing is gated).
 
 ---
