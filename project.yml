@@ -41,6 +41,10 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kurtisguy.BabyBuddy
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # The five alternates offered by Settings ▸ App Icon. Xcode turns this list into the
+        # CFBundleIcons/CFBundleAlternateIcons entries `setAlternateIconName` resolves against;
+        # a name missing here fails at runtime, so keep it in step with ``AppIconOption``.
+        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIconHappyLowPeek AppIconLowPeek AppIconPeekWave AppIconSidePeekLeft AppIconSidePeekRight"
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait"

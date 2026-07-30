@@ -67,6 +67,8 @@ baby-tracking server. Offline-first, with conflict-aware sync and optional Face 
 - **Conflict-aware sync** — because Baby Buddy exposes no server-side change marker, edits are
   diffed against a base snapshot of the record they were derived from. Concurrent server changes
   raise a conflict you resolve with **Keep Mine / Keep Server / field-by-field Merge**.
+- **App icons** — six Home Screen icons of the Baby Buddy mascot, swapped from **Settings →
+  Appearance → App Icon**. All six are free, like everything else in the app.
 - **Security** — server URL + API token stored in the Keychain; optional Face ID / passcode lock.
 
 ## Architecture

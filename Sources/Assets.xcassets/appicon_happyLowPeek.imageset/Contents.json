@@ -1,0 +1,12 @@
+{
+  "images": [
+    {
+      "filename": "appicon_happyLowPeek.png",
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}

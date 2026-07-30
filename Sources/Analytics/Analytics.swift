@@ -194,6 +194,14 @@ extension Analytics {
         signal("Settings.changed", parameters: ["setting": setting, "enabled": String(enabled)])
     }
 
+    /// The home-screen icon was switched. Carries the chosen design's stable name (an
+    /// ``AppIconOption`` raw value) — which of six shipped artworks someone prefers, and nothing
+    /// about them. Worth its own signal rather than a ``settingChanged(_:enabled:)`` boolean, since
+    /// the interesting question is *which* icon wins, not that the screen was used.
+    static func appIconChanged(_ icon: String) {
+        signal("Settings.appIconChanged", parameters: ["icon": icon])
+    }
+
     // MARK: In-app purchases & supporter status
     //
     // Tip funnel. Every feature is free; these track the optional supporter tips. Like every event
