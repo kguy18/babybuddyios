@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="Sources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png" width="112" alt="Baby Buddy Companion app icon">
+<img src="Docs/app-icon-rounded.png" width="112" alt="Baby Buddy Companion app icon">
 
 # Baby Buddy Companion for iOS
 
