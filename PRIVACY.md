@@ -63,7 +63,9 @@ designed to be **anonymous and non-attributed**:
     a milestone nudge, the round threshold that triggered it (50 / 100 / 250 / 500 / 1000 records
     logged on this device). Never what was logged — only how many.
   - **Settings** — that a named setting was switched on or off. Carries the setting's name and the
-    new on/off value only, never the data the setting affects.
+    new on/off value only, never the data the setting affects. Separately, that the Home Screen app
+    icon was changed, and which of the six shipped designs was picked — the name of a drawing, and
+    nothing about you.
 - Analytics are **not tied to your identity**. TelemetryDeck does not use cookies or stable
   advertising identifiers; any user count is derived from a one-way, non-reversible hash and cannot
   be traced back to you. Your IP address is not stored.
