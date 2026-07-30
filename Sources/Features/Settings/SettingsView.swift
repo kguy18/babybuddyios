@@ -38,6 +38,10 @@ struct SettingsView: View {
     @State private var showingPending = false
     @State private var showingAcknowledgements = false
     @State private var showingSupporter = false
+    /// Whether a nudge has been shown yet, which is what reveals the "Support reminders" switch.
+    /// Refreshed on appear rather than observed: nudges only ever fire from the Dashboard, so this
+    /// tab is re-entered after any change.
+    @State private var hasSeenNudge = false
 
     // Contact Support: the row offers to attach diagnostics, then presents the mail composer
     // (or falls back to a mailto: link when no Mail account is set up).
@@ -151,6 +155,7 @@ struct SettingsView: View {
                 #endif
             }
             .onAppear {
+                hasSeenNudge = SupportNudgeStore.shared.hasShownANudge
                 #if DEBUG
                 if ProcessInfo.processInfo.environment["BB_OPEN_CONFLICT"] == "1" {
                     debugConflict = conflicts.first
@@ -420,11 +425,15 @@ struct SettingsView: View {
         }
     }
 
-    /// The opt-out for the support nudges (see ``SupportNudgeManager``), on by default. Its mere
-    /// presence is part of what makes the ask fair — and it disappears for supporters, who are never
-    /// nudged in the first place, rather than sitting there as a switch that controls nothing.
+    /// The opt-out for the support nudges (see ``SupportNudgeManager``), on by default.
+    ///
+    /// Held back until the first nudge has actually been shown. A switch offered before then asks
+    /// someone to decide about something they have never seen — and pre-emptively turning it off
+    /// would silence an ask they'd never have minded. Once they have met one, the control is theirs.
+    /// It also disappears for supporters, who are never nudged at all, rather than sitting there
+    /// governing nothing.
     @ViewBuilder private var supportRemindersRow: some View {
-        if !purchases.isSupporter {
+        if !purchases.isSupporter, hasSeenNudge {
             rowDivider
             SettingsRow(symbol: "sparkles", tint: BBColor.pumping, title: "Support reminders") {
                 Toggle("", isOn: Binding(

@@ -240,6 +240,17 @@ final class SupportNudgeStore {
             remindersEnabled: defaults.object(forKey: Key.remindersEnabled) as? Bool ?? true)
     }
 
+    /// Whether any nudge has ever been shown.
+    ///
+    /// The Settings opt-out hangs off this: someone should meet one ask before being handed the
+    /// switch that turns them off, or the switch is asking them to decide about something they have
+    /// no experience of. Safe for the gentle ask's own "Reminders can be turned off in Settings"
+    /// fineprint, because ``markShown(_:now:)`` runs before the surface reaches the screen — by the
+    /// time that line can be read, the switch it points at is there.
+    var hasShownANudge: Bool {
+        state.lastNudge != nil
+    }
+
     /// The surface due right now, or ``SupportNudge/none``.
     func pending(now: Date = .now, isSupporter: Bool) -> SupportNudge {
         let state = self.state

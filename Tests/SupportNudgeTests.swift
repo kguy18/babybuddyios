@@ -291,6 +291,16 @@ final class SupportNudgeStoreTests: XCTestCase {
         XCTAssertEqual(store.state.lastMilestone, 250)
     }
 
+    /// What reveals the Settings opt-out: nothing until an ask has actually been met, then always.
+    func testHasShownANudgeOnlyAfterOneReachesTheScreen() {
+        XCTAssertFalse(store.hasShownANudge, "a switch offered before the first ask asks about nothing")
+        store.markShown(.gentleAsk, now: Date(timeIntervalSince1970: 1_700_000_000))
+        XCTAssertTrue(store.hasShownANudge)
+        // Turning the reminders off must not hide the switch that turned them off.
+        defaults.set(false, forKey: SupportNudgeStore.remindersEnabledKey)
+        XCTAssertTrue(store.hasShownANudge)
+    }
+
     func testMarkShownIgnoresNone() {
         store.markShown(.none, now: Date(timeIntervalSince1970: 1_700_000_000))
         XCTAssertNil(store.state.lastNudge)
