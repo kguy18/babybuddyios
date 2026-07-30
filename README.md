@@ -4,10 +4,6 @@
 
 # Baby Buddy Companion for iOS
 
-### Baby tracking that lives on your phone and your server.
-
-A fast, native iPhone client for your self-hosted [Baby Buddy](https://github.com/babybuddy/babybuddy).
-Log feedings, sleep, diapers and more in a tap — with widgets, trends and private sync.
 
 <!-- ══ APP STORE BADGE ══════════════════════════════════════════════════════
      Pre-launch state: the shields.io "Coming soon" badge below.
@@ -21,11 +17,16 @@ Log feedings, sleep, diapers and more in a tap — with widgets, trends and priv
      marketing site's badge flips to a live link at the same time.
      ═════════════════════════════════════════════════════════════════════════ -->
 
+
 [![App Store — coming soon](https://img.shields.io/badge/App_Store-Coming_soon-0D96F6?style=for-the-badge&logo=apple&logoColor=white)](https://babybuddy.app)
 
 [![iOS 17+](https://img.shields.io/badge/iOS-17%2B-333333?style=flat-square&logo=apple&logoColor=white)](#build-it-for-your-own-iphone)
 [![License: BSD-2-Clause](https://img.shields.io/badge/License-BSD--2--Clause-4C9A5B?style=flat-square)](LICENSE.md)
 [![babybuddy.app](https://img.shields.io/badge/babybuddy.app-4C9A5B?style=flat-square&logo=safari&logoColor=white)](https://babybuddy.app)
+
+### Baby tracking that lives on your phone and your server.
+A fast, native iPhone client for your self-hosted [Baby Buddy](https://github.com/babybuddy/babybuddy).
+Log feedings, sleep, diapers and more in a tap — with widgets, trends and private sync.
 
 **Free. Every feature included.** No subscription, no trial, nothing locked.
 Requires iOS 17+ and your own Baby Buddy server.
