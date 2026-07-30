@@ -39,7 +39,7 @@ struct MainTabView: View {
         }
         .sheet(isPresented: Binding(get: { router.showSupporter },
                                     set: { router.showSupporter = $0 })) {
-            PremiumScreen()
+            SupporterSheet()
         }
         .safeAreaInset(edge: .top) {
             if !sync.isOnline {

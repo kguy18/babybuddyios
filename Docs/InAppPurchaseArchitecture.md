@@ -55,8 +55,8 @@ Three layers, each with one job. Dependencies point downward only; nothing lower
 
 ## Invariants (enforced by review / tests)
 
-1. `import RevenueCat` appears only in `PurchaseManager.swift`; `import RevenueCatUI` only in
-   `RevenueCatPaywallView.swift` (the sole UI boundary). No feature view names a RevenueCat type.
+1. `import RevenueCat` appears only in `PurchaseManager.swift`. No feature view names a RevenueCat
+   type — `SupporterSheet` renders tips from `PurchaseManager.tips` (plain `TipProduct` values).
 2. Managers are constructed once, at the composition root (`BabyBuddyApp`), and injected with
    `.environment(...)`; everything else reads them from the environment.
 3. **Nothing is gated.** `isSupporter` is display-only (a thank-you state, later cosmetics); it must

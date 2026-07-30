@@ -5,9 +5,11 @@ app is free; purchases only mark the customer a **supporter** (see
 `Docs/InAppPurchaseArchitecture.md`). The deterministic parts are covered by automated unit tests:
 
 - `Tests/PurchaseManagerTests.swift` — unconfigured/offline calls are safe no-ops that never touch
-  `Purchases.shared`, the store identifiers, and the supporter rule (`isSupporter` defaults to false,
+  `Purchases.shared`, the store identifiers, the supporter rule (`isSupporter` defaults to false,
   flips on an active `supporter` entitlement, and flips on a non-subscription purchase even with no
-  entitlement).
+  entitlement), and the error copy (`userMessage(for:)` maps every `ErrorCode` to a customer-readable
+  sentence — never Foundation's "(RevenueCat.ErrorCode error 23.)" placeholder, and never the SDK's
+  own developer-facing text with its `rev.cat` links).
 
 The scenarios below require live StoreKit and cannot be unit-tested, because RevenueCat's
 `Purchases.shared` singleton is not mockable. Work top to bottom: **StoreKit Configuration** (fastest,
@@ -134,7 +136,14 @@ Exercises the true App Store purchase pipeline end-to-end.
    entitlement.
 4. **Interrupted purchase**: trigger *Ask to Buy* (sandbox) and approve/deny → confirm pending and
    failure paths don't crash.
-5. **Refund**: refund/delete the transaction via the StoreKit transaction manager (simulator build) →
+5. **Slow hand-off** (seen repeatedly in sandbox, and the reason `purchase(package:)` re-checks
+   supporter status in its `catch`): the tip completes at StoreKit but `Purchases.purchase` still
+   throws, because the hand-off to RevenueCat's backend outlives the request. The entitlement then
+   arrives on `customerInfoStream` a moment later — sometimes before the `catch` even runs. Expect the
+   thank-you state and **no error message**: the customer must never be told to try again, and so
+   risk paying twice, for a tip that went through. Watch that `Tip.purchased` fires rather than
+   `Purchase.failed`.
+6. **Refund**: refund/delete the transaction via the StoreKit transaction manager (simulator build) →
    confirm the app doesn't crash and **no feature stops working** (nothing is gated).
 
 ---

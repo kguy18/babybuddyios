@@ -34,6 +34,7 @@ struct SettingsView: View {
     @State private var debugIcons = false
     @State private var showingPending = false
     @State private var showingAcknowledgements = false
+    @State private var showingSupporter = false
 
     // Contact Support: the row offers to attach diagnostics, then presents the mail composer
     // (or falls back to a mailto: link when no Mail account is set up).
@@ -54,7 +55,14 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     masthead
 
-                    sectioned("Support") { premiumCard }
+                    sectioned("Support the app") {
+                        supporterCard
+                        Text("Everything in the app is free. Supporting is optional and helps fund development.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
+                            .padding(.top, 2)
+                    }
 
                     sectioned("Server") { serverCard }
 
@@ -128,6 +136,7 @@ struct SettingsView: View {
             } message: {
                 Text("No email account is set up on this device. You can reach us at \(SupportContact.recipient).")
             }
+            .sheet(isPresented: $showingSupporter) { SupporterSheet() }
             .sheet(isPresented: $showingAcknowledgements) { AcknowledgementsView() }
             .sheet(isPresented: $showingPending) { PendingChangesView() }
             .sheet(item: $debugConflict) { c in
@@ -145,6 +154,9 @@ struct SettingsView: View {
                 }
                 if ProcessInfo.processInfo.environment["BB_ICONS"] == "1" {
                     debugIcons = true
+                }
+                if ProcessInfo.processInfo.environment["BB_SUPPORTER_SHEET"] == "1" {
+                    showingSupporter = true
                 }
                 #endif
             }
@@ -383,45 +395,40 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: Premium
+    // MARK: Support the app
 
-    /// The Premium section is a single row showing current status; tapping it opens the detail
-    /// screen (``PremiumDetailView``) with the upgrade / restore / manage / legal actions.
-    private var premiumCard: some View {
+    /// A single row carrying supporter status, opening the ``SupporterSheet``. Nothing in the app
+    /// is gated on supporting it, so the row is an invitation ("Join") rather than an upsell — and
+    /// once someone has tipped it settles into a quiet green "Active".
+    private var supporterCard: some View {
         card {
-            NavigationLink { PremiumDetailView() } label: { premiumStatusRow }
-                .buttonStyle(.plain)
-        }
-    }
-
-    private var premiumStatusRow: some View {
-        HStack(spacing: 12) {
-            premiumGlyph
-            Text("Baby Buddy Premium").font(.system(size: 16))
-            Spacer(minLength: 8)
-            Text(purchases.isSupporter ? "Supporter" : "Free")
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(purchases.isSupporter ? BBColor.success : .secondary)
-            disclosure
-        }
-        .padding(.vertical, 11)
-        .contentShape(Rectangle())
-    }
-
-    /// Free → a poop glyph; premium → the yellow crown — each in the app's tinted glyph tile.
-    private var premiumGlyph: some View {
-        RoundedRectangle(cornerRadius: 9, style: .continuous)
-            .fill((purchases.isSupporter ? BBColor.stop : BBColor.change).opacity(0.15))
-            .frame(width: 30, height: 30)
-            .overlay {
-                if purchases.isSupporter {
-                    Image(systemName: "crown.fill")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(BBColor.stop) // yellow crown
-                } else {
-                    Text("💩").font(.system(size: 17))
+            Button {
+                Analytics.upgradePressed()
+                showingSupporter = true
+            } label: {
+                SettingsRow(symbol: "heart.fill", tint: BBColor.brand,
+                            glyphColor: BBColor.brandAccent, title: "Baby Buddy App Supporter") {
+                    supporterStatus
                 }
             }
+            .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder private var supporterStatus: some View {
+        if purchases.isSupporter {
+            HStack(spacing: 4) {
+                Image(systemName: "checkmark").font(.system(size: 13, weight: .semibold))
+                Text("Active")
+            }
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(BBColor.success)
+        } else {
+            HStack(spacing: 4) {
+                Text("Join").font(.subheadline.weight(.medium)).foregroundStyle(BBColor.brandAccent)
+                disclosure
+            }
+        }
     }
 
     private var disclosure: some View {
@@ -601,7 +608,6 @@ struct SettingsView: View {
 
 /// One grouped-settings row: a small tinted glyph tile, a title, and trailing content
 /// (a value, a status, a toggle, or a chevron). Mirrors ``ActivityTile``'s tint wash.
-/// Shared by ``SettingsView`` and ``PremiumDetailView``.
 struct SettingsRow<Trailing: View>: View {
     @Environment(\.colorScheme) private var scheme
     let symbol: String

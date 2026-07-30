@@ -76,8 +76,7 @@ struct DayTimelineView: View {
             EntityEditorView(kind: entity.kind, childID: childID, entity: entity)
         }
         .sheet(isPresented: $adding) {
-            // Log a new event of this view's kind. The editor self-gates premium kinds on create,
-            // matching the Dashboard quick-add behavior.
+            // Log a new event of this view's kind.
             EntityEditorView(kind: kind, childID: childID)
         }
         .overlay {
