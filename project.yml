@@ -40,6 +40,10 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kurtisguy.BabyBuddy
+        # The Home Screen label. Without this it falls back to the product name, "BabyBuddy" — no
+        # space. Matches the widget's display name below; the store name ("Baby Buddy Companion")
+        # is deliberately not used here, as the Home Screen truncates past ~12 characters.
+        INFOPLIST_KEY_CFBundleDisplayName: "Baby Buddy"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # The five alternates offered by Settings ▸ App Icon. Xcode turns this list into the
         # CFBundleIcons/CFBundleAlternateIcons entries `setAlternateIconName` resolves against;
