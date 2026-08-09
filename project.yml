@@ -15,7 +15,10 @@ packages:
 
 settings:
   base:
-    MARKETING_VERSION: "0.1.0"
+    # Applies to the app and the widget extension alike — App Store Connect rejects an upload whose
+    # extension version doesn't match the app's. Bump CURRENT_PROJECT_VERSION for every upload: a
+    # build number may only be used once per MARKETING_VERSION.
+    MARKETING_VERSION: "1.0.0"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.0"
     DEVELOPMENT_TEAM: "547DWTTFY6"
@@ -40,6 +43,16 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kurtisguy.BabyBuddy
+        # iPhone only. Archive validation rejects a universal app that declares just one interface
+        # orientation: iPad demands all four for multitasking. Baby Buddy is portrait-locked with no
+        # iPad layout — no size classes, no split view — and the old opt-out (UIRequiresFullScreen)
+        # is deprecated as of iPadOS 26, so iPhone-only is the honest declaration. iPad owners can
+        # still install it and run it in iPhone compatibility mode.
+        #
+        # This must be set per target: XcodeGen's iOS platform preset writes "1,2" at the target
+        # level, which beats anything in the project-wide `settings:` block above. Keep the widget
+        # and test targets in step.
+        TARGETED_DEVICE_FAMILY: "1"
         # The Home Screen label. Without this it falls back to the product name, "BabyBuddy" — no
         # space. Matches the widget's display name below; the store name ("Baby Buddy Companion")
         # is deliberately not used here, as the Home Screen truncates past ~12 characters.
@@ -62,6 +75,11 @@ targets:
         TelemetryDeckSalt: "$(TELEMETRYDECK_SALT)"
         RevenueCatAPIKey: "$(REVENUECAT_API_KEY)"
         NSSupportsLiveActivities: true
+        # The app uses only Apple-provided HTTPS and the platform Keychain — exempt encryption.
+        # Declaring it here answers the export-compliance question at build time; without it every
+        # single upload sits in App Store Connect waiting on the questionnaire before it can reach
+        # a tester.
+        ITSAppUsesNonExemptEncryption: false
         BGTaskSchedulerPermittedIdentifiers:
           - com.kurtisguy.BabyBuddy.sync
         CFBundleURLTypes:
@@ -100,6 +118,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kurtisguy.BabyBuddy.Widgets
         INFOPLIST_KEY_CFBundleDisplayName: "Baby Buddy"
+        # Match the host app — an embedded extension may not target devices the app doesn't.
+        TARGETED_DEVICE_FAMILY: "1"
     info:
       path: Widgets/Info.plist
       properties:
@@ -125,6 +145,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kurtisguy.BabyBuddy.tests
+        # Match the host app so the test bundle runs on the same destinations.
+        TARGETED_DEVICE_FAMILY: "1"
 
 schemes:
   BabyBuddy:

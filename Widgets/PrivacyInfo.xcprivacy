@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Privacy manifest for the BabyBuddyWidgets extension.
+
+  An app extension ships as its own bundle and is scanned separately, so it needs a manifest of its
+  own even though it declares much the same thing as the app's. The extension compiles
+  `Sources/Shared`, `Sources/Persistence`, `Sources/Networking` and `Sources/Analytics` (see
+  project.yml), which is where its required-reason API usage comes from.
+
+  Keep this in step with Sources/PrivacyInfo.xcprivacy.
+-->
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<!-- See the app manifest: nothing here is collected by the developer. -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<!--
+				  CA92.1 — ``SharedDefaults.suite`` falls back to `.standard` when the App Group
+				  suite can't be opened, so the extension binary does reach its own defaults.
+				-->
+				<string>CA92.1</string>
+				<!--
+				  1C8F.1 — the extension's normal path: reading the `group.com.kurtisguy.BabyBuddy`
+				  suite the app writes.
+				-->
+				<string>1C8F.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

@@ -18,6 +18,12 @@ Swap `build` for `test` to run the suite.
 are all generated from `project.yml`. Edit the YAML and re-run `xcodegen generate`; hand edits to
 the generated files are overwritten.
 
+The two privacy manifests — `Sources/PrivacyInfo.xcprivacy` and `Widgets/PrivacyInfo.xcprivacy` —
+are the exception: they are hand-maintained and merely globbed in as resources, so edit them
+directly. The app and the extension are scanned as separate bundles and so need one each; keep the
+two in step. Adding a required-reason API (`UserDefaults`, file timestamps, disk space, boot time,
+active keyboards) to code the widget also compiles means updating both.
+
 ## Debug launch flags (simulator)
 
 Pass these via `SIMCTL_CHILD_<NAME>` environment variables to `xcrun simctl launch`:

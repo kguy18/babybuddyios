@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Privacy manifest for the BabyBuddy app target.
+
+  Unlike Info.plist and the entitlements files, this is NOT generated from project.yml — it is a
+  hand-maintained resource that XcodeGen globs in from `Sources`. Edit it here.
+
+  Apple's static scanner reads every manifest in the shipped bundle, including the ones vendored by
+  TelemetryDeck and RevenueCat. Those two declare their own collection (product interaction, device
+  ID, purchase history), so this file only has to cover the app's own code.
+-->
+<plist version="1.0">
+<dict>
+	<!--
+	  No tracking: the app links no ad SDK, never calls AppTrackingTransparency, and never touches
+	  the advertising identifier. The per-device analytics hash is salted and not joined to any
+	  third-party data, so it is not tracking under Apple's definition.
+	-->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<!--
+	  Empty on purpose. Activity data is transmitted only to the Baby Buddy server the customer runs
+	  themselves — it never reaches the developer or a third party, so it is not "collected". The
+	  analytics and purchase data that IS collected is declared by the TelemetryDeck and RevenueCat
+	  manifests bundled with their SDKs.
+	-->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<!--
+				  CA92.1 — defaults readable only by this app: the Face ID lock flag
+				  (``AppLockManager``), the supporter debug override (``PurchaseManager``) and the
+				  support-nudge counters (``SupportNudgeManager``, deliberately kept out of the App
+				  Group suite).
+				-->
+				<string>CA92.1</string>
+				<!--
+				  1C8F.1 — the `group.com.kurtisguy.BabyBuddy` suite in ``SharedDefaults``, which the
+				  app writes and the widget extension reads (selected child, quick-feed defaults,
+				  Live Activities toggle). Readable only within the App Group.
+				-->
+				<string>1C8F.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
