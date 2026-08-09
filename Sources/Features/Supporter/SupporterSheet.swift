@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// Shared legal links shown on the supporter sheet. Replace these with the hosted policy URLs
-/// before shipping.
+/// Shared legal links shown on the supporter sheet. Both must stay publicly reachable — App
+/// Review taps them from the purchase surface — so the privacy policy points at the marketing
+/// site rather than the source repo, which is private.
 enum SupporterLinks {
-    static let privacyPolicy = URL(string: "https://github.com/kguy18/babybuddyios/blob/main/PRIVACY.md")!
+    static let privacyPolicy = URL(string: "https://babybuddy.app/privacy")!
     static let termsOfService = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
 }
 
