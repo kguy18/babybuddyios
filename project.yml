@@ -19,7 +19,7 @@ settings:
     # extension version doesn't match the app's. Bump CURRENT_PROJECT_VERSION for every upload: a
     # build number may only be used once per MARKETING_VERSION.
     MARKETING_VERSION: "1.0.0"
-    CURRENT_PROJECT_VERSION: "1"
+    CURRENT_PROJECT_VERSION: "2"
     SWIFT_VERSION: "5.0"
     DEVELOPMENT_TEAM: "547DWTTFY6"
     CODE_SIGN_STYLE: Automatic
