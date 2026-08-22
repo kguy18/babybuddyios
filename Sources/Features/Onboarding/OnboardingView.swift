@@ -8,7 +8,7 @@ import UIKit
 struct OnboardingView: View {
     @Environment(AppSession.self) private var session
 
-    @State private var serverURL = "https://demo.baby-buddy.net"
+    @State private var serverURL = ""
     @State private var token = ""
     @State private var isValidating = false
     @State private var showScanner = false
@@ -27,10 +27,21 @@ struct OnboardingView: View {
     /// the user retries). Drives the red banner, the red field border, and the "Try again" label.
     private var hasError: Bool { session.lastError != nil && !isValidating }
 
-    /// Host shown in the "Reaching …" connecting subline, derived through the *same* normalization
-    /// the sign-in uses — purely for display, the real upgrade still happens in `AppSession`.
-    private var reachingHost: String {
-        URL(string: AppSession.normalizedServerURLString(serverURL))?.host ?? serverURL
+    /// The typed URL's host, parsed through the *same* normalization the sign-in uses — the real
+    /// upgrade still happens in `AppSession`. `nil` until the field holds something parseable.
+    private var normalizedHost: String? {
+        URL(string: AppSession.normalizedServerURLString(serverURL))?.host
+    }
+
+    /// Host shown in the "Reaching …" connecting subline.
+    private var reachingHost: String { normalizedHost ?? serverURL }
+
+    /// Drives the green lock. Normalization prepends `https://` to anything, so a bare host check
+    /// would go green on the first character typed — require a dotted host (domain or IP) or
+    /// localhost so the lock means "this could actually resolve".
+    private var urlLooksValid: Bool {
+        guard let host = normalizedHost else { return false }
+        return host.contains(".") || host == "localhost"
     }
 
     var body: some View {
@@ -114,7 +125,7 @@ struct OnboardingView: View {
                     Text("Scan QR code")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(.white)
-                    Text("Fastest way · from the server's app login")
+                    Text("Fastest way · go to User → Add\u{00A0}a\u{00A0}Device and scan the code")
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.85))
                 }
@@ -159,8 +170,8 @@ struct OnboardingView: View {
                 fieldRow(label: "Server URL") {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 15))
-                        .foregroundStyle(hasError ? Color.secondary : BBColor.success)
-                    TextField("https://baby.mydomain.com", text: $serverURL)
+                        .foregroundStyle(!hasError && urlLooksValid ? BBColor.success : Color.secondary)
+                    TextField("Your server URL or IP address", text: $serverURL)
                         .font(.system(size: 15))
                         .textContentType(.URL)
                         .keyboardType(.URL)
