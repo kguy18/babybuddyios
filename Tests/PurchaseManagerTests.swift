@@ -196,6 +196,22 @@ final class PurchaseManagerTests: XCTestCase {
         XCTAssertEqual(Set([offline, notAllowed, pending]).count, 3)
     }
 
+    /// The generic arm — and only it — carries the raw code, so a failure we can't otherwise
+    /// identify is identifiable from a screenshot alone. That is the whole diagnostic on a device we
+    /// can't reach, App Review's included, so it is asserted rather than left to survive on
+    /// good intentions. Codes with copy of their own must stay clean: the customer can act on those,
+    /// and a reference number would only add noise.
+    func testGenericMessageCarriesTheCodeAndTheSpecificOnesDoNot() {
+        XCTAssertEqual(PurchaseManager.userMessage(for: Self.publicError(.storeProblemError)),
+                       "Something went wrong. Please try again. Error 2.")
+
+        for code in [ErrorCode.networkError, .purchaseNotAllowedError, .paymentPendingError, .configurationError] {
+            let message = PurchaseManager.userMessage(for: Self.publicError(code))
+            XCTAssertFalse(message.contains("Error \(code.rawValue)"),
+                           "\(code) has its own copy and shouldn't carry a reference number: \(message)")
+        }
+    }
+
     /// An error the SDK didn't produce takes the generic sentence rather than its own description.
     /// Asserting the literal copy matters: forwarding `localizedDescription` is what produced the bug
     /// in the first place, and a foreign `NSError` carrying no description of its own would land right

@@ -484,7 +484,14 @@ final class PurchaseManager {
         default:
             // Store outages, backend hiccups, receipt problems, and whatever a future SDK adds: the
             // customer can only retry, so don't name a cause we aren't sure of.
-            return genericFailureMessage
+            //
+            // The bare code rides along because this arm is the one failure we can't otherwise tell
+            // apart, and the devices it matters most on are the ones we can never attach a debugger
+            // to — App Review's above all, which reports a rejected purchase as a screenshot and
+            // nothing else. Putting the code on screen makes that screenshot the log. It stays a
+            // digit rather than a name so it reads as a reference number to a parent, and is
+            // deliberately absent from every other arm, where the copy already says what happened.
+            return "\(genericFailureMessage) Error \(code.rawValue)."
         }
     }
 
