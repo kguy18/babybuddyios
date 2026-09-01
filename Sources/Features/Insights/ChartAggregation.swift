@@ -64,7 +64,7 @@ struct ChartAggregator {
                          period: ChartPeriod, now: Date = .now) -> [DailySleep] {
         var seconds = [Date: Double]()
         for entity in matching(entities, kind: .sleep, childID: childID) {
-            guard let interval = durationSeconds(entity.payloadObject) else { continue }
+            guard let interval = durationSeconds(entity) else { continue }
             seconds[calendar.startOfDay(for: entity.timestamp), default: 0] += interval
         }
         return days(for: period, now: now).map {
@@ -118,11 +118,11 @@ struct ChartAggregator {
     }
 
     /// Seconds between a payload's `start` and `end`, or nil if they don't form a positive
-    /// interval. Mirrors ``EntityFormatting``'s start/end duration derivation.
-    private func durationSeconds(_ payload: [String: Any]) -> Double? {
-        guard let s = payload["start"] as? String, let e = payload["end"] as? String,
-              let start = APIDate.parse(s), let end = APIDate.parse(e), end > start
-        else { return nil }
+    /// interval. Mirrors ``EntityFormatting``'s start/end duration derivation, and reads the
+    /// entity's parsed-date cache so re-aggregation doesn't re-parse ISO strings.
+    private func durationSeconds(_ entity: LocalEntity) -> Double? {
+        let dates = entity.startEndDates
+        guard let start = dates.start, let end = dates.end, end > start else { return nil }
         return end.timeIntervalSince(start)
     }
 }

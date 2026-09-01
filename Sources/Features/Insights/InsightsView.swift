@@ -9,10 +9,27 @@ struct InsightsView: View {
     @Environment(SyncEngine.self) private var sync
     @Binding var selectedChildID: Int
 
-    @Query(sort: \LocalEntity.timestamp, order: .reverse) private var allEntities: [LocalEntity]
+    /// Only the kinds the charts aggregate, scoped to the selected child store-side, so a save
+    /// elsewhere in the store doesn't rebuild the charts over the whole table. Rebuilt on child
+    /// switch via `init`.
+    @Query private var chartEntities: [LocalEntity]
+    @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "child" }, sort: \.timestamp)
+    private var children: [LocalEntity]
     @State private var period: ChartPeriod = .week
 
     private let aggregator = ChartAggregator()
+
+    init(selectedChildID: Binding<Int>) {
+        _selectedChildID = selectedChildID
+        let child = selectedChildID.wrappedValue
+        let kinds = [EntityKind.sleep, .feeding, .change].map(\.rawValue)
+        let pendingDelete = SyncState.pendingDelete.rawValue
+        let predicate = #Predicate<LocalEntity> { entity in
+            entity.childID == child && kinds.contains(entity.kindRaw)
+                && entity.syncStateRaw != pendingDelete
+        }
+        _chartEntities = Query(filter: predicate, sort: \LocalEntity.timestamp, order: .reverse)
+    }
 
     var body: some View {
         NavigationStack {
@@ -56,7 +73,7 @@ struct InsightsView: View {
     // MARK: Sleep
 
     private var sleepCard: some View {
-        let series = aggregator.sleepHoursByDay(allEntities, childID: selectedChildID, period: period)
+        let series = aggregator.sleepHoursByDay(chartEntities, childID: selectedChildID, period: period)
         let total = series.reduce(0) { $0 + $1.hours }
         let hasData = total > 0
         return ChartCard(title: "Sleep", icon: .sleep,
@@ -83,7 +100,7 @@ struct InsightsView: View {
     // MARK: Feeding
 
     private var feedingCard: some View {
-        let series = aggregator.feedingsByDay(allEntities, childID: selectedChildID, period: period)
+        let series = aggregator.feedingsByDay(chartEntities, childID: selectedChildID, period: period)
         let totalCount = series.reduce(0) { $0 + $1.count }
         let hasData = totalCount > 0
         let hasAmounts = series.contains { $0.totalAmount > 0 }
@@ -138,7 +155,7 @@ struct InsightsView: View {
     }
 
     private var diaperCard: some View {
-        let series = aggregator.diaperChangesByDay(allEntities, childID: selectedChildID, period: period)
+        let series = aggregator.diaperChangesByDay(chartEntities, childID: selectedChildID, period: period)
         let totalWet = series.reduce(0) { $0 + $1.wet }
         let totalSolid = series.reduce(0) { $0 + $1.solid }
         let hasData = totalWet + totalSolid > 0
@@ -170,8 +187,6 @@ struct InsightsView: View {
     }
 
     // MARK: Helpers
-
-    private var children: [LocalEntity] { allEntities.filter { $0.kind == .child } }
 
     private let chartHeight: CGFloat = 168
 

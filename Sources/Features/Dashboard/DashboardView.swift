@@ -14,7 +14,10 @@ struct DashboardView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Binding var selectedChildID: Int
 
-    @Query(sort: \LocalEntity.timestamp, order: .reverse) private var allEntities: [LocalEntity]
+    /// The records the Dashboard actually reads, filtered store-side: the selected child's
+    /// events, every child record (for the header/switcher), and every timer (deep links can
+    /// target a timer belonging to any child). Rebuilt on child switch via `init`.
+    @Query private var allEntities: [LocalEntity]
     /// Navigation path for the day-timeline pushes (in-app "Today" tiles + the status widget).
     @State private var navPath: [EntityKind] = []
     @State private var addKind: EntityKind?
@@ -69,6 +72,17 @@ struct DashboardView: View {
     private let columns = [GridItem(.flexible(), spacing: 9), GridItem(.flexible(), spacing: 9)]
 
     private let recentKinds: [EntityKind] = [.feeding, .change, .sleep, .tummyTime, .pumping]
+
+    init(selectedChildID: Binding<Int>) {
+        _selectedChildID = selectedChildID
+        let child = selectedChildID.wrappedValue
+        let childKind = EntityKind.child.rawValue
+        let timerKind = EntityKind.timer.rawValue
+        let predicate = #Predicate<LocalEntity> { entity in
+            entity.childID == child || entity.kindRaw == childKind || entity.kindRaw == timerKind
+        }
+        _allEntities = Query(filter: predicate, sort: \LocalEntity.timestamp, order: .reverse)
+    }
 
     var body: some View {
         NavigationStack(path: $navPath) {
@@ -544,9 +558,8 @@ struct DashboardView: View {
         let total = childEntities
             .filter { $0.kind == kind && Calendar.current.isDateInToday($0.timestamp) }
             .reduce(0.0) { acc, e in
-                let p = e.payloadObject
-                if let s = p["start"] as? String, let en = p["end"] as? String,
-                   let start = APIDate.parse(s), let end = APIDate.parse(en) {
+                let dates = e.startEndDates
+                if let start = dates.start, let end = dates.end {
                     return acc + end.timeIntervalSince(start)
                 }
                 return acc

@@ -27,7 +27,7 @@ actor SyncActor {
         var changed = false
         do {
             try await pullTags(client: client)
-            try modelContext.save()
+            if modelContext.hasChanges { try modelContext.save() }
         } catch APIError.notFound {
             // Tags endpoint absent on this server version — skip.
         } catch APIError.unauthorized {
@@ -42,8 +42,12 @@ actor SyncActor {
         for kind in EntityKind.allCases {
             do {
                 try await pull(kind: kind, client: client, windowDays: windowDays)
-                if modelContext.hasChanges { changed = true } // real insert/update/delete this kind
-                try modelContext.save()      // commit per kind so the UI fills in progressively
+                // Save only when the pull actually changed something: an unchanged kind's save
+                // would still fan out change notifications that re-run every observing @Query.
+                if modelContext.hasChanges {
+                    changed = true               // real insert/update/delete this kind
+                    try modelContext.save()      // commit per kind so the UI fills in progressively
+                }
                 pulledAnyKind = true
             } catch APIError.notFound {
                 continue                      // endpoint absent on this server version
@@ -129,7 +133,9 @@ actor SyncActor {
                 for record in records {
                     LocalStore.upsertFromServer(record, kind: kind, in: modelContext)
                 }
-                try modelContext.save()       // commit per kind so the UI fills in progressively
+                if modelContext.hasChanges {
+                    try modelContext.save()   // commit per kind so the UI fills in progressively
+                }
                 pulledAnyKind = true
             } catch APIError.notFound {
                 continue                       // endpoint absent on this server version
