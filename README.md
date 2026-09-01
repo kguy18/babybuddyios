@@ -5,20 +5,7 @@
 # Baby Buddy Companion for iOS
 
 
-<!-- ══ APP STORE BADGE ══════════════════════════════════════════════════════
-     Pre-launch state: the shields.io "Coming soon" badge below.
-
-     ON LAUNCH — replace the single badge line under this comment with Apple's
-     official badge, which is already committed at Docs/app-store-badge.svg:
-
-       [![Download on the App Store](Docs/app-store-badge.svg)](https://apps.apple.com/app/id<APP_ID>)
-
-     Then set `appStoreURL` in the babybuddyweb repo's hugo.toml so the
-     marketing site's badge flips to a live link at the same time.
-     ═════════════════════════════════════════════════════════════════════════ -->
-
-
-[![App Store — coming soon](https://img.shields.io/badge/App_Store-Coming_soon-0D96F6?style=for-the-badge&logo=apple&logoColor=white)](https://babybuddy.app)
+[![Download on the App Store](Docs/app-store-badge.svg)](https://apps.apple.com/app/id6788966667)
 
 [![iOS 17+](https://img.shields.io/badge/iOS-17%2B-333333?style=flat-square&logo=apple&logoColor=white)](#build-it-for-your-own-iphone)
 [![License: BSD-2-Clause](https://img.shields.io/badge/License-BSD--2--Clause-4C9A5B?style=flat-square)](LICENSE.md)
