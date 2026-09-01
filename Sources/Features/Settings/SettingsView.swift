@@ -572,8 +572,23 @@ struct SettingsView: View {
                 }
             }
             .buttonStyle(.plain)
+
+            rowDivider
+
+            Link(destination: Self.reviewURL) {
+                SettingsRow(symbol: "star", tint: BBColor.warning, title: "Rate on the App Store") {
+                    disclosure
+                }
+            }
+            .buttonStyle(.plain)
         }
     }
+
+    /// Opens the App Store listing with its review composer already up. Deliberately not
+    /// `SKStoreReviewController`: the system prompt is rate-limited and silently does nothing once
+    /// a user has seen it, which is wrong for a row they tapped on purpose.
+    private static let reviewURL =
+        URL(string: "https://apps.apple.com/app/id6788966667?action=write-review")!
 
     /// Present the mail composer seeded with (optionally) diagnostics. Falls back to a `mailto:`
     /// link, then a "set up Mail" alert, when the in-app composer can't be shown.
