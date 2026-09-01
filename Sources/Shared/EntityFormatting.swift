@@ -13,7 +13,7 @@ enum EntityFormatting {
             var parts: [String] = []
             if let t = p["type"] as? String { parts.append(t.capitalized) }
             if let m = p["method"] as? String { parts.append(m.capitalized) }
-            if let d = duration(p) { parts.append(d) }
+            if let d = duration(entity) { parts.append(d) }
             if let a = p["amount"] as? Double { parts.append(formatAmount(a)) }
             return parts.joined(separator: " · ")
         case .change:
@@ -24,17 +24,17 @@ enum EntityFormatting {
             return flags.isEmpty ? "Dry" : flags.joined(separator: ", ")
         case .sleep:
             var parts: [String] = []
-            if let d = duration(p) { parts.append(d) }
+            if let d = duration(entity) { parts.append(d) }
             if p["nap"] as? Bool == true { parts.append("Nap") }
             return parts.joined(separator: " · ")
         case .tummyTime:
             var parts: [String] = []
-            if let d = duration(p) { parts.append(d) }
+            if let d = duration(entity) { parts.append(d) }
             if let m = p["milestone"] as? String, !m.isEmpty { parts.append(m) }
             return parts.joined(separator: " · ")
         case .pumping:
             var parts: [String] = []
-            if let d = duration(p) { parts.append(d) }
+            if let d = duration(entity) { parts.append(d) }
             if let a = p["amount"] as? Double { parts.append(formatAmount(a)) }
             return parts.joined(separator: " · ")
         case .note:
@@ -93,13 +93,14 @@ enum EntityFormatting {
         value == value.rounded() ? String(Int(value)) : String(format: "%.1f", value)
     }
 
-    /// Prefer a start/end derived duration; fall back to the server's `duration` string.
-    private static func duration(_ p: [String: Any]) -> String? {
-        if let s = p["start"] as? String, let e = p["end"] as? String,
-           let start = APIDate.parse(s), let end = APIDate.parse(e), end > start {
+    /// Prefer a start/end derived duration (via the entity's parsed-date cache); fall back to
+    /// the server's `duration` string.
+    private static func duration(_ entity: LocalEntity) -> String? {
+        let dates = entity.startEndDates
+        if let start = dates.start, let end = dates.end, end > start {
             return formatInterval(end.timeIntervalSince(start))
         }
-        if let raw = p["duration"] as? String { return raw }
+        if let raw = entity.payloadObject["duration"] as? String { return raw }
         return nil
     }
 

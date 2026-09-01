@@ -9,7 +9,11 @@ struct TimelineView: View {
     @Environment(\.modelContext) private var context
     @Binding var selectedChildID: Int
 
-    @Query(sort: \LocalEntity.timestamp, order: .reverse) private var allEntities: [LocalEntity]
+    /// The selected child's timeline events, filtered store-side (child, kind, delete state) so
+    /// the view never materializes the whole table. Rebuilt on child switch via `init`.
+    @Query private var events: [LocalEntity]
+    @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "child" }, sort: \.timestamp)
+    private var children: [LocalEntity]
     @Query private var cachedTags: [CachedTag]
     @State private var kindFilter: EntityKind?
     @State private var editing: LocalEntity?
@@ -21,6 +25,18 @@ struct TimelineView: View {
     @State private var searchActive = false
     @State private var searchDebounce: Task<Void, Never>?
 
+    init(selectedChildID: Binding<Int>) {
+        _selectedChildID = selectedChildID
+        let child = selectedChildID.wrappedValue
+        let kinds = EntityKind.timelineKinds.map(\.rawValue)
+        let pendingDelete = SyncState.pendingDelete.rawValue
+        let predicate = #Predicate<LocalEntity> { entity in
+            entity.childID == child && kinds.contains(entity.kindRaw)
+                && entity.syncStateRaw != pendingDelete
+        }
+        _events = Query(filter: predicate, sort: \LocalEntity.timestamp, order: .reverse)
+    }
+
     /// Lowercased tag name → server `#RRGGBB` color, for tinting timeline chips.
     private var tagColors: [String: String] {
         Dictionary(
@@ -29,12 +45,17 @@ struct TimelineView: View {
     }
 
     var body: some View {
+        // One evaluation per body pass: the item list (filter + group + summarize in a single
+        // sweep) and the tag-color map both used to be computed properties re-evaluated per
+        // reference, which multiplied the whole filter chain by the number of days on screen.
+        let items = timelineItems
+        let tagColors = self.tagColors
         NavigationStack {
             List {
-                ForEach(timelineItems) { item in
+                ForEach(items) { item in
                     switch item {
-                    case .header(let day):
-                        dayHeader(day)
+                    case .header(let day, let summary):
+                        dayHeader(day, summary: summary)
                             .listRowInsets(EdgeInsets())
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
@@ -63,7 +84,7 @@ struct TimelineView: View {
                             }
                     }
                 }
-                if showHistoryFooter {
+                if showHistoryFooter(items) {
                     historyFooter
                         .listRowInsets(EdgeInsets())
                         .listRowSeparator(.hidden)
@@ -91,7 +112,7 @@ struct TimelineView: View {
                 TimelineFiltersView(kindFilter: $kindFilter, dateFrom: $dateFrom, dateTo: $dateTo)
             }
             .overlay {
-                if visibleEntities.isEmpty { emptyState }
+                if items.isEmpty { emptyState }
             }
         }
     }
@@ -116,8 +137,8 @@ struct TimelineView: View {
 
     /// Show the "load older" affordance only when there's activity to anchor it and there's
     /// either more history to fetch or a fetch in progress.
-    private var showHistoryFooter: Bool {
-        !visibleEntities.isEmpty && (sync.hasMoreHistory || sync.isLoadingHistory)
+    private func showHistoryFooter(_ items: [TimelineItem]) -> Bool {
+        !items.isEmpty && (sync.hasMoreHistory || sync.isLoadingHistory)
     }
 
     /// DEBUG-only: `BB_LOAD_OLDER=<n>` auto-pages history `n` times on first appearance, so the
@@ -160,12 +181,12 @@ struct TimelineView: View {
 
     // MARK: Day header
 
-    private func dayHeader(_ day: Date) -> some View {
+    private func dayHeader(_ day: Date, summary: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(dayLabel(day))
                 .font(.subheadline.weight(.semibold))
             Spacer(minLength: 8)
-            Text(daySummary(day))
+            Text(summary)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -186,8 +207,6 @@ struct TimelineView: View {
 
     // MARK: Derived data
 
-    private var children: [LocalEntity] { allEntities.filter { $0.kind == .child } }
-
     /// The selected child's display name, included in the search haystack so activity can be
     /// found by child even though the payload only carries the child's id.
     private var selectedChildName: String? {
@@ -198,15 +217,13 @@ struct TimelineView: View {
         return parts.isEmpty ? nil : parts.joined(separator: " ")
     }
 
-    /// Cheap predicates (child / kind / date — all on stored or denormalized fields) are applied
-    /// before the substring search, so the haystack is only built for the already-narrowed set.
+    /// The store-side query already scoped to child/kind/delete-state; this applies the cheap
+    /// user filters (kind picker, date range) before the substring search, so the haystack is
+    /// only built for the already-narrowed set.
     private var visibleEntities: [LocalEntity] {
         let childName = selectedChildName
-        return allEntities.filter {
-            $0.childID == selectedChildID
-                && $0.syncState != .pendingDelete
-                && EntityKind.timelineKinds.contains($0.kind)
-                && (kindFilter == nil || $0.kind == kindFilter)
+        return events.filter {
+            (kindFilter == nil || $0.kind == kindFilter)
                 && TimelineFiltering.inDateRange($0.timestamp, from: dateFrom, to: dateTo)
                 && TimelineFiltering.matchesSearch($0, query: searchText, childName: childName)
         }
@@ -248,23 +265,23 @@ struct TimelineView: View {
 
     private func startOfDay(_ date: Date) -> Date { Calendar.current.startOfDay(for: date) }
 
-    private var groupedDays: [Date] {
-        Array(Set(visibleEntities.map { startOfDay($0.timestamp) })).sorted(by: >)
-    }
-
-    private func entities(on day: Date) -> [LocalEntity] {
-        visibleEntities.filter { startOfDay($0.timestamp) == day }
-    }
-
-    /// Flattened header + event rows, in display order. Each event knows whether the spine
-    /// continues below it (true for every event except the day's last/oldest).
+    /// Flattened header + event rows, in display order, with each day's summary precomputed.
+    /// Each event knows whether the spine continues below it (true for every event except the
+    /// day's last/oldest). Built in one linear sweep: `visibleEntities` is sorted newest-first,
+    /// so a day's events are contiguous — no per-day refiltering.
     private var timelineItems: [TimelineItem] {
+        let visible = visibleEntities
         var result: [TimelineItem] = []
-        for day in groupedDays {
-            result.append(.header(day))
-            let dayEvents = entities(on: day)
-            for (index, entity) in dayEvents.enumerated() {
-                result.append(.event(entity, connectsDown: index < dayEvents.count - 1))
+        result.reserveCapacity(visible.count + 16)
+        var index = 0
+        while index < visible.count {
+            let day = startOfDay(visible[index].timestamp)
+            let dayStart = index
+            while index < visible.count, startOfDay(visible[index].timestamp) == day { index += 1 }
+            let dayEvents = Array(visible[dayStart..<index])
+            result.append(.header(day, summary: daySummary(dayEvents)))
+            for (offset, entity) in dayEvents.enumerated() {
+                result.append(.event(entity, connectsDown: offset < dayEvents.count - 1))
             }
         }
         return result
@@ -279,9 +296,8 @@ struct TimelineView: View {
         return day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
     }
 
-    /// One-line tally for the day header (e.g. "6 feeds · 5h 20m sleep · 4 diapers").
-    private func daySummary(_ day: Date) -> String {
-        let events = entities(on: day)
+    /// One-line tally for a day's events (e.g. "6 feeds · 5h 20m sleep · 4 diapers").
+    private func daySummary(_ events: [LocalEntity]) -> String {
         var parts: [String] = []
 
         let feeds = events.filter { $0.kind == .feeding }.count
@@ -303,9 +319,8 @@ struct TimelineView: View {
     /// Summed start→end duration across the day's events of one kind.
     private func totalDuration(_ events: [LocalEntity], kind: EntityKind) -> TimeInterval {
         events.filter { $0.kind == kind }.reduce(0) { acc, e in
-            let p = e.payloadObject
-            if let s = p["start"] as? String, let en = p["end"] as? String,
-               let start = APIDate.parse(s), let end = APIDate.parse(en), end > start {
+            let dates = e.startEndDates
+            if let start = dates.start, let end = dates.end, end > start {
                 return acc + end.timeIntervalSince(start)
             }
             return acc
@@ -326,14 +341,15 @@ struct TimelineView: View {
     }
 }
 
-/// A header or an event in the flattened, day-grouped timeline.
+/// A header or an event in the flattened, day-grouped timeline. The header carries its
+/// precomputed summary line so rendering never refilters the day's events.
 private enum TimelineItem: Identifiable {
-    case header(Date)
+    case header(Date, summary: String)
     case event(LocalEntity, connectsDown: Bool)
 
     var id: String {
         switch self {
-        case .header(let day): return "h-\(day.timeIntervalSince1970)"
+        case .header(let day, _): return "h-\(day.timeIntervalSince1970)"
         case .event(let entity, _): return "e-\(entity.localID.uuidString)"
         }
     }

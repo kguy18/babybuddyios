@@ -11,28 +11,36 @@ struct DayTimelineView: View {
     let kind: EntityKind
     let childID: Int
     /// The day to scope to. Defaults to today; a parameter so it stays testable/previewable.
-    var day: Date = .now
+    let day: Date
 
-    @Query(sort: \LocalEntity.timestamp, order: .reverse) private var allEntities: [LocalEntity]
+    /// This child's events of the scoped kind on the scoped day, newest first — filtered
+    /// store-side so the view never materializes the whole table.
+    @Query private var events: [LocalEntity]
     @Query private var cachedTags: [CachedTag]
     @State private var editing: LocalEntity?
     @State private var adding = false
+
+    init(kind: EntityKind, childID: Int, day: Date = .now) {
+        self.kind = kind
+        self.childID = childID
+        self.day = day
+        let dayStart = Calendar.current.startOfDay(for: day)
+        let dayEnd = Calendar.current.date(byAdding: .day, value: 1, to: dayStart) ?? day
+        let kindRaw = kind.rawValue
+        let pendingDelete = SyncState.pendingDelete.rawValue
+        let predicate = #Predicate<LocalEntity> { entity in
+            entity.kindRaw == kindRaw && entity.childID == childID
+                && entity.syncStateRaw != pendingDelete
+                && entity.timestamp >= dayStart && entity.timestamp < dayEnd
+        }
+        _events = Query(filter: predicate, sort: \LocalEntity.timestamp, order: .reverse)
+    }
 
     /// Lowercased tag name → server `#RRGGBB` color, for tinting timeline chips.
     private var tagColors: [String: String] {
         Dictionary(
             cachedTags.compactMap { tag in tag.colorHex.map { (tag.name.lowercased(), $0) } },
             uniquingKeysWith: { first, _ in first })
-    }
-
-    /// This child's events of the scoped kind on the scoped day, newest first.
-    private var events: [LocalEntity] {
-        allEntities.filter {
-            $0.kind == kind
-                && $0.childID == childID
-                && $0.syncState != .pendingDelete
-                && Calendar.current.isDate($0.timestamp, inSameDayAs: day)
-        }
     }
 
     var body: some View {

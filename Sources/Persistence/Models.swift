@@ -57,9 +57,29 @@ final class LocalEntity {
         set { syncStateRaw = newValue.rawValue }
     }
 
+    /// Memoized ``payloadObject``, keyed by the `payload` bytes it was decoded from so a sync
+    /// rewrite invalidates it. Every list row reads the payload several times per body pass;
+    /// the Data equality check is far cheaper than re-parsing the JSON each time.
+    @Transient private var payloadCache: (data: Data, object: [String: Any])? = nil
+    /// Memoized ``startEndDates``, keyed the same way (ISO date parsing is as hot as decoding).
+    @Transient private var datesCache: (data: Data, start: Date?, end: Date?)? = nil
+
     /// Decoded payload as a JSON dictionary.
     var payloadObject: [String: Any] {
-        (try? JSONSerialization.jsonObject(with: payload) as? [String: Any]) ?? [:]
+        if let cached = payloadCache, cached.data == payload { return cached.object }
+        let object = (try? JSONSerialization.jsonObject(with: payload) as? [String: Any]) ?? [:]
+        payloadCache = (payload, object)
+        return object
+    }
+
+    /// Parsed `start`/`end` payload dates (nil when absent or unparseable).
+    var startEndDates: (start: Date?, end: Date?) {
+        if let cached = datesCache, cached.data == payload { return (cached.start, cached.end) }
+        let p = payloadObject
+        let start = (p["start"] as? String).flatMap(APIDate.parse)
+        let end = (p["end"] as? String).flatMap(APIDate.parse)
+        datesCache = (payload, start, end)
+        return (start, end)
     }
 }
 
