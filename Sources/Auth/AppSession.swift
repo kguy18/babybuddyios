@@ -1,5 +1,7 @@
 import Foundation
 import Observation
+import SwiftData
+import WidgetKit
 
 /// App-wide authentication state. Owns the active ``ServerConfig`` and the ``APIClient``
 /// built from it. Persists credentials in the Keychain.
@@ -21,7 +23,17 @@ final class AppSession {
     /// and skips all network access.
     let isDemo: Bool
 
-    init() {
+    /// Main-actor handle on the local cache, so leaving a server can clear it. `nil` in tests,
+    /// which construct a session without a store.
+    private let context: ModelContext?
+
+    /// Which server the cache currently belongs to (see ``serverKey(for:)``). Deliberately in
+    /// `UserDefaults` rather than the Keychain: it has to outlive ``signOut``, which clears the
+    /// credentials, so a later sign-in can still tell "same server" from "different server".
+    private static let cachedServerKey = "cachedServerURL"
+
+    init(context: ModelContext? = nil) {
+        self.context = context
         #if DEBUG
         isDemo = ProcessInfo.processInfo.environment["BB_DEMO"] == "1"
         #else
@@ -48,6 +60,15 @@ final class AppSession {
     var config: ServerConfig? {
         if case .authenticated(let config) = state { return config }
         return nil
+    }
+
+    /// Identity of a server for cache-ownership purposes: the normalized URL, lowercased and
+    /// without a trailing slash, so `https://Baby.example.com/` and `https://baby.example.com`
+    /// are the same server and don't trigger a needless wipe of unsynced work.
+    static func serverKey(for url: URL) -> String {
+        var key = url.absoluteString.lowercased()
+        while key.hasSuffix("/") { key.removeLast() }
+        return key
     }
 
     /// Normalize a user- or QR-supplied server address into an `https` URL string.
@@ -77,6 +98,12 @@ final class AppSession {
         let probe = APIClient(config: config)
         do {
             try await probe.validateToken()
+            // A different server than the cache was pulled from: drop it before its records can
+            // mix with the new server's. Covers the path where the token was rejected mid-sync
+            // (which signs out without clearing) and the customer then moves to another server.
+            let key = Self.serverKey(for: url)
+            if UserDefaults.standard.string(forKey: Self.cachedServerKey) != key { clearLocalData() }
+            UserDefaults.standard.set(key, forKey: Self.cachedServerKey)
             KeychainStore.save(config: config)
             state = .authenticated(config)
             client = probe
@@ -90,9 +117,27 @@ final class AppSession {
         }
     }
 
-    func signOut() {
+    /// Return to the signed-out state.
+    ///
+    /// - Parameter clearLocalData: whether to erase the cached records too. `true` for a
+    ///   deliberate sign-out — the cache belongs to the server being left, and the next server
+    ///   must not inherit it. `false` when the server rejects our token mid-sync: that customer
+    ///   almost always signs back in to the *same* server, and anything still queued has to
+    ///   survive that. Moving to a different server clears the cache at sign-in instead.
+    func signOut(clearLocalData shouldClear: Bool = true) {
         KeychainStore.clear()
         client = nil
         state = .unauthenticated
+        if shouldClear {
+            UserDefaults.standard.removeObject(forKey: Self.cachedServerKey)
+            clearLocalData()
+        }
+    }
+
+    /// Erase the cached server data and refresh the widgets, which read the same store.
+    private func clearLocalData() {
+        guard let context else { return }
+        LocalStore.wipe(in: context)
+        WidgetCenter.shared.reloadAllTimelines()
     }
 }

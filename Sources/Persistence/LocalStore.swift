@@ -35,6 +35,28 @@ enum LocalStore {
         }
     }
 
+    // MARK: Wipe
+
+    /// Erase everything cached for a server: records, queued writes, conflicts, and the image
+    /// bytes those writes point at.
+    ///
+    /// Called when the app leaves a server — a deliberate sign-out, or a sign-in to a *different*
+    /// server. The cache only means anything alongside the server it was pulled from: leaving it
+    /// in place would show one family's activities to the next, and would replay a queued write
+    /// against a server that never saw the record.
+    @MainActor
+    static func wipe(in context: ModelContext) {
+        try? context.delete(model: LocalEntity.self)
+        try? context.delete(model: CachedTag.self)
+        try? context.delete(model: PendingMutation.self)
+        try? context.delete(model: PendingImageUpload.self)
+        try? context.delete(model: ConflictRecord.self)
+        try? context.save()
+        try? FileManager.default.removeItem(at: ImageUploadStore.directory)
+        // A server-assigned child id points at nothing once the records are gone.
+        SharedDefaults.selectedChildID = nil
+    }
+
     // MARK: Upsert (pull side)
 
     /// Insert or refresh a cached record from a server payload. Records with unsynced
