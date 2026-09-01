@@ -42,7 +42,7 @@ struct BabyBuddyApp: App {
             LocalRepository.didLogActivity = { SupportNudgeStore.shared.recordLoggedEntry() }
         }
         let container = LocalStore.makeContainer()
-        let session = AppSession()
+        let session = AppSession(context: container.mainContext)
         let purchases = PurchaseManager()
         purchases.start()
         self.container = container
@@ -63,6 +63,11 @@ struct BabyBuddyApp: App {
                 .environment(icons)
                 .modelContainer(container)
                 .onOpenURL { router.handle($0) }
+                // Signing out clears the cache the banner is drawn from — reconcile so a timer's
+                // Live Activity doesn't outlive the data behind it.
+                .onChange(of: session.isAuthenticated) { _, _ in
+                    Task { await liveActivity.reconcile() }
+                }
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {

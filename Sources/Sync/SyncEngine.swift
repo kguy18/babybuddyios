@@ -103,7 +103,7 @@ final class SyncEngine {
                 delivered = true
             } catch let error as APIError {
                 Analytics.report(error)
-                if case .unauthorized = error { session.signOut(); return delivered }
+                if case .unauthorized = error { session.signOut(clearLocalData: false); return delivered }
                 if error.isRetryable { break } // offline/5xx: retry the whole queue later
                 upload.attemptCount += 1
                 upload.lastError = error.userMessage
@@ -140,7 +140,7 @@ final class SyncEngine {
                 if try await deliver(mutation, client: client) { delivered = true }
             } catch let error as APIError {
                 Analytics.report(error)
-                if case .unauthorized = error { session.signOut(); return delivered }
+                if case .unauthorized = error { session.signOut(clearLocalData: false); return delivered }
                 if error.isRetryable { break } // offline/5xx: stop, retry whole queue later
                 mutation.attemptCount += 1
                 mutation.lastError = error.userMessage
@@ -358,7 +358,7 @@ final class SyncEngine {
         status = .syncing
         let outcome = await syncActor.pullAll(config: config, windowDays: pullWindowDays)
         if let error = outcome.error {
-            if error == SyncActor.unauthorized { session.signOut(); return false }
+            if error == SyncActor.unauthorized { session.signOut(clearLocalData: false); return false }
             // Pull failures surface only as a user-facing string; report them as a coarse
             // network error (the common cause) without the message text.
             Analytics.error(network: "pull")
@@ -413,7 +413,7 @@ final class SyncEngine {
         let error = await syncActor.pullOlderWindow(
             config: config, dateMin: chunk.start, dateMax: chunk.end)
         if let error {
-            if error == SyncActor.unauthorized { session.signOut(); return }
+            if error == SyncActor.unauthorized { session.signOut(clearLocalData: false); return }
             historyError = error
             return
         }
