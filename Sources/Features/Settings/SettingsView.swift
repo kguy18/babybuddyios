@@ -146,9 +146,9 @@ struct SettingsView: View {
             } message: {
                 Text("Attach your device model, iOS version, and app version to help us investigate? Nothing else is shared.")
             }
-            .confirmationDialog("Sign out?", isPresented: $showingSignOut, titleVisibility: .visible) {
-                Button("Sign Out", role: .destructive) { session.signOut() }
+            .alert("Sign out?", isPresented: $showingSignOut) {
                 Button("Cancel", role: .cancel) {}
+                Button("Sign Out", role: .destructive) { session.signOut() }
             } message: {
                 Text(signOutMessage)
             }
