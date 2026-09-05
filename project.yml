@@ -18,7 +18,11 @@ settings:
     # Applies to the app and the widget extension alike — App Store Connect rejects an upload whose
     # extension version doesn't match the app's. Bump CURRENT_PROJECT_VERSION for every upload: a
     # build number may only be used once per MARKETING_VERSION.
-    MARKETING_VERSION: "1.0.2"
+    #
+    # MARKETING_VERSION is the App Store version, and a new one sends the TestFlight build through
+    # App Store review. NEVER bump it unprompted — "bump the version" means the build number below.
+    # It changes only when the owner asks for a release.
+    MARKETING_VERSION: "1.0.1"
     CURRENT_PROJECT_VERSION: "3"
     SWIFT_VERSION: "5.0"
     DEVELOPMENT_TEAM: "547DWTTFY6"
