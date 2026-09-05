@@ -146,11 +146,11 @@ struct SettingsView: View {
             } message: {
                 Text("Attach your device model, iOS version, and app version to help us investigate? Nothing else is shared.")
             }
-            .alert("Sign out?", isPresented: $showingSignOut) {
-                Button("Cancel", role: .cancel) {}
-                Button("Sign Out", role: .destructive) { session.signOut() }
-            } message: {
-                Text(signOutMessage)
+            .fullScreenCover(isPresented: $showingSignOut) {
+                SignOutDialog(host: serverHost, pendingCount: pendingMutations.count,
+                              onCancel: { setSignOutDialog(false) },
+                              onSignOut: { setSignOutDialog(false); session.signOut() })
+                    .presentationBackground(.clear)
             }
             .sheet(item: $mailPayload) { payload in
                 MailComposeView(recipient: SupportContact.recipient,
@@ -613,19 +613,20 @@ struct SettingsView: View {
 
     // MARK: Sign out
 
-    /// Signing out clears this device's cache, so the warning names the server being left and
-    /// says the data comes back on the next sign-in — and gets louder when there are writes that
-    /// never reached that server, since for those this device holds the only copy.
-    private var signOutMessage: String {
-        let server = session.config.map { $0.baseURL.host() ?? $0.baseURL.absoluteString } ?? "this server"
-        let base = "You'll be signed out of \(server) and the activities cached on this device will be deleted. Nothing on the server changes — signing back in downloads it all again."
-        guard !pendingMutations.isEmpty else { return base }
-        let n = pendingMutations.count
-        return base + " \(n) change\(n == 1 ? "" : "s") \(n == 1 ? "hasn't" : "haven't") reached the server yet and can't be recovered."
+    private var serverHost: String {
+        session.config.map { $0.baseURL.host() ?? $0.baseURL.absoluteString } ?? "this server"
+    }
+
+    /// Present and dismiss without the cover's slide-up transition — ``SignOutDialog`` animates
+    /// itself in, the way an alert appears.
+    private func setSignOutDialog(_ shown: Bool) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { showingSignOut = shown }
     }
 
     private var signOutCard: some View {
-        Button { showingSignOut = true } label: {
+        Button { setSignOutDialog(true) } label: {
             BBCard(cornerRadius: BBRadius.tile, padding: 14) {
                 HStack(spacing: 7) {
                     Spacer()
