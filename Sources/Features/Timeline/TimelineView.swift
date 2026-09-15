@@ -383,7 +383,7 @@ struct TimelineRailRow: View {
     }
 
     private var rowLabel: String {
-        var label = EntityFormatting.accessibilityLabel(entity)
+        var label = EntityFormatting.accessibilityLabel(entity, blocked: blocked)
         if noteImageURL != nil { label += ", photo attached" }
         if let next = nextDose { label += ", next dose OK at \(next.formatted(date: .omitted, time: .shortened))" }
         return label

@@ -25,4 +25,17 @@ final class SmokeTests: UITestCase {
         }
         XCTAssertTrue(app.buttons.labeled("Sign out").exists)
     }
+
+    /// Every Trends card survives each period (#32, #114), and the picker says which is chosen.
+    func testTrendsPeriodSwitch() {
+        launch(["BB_START_TAB": "trends"])
+        for period in ["7 days", "14 days", "30 days"] {
+            let segment = app.buttons[period]
+            tap(segment)
+            XCTAssertTrue(segment.isSelected, "\(period) should read as selected")
+            for card in ["Sleep", "Feedings", "Diapers", "Tummy Time", "Pumping"] {
+                XCTAssertTrue(app.staticTexts[card].exists, "\(card) card missing at \(period)")
+            }
+        }
+    }
 }

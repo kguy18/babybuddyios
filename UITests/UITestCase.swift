@@ -84,6 +84,13 @@ class UITestCase: XCTestCase {
     func element(labeled prefix: String) -> XCUIElement {
         app.descendants(matching: .any).labeled(prefix)
     }
+
+    /// Every element whose label matches a predicate, e.g. one kind's timeline rows:
+    /// `elements("label BEGINSWITH 'Feeding, ' AND label CONTAINS 'waiting to sync'")`. A List only
+    /// holds the rows on screen, so count rows near the top or narrow them with a search first.
+    func elements(_ format: String) -> XCUIElementQuery {
+        app.descendants(matching: .any).matching(NSPredicate(format: format))
+    }
 }
 
 extension XCUIElementQuery {

@@ -41,4 +41,28 @@ final class TimerTests: UITestCase {
         XCTAssertEqual(tummy.label, before)
         XCTAssertFalse(app.otherElements["Logged Tummy Time"].exists)
     }
+
+    /// Timers run side by side: a typed one names itself after its activity, an untyped one doesn't.
+    func testStartTypedAndUntypedTimers() {
+        launch()
+        let startSheet = app.navigationBars["Start Timer"]
+
+        tap(app.buttons["Add"])
+        tap(app.buttons["Start timer"])
+        expect(startSheet)
+        tap(app.buttons["Sleep"])
+        tap(app.buttons["Start sleep timer"])
+        expectGone(startSheet)
+        expect(element(labeled: "Sleep running"))
+
+        tap(app.buttons["Add"])
+        tap(app.buttons["Start timer"])
+        expect(startSheet)
+        tap(app.buttons["Feeding"])
+        tap(app.buttons["Start without a type"]) // offered once a type is picked
+        expectGone(startSheet)
+        expect(element(labeled: "Timer running"))
+        XCTAssertTrue(element(labeled: "Tummy time running").exists)
+        XCTAssertTrue(element(labeled: "Sleep running").exists)
+    }
 }

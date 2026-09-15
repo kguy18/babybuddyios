@@ -44,12 +44,15 @@ An offline-first iOS client for a self-hosted [Baby Buddy](https://github.com/ba
 - Query by what VoiceOver reads; add an `accessibilityIdentifier` only for a label that repeats.
   Demo data is relative to launch time: compare before and after, never a clock time or a "Today"
   total. Reach editors through "+" ▸ More… — the quick-add rows are due to log in one tap (#78).
+- The keyboard covers the tab bar, so a tab tap with it up lands on a key: type `\n` first. An
+  active search also hides the Timeline toolbar until its "Close" button ends it.
 
 ## UI
 
 - Design tokens live in `Sources/Shared/DesignSystem.swift` (`BBColor`, `BBFont`, `BBRadius`); shared components in `Sources/Features/Shared/DesignComponents.swift`. Use them rather than system styling — every screen is on the design system.
 - **Don't use `confirmationDialog`.** On iOS 26 SwiftUI anchors it to its source button as a popover, and UIKit drops the cancel action in popover presentation — a destructive dialog then ships with no way back. Use `.alert`, or a design-system view (`SignOutDialog`, `StopTimerSheet`).
 - Verify UI on an **iOS 26 simulator**. The default booted one here is often iOS 18.6, where dialogs and the tab bar behave differently.
+- **Put `.accessibilityElement(children: .contain)` before an `.accessibilityLabel` on a container.** On a plain stack or card the label is stamped onto every child: the sign-out dialog read both its buttons, and the Trends period picker all three segments, as that one label.
 
 ## Running it
 

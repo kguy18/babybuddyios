@@ -71,12 +71,15 @@ enum EntityFormatting {
 
     /// A single spoken VoiceOver phrase for a timeline/latest row: kind, its detail, the time,
     /// then sync state and tags — so the row reads as one coherent element instead of fragments.
-    static func accessibilityLabel(_ entity: LocalEntity) -> String {
+    /// `blocked`: the server refused the queued write — what the row's red triangle shows, and not
+    /// something that will sync by waiting.
+    static func accessibilityLabel(_ entity: LocalEntity, blocked: Bool = false) -> String {
         var parts: [String] = [title(entity)]
         if let subtitle = subtitle(entity), !subtitle.isEmpty { parts.append(subtitle) }
         parts.append(entity.timestamp.formatted(date: .omitted, time: .shortened))
         switch entity.syncState {
-        case .pendingCreate, .pendingUpdate, .pendingDelete: parts.append("waiting to sync")
+        case .pendingCreate, .pendingUpdate, .pendingDelete:
+            parts.append(blocked ? "sync needs attention" : "waiting to sync")
         case .conflicted: parts.append("sync conflict")
         case .synced: break
         }

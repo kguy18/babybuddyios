@@ -38,6 +38,9 @@ struct InsightsView: View {
                     BBSegmentedControl(selection: $period,
                                        options: ChartPeriod.allCases,
                                        label: \.accessibilityLabel)
+                        // `.contain` first: a label on the bare control is stamped onto every
+                        // segment, which read all three to VoiceOver as "Time period".
+                        .accessibilityElement(children: .contain)
                         .accessibilityLabel("Time period")
 
                     sleepCard
