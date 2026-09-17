@@ -278,8 +278,12 @@ struct DashboardView: View {
     /// The silencing check is here as well as at each render site so all three surfaces obey it
     /// identically — the milestone sheet has no `if` of its own to hang it off, and without this the
     /// `BB_NUDGE` force would show a milestone to a supporter while suppressing the other two.
+    ///
+    /// The What's New check is the same idea across a feature boundary: that sheet carries its own
+    /// "Support development" button, so a launch that showed it has already made the ask. Returning
+    /// before `markShown` holds the nudge back rather than spending it — it is still due next launch.
     private func present(_ nudge: SupportNudge) {
-        guard nudge != .none, !nudgesSilenced else { return }
+        guard nudge != .none, !nudgesSilenced, !WhatsNewStore.shownThisLaunch else { return }
         SupportNudgeStore.shared.markShown(nudge)
         acceptedNudge = false
         if let count = nudge.milestoneCount {

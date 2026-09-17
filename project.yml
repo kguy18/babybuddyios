@@ -36,6 +36,11 @@ targets:
     platform: iOS
     sources:
       - path: Sources
+      # The What's New screen's copy, bundled so it can be edited as prose and rebuilt with no
+      # Swift change. Lives in Docs/ because that is where the person writing it looks; see
+      # Sources/Features/WhatsNew/WhatsNewRelease.swift for the format it has to keep.
+      - path: Docs/whats-new.md
+        buildPhase: resources
     configFiles:
       Debug: Config/BabyBuddy.xcconfig
       Release: Config/BabyBuddy.xcconfig
@@ -144,6 +149,10 @@ targets:
     platform: iOS
     sources:
       - path: Tests
+      # Parsed as shipped by WhatsNewParsingTests, so a typo in the copy fails CI rather than
+      # reaching a customer as an empty screen.
+      - path: Docs/whats-new.md
+        buildPhase: resources
     dependencies:
       - target: BabyBuddy
     settings:

@@ -11,6 +11,16 @@ struct MainTabView: View {
     // Stored in the App Group suite so the timer widget/intents target the same child.
     @AppStorage("selectedChildID", store: SharedDefaults.suite) private var selectedChildID = 0
     @State private var selectedTab = initialTab
+    /// The release notes waiting to be shown, if any. Resolved once, in `.task`.
+    @State private var whatsNew: WhatsNewRelease?
+    /// Which button closed the What's New sheet. `nil` at dismissal means it was swiped away —
+    /// SwiftUI's `onDismiss` fires the same for a swipe and a programmatic close, so the button
+    /// taps have to record themselves. Same shape as the Dashboard's `acceptedNudge`.
+    @State private var whatsNewAction: Analytics.WhatsNewAction?
+    /// Presentation state for the supporter sheet, whichever door opened it.
+    @State private var showingSupporter = false
+    /// The door itself — the tip's attribution. See ``Analytics/SupporterSource``.
+    @State private var supporterSource: Analytics.SupporterSource = .deeplink
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -24,6 +34,15 @@ struct MainTabView: View {
                 .tabItem { Label("Settings", systemImage: "gearshape.fill") }.tag(3)
         }
         .task {
+            // Before the first sync: the sheet is about this build, not about the server's data,
+            // and resolving it here means a slow first pull can't delay or suppress it.
+            whatsNew = WhatsNewStore.pending(release: WhatsNewRelease.bundled,
+                                             currentVersion: WhatsNewStore.currentVersion)
+            if let whatsNew {
+                lastShownWhatsNewVersion = whatsNew.version
+                WhatsNewStore.shownThisLaunch = true
+                Analytics.whatsNewShown(version: whatsNew.version, entries: whatsNew.entries.count)
+            }
             await sync.sync()
             ensureValidSelection()
         }
@@ -40,9 +59,20 @@ struct MainTabView: View {
         .onChange(of: router.openDayKind) { _, kind in
             if kind != nil { selectedTab = 0 } // a status-widget tile targets the Home tab
         }
-        .sheet(isPresented: Binding(get: { router.showSupporter },
-                                    set: { router.showSupporter = $0 })) {
-            SupporterSheet(source: .deeplink)
+        // Shown once per version, over whichever tab is open. `onDismiss` is where the outcome is
+        // reported, so a swipe-away is counted as deliberately as a tap.
+        .sheet(item: $whatsNew, onDismiss: finishWhatsNew) { release in
+            WhatsNewSheet(release: release) { whatsNewAction = $0 }
+        }
+        // One presenter for the supporter sheet; `supporterSource` is what distinguishes the deep
+        // link from the What's New button, so a tip is attributable to the door it came through.
+        .sheet(isPresented: $showingSupporter, onDismiss: { router.showSupporter = false }) {
+            SupporterSheet(source: supporterSource)
+        }
+        .onChange(of: router.showSupporter) { _, show in
+            guard show else { return }
+            supporterSource = .deeplink
+            showingSupporter = true
         }
         .safeAreaInset(edge: .top) {
             if !sync.isOnline {
@@ -61,6 +91,26 @@ struct MainTabView: View {
                 online ? "Back online" : "Offline. Changes will sync when reconnected.").post()
         }
     }
+
+    /// The What's New sheet closed. Reports how — a dismissal with no recorded button tap is a
+    /// swipe — and, for the support button, opens the supporter sheet in its place.
+    ///
+    /// The supporter sheet is presented *here*, after this one has gone, rather than stacked on top
+    /// of it: the same handoff the Dashboard makes from a milestone nudge.
+    private func finishWhatsNew() {
+        guard let version = lastShownWhatsNewVersion else { return }
+        let action = whatsNewAction ?? .swiped
+        whatsNewAction = nil
+        Analytics.whatsNewDismissed(version: version, action: action)
+        guard action == .support else { return }
+        supporterSource = .whatsNew
+        showingSupporter = true
+    }
+
+    /// The version the sheet just closed on. `.sheet(item:)` clears its binding before `onDismiss`
+    /// runs, so the release itself is gone by then — only the version is needed, so it is kept
+    /// rather than holding the whole value alive.
+    @State private var lastShownWhatsNewVersion: String?
 
     private static var initialTab: Int {
         #if DEBUG

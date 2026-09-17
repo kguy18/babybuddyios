@@ -283,6 +283,11 @@ extension Analytics {
         case nudgeMilestone
         /// The quiet inline Dashboard banner (nudge variant D).
         case nudgeBanner
+        /// "Support development" on the What's New screen, shown once after an upgrade. Its own
+        /// case rather than a nudge variant: it is not part of the nudge policy's escalation and
+        /// never counts toward retirement, so a tip from here has to be separable from one that
+        /// followed a nudge.
+        case whatsNew
     }
 
     /// What the supporter sheet actually had to show when it opened.
@@ -413,6 +418,43 @@ extension Analytics {
     /// once, on the dismissal that crosses the line.
     static func nudgeRetired() {
         signal("Nudge.retired")
+    }
+
+    // MARK: What's New
+    //
+    // The once-per-version release-notes sheet (see ``WhatsNewStore``). Two signals, so the pair
+    // answers the only question worth asking of a screen nobody requested: of the people who were
+    // shown it, how many read to the end, and how many swiped it away.
+
+    /// How a What's New presentation ended. Exactly one of these per presentation.
+    enum WhatsNewAction: String {
+        /// The primary "Continue" button — read to the end.
+        case continued
+        /// "Support development": the supporter sheet opens behind it, and reports
+        /// ``SupporterSource/whatsNew``.
+        case support
+        /// Swiped down or tapped outside, without either button. Inferred from a dismissal that
+        /// carried no button tap — the only signal SwiftUI's `onDismiss` gives us.
+        case swiped
+    }
+
+    /// The What's New screen was shown. `version` is the release whose notes it carried
+    /// and `entries` how many rows it carried — the copy's own shape, never what is in it.
+    static func whatsNewShown(version: String, entries: Int) {
+        signal("WhatsNew.shown", parameters: ["version": version, "entries": String(entries)])
+    }
+
+    /// The What's New screen closed, and how.
+    ///
+    /// One signal with an `action` dimension rather than three signals, so the funnel is a single
+    /// query against ``whatsNewShown(version:entries:)``. `action` is a ``WhatsNewAction`` —
+    /// `continued`, `support`, or `swiped` for a dismissal that tapped neither button.
+    ///
+    /// A `support` dismissal is followed by a `Supporter.sheetViewed` carrying
+    /// ``SupporterSource/whatsNew``, so a tip that starts here is attributable end to end without
+    /// joining on anything.
+    static func whatsNewDismissed(version: String, action: WhatsNewAction) {
+        signal("WhatsNew.dismissed", parameters: ["version": version, "action": action.rawValue])
     }
 
     /// Why ``APIClient/splitPage(_:allowsUnpaginatedArray:)`` couldn't read a list body, as a closed
