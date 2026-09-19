@@ -33,6 +33,11 @@ An offline-first iOS client for a self-hosted [Baby Buddy](https://github.com/ba
 - Both run unsigned on purpose: without the App Group the store and the keychain fall back to
   app-only locations, which is all the app itself needs. Only Home Screen widgets need signing.
 - Docs-only PRs (`*.md`, `Docs/`) skip the macOS job. Any other path builds.
+- `release-notes` runs on every PR, docs-only ones included: `node scripts/release.mjs validate`
+  checks that each version in `Docs/release-notes.md` has a non-empty `appstore` and `whatsnew`
+  block and that the store text fits App Store Connect's 4,000 characters. It reports through
+  `build-and-test`, the one check the ruleset requires. `node --test scripts/release.test.mjs`
+  runs its tests; both need nothing installed.
 
 ## UI tests
 

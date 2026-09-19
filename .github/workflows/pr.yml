@@ -236,7 +236,7 @@ jobs:
   # the three macOS jobs don't run at all.
   build-and-test:
     name: build-and-test
-    needs: [unit, ui, server]
+    needs: [unit, ui, server, release-notes]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -244,7 +244,8 @@ jobs:
         run: |
           for LANE in "unit=${{ needs.unit.result }}" \
                       "ui=${{ needs.ui.result }}" \
-                      "server=${{ needs.server.result }}"; do
+                      "server=${{ needs.server.result }}" \
+                      "release-notes=${{ needs.release-notes.result }}"; do
             echo "$LANE"
             case "${LANE#*=}" in
               success|skipped) ;;
@@ -255,6 +256,19 @@ jobs:
             echo "::error::a test lane did not pass"
             exit 1
           fi
+
+  # Docs/release-notes.md is sent to App Store Connect verbatim and bundled into the app for the
+  # What's New card, which shows nothing at all for a release with no `whatsnew` block. No `if:`
+  # — the notes are docs, so this has to run on exactly the PRs that skip the macOS lanes.
+  release-notes:
+    name: release-notes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: The release tooling's own tests
+        run: node --test scripts/release.test.mjs
+      - name: Every release has valid notes
+        run: node scripts/release.mjs validate
 
   attribution:
     name: attribution
