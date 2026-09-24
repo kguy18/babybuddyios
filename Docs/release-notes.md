@@ -34,8 +34,18 @@ The rest of the store listing (description, keywords, review information) lives 
 ```
 
 ```whatsnew
+#New
+- alert | Medication reminders | Set "Next dose after" and get a notification when the next dose is OK.
+- timer | Forgotten timer alerts | A reminder when a timer runs too long. Turn it on in Settings → Notifications.
+- new | More in Trends | Tummy time and pumping now have their own charts.
+- new | Latest shows every kind | Tap a row to jump to a filtered view on the Timeline.
+- new | Undo after logging | Every new record shows Undo for five seconds, so a mis-tap is one tap to fix.
+- sync | Last sync time | The Dashboard and status widget show when data was last updated.
 #Fixed
-- Supporter tips are available again
+- Deleting a record asks first, with a cancel option
+- A wrong API token says so, instead of "no permission"
+- Live Activity comes back after turning it off and on
+- VoiceOver reads buttons and switches by name
 ```
 
 ## 1.1.0
