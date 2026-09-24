@@ -23,7 +23,7 @@ settings:
     # App Store review. NEVER bump it unprompted — "bump the version" means the build number below.
     # It changes only when the owner asks for a release.
     MARKETING_VERSION: "1.1.1"
-    CURRENT_PROJECT_VERSION: "1"
+    CURRENT_PROJECT_VERSION: "2"
     SWIFT_VERSION: "5.0"
     DEVELOPMENT_TEAM: "547DWTTFY6"
     CODE_SIGN_STYLE: Automatic
