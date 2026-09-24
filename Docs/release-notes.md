@@ -26,6 +26,18 @@ trimming is the whole parser.
 The rest of the store listing (description, keywords, review information) lives in
 `app_store_listing.md`, which is gitignored because it stages the reviewer's demo credentials.
 
+## 1.1.1
+
+```appstore
+#Fixed
+- Supporter tips work again. 1.1.0 went out without its App Store purchase configuration, so the supporter screen said purchases weren't available. Nothing else changes.
+```
+
+```whatsnew
+#Fixed
+- Supporter tips are available again
+```
+
 ## 1.1.0
 
 ```appstore
