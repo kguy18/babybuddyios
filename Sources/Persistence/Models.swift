@@ -123,12 +123,12 @@ enum QueueDisposition: String, Codable {
     /// Without this, one poison record is re-sent on every foreground, pull-to-refresh, timer
     /// action, and background sync — hundreds of identical rejections for a single bad row.
     case blocked
-    /// A *create* the server refused only on its write-only `timer` field: the timer it was
-    /// logged from no longer exists there. That is ambiguous — another device may have stopped
-    /// the timer, or our own POST may have succeeded (which deletes the timer) with the response
-    /// lost. Re-sending is safe (the same rejection comes back); stripping `timer` and re-sending
-    /// is not, because it can create a duplicate. So the row parks like ``blocked`` and the user
-    /// gets an explicit "create without timer" alongside Retry and Discard.
+    /// A timer conversion whose timer answered `DELETE` with 404: it no longer exists on the
+    /// server (see ``TimerPush/sendCreate``). That is ambiguous — another device may have logged
+    /// the timer, or our own `DELETE` may have succeeded with the response lost. Re-sending is
+    /// safe (the same 404 comes back); dropping `timer` and posting is not, because it can create
+    /// a duplicate. So the row parks like ``blocked`` and the user gets an explicit "create
+    /// without timer" alongside Retry and Discard.
     case blockedStaleTimer
 }
 

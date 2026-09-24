@@ -105,9 +105,9 @@ struct LocalRepository {
     // MARK: Timer conversion
 
     /// Remove a record from the cache *without* enqueueing a server delete. Drops any queued
-    /// mutation for it too. Used when the server disposes of the record as a side effect of
-    /// another write (e.g. converting a timer into an activity deletes the timer server-side),
-    /// so a separate DELETE would be redundant and could race the conversion.
+    /// mutation for it too. Used when a timer becomes an activity: the activity's create deletes
+    /// the server timer itself (see ``TimerPush/sendCreate``), so a separate queued DELETE would
+    /// be redundant.
     func removeLocally(_ entity: LocalEntity) {
         if let pending = pendingMutation(for: entity.localID) { context.delete(pending) }
         context.delete(entity)
@@ -117,11 +117,11 @@ struct LocalRepository {
     /// Convert a running timer into a completed activity (feeding/sleep/tummy-time/pumping).
     ///
     /// The activity is created locally with the supplied payload (typically `start =
-    /// timer.start`, `end = now`). For a **synced** timer the payload carries the write-only
-    /// `timer` id so a single POST makes the server create the activity *and* delete the
-    /// timer; for an **unsynced** timer no server timer exists yet, so we post a plain
-    /// activity and just drop the timer's queued create. Either way the local timer is
-    /// removed without enqueueing a delete.
+    /// timer.start`, `end = now`). For a **synced** timer the queued body also holds the timer's
+    /// id under `timer`. It is never sent: ``TimerPush/sendCreate`` deletes that timer first and
+    /// posts the activity without it. For an **unsynced** timer no server timer exists yet, so we
+    /// post a plain activity and just drop the timer's queued create. Either way the local timer
+    /// is removed without enqueueing a delete.
     @discardableResult
     func convertTimer(_ timer: LocalEntity, to kind: EntityKind, payload: [String: Any]) -> LocalEntity? {
         var body = payload
@@ -132,11 +132,18 @@ struct LocalRepository {
     }
 
     /// The user's explicit answer to ``QueueDisposition/blockedStaleTimer``: drop the dead `timer`
-    /// reference from both the queued body and the cached record (so they can't disagree about
-    /// what was sent), keep child/start/end exactly as chosen, and give the row one more try. The
+    /// reference, keep child/start/end exactly as chosen, and give the row one more try. The
     /// duplicate warning lives in the UI — this method assumes it has been shown.
     func createWithoutTimer(_ mutation: PendingMutation) {
         guard mutation.isStaleTimer else { return }
+        dropTimerReference(mutation)
+        mutation.retryOnce()
+        try? context.save()
+    }
+
+    /// Remove `timer` from both the queued body and the cached record, so they can't disagree
+    /// about what was sent. Doesn't save.
+    func dropTimerReference(_ mutation: PendingMutation) {
         func stripped(_ data: Data) -> Data? {
             guard var obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
             obj.removeValue(forKey: "timer")
@@ -149,8 +156,6 @@ struct LocalRepository {
             entity.payload = cached
             entity.updatedAt = .now
         }
-        mutation.retryOnce()
-        try? context.save()
     }
 
     // MARK: Repeat

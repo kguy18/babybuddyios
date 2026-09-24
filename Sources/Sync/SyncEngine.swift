@@ -228,6 +228,9 @@ final class SyncEngine {
             }
             do {
                 if try await deliver(mutation, client: client) { run.delivered += 1 }
+            } catch is TimerPush.StaleTimer {
+                mutation.fail(Self.staleTimerMessage, disposition: .blockedStaleTimer)
+                run.blockedNew += 1
             } catch let error as APIError {
                 // Reported here, once per real attempt. A row that blocks is skipped from now on,
                 // so this fires on the transition rather than on every sync that walks past it.
@@ -239,11 +242,7 @@ final class SyncEngine {
                     run.stoppedRetryable = true
                     break mutations // offline/5xx: stop, retry whole queue later
                 case .blocked:
-                    if Self.isStaleTimerRejection(mutation, error) {
-                        mutation.fail(Self.staleTimerMessage, disposition: .blockedStaleTimer)
-                    } else {
-                        mutation.fail(error.userMessage, blocked: true)
-                    }
+                    mutation.fail(error.userMessage, blocked: true)
                     run.blockedNew += 1
                 case .recordAndRetry: mutation.fail(error.userMessage, blocked: false)
                 }
@@ -253,16 +252,6 @@ final class SyncEngine {
         }
         try? context.save()
         return run
-    }
-
-    /// A create the server refused on its write-only `timer` field and nothing else. Only that
-    /// exact shape is ambiguous-but-recoverable (see ``QueueDisposition/blockedStaleTimer``); a
-    /// body that also names another field (pumping's `amount` + `timer`) has a real validation
-    /// problem too, so it stays plainly blocked with both reasons in `lastError` and no
-    /// create-without-timer shortcut.
-    static func isStaleTimerRejection(_ mutation: PendingMutation, _ error: APIError) -> Bool {
-        guard mutation.op == .create, case .badRequest(_, _, let fields) = error else { return false }
-        return fields == ["timer"]
     }
 
     nonisolated static let staleTimerMessage = "The timer this was logged from no longer exists on the server. It may already have been saved from another device — check before creating it again."
@@ -275,7 +264,7 @@ final class SyncEngine {
         switch mutation.op {
         case .create:
             // Creates can't conflict — the server assigns a fresh id.
-            let response = try await client.createRaw(path: mutation.kind.path, body: mutation.payload)
+            let response = try await TimerPush.sendCreate(mutation, client: client, context: context)
             applyServerResponse(response, to: entity)
             context.delete(mutation)
             return true

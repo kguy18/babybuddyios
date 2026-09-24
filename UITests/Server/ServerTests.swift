@@ -102,6 +102,81 @@ final class ServerTests: ServerTestCase {
         expect(app.staticTexts["All clear"])
     }
 
+    /// Regression: #145 — a create that named its timer let the server replace the end with the
+    /// moment the request arrived. The End chosen in the convert editor is the one saved.
+    func testConvertedTimerKeepsEditedEnd() async throws {
+        let target = Date().addingTimeInterval(-10 * 60)
+        guard Calendar.current.isDateInToday(target) else {
+            throw XCTSkip("Ten minutes ago was yesterday; the End row's date button would need changing too")
+        }
+        let child = try await api.firstChild()
+        let timer = try await api.create("timers", [
+            "child": child.id, "name": marker, "start": Date().addingTimeInterval(-60 * 60).apiTime,
+        ])
+        let timerID = try XCTUnwrap(timer["id"] as? Int)
+
+        signIn()
+        expect(element(labeled: "\(marker) running"))
+        tap(app.buttons["Stop"])
+        tap(app.buttons["Feeding"])
+        tap(app.buttons["Log feeding…"])
+        let note = expect(app.textFields["Add a note…"])
+        note.tap()
+        note.typeText("\(marker)\n")
+
+        // End is the second picker; its buttons are the pair, the date, then the time.
+        tap(app.datePickers.element(boundBy: 1).buttons.element(boundBy: 2))
+        let wheels = app.pickerWheels
+        expect(wheels.element(boundBy: 1))
+        let format = DateFormatter()
+        // Hour, minute, and AM/PM only on a 12-hour clock.
+        let patterns: [String] = wheels.count == 3 ? ["h", "mm", "a"] : ["HH", "mm"]
+        for (index, pattern) in patterns.enumerated() {
+            format.dateFormat = pattern
+            wheels.element(boundBy: index).adjust(toPickerWheelValue: format.string(from: target))
+        }
+        tap(app.buttons["PopoverDismissRegion"]) // close the wheels
+        tap(app.buttons["Save Feeding"])
+
+        let saved = try await api.waitForRecord("feedings", marker: marker)
+        let end = try XCTUnwrap((saved?["end"] as? String).flatMap(Date.fromAPI), "The feeding never reached the server")
+        let minute: Set<Calendar.Component> = [.year, .month, .day, .hour, .minute]
+        XCTAssertEqual(Calendar.current.dateComponents(minute, from: end),
+                       Calendar.current.dateComponents(minute, from: target),
+                       "The server saved \(end), not the End chosen in the editor")
+        let deleted = try await api.waitForDeletion("timers", id: timerID)
+        XCTAssertTrue(deleted, "The converted timer is still running on the server")
+    }
+
+    /// #145 — a timer another device already logged is gone from the server. Logging it here parks
+    /// the activity with the duplicate warning instead of posting a second copy.
+    func testConvertingTimerGoneFromServerParks() async throws {
+        let child = try await api.firstChild()
+        let start = Date().addingTimeInterval(-20 * 60).apiTime
+        let timer = try await api.create("timers", ["child": child.id, "name": marker, "start": start])
+        let timerID = try XCTUnwrap(timer["id"] as? Int)
+
+        signIn()
+        expect(element(labeled: "\(marker) running"))
+        try await api.delete("timers", id: timerID) // another device logs it first
+
+        tap(app.buttons["Stop"])
+        tap(app.buttons["Sleep"])
+        tap(app.buttons["Log sleep"])
+
+        tap(app.tabBars.buttons["Settings"])
+        tap(app.buttons.labeled("Pending changes"), timeout: 40)
+        expect(app.navigationBars["Pending Changes"])
+        expect(app.buttons["Create without timer"], timeout: 40)
+        expect(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'no longer exists on the server'")).firstMatch)
+        let sleeps = try await api.list("sleep", ["limit": "20"])
+        XCTAssertFalse(sleeps.contains { $0["start"] as? String == start }, "The parked sleep was posted anyway")
+
+        app.staticTexts["Added Sleep"].swipeLeft()
+        tap(app.buttons["Discard"])
+        tap(app.alerts["Discard this change?"].buttons["Discard"])
+    }
+
     /// A record changed on the server while this device was editing it is a conflict, and "Keep my
     /// version" sends the device's copy (#16).
     func testServerEditRaisesConflict() async throws {

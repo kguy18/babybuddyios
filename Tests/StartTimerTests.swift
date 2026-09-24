@@ -45,7 +45,7 @@ final class StartTimerTests: XCTestCase {
     }
 
     /// The Active Timer widget's Stop button logs a sleep/tummy timer as a completed activity:
-    /// it creates the record (carrying the server `timer` id so the server deletes the timer)
+    /// it creates the record (keeping the server `timer` id so delivery deletes the timer)
     /// and removes the local timer. Mirrors `LogTimerIntent`'s use of `convertTimer`.
     func testLoggingSyncedSleepTimerCreatesActivityAndRemovesTimer() throws {
         let container = LocalStore.makeContainer(inMemory: true)
@@ -68,7 +68,7 @@ final class StartTimerTests: XCTestCase {
             FetchDescriptor<LocalEntity>(predicate: #Predicate { $0.kindRaw == "sleep" }))
         XCTAssertEqual(sleeps.count, 1)
         XCTAssertEqual(sleeps.first?.syncState, .pendingCreate)
-        XCTAssertEqual(sleeps.first?.payloadObject["timer"] as? Int, 7) // server deletes the timer on POST
+        XCTAssertEqual(sleeps.first?.payloadObject["timer"] as? Int, 7) // deleted before the POST
 
         let mutations = try context.fetch(FetchDescriptor<PendingMutation>())
         XCTAssertEqual(mutations.map(\.kind), [.sleep])

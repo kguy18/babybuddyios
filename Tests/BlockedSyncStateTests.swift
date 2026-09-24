@@ -243,7 +243,7 @@ final class BlockedSyncStateTests: XCTestCase {
 
     // MARK: Stale timer conversions (Work Package 4)
 
-    /// A queued conversion of a synced timer: the create carries the write-only `timer` id.
+    /// A queued conversion of a synced timer: the queued body holds the timer's id under `timer`.
     private func queueTimerConversion(timerID: Int = 42) -> (LocalEntity, PendingMutation) {
         let timer = LocalStore.upsertFromServer(
             data(["id": timerID, "child": 1, "name": "Tummy time", "start": iso]), kind: .timer, in: context)!
@@ -252,46 +252,57 @@ final class BlockedSyncStateTests: XCTestCase {
         return (activity, mutations()[0])
     }
 
-    private static let timerRejection = #"{"timer":["Invalid pk \"42\" - object does not exist."]}"#
+    private static let timerGone = StubTransport.Reply(status: 404, body: #"{"detail":"No Timer matches the given query."}"#)
+    private static let timerDeleted = StubTransport.Reply(status: 204, body: "")
 
-    func testStaleTimerClassificationIsCreateAndTimerOnly() {
-        let (_, create) = queueTimerConversion()
-        let timerOnly = APIError.badRequest(status: 400, message: nil, fields: ["timer"])
-        XCTAssertTrue(SyncEngine.isStaleTimerRejection(create, timerOnly))
-        XCTAssertFalse(SyncEngine.isStaleTimerRejection(
-            create, .badRequest(status: 400, message: nil, fields: ["amount", "timer"])),
-            "another field in the verdict means a real validation problem too")
-        XCTAssertFalse(SyncEngine.isStaleTimerRejection(create, .forbidden))
-        create.opRaw = MutationOp.update.rawValue
-        XCTAssertFalse(SyncEngine.isStaleTimerRejection(create, timerOnly), "only creates carry `timer`")
-    }
-
-    /// The happy path is untouched: one POST, reconciled, queue cleared.
-    func testValidTimerConversionStillPostsOnce() async {
+    /// The timer is deleted by its own request and the activity posted without `timer`, so the
+    /// server keeps the activity's own start and end instead of overwriting them (#145).
+    func testTimerConversionDeletesTimerThenPostsOnce() async {
         let (activity, _) = queueTimerConversion()
-        StubTransport.reset([.init(status: 201, body: #"{"id":77,"child":1,"start":"2024-01-15T10:00:00-05:00","end":"2024-01-15T10:15:00-05:00"}"#)])
+        StubTransport.reset([Self.timerDeleted,
+                             .init(status: 201, body: #"{"id":77,"child":1,"start":"2024-01-15T10:00:00-05:00","end":"2024-01-15T10:15:00-05:00"}"#)])
 
         await engine.pushPending()
         for _ in 0..<3 { await engine.pushPending() }
 
-        XCTAssertEqual(StubTransport.requests.count, 1)
+        XCTAssertEqual(StubTransport.requests.map(\.method), ["DELETE", "POST"])
+        XCTAssertEqual(StubTransport.requests.first?.url, "https://stub.invalid/api/timers/42/")
         XCTAssertTrue(mutations().isEmpty)
         XCTAssertEqual(activity.serverID, 77)
         XCTAssertEqual(activity.syncState, .synced)
     }
 
-    /// A timer-only rejection parks the row in its own state and later syncs walk past it. A
-    /// plain Retry re-sends the same payload — which the server refuses the same way, so it can't
-    /// create a duplicate and it can't loop.
-    func testTimerFieldRejectionBecomesStaleTimerAndIsSkipped() async {
+    /// Once the timer is deleted, a failed POST is retried as a plain create: the `timer` key is
+    /// gone from both copies, so the retry doesn't re-DELETE, 404, and park a row that was fine.
+    func testPostFailureAfterTimerDeleteRetriesWithoutTimer() async {
         let (activity, create) = queueTimerConversion()
-        StubTransport.reset([.init(status: 400, body: Self.timerRejection)])
+        StubTransport.reset([Self.timerDeleted, .init(status: 503, body: ""),
+                             .init(status: 201, body: #"{"id":81,"child":1,"start":"2024-01-15T10:00:00-05:00"}"#)])
+
+        await engine.pushPending()
+        XCTAssertFalse(create.isBlocked)
+        XCTAssertNil(json(create.payload)["timer"])
+        XCTAssertNil(activity.payloadObject["timer"])
+        XCTAssertEqual(json(create.payload)["end"] as? String, "2024-01-15T10:15:00-05:00")
+
+        await engine.pushPending()
+        XCTAssertEqual(StubTransport.requests.map(\.method), ["DELETE", "POST", "POST"])
+        XCTAssertTrue(mutations().isEmpty)
+        XCTAssertEqual(activity.serverID, 81)
+    }
+
+    /// A 404 on the timer's DELETE parks the row in its own state and later syncs walk past it.
+    /// A plain Retry re-sends the same DELETE — which 404s the same way, so it can't create a
+    /// duplicate and it can't loop.
+    func testTimerGoneBecomesStaleTimerAndIsSkipped() async {
+        let (activity, create) = queueTimerConversion()
+        StubTransport.reset([Self.timerGone])
 
         await engine.pushPending()
         XCTAssertTrue(create.isBlocked)
         XCTAssertTrue(create.isStaleTimer)
         XCTAssertEqual(create.lastError, SyncEngine.staleTimerMessage)
-        XCTAssertEqual(StubTransport.requests.count, 1)
+        XCTAssertEqual(StubTransport.requests.map(\.method), ["DELETE"], "nothing is posted")
 
         for _ in 0..<5 { await engine.pushPending() }
         XCTAssertEqual(StubTransport.requests.count, 1, "never resent automatically")
@@ -300,7 +311,7 @@ final class BlockedSyncStateTests: XCTestCase {
 
         create.retryOnce()
         await engine.pushPending()
-        XCTAssertEqual(StubTransport.requests.count, 2, "Retry sends the same payload once")
+        XCTAssertEqual(StubTransport.requests.count, 2, "Retry sends the same DELETE once")
         XCTAssertTrue(create.isStaleTimer, "and it parks the same way again")
         await engine.pushPending()
         XCTAssertEqual(StubTransport.requests.count, 2)
@@ -311,7 +322,7 @@ final class BlockedSyncStateTests: XCTestCase {
     func testCreateWithoutTimerStripsKeyEverywhereAndSendsOnce() async {
         let (activity, create) = queueTimerConversion()
         StubTransport.reset([
-            .init(status: 400, body: Self.timerRejection),
+            Self.timerGone,
             .init(status: 201, body: #"{"id":78,"child":1,"start":"2024-01-15T10:00:00-05:00","end":"2024-01-15T10:15:00-05:00"}"#),
         ])
         await engine.pushPending()
@@ -328,7 +339,7 @@ final class BlockedSyncStateTests: XCTestCase {
 
         await engine.pushPending()
         for _ in 0..<3 { await engine.pushPending() }
-        XCTAssertEqual(StubTransport.requests.count, 2, "one rejected POST, then exactly one more")
+        XCTAssertEqual(StubTransport.requests.map(\.method), ["DELETE", "POST"], "one 404, then exactly one POST")
         XCTAssertTrue(mutations().isEmpty)
         XCTAssertEqual(activity.serverID, 78)
     }
@@ -336,8 +347,10 @@ final class BlockedSyncStateTests: XCTestCase {
     /// Not a stale-timer row: the method is a no-op rather than a way to strip `timer` from anything.
     func testCreateWithoutTimerIgnoresOtherRows() async {
         let (_, create) = queueTimerConversion()
-        StubTransport.reset([.init(status: 400, body: #"{"amount":["Required."],"timer":["Invalid pk."]}"#)])
+        StubTransport.reset([.init(status: 400, body: #"{"amount":["Required."]}"#)])
         await engine.pushPending()
+        XCTAssertTrue(create.isBlocked)
+        XCTAssertFalse(create.isStaleTimer)
 
         repo.createWithoutTimer(create)
         XCTAssertTrue(create.isBlocked)
@@ -349,7 +362,7 @@ final class BlockedSyncStateTests: XCTestCase {
     /// carried over, the row stays parked, and nothing goes out until the user decides.
     func testEditingStaleTimerRowKeepsTimerAndStaysParked() async {
         let (activity, create) = queueTimerConversion()
-        StubTransport.reset([.init(status: 400, body: Self.timerRejection)])
+        StubTransport.reset([Self.timerGone])
         await engine.pushPending()
         XCTAssertTrue(create.isStaleTimer)
 
@@ -375,28 +388,13 @@ final class BlockedSyncStateTests: XCTestCase {
         XCTAssertEqual(activity.payloadObject["milestone"] as? String, "Rolled over")
     }
 
-    /// Pumping's `amount` + `timer` cluster: two problems, so it stays plainly blocked with both
-    /// visible and no create-without-timer path.
-    func testAmountAndTimerRejectionStaysPlainBlockedWithBothReasons() async {
-        let (_, create) = queueTimerConversion()
-        StubTransport.reset([.init(status: 400, body: #"{"amount":["This field is required."],"timer":["Invalid pk."]}"#)])
-
-        await engine.pushPending()
-        XCTAssertTrue(create.isBlocked)
-        XCTAssertFalse(create.isStaleTimer)
-        XCTAssertTrue(create.lastError?.localizedCaseInsensitiveContains("amount") == true)
-        XCTAssertTrue(create.lastError?.localizedCaseInsensitiveContains("timer") == true)
-
-        for _ in 0..<3 { await engine.pushPending() }
-        XCTAssertEqual(StubTransport.requests.count, 1)
-    }
-
     /// App/extension coordination: the extension delivers its own fresh create, the app's push
     /// loop honours the claim, and a parked row is never re-sent from the extension.
     func testWidgetClaimedAndParkedCreatesDoNotDoublePost() async {
         let (activity, create) = queueTimerConversion()
         let localID = activity.localID
-        StubTransport.reset([.init(status: 201, body: #"{"id":79,"child":1,"start":"2024-01-15T10:00:00-05:00"}"#)])
+        StubTransport.reset([Self.timerDeleted,
+                             .init(status: 201, body: #"{"id":79,"child":1,"start":"2024-01-15T10:00:00-05:00"}"#)])
 
         // The app skips a create the extension has claimed.
         create.claimedAt = .now
@@ -406,16 +404,16 @@ final class BlockedSyncStateTests: XCTestCase {
         // The extension delivers it; the app then finds nothing to send.
         create.claimedAt = nil
         await TimerPush.pushCreate(localID: localID, in: context, client: StubTransport.makeClient())
-        XCTAssertEqual(StubTransport.requests.count, 1)
+        XCTAssertEqual(StubTransport.requests.map(\.method), ["DELETE", "POST"])
         XCTAssertTrue(mutations().isEmpty)
         await engine.pushPending()
-        XCTAssertEqual(StubTransport.requests.count, 1)
+        XCTAssertEqual(StubTransport.requests.count, 2)
 
         // A stale-timer row is the app's to resolve — the extension never re-POSTs it.
         let (parked, parkedCreate) = queueTimerConversion(timerID: 43)
         parkedCreate.fail(SyncEngine.staleTimerMessage, disposition: .blockedStaleTimer)
         await TimerPush.pushCreate(localID: parked.localID, in: context, client: StubTransport.makeClient())
-        XCTAssertEqual(StubTransport.requests.count, 1)
+        XCTAssertEqual(StubTransport.requests.count, 2)
         XCTAssertNil(parkedCreate.claimedAt, "not even claimed")
     }
 

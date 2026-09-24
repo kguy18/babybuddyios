@@ -90,15 +90,15 @@ final class TimerConvertTests: XCTestCase {
             "child": 1, "start": "2024-01-15T10:00:00-05:00", "end": "2024-01-15T10:15:00-05:00",
             "milestone": "", "tags": []])
 
-        // The activity payload carries the write-only timer id so the server converts + deletes.
+        // The queued body keeps the timer id, so delivery can DELETE that timer before the POST.
         XCTAssertEqual(activity?.payloadObject["timer"] as? Int, 42)
 
-        // The local timer is removed immediately (server will delete it during the POST).
+        // The local timer is removed immediately; the server copy goes when the create is delivered.
         let remaining = try entities()
         XCTAssertEqual(remaining.count, 1)
         XCTAssertEqual(remaining.first?.kind, .tummyTime)
 
-        // Only the activity create is queued — no DELETE racing the conversion.
+        // Only the activity create is queued — no separate DELETE mutation.
         let muts = try mutations()
         XCTAssertEqual(muts.count, 1)
         XCTAssertEqual(muts.first?.op, .create)

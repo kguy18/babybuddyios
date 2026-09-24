@@ -30,7 +30,7 @@ enum TimerPush {
         try? context.save()
 
         do {
-            let response = try await client.createRaw(path: mutation.kind.path, body: mutation.payload)
+            let response = try await sendCreate(mutation, client: client, context: context)
             reconcile(response, into: entity)
             context.delete(mutation)
             try? context.save()
@@ -38,6 +38,36 @@ enum TimerPush {
             mutation.claimedAt = nil // release so the app retries on its next sync
             try? context.save()
         }
+    }
+
+    /// The timer a conversion was logged from is already gone from the server. Another device
+    /// may have logged it, or our own earlier attempt deleted it and the response was lost. See
+    /// ``QueueDisposition/blockedStaleTimer``.
+    struct StaleTimer: Error {}
+
+    /// `POST` a queued create and return the server's response.
+    ///
+    /// A timer conversion's body holds the timer's id under `timer`, but that key never goes out.
+    /// Baby Buddy treats `timer` on a create as "use the timer's times": it overwrites `start`
+    /// with the timer's start and `end` with the moment the request arrives, so an edited End, or
+    /// a feed logged offline and synced hours later, would be saved wrong. Instead this deletes
+    /// the timer, then posts the activity with its own `start` and `end`. A 404 on that delete
+    /// throws ``StaleTimer``. Once the delete succeeds, `timer` is dropped and saved before the
+    /// `POST`, so a `POST` that fails is retried as a plain create rather than hitting the 404.
+    @MainActor
+    static func sendCreate(_ mutation: PendingMutation, client: APIClient,
+                           context: ModelContext) async throws -> Data {
+        let body = try? JSONSerialization.jsonObject(with: mutation.payload) as? [String: Any]
+        if let timerID = body?["timer"] as? Int {
+            do {
+                try await client.deleteRaw(path: EntityKind.timer.path, id: timerID)
+            } catch APIError.notFound {
+                throw StaleTimer()
+            }
+            LocalRepository(context: context).dropTimerReference(mutation)
+            try? context.save()
+        }
+        return try await client.createRaw(path: mutation.kind.path, body: mutation.payload)
     }
 
     /// Apply an authoritative server response onto a cached entity after a create. Shared with
