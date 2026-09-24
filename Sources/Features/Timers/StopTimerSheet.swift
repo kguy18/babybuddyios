@@ -1,12 +1,16 @@
 import SwiftUI
+import SwiftData
 
 /// Files a stopped timer: shows what's being logged (activity + the duration frozen at Stop) and
 /// lets you confirm or change the type. The timer stopped when Stop was tapped, so closing the
 /// sheet leaves it stopped; "Resume timer" undoes that. Logging, resuming and discarding are handed
 /// back to the caller (the dashboard owns the cache writes + sync); for feeding/pumping the caller
 /// routes to the pre-filled detail editor, which needs extra fields.
+/// The Started time is a picker, and "Restart from now" resumes from zero, for a timer started
+/// late or by mistake (#72).
 struct StopTimerSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
 
     let timer: LocalEntity
     let onLog: (EntityKind) -> Void
@@ -64,8 +68,14 @@ struct StopTimerSheet: View {
                 ActivityTile(kind: selected ?? .timer, size: 46, glyph: 24)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(headline).font(.headline)
-                    Text("Started \(timer.timestamp.formatted(date: .omitted, time: .shortened))")
-                        .font(.caption).foregroundStyle(.secondary)
+                    HStack(spacing: 6) {
+                        Text("Started").font(.caption).foregroundStyle(.secondary)
+                        DatePicker("Started", selection: Binding(get: { timer.timestamp }, set: setStartTime),
+                                   displayedComponents: .hourAndMinute)
+                            .labelsHidden()
+                            .datePickerStyle(.compact)
+                            .tint(BBColor.brandAccent)
+                    }
                 }
                 Spacer(minLength: 8)
                 Text(EntityFormatting.clock(elapsed))
@@ -77,6 +87,21 @@ struct StopTimerSheet: View {
 
     /// Frozen at Stop, so a parent who walks away mid-sheet comes back to the same number.
     private var elapsed: TimeInterval { (timer.stoppedAt ?? .now).timeIntervalSince(timer.timestamp) }
+
+    /// The picker is time only, to fit beside the count, so a picked time means its last occurrence:
+    /// 11:50 PM for a timer started at 12:10 AM is yesterday's.
+    private func setStartTime(_ picked: Date) {
+        let calendar = Calendar.current
+        let time = calendar.dateComponents([.hour, .minute], from: picked)
+        setStart(calendar.nextDate(after: .now, matching: time, matchingPolicy: .nextTime,
+                                   direction: .backward) ?? picked)
+    }
+
+    /// The timer is stopped, so this only moves the frozen count; the repository decides what
+    /// reaches the server (nothing until the timer is logged or resumed).
+    private func setStart(_ date: Date) {
+        LocalRepository(context: context).setTimerStart(timer, to: date)
+    }
 
     /// Reflects what's being logged: the chosen type (so it stays in step with the tile and the
     /// picker), falling back to the timer's name when no type is selected.
@@ -99,10 +124,15 @@ struct StopTimerSheet: View {
                 Button("Resume timer") { onResume() }
                     .foregroundStyle(BBColor.brandAccent)
                 Spacer()
+                // Started by mistake: it runs on from now instead of the original start.
+                Button("Restart from now") { setStart(.now); onResume() }
+                    .foregroundStyle(BBColor.brandAccent)
+                Spacer()
                 Button("Discard timer", role: .destructive) { onDiscard() }
                     .foregroundStyle(BBColor.danger)
             }
             .font(.subheadline.weight(.medium))
+            .lineLimit(1).minimumScaleFactor(0.8)
             .padding(.vertical, 4)
         }
         .padding(.horizontal, 16)

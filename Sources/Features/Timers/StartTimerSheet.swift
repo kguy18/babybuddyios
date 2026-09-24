@@ -1,7 +1,8 @@
 import SwiftUI
 import SwiftData
 
-/// Starts a new Baby Buddy timer (open-ended: start = now, no end). Pick an activity from the
+/// Starts a new Baby Buddy timer (open-ended: no end). It starts now unless back-dated with the
+/// "−5 / −15 / −30 min" chips or the start picker, for the nap noticed late. Pick an activity from the
 /// grid and the timer remembers it, so stopping it later files straight to that record with no
 /// "convert to…?" step; or start an uncategorized timer with the quiet escape hatch. Created
 /// through ``LocalRepository`` like any record, so it works offline and syncs when reconnected.
@@ -14,6 +15,9 @@ struct StartTimerSheet: View {
     let childID: Int
     @State private var name = ""
     @State private var selected: EntityKind?
+    /// Minutes before the Start tap (0 = now); `nil` once a start is picked, which `customStart` holds.
+    @State private var minutesBack: Int? = 0
+    @State private var customStart = Date.now
 
     /// The convertible activities a timer can become — same set as the dashboard's convert menu.
     private let activities: [EntityKind] = [.feeding, .sleep, .tummyTime, .pumping]
@@ -33,7 +37,7 @@ struct StartTimerSheet: View {
                         }
                     }
                     detailsCard
-                    Text("The timer starts now and counts up until you stop it.")
+                    Text("The timer counts up from its start until you stop it.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 16)
@@ -64,13 +68,23 @@ struct StartTimerSheet: View {
 
                 Rectangle().fill(BBColor.divider).frame(height: 1).padding(.leading, 15)
 
-                HStack {
-                    Text("Starts").font(.subheadline).foregroundStyle(.secondary)
-                    Spacer()
-                    Text(Date.now.formatted(date: .omitted, time: .shortened))
-                        .font(.subheadline.weight(.medium)).monospacedDigit()
+                VStack(spacing: 10) {
+                    HStack {
+                        Text("Starts").font(.subheadline).foregroundStyle(.secondary)
+                        Spacer()
+                        DatePicker("Starts", selection: Binding(
+                            get: { startDate() },
+                            set: { customStart = min($0, .now); minutesBack = nil }
+                        ), in: ...Date.now, displayedComponents: [.date, .hourAndMinute])
+                            .labelsHidden()
+                            .datePickerStyle(.compact)
+                            .tint(BBColor.brandAccent)
+                    }
+                    BBSegmentedControl(selection: $minutesBack, options: [0, 5, 15, 30]) { minutes in
+                        minutes == 0 ? "Now" : "−\(minutes ?? 0) min"
+                    }
                 }
-                .padding(.horizontal, 15).padding(.vertical, 13)
+                .padding(.horizontal, 15).padding(.vertical, 11)
             }
         }
     }
@@ -110,10 +124,14 @@ struct StartTimerSheet: View {
                               foreground: Color.adaptive(light: "FFFFFF", dark: "0C0E12"))
     }
 
+    private func startDate(now: Date = .now) -> Date {
+        minutesBack.map { now.addingTimeInterval(-Double($0) * 60) } ?? customStart
+    }
+
     private func start(kind: EntityKind?) {
         var payload: [String: Any] = [
             "child": childID,
-            "start": APIDate.isoDateTime.string(from: .now),
+            "start": APIDate.isoDateTime.string(from: startDate()),
         ]
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty {
