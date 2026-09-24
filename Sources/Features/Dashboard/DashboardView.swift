@@ -34,11 +34,11 @@ struct DashboardView: View {
     /// A kind chosen from the "More" sheet, opened in the editor once that sheet has dismissed
     /// (so the editor doesn't try to present while another sheet is still on screen).
     @State private var pendingAddKind: EntityKind?
-    @State private var stoppingTimer: LocalEntity?
-    @State private var convertRequest: ConvertRequest?
+    @State private var stoppingTimer: TimerRequest?
+    @State private var convertRequest: TimerRequest?
     /// A convert deferred until the Stop sheet finishes dismissing, so the detail editor doesn't
     /// try to present while another sheet is still on screen.
-    @State private var pendingConvert: ConvertRequest?
+    @State private var pendingConvert: TimerRequest?
 
     // MARK: Support nudge state
     //
@@ -70,11 +70,16 @@ struct DashboardView: View {
     @AppStorage(SickMode.feverLineKey, store: SharedDefaults.suite) private var feverLineCelsius = SickMode.defaultFeverLine
     @AppStorage(SickMode.suggestKey, store: SharedDefaults.suite) private var suggestsSickMode = true
 
-    /// A request to convert a specific timer into a specific activity kind.
-    private struct ConvertRequest: Identifiable {
-        let timer: LocalEntity
+    /// Capture the ID before a remote stop deletes the model. Sheets resolve it against the
+    /// current query rather than retaining a deleted SwiftData object.
+    private struct TimerRequest: Identifiable {
+        let id: UUID
         let kind: EntityKind
-        var id: String { "\(timer.localID)-\(kind.rawValue)" }
+
+        init(timer: LocalEntity, kind: EntityKind = .timer) {
+            id = timer.localID
+            self.kind = kind
+        }
     }
 
     /// A new reading, or the next dose pre-filled from the last one.
@@ -204,17 +209,29 @@ struct DashboardView: View {
                 StartTimerSheet(childID: selectedChildID)
             }
             .sheet(item: $convertRequest) { request in
-                EntityEditorView(kind: request.kind,
-                                 childID: request.timer.childID ?? selectedChildID,
-                                 sourceTimer: request.timer)
+                if let timer = runningTimers.first(where: { $0.localID == request.id }) {
+                    EntityEditorView(kind: request.kind,
+                                     childID: timer.childID ?? selectedChildID, sourceTimer: timer)
+                }
             }
             .sheet(item: $stoppingTimer, onDismiss: {
                 // Open the detail editor only after the Stop sheet is fully gone.
-                if let pendingConvert { convertRequest = pendingConvert; self.pendingConvert = nil }
-            }) { timer in
-                StopTimerSheet(timer: timer,
-                               onLog: { kind in stopTimer(timer, as: kind) },
-                               onDiscard: { discardTimer(timer); stoppingTimer = nil })
+                if let pendingConvert, runningTimers.contains(where: { $0.localID == pendingConvert.id }) {
+                    convertRequest = pendingConvert
+                }
+                pendingConvert = nil
+            }) { request in
+                if let timer = runningTimers.first(where: { $0.localID == request.id }) {
+                    StopTimerSheet(timer: timer,
+                                   onLog: { kind in stopTimer(timer, as: kind) },
+                                   onDiscard: { discardTimer(timer); stoppingTimer = nil })
+                }
+            }
+            .onChange(of: Set(runningTimers.map(\.localID))) { _, ids in
+                // Clear the deferred conversion first: dismissing Stop must not reopen it.
+                if let request = pendingConvert, !ids.contains(request.id) { pendingConvert = nil }
+                if let request = convertRequest, !ids.contains(request.id) { convertRequest = nil }
+                if let request = stoppingTimer, !ids.contains(request.id) { stoppingTimer = nil }
             }
             .sheet(item: $milestoneAsk, onDismiss: finishMilestoneAsk) { ask in
                 SupportMilestoneSheet(
@@ -483,7 +500,7 @@ struct DashboardView: View {
                 // fire VoiceOver every second), but the label and start time are.
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("\(timerTitle(timer)), started \(timer.timestamp.formatted(date: .omitted, time: .shortened))")
-                Button { stoppingTimer = timer } label: {
+                Button { stoppingTimer = TimerRequest(timer: timer) } label: {
                     Label("Stop", systemImage: "stop.fill")
                 }
                 .buttonStyle(.bbStop)
@@ -608,9 +625,9 @@ struct DashboardView: View {
     /// Open the Stop sheet for a timer arriving via deep link (Active Timer widget).
     private func openTimerActions(_ id: UUID?) {
         guard let id,
-              let timer = allEntities.first(where: { $0.localID == id && $0.kind == .timer })
+              let timer = runningTimers.first(where: { $0.localID == id })
         else { return }
-        stoppingTimer = timer
+        stoppingTimer = TimerRequest(timer: timer)
         router.openTimerLocalID = nil
     }
 
@@ -628,9 +645,9 @@ struct DashboardView: View {
     /// button for activities that need extra fields (feeding/pumping).
     private func openConvert(_ target: DeepLinkRouter.ConvertTarget?) {
         guard let target,
-              let timer = allEntities.first(where: { $0.localID == target.localID && $0.kind == .timer })
+              let timer = runningTimers.first(where: { $0.localID == target.localID })
         else { return }
-        convertRequest = ConvertRequest(timer: timer, kind: target.kind)
+        convertRequest = TimerRequest(timer: timer, kind: target.kind)
         router.convertTarget = nil
     }
 
@@ -647,7 +664,7 @@ struct DashboardView: View {
     /// Stop sheet has dismissed). The timer's existing type may be overridden by the picker.
     private func stopTimer(_ timer: LocalEntity, as kind: EntityKind) {
         guard TimerActivity(convertKind: kind)?.isInstantLoggable == true else {
-            pendingConvert = ConvertRequest(timer: timer, kind: kind)
+            pendingConvert = TimerRequest(timer: timer, kind: kind)
             stoppingTimer = nil
             return
         }
@@ -712,8 +729,12 @@ struct DashboardView: View {
             .sorted { $0.next < $1.next }
     }
 
+    private var runningTimers: [LocalEntity] {
+        allEntities.filter { $0.kind == .timer && $0.syncState != .pendingDelete }
+    }
+
     private var activeTimers: [LocalEntity] {
-        childEntities.filter { $0.kind == .timer }
+        runningTimers.filter { $0.childID == selectedChildID }
     }
 
     private func count(of kind: EntityKind, today: Bool) -> Int {

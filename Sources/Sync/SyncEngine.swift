@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import Observation
+import WidgetKit
 
 /// Coordinates pull (server → cache) and, from Phase 4, push (cache → server) sync.
 /// Lives for the app's lifetime and is shared via the environment.
@@ -48,6 +49,8 @@ final class SyncEngine {
 
     /// Guards against overlapping syncs (foreground + reconnect + manual could collide).
     private var isSyncing = false
+    private var isCheckingTimers = false
+    private var syncGeneration = 0
 
     /// Stands in for ``AppSession/client`` so the push/upload loops can be driven against a stub
     /// transport. `nil` in the app, where the session owns the client and its lifetime.
@@ -72,6 +75,7 @@ final class SyncEngine {
     func sync() async {
         guard !isSyncing else { return }
         isSyncing = true
+        syncGeneration += 1
         defer { isSyncing = false }
         let push = await pushPending()
         // Image uploads drain after the mutation queue so a just-created record already has its
@@ -79,12 +83,77 @@ final class SyncEngine {
         let uploads = await drainImageUploads()
         let pulledChanges = await pullAll()
         // A dose or timer logged elsewhere reschedules its local notification, background syncs too.
-        if pulledChanges { await LocalAlerts.shared.reconcile() }
+        if pulledChanges {
+            await LiveActivityManager().reconcile()
+            WidgetCenter.shared.reloadAllTimelines()
+        }
         let changed = push.delivered > 0 || uploads.delivered > 0 || pulledChanges
         // Only report a sync that actually did work — most syncs (foreground, pull-to-refresh,
         // after each timer action, background) are no-ops, which would otherwise be pure noise.
         if changed { Analytics.syncCompleted() }
         reportOutcome(push, uploads, changed: changed)
+    }
+
+    /// Read-only probe: ordinary ticks fetch only timers, without dirtying the cache or its
+    /// full-sync freshness stamp. A full sync remains free to run while this request is in flight.
+    func remoteTimersChanged() async throws -> Bool {
+        try Task.checkCancellation()
+        #if DEBUG
+        if session.isDemo { return false }
+        #endif
+        guard !isSyncing, !isCheckingTimers, let client = apiClient else { return false }
+        let before = try timerSnapshots()
+        guard before.values.contains(where: { $0.serverID != nil && $0.state != .pendingDelete })
+        else { return false }
+        isCheckingTimers = true
+        defer { isCheckingTimers = false }
+        let generation = syncGeneration
+        let config = session.config
+        do {
+            let records = try await client.listAllRaw(path: EntityKind.timer.path)
+            try Task.checkCancellation()
+            // A local stop/edit or a full sync supersedes this response, even if that sync has
+            // already finished. Never let an old probe resurrect a just-consumed timer.
+            guard !isSyncing, generation == syncGeneration, config == session.config,
+                  before == (try timerSnapshots()) else { return false }
+            var remote: [Int: Data] = [:]
+            for record in records {
+                guard let timer = try? APICoders.decoder.decode(TimerDTO.self, from: record),
+                      let id = timer.id, remote[id] == nil else {
+                    throw APIError.decoding("Invalid timer record")
+                }
+                remote[id] = record
+            }
+            let knownIDs = Set(before.values.compactMap(\.serverID))
+            if remote.keys.contains(where: { !knownIDs.contains($0) }) { return true }
+            return before.values.contains { local in
+                guard local.state == .synced, let id = local.serverID else { return false }
+                guard let payload = remote[id] else { return true }
+                return !LocalStore.payloadsEquivalent(local.payload, payload)
+            }
+        } catch {
+            try Task.checkCancellation() // URLSession cancellation is wrapped as APIError.offline.
+            if config == session.config, let error = error as? APIError, error == .unauthorized {
+                session.signOut(clearLocalData: false)
+            }
+            throw error
+        }
+    }
+
+    private struct TimerSnapshot: Equatable {
+        let serverID: Int?
+        let state: SyncState
+        let payload: Data
+        let updatedAt: Date
+    }
+
+    private func timerSnapshots() throws -> [UUID: TimerSnapshot] {
+        let timers = try context.fetch(FetchDescriptor<LocalEntity>(
+            predicate: #Predicate { $0.kindRaw == "timer" }))
+        return Dictionary(uniqueKeysWithValues: timers.map {
+            ($0.localID, TimerSnapshot(serverID: $0.serverID, state: $0.syncState,
+                                      payload: $0.payload, updatedAt: $0.updatedAt))
+        })
     }
 
     /// What one pass over a queue did. `Sync.completed` says only "something moved", which a
@@ -480,11 +549,11 @@ final class SyncEngine {
         status = .syncing
         let outcome = await syncActor.pullAll(config: config, windowDays: pullWindowDays)
         if let error = outcome.error {
-            if error == SyncActor.unauthorized { session.signOut(clearLocalData: false); return false }
+            if error == SyncActor.unauthorized { session.signOut(clearLocalData: false); return outcome.changed }
             // Already reported inside ``SyncActor`` with its category and the kind that failed;
             // here the message is only for the user.
             status = .failed(error)
-            return false
+            return outcome.changed // earlier kinds may already have committed a remote timer stop
         }
         lastSyncDate = .now
         status = .idle

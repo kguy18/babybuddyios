@@ -170,4 +170,101 @@ final class ServerTests: ServerTestCase {
         tap(app.buttons["Discard"])
         tap(app.alerts["Discard this change?"].buttons["Discard"])
     }
+
+    // MARK: Timers stopped by another device, without a refresh in this app
+
+    private func createRemoteTimer(suffix: String = "") async throws -> [String: Any] {
+        let child = try await api.firstChild()
+        return try await api.create("timers", [
+            "child": child.id, "name": marker + suffix,
+            "start": Date().addingTimeInterval(-20 * 60).apiTime,
+        ])
+    }
+
+    private func signInAndFinishInitialSync() {
+        signIn()
+        tap(app.tabBars.buttons["Settings"])
+        expect(app.buttons.labeled("Sync now"), matching: NSPredicate(format: "enabled == true"),
+               timeout: 60, describedAs: "to finish the initial sync")
+        tap(app.tabBars.buttons["Home"])
+        expect(element(labeled: "\(marker) running"))
+    }
+
+    func testRemoteTimerStopUpdatesDashboardAndActivityWithoutRefresh() async throws {
+        let timer = try await createRemoteTimer()
+        let id = try XCTUnwrap(timer["id"] as? Int)
+        let start = try XCTUnwrap(timer["start"] as? String)
+        let child = try XCTUnwrap(timer["child"] as? Int)
+        signInAndFinishInitialSync()
+
+        // The server consumes the timer and saves the activity, as another caregiver would.
+        try await api.create("tummy-times", [
+            "child": child, "timer": id, "start": start, "end": Date().apiTime, "milestone": marker,
+        ])
+        expectGone(element(labeled: "\(marker) running"), timeout: 45)
+        expect(app.buttons.labeled("Start a timer"))
+
+        // Search only: deliberately don't call syncAndSearch, which would hide a missing poll.
+        tap(app.tabBars.buttons["Timeline"])
+        tap(app.searchFields.firstMatch)
+        app.searchFields.firstMatch.typeText("\(marker)\n")
+        expect(element(labeled: "Tummy Time, "))
+        let logged = try await api.list("tummy-times", ["child": "\(child)", "limit": "100"])
+        XCTAssertEqual(logged.filter { $0["start"] as? String == start }.count, 1)
+    }
+
+    func testRemoteDiscardClosesStopSheetWithoutReopeningAForm() async throws {
+        let timer = try await createRemoteTimer()
+        let id = try XCTUnwrap(timer["id"] as? Int)
+        signInAndFinishInitialSync()
+        tap(app.buttons["Stop"])
+        expect(app.navigationBars["Stop Timer"])
+
+        try await api.delete("timers", id: id)
+        expectGone(app.navigationBars["Stop Timer"], timeout: 45)
+        expect(app.buttons.labeled("Start a timer"))
+        XCTAssertFalse(app.navigationBars["Convert to Feeding"].exists)
+        tap(app.tabBars.buttons["Settings"])
+        expect(app.staticTexts["All synced"])
+        expect(app.staticTexts["All clear"])
+    }
+
+    func testRemoteStopClosesConversionEditorWithoutSubmittingDraft() async throws {
+        let timer = try await createRemoteTimer()
+        let id = try XCTUnwrap(timer["id"] as? Int)
+        let child = try XCTUnwrap(timer["child"] as? Int)
+        let start = try XCTUnwrap(timer["start"] as? String)
+        signInAndFinishInitialSync()
+        tap(app.buttons["Stop"])
+        tap(app.buttons["Feeding"])
+        tap(app.buttons["Log feeding?"])
+        expect(app.navigationBars["Convert to Feeding"])
+
+        try await api.create("tummy-times", [
+            "child": child, "timer": id, "start": start, "end": Date().apiTime, "milestone": marker,
+        ])
+        expectGone(app.navigationBars["Convert to Feeding"], timeout: 45)
+        expect(app.buttons.labeled("Start a timer"))
+        tap(app.tabBars.buttons["Settings"])
+        expect(app.staticTexts["All synced"])
+        expect(app.staticTexts["All clear"])
+        let feedings = try await api.list("feedings", ["child": "\(child)", "limit": "100"])
+        XCTAssertFalse(feedings.contains { $0["start"] as? String == start }, "The draft must not be submitted")
+    }
+
+    func testPollingContinuesUntilBothRemoteTimersAreGone() async throws {
+        let first = try await createRemoteTimer()
+        let second = try await createRemoteTimer(suffix: "-second")
+        let firstID = try XCTUnwrap(first["id"] as? Int)
+        let secondID = try XCTUnwrap(second["id"] as? Int)
+        signInAndFinishInitialSync()
+        expect(element(labeled: "\(marker)-second running"))
+
+        try await api.delete("timers", id: firstID)
+        expectGone(element(labeled: "\(marker) running"), timeout: 45)
+        expect(element(labeled: "\(marker)-second running"))
+        try await api.delete("timers", id: secondID)
+        expectGone(element(labeled: "\(marker)-second running"), timeout: 45)
+        expect(app.buttons.labeled("Start a timer"))
+    }
 }

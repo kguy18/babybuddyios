@@ -8,6 +8,9 @@ struct MainTabView: View {
     @Environment(DeepLinkRouter.self) private var router
     @Environment(AppSession.self) private var session
     @Environment(AppLockManager.self) private var lock
+    @Environment(\.scenePhase) private var scenePhase
+    @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "timer" })
+    private var timers: [LocalEntity]
     @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "child" }, sort: \.timestamp)
     private var children: [LocalEntity]
     /// Every cached dose, for every child: medicine colors follow the order names first appear.
@@ -40,6 +43,28 @@ struct MainTabView: View {
             await sync.sync()
             ensureValidSelection()
         }
+        .task(id: shouldPollTimers) {
+            guard shouldPollTimers else { return }
+            var delay: Duration = .seconds(5)
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: delay)
+                    guard shouldPollTimers else { return }
+                    let changed = try await sync.remoteTimersChanged()
+                    try Task.checkCancellation()
+                    guard shouldPollTimers else { return }
+                    if changed {
+                        // Deleting the last timer cancels this polling task. Let the already
+                        // started full sync finish saving and reconciling its timer surfaces.
+                        await Task { await sync.sync() }.value
+                    }
+                    delay = .seconds(5)
+                } catch {
+                    if Task.isCancelled { return }
+                    delay = .seconds(30)
+                }
+            }
+        }
         .onChange(of: children.map(\.serverID)) { _, _ in ensureValidSelection() }
         .onChange(of: router.openTimerLocalID) { _, id in
             if id != nil { selectedTab = 0 } // a timer deep link targets the Home tab
@@ -69,7 +94,10 @@ struct MainTabView: View {
         .onAppear { presentWhatsNewIfNeeded() }
         // A cover presents above the lock screen, so a locked launch waits for the unlock.
         .onChange(of: lock.isLocked) { _, locked in
-            if !locked { presentWhatsNewIfNeeded() }
+            if !locked {
+                presentWhatsNewIfNeeded()
+                if scenePhase == .active { Task { await sync.sync() } }
+            }
         }
         .fullScreenCover(item: $whatsNew) { note in
             WhatsNewView(note: note, source: .launch) {
@@ -92,6 +120,14 @@ struct MainTabView: View {
             AccessibilityNotification.Announcement(
                 online ? "Back online" : "Offline. Changes will sync when reconnected.").post()
         }
+    }
+
+    private var shouldPollTimers: Bool {
+        #if DEBUG
+        if session.isDemo { return false }
+        #endif
+        return scenePhase == .active && session.isAuthenticated && !lock.isLocked && sync.isOnline
+            && timers.contains { $0.serverID != nil && $0.syncState != .pendingDelete }
     }
 
     /// Show the What's New card once per marketing version, and only to someone who was already
