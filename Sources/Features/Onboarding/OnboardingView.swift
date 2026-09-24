@@ -10,6 +10,8 @@ struct OnboardingView: View {
 
     @State private var serverURL = ""
     @State private var token = ""
+    @State private var headerRows: [HeaderRow] = []
+    @State private var showHeaders = false
     @State private var isValidating = false
     @State private var showScanner = false
     @State private var showHelp = false
@@ -52,6 +54,7 @@ struct OnboardingView: View {
                 divider
                 if hasError { errorBanner }
                 manualCard
+                headersSection
                 supplemental
                 primaryButton
                 helpLink
@@ -239,6 +242,47 @@ struct OnboardingView: View {
         .buttonStyle(.plain)
     }
 
+    // MARK: Custom headers (collapsed; only for a server behind an access gate)
+
+    private var headersSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                withAnimation { showHeaders.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Text("Custom headers")
+                        .font(.subheadline.weight(.medium))
+                    if !showHeaders, !headerRows.isEmpty {
+                        Text("\(headerRows.count)")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .rotationEffect(.degrees(showHeaders ? 90 : 0))
+                }
+                .foregroundStyle(BBColor.brandAccent)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(showHeaders ? "Expanded" : "Collapsed")
+
+            if showHeaders {
+                BBCard(cornerRadius: BBRadius.tile, padding: 0) {
+                    CustomHeaderFields(rows: $headerRows)
+                }
+                Text(CustomHeaderFields.footnote)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+            }
+        }
+        .padding(.top, 4)
+    }
+
     // MARK: Supplemental row — caption / connecting subline (error uses the banner above)
 
     @ViewBuilder private var supplemental: some View {
@@ -362,7 +406,8 @@ struct OnboardingView: View {
     // MARK: Logic (unchanged)
 
     /// Decode a scanned QR payload. On success, fill the fields and connect immediately;
-    /// otherwise surface a hint so the user knows they scanned the wrong code.
+    /// otherwise surface a hint so the user knows they scanned the wrong code. The code carries only
+    /// the URL and token, so any custom headers already entered go with it.
     private func handleScan(_ raw: String) {
         guard let credentials = DeviceLoginQR.parse(raw) else {
             session.lastError = "That QR code isn't a Baby Buddy login code. Open User → Add a Device on your server to show it."
@@ -377,8 +422,9 @@ struct OnboardingView: View {
         focusedField = nil
         isValidating = true
         Task {
-            let ok = await session.signIn(serverURL: serverURL, token: token)
-            if ok { Analytics.onboardingCompleted(method: method) }
+            let ok = await session.signIn(serverURL: serverURL, token: token,
+                                          headers: headerRows.map(\.header))
+            if ok { Analytics.onboardingCompleted(method: method, customHeaders: headerRows.count) }
             isValidating = false
         }
     }

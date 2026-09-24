@@ -1,8 +1,8 @@
 import Foundation
 import Security
 
-/// Minimal Keychain wrapper for the server URL + API token. The token is the only
-/// secret; both are stored with `WhenUnlockedThisDeviceOnly` so they never sync or
+/// Minimal Keychain wrapper for the server URL, API token and custom headers. The token and the
+/// header values are the secrets; all three are stored with `WhenUnlockedThisDeviceOnly` so they never sync or
 /// leave the device.
 ///
 /// Items are stored in a shared keychain access group so the widget/intents extension can read
@@ -13,6 +13,8 @@ enum KeychainStore {
     private static let service = "com.kurtisguy.BabyBuddy"
     private static let tokenAccount = "api-token"
     private static let urlAccount = "server-url"
+    /// The custom headers as a JSON array, absent when there are none.
+    private static let headersAccount = "custom-headers"
 
     /// Shared keychain group; must match the `keychain-access-groups` entitlement on both
     /// targets. This equals the app's pre-existing default group (`<teamID>.<appBundleID>`),
@@ -22,18 +24,26 @@ enum KeychainStore {
     static func save(config: ServerConfig) {
         set(config.token, account: tokenAccount)
         set(config.baseURL.absoluteString, account: urlAccount)
+        if config.headers.isEmpty {
+            delete(account: headersAccount)
+        } else if let json = try? JSONEncoder().encode(config.headers) {
+            set(String(decoding: json, as: UTF8.self), account: headersAccount)
+        }
     }
 
     static func load() -> ServerConfig? {
         guard let token = get(account: tokenAccount),
               let urlString = get(account: urlAccount),
               let url = URL(string: urlString) else { return nil }
-        return ServerConfig(baseURL: url, token: token)
+        let headers = get(account: headersAccount)
+            .flatMap { try? JSONDecoder().decode([CustomHeader].self, from: Data($0.utf8)) }
+        return ServerConfig(baseURL: url, token: token, headers: headers ?? [])
     }
 
     static func clear() {
         delete(account: tokenAccount)
         delete(account: urlAccount)
+        delete(account: headersAccount)
     }
 
     // MARK: Primitives

@@ -5,16 +5,25 @@ import XCTest
 ///
 /// The paging loop's stopping conditions are the thing under test, and they are only observable
 /// across more than one request — so this is the smallest thing that can show a bare array stops
-/// after one fetch while a `next` link keeps going.
-private final class StubProtocol: URLProtocol {
+/// after one fetch while a `next` link keeps going. `CustomHeaderTests` uses it too, for the
+/// headers on each request, a gate's 403 and a redirect.
+final class StubProtocol: URLProtocol {
     /// Bodies to serve, in order. The last one repeats if the client asks again — a loop that
     /// fails to stop then hangs on data rather than passing on an exhausted queue.
     static var bodies: [Data] = []
-    static var requestedURLs: [URL] = []
+    static var requests: [URLRequest] = []
+    static var requestedURLs: [URL] { requests.compactMap(\.url) }
+    /// The status every response carries.
+    static var status = 200
+    /// Answer the next request with a 302 to this URL instead, carrying every header across the way
+    /// CFNetwork does (except `Authorization`, which it drops), so the redirect delegate decides.
+    static var redirect: URL?
 
     static func install(_ bodies: [String]) -> URLSession {
         self.bodies = bodies.map { Data($0.utf8) }
-        requestedURLs = []
+        requests = []
+        status = 200
+        redirect = nil
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubProtocol.self]
         return URLSession(configuration: config)
@@ -26,9 +35,19 @@ private final class StubProtocol: URLProtocol {
 
     override func startLoading() {
         let url = request.url!
-        Self.requestedURLs.append(url)
+        Self.requests.append(request)
+        if let target = Self.redirect {
+            Self.redirect = nil
+            let response = HTTPURLResponse(url: url, statusCode: 302, httpVersion: nil,
+                                           headerFields: ["Location": target.absoluteString])!
+            var next = request
+            next.url = target
+            next.setValue(nil, forHTTPHeaderField: "Authorization")
+            client?.urlProtocol(self, wasRedirectedTo: next, redirectResponse: response)
+            return
+        }
         let body = Self.bodies.count > 1 ? Self.bodies.removeFirst() : (Self.bodies.first ?? Data())
-        let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil,
+        let response = HTTPURLResponse(url: url, statusCode: Self.status, httpVersion: nil,
                                        headerFields: ["Content-Type": "application/json"])!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: body)

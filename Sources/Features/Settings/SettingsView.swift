@@ -279,6 +279,8 @@ struct SettingsView: View {
             if case .authenticated(let config) = session.state {
                 serverRow(config)
                 rowDivider
+                headersRow(config)
+                rowDivider
             }
 
             Button { Task { await sync.sync() } } label: {
@@ -318,6 +320,21 @@ struct SettingsView: View {
                     .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
             }
         }
+    }
+
+    /// The custom header names, never their values.
+    private func headersRow(_ config: ServerConfig) -> some View {
+        NavigationLink { CustomHeadersView() } label: {
+            SettingsRow(symbol: "list.bullet.rectangle", tint: BBColor.brand,
+                        glyphColor: BBColor.brandAccent, title: "Custom headers") {
+                HStack(spacing: 4) {
+                    Text(config.headers.isEmpty ? "None" : config.headers.map(\.name).joined(separator: ", "))
+                        .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    disclosure
+                }
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     /// Everything waiting to reach the server: queued record writes and queued photo uploads.

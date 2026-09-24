@@ -96,6 +96,41 @@ final class DialogTests: UITestCase {
         XCTAssertFalse(connect.isEnabled)
     }
 
+    /// #148: the custom header rows on sign-in. A forbidden name is caught before any request goes
+    /// out, so this needs no server.
+    func testCustomHeaderRows() {
+        launch(demo: false)
+        let names = app.textFields.matching(NSPredicate(format: "placeholderValue == %@", "Header name"))
+        tap(app.buttons["Custom headers"])
+        tap(app.buttons["Add header"])
+        tap(app.buttons["Add header"])
+        XCTAssertEqual(names.count, 2)
+        tap(app.buttons["Remove header"].firstMatch)
+        expectGone(names.element(boundBy: 1))
+        XCTAssertEqual(names.count, 1)
+
+        replaceText(names.firstMatch, with: "Authorization")
+        replaceText(app.secureTextFields["Header value"], with: "x")
+        replaceText(app.textFields["Your server URL or IP address"], with: "baby.example.com")
+        replaceText(app.secureTextFields["Paste your API token"], with: "abc\n")
+        expect(element(labeled: "Authorization carries your API token"))
+    }
+
+    /// #148: Settings lists the header names, and an edit that fails keeps the old set. A rejected
+    /// name fails before the probe; the demo server's address would take a minute to time out.
+    func testCustomHeaderEditInSettings() {
+        launch(["BB_START_TAB": "settings"])
+        tap(element(labeled: "Custom headers"))
+        tap(app.buttons["Add header"])
+        replaceText(app.textFields["Header name"], with: "Cookie")
+        replaceText(app.secureTextFields["Header value"], with: "x")
+        tap(app.buttons["Save"])
+        expect(element(labeled: "The app sets Cookie itself"))
+        tap(app.navigationBars.buttons["Settings"])
+        expect(element(labeled: "Custom headers"))
+        XCTAssertTrue(app.staticTexts["None"].exists, "a failed edit saved the headers")
+    }
+
     /// Anyone whose camera is refused — or who simply has the token on a clipboard — needs the way
     /// back out of the scanner, and it's the same screen App Review saw (#4, #15).
     /// `BB_SCANNER_PREVIEW` opens it over a black backdrop, so no camera is involved.

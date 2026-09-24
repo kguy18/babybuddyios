@@ -5,6 +5,87 @@ struct ServerConfig: Equatable {
     /// Base server URL, e.g. `https://baby.example.com`. The `/api/` prefix is appended internally.
     var baseURL: URL
     var token: String
+    /// Headers an access gate in front of the server checks, such as a service token or a shared
+    /// secret. Sent on every request to the server's host and never to another one.
+    var headers: [CustomHeader] = []
+}
+
+/// One name and value pair from the "Custom headers" rows at sign-in.
+struct CustomHeader: Codable, Equatable {
+    var name: String
+    var value: String
+
+    /// Why a set of rows can't be saved, worded for the person who typed them.
+    enum Problem: Error, Equatable {
+        case empty
+        case reserved(String)
+        case invalidName(String)
+        case invalidValue(String)
+        case duplicate(String)
+
+        var message: String {
+            switch self {
+            case .empty: return "Each custom header needs a name and a value."
+            case .reserved(let name) where name.lowercased() == "authorization":
+                return "Authorization carries your API token, so it can't be a custom header."
+            case .reserved(let name): return "The app sets \(name) itself, so it can't be a custom header."
+            case .invalidName(let name): return "\"\(name)\" isn't a valid header name. Use letters, digits and dashes."
+            case .invalidValue(let name): return "The value for \(name) can't contain a line break or control character."
+            case .duplicate(let name): return "\(name) is set more than once."
+            }
+        }
+    }
+
+    /// Names that would replace the Baby Buddy token or break the request.
+    private static let reserved: Set<String> = [
+        "authorization", "host", "content-type", "content-length", "accept", "cookie",
+    ]
+
+    /// RFC 9110's `token` characters, the only ones a header name may contain.
+    private static let tokenCharacters = CharacterSet(
+        charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%&'*+-.^_`|~")
+
+    /// The rows trimmed, or the first problem with them. A row with an empty name or value is an
+    /// error rather than skipped: dropping it quietly would sign in without a header the user typed.
+    static func validated(_ rows: [CustomHeader]) throws -> [CustomHeader] {
+        var seen: Set<String> = []
+        return try rows.map { row in
+            let name = row.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let value = row.value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty, !value.isEmpty else { throw Problem.empty }
+            guard name.unicodeScalars.allSatisfy(tokenCharacters.contains) else { throw Problem.invalidName(name) }
+            guard !reserved.contains(name.lowercased()) else { throw Problem.reserved(name) }
+            guard !value.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) else {
+                throw Problem.invalidValue(name)
+            }
+            guard seen.insert(name.lowercased()).inserted else { throw Problem.duplicate(name) }
+            return CustomHeader(name: name, value: value)
+        }
+    }
+}
+
+/// Strips the custom headers from a redirect that leaves the server's host. CFNetwork copies every
+/// header except `Authorization` onto a redirected request, so a gate that bounces an unauthorized
+/// request to a login page on another domain would otherwise be handed the secret. The redirect
+/// is still followed, so the login page answers and sign-in reports it the way #147 does.
+final class CustomHeaderRedirectGuard: NSObject, URLSessionTaskDelegate {
+    private let names: [String]
+
+    /// `nil` when there's nothing to strip, so a request without custom headers behaves as before.
+    static func make(for headers: [CustomHeader]) -> CustomHeaderRedirectGuard? {
+        headers.isEmpty ? nil : CustomHeaderRedirectGuard(names: headers.map(\.name))
+    }
+
+    private init(names: [String]) { self.names = names }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask,
+                    willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest) async -> URLRequest? {
+        guard request.url?.host?.lowercased() != response.url?.host?.lowercased() else { return request }
+        var stripped = request
+        for name in names { stripped.setValue(nil, forHTTPHeaderField: name) }
+        return stripped
+    }
 }
 
 /// Query parameters for list requests.
@@ -253,6 +334,7 @@ final class APIClient {
 
         var req = URLRequest(url: url)
         req.httpMethod = method
+        for header in config.headers { req.setValue(header.value, forHTTPHeaderField: header.name) }
         req.setValue("Token \(config.token)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Accept")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -273,7 +355,8 @@ final class APIClient {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await session.data(for: req)
+            (data, response) = try await session.data(
+                for: req, delegate: CustomHeaderRedirectGuard.make(for: config.headers))
         } catch let urlError as URLError {
             throw APIError.offline(reason: APIError.TransportFailure(urlError.code))
         }
@@ -287,6 +370,11 @@ final class APIClient {
         case 401:
             throw APIError.unauthorized
         case 403:
+            // A gate refuses with 403 too. Baby Buddy's own refusal is always JSON (Django REST),
+            // so with custom headers set, a 403 page means the gate turned the headers down.
+            if !config.headers.isEmpty, (try? JSONSerialization.jsonObject(with: data)) == nil {
+                throw APIError.decoding(Analytics.ListShape.nonJSON.rawValue)
+            }
             throw APIError.forbidden
         case 404:
             throw APIError.notFound

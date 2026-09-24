@@ -85,8 +85,9 @@ final class AppSession {
         return "https://" + trimmed
     }
 
-    /// Validate a URL + token against the server and, on success, persist and activate it.
-    func signIn(serverURL: String, token: String) async -> Bool {
+    /// Validate a URL + token (and any custom headers) against the server and, on success, persist
+    /// and activate it.
+    func signIn(serverURL: String, token: String, headers: [CustomHeader] = []) async -> Bool {
         lastError = nil
         let normalized = Self.normalizedServerURLString(serverURL)
         guard let url = URL(string: normalized), url.host != nil else {
@@ -94,39 +95,73 @@ final class AppSession {
             lastError = "That doesn't look like a valid server address."
             return false
         }
+        guard let headers = validated(headers) else { return false }
         let config = ServerConfig(
-            baseURL: url, token: token.trimmingCharacters(in: .whitespaces))
+            baseURL: url, token: token.trimmingCharacters(in: .whitespaces), headers: headers)
+        guard let probe = await probe(config, context: "signIn") else { return false }
+        // A different server than the cache was pulled from: drop it before its records can
+        // mix with the new server's. Covers the path where the token was rejected mid-sync
+        // (which signs out without clearing) and the customer then moves to another server.
+        let key = Self.serverKey(for: url)
+        if UserDefaults.standard.string(forKey: Self.cachedServerKey) != key { clearLocalData() }
+        UserDefaults.standard.set(key, forKey: Self.cachedServerKey)
+        KeychainStore.save(config: config)
+        // Before the state flips: `MainTabView` reads this as it appears.
+        ReleaseNotes.markCurrentSeen()
+        state = .authenticated(config)
+        client = probe
+        return true
+    }
+
+    /// Replace the custom headers on the signed-in server, but only once the server answers the
+    /// same probe sign-in runs. A failed probe keeps the old headers.
+    func updateHeaders(_ headers: [CustomHeader]) async -> Bool {
+        lastError = nil
+        guard var config, let headers = validated(headers) else { return false }
+        config.headers = headers
+        guard let probe = await probe(config, context: "editHeaders") else { return false }
+        KeychainStore.save(config: config)
+        state = .authenticated(config)
+        client = probe
+        return true
+    }
+
+    private func validated(_ headers: [CustomHeader]) -> [CustomHeader]? {
+        do {
+            return try CustomHeader.validated(headers)
+        } catch {
+            lastError = (error as? CustomHeader.Problem)?.message ?? error.localizedDescription
+            return nil
+        }
+    }
+
+    /// A client for `config` if the server answers ``APIClient/validateToken()``; otherwise `nil`,
+    /// with ``lastError`` saying why.
+    private func probe(_ config: ServerConfig, context: String) async -> APIClient? {
         let probe = APIClient(config: config)
         do {
             try await probe.validateToken()
-            // A different server than the cache was pulled from: drop it before its records can
-            // mix with the new server's. Covers the path where the token was rejected mid-sync
-            // (which signs out without clearing) and the customer then moves to another server.
-            let key = Self.serverKey(for: url)
-            if UserDefaults.standard.string(forKey: Self.cachedServerKey) != key { clearLocalData() }
-            UserDefaults.standard.set(key, forKey: Self.cachedServerKey)
-            KeychainStore.save(config: config)
-            // Before the state flips: `MainTabView` reads this as it appears.
-            ReleaseNotes.markCurrentSeen()
-            state = .authenticated(config)
-            client = probe
-            return true
+            return probe
         } catch let error as APIError {
             // Sign-in is the step this app is most likely to lose someone at — a URL typo, a
             // server that isn't reachable from outside the LAN, a self-signed certificate, a
             // mistyped token all end here, and `Onboarding.completed` only ever fires on the
             // happy path. Without this the funnel has no denominator.
-            Analytics.report(error, context: "signIn")
+            Analytics.report(error, context: context)
             // A server that refuses the token here says 401 or 403 depending on how it's configured
             // (Django REST answers 403 when it sends no authentication challenge). Both mean the
             // same thing to someone signing in — the token — so don't send them off to look at
             // permissions for a mistyped one.
-            lastError = error.isForbidden ? APIError.unauthorized.userMessage : error.userMessage
-            return false
+            var message = error.isForbidden ? APIError.unauthorized.userMessage : error.userMessage
+            if !config.headers.isEmpty, error == .decoding(Analytics.ListShape.nonJSON.rawValue) {
+                message += " Check the custom headers."
+            }
+            lastError = message
+            return nil
         } catch {
-            Analytics.error(network: "signIn-unknown")
+            Analytics.error(network: "\(context)-unknown")
             lastError = error.localizedDescription
-            return false
+            return nil
         }
     }
 

@@ -6,9 +6,10 @@ import SwiftUI
 /// the token to send: same-host `http`→`https` upgrade, same-origin-only token, `file://`
 /// passthrough, and server-relative resolution.
 final class RemoteImageTests: XCTestCase {
-    private let config = ServerConfig(baseURL: URL(string: "https://baby.example.com")!, token: "TICKET")
+    private let config = ServerConfig(baseURL: URL(string: "https://baby.example.com")!, token: "TICKET",
+                                      headers: [CustomHeader(name: "X-Gate", value: "open")])
 
-    private func resolve(_ s: String?) -> (url: URL, token: String?)? {
+    private func resolve(_ s: String?) -> (url: URL, token: String?, headers: [CustomHeader])? {
         RemoteImage<EmptyView>.resolve(s, config: config)
     }
 
@@ -22,6 +23,7 @@ final class RemoteImageTests: XCTestCase {
         let r = resolve("https://baby.example.com/media/child/picture/a.jpg")
         XCTAssertEqual(r?.url.absoluteString, "https://baby.example.com/media/child/picture/a.jpg")
         XCTAssertEqual(r?.token, "TICKET")
+        XCTAssertEqual(r?.headers, config.headers)
     }
 
     func testSameHostHTTPUpgradedToHTTPS() {
@@ -37,12 +39,14 @@ final class RemoteImageTests: XCTestCase {
         let r = resolve("https://cdn.othersite.com/x.jpg")
         XCTAssertEqual(r?.url.absoluteString, "https://cdn.othersite.com/x.jpg")
         XCTAssertNil(r?.token)
+        XCTAssertEqual(r?.headers, [], "the gate's secret stays with the gate's host")
     }
 
     func testRelativePathResolvesAgainstServerWithToken() {
         let r = resolve("/media/child/picture/c.jpg")
         XCTAssertEqual(r?.url.absoluteString, "https://baby.example.com/media/child/picture/c.jpg")
         XCTAssertEqual(r?.token, "TICKET")
+        XCTAssertEqual(r?.headers, config.headers)
     }
 
     func testFileURLPassesThroughWithoutToken() {
