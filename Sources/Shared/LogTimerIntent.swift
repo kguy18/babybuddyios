@@ -39,16 +39,13 @@ struct LogTimerIntent: LiveActivityIntent {
            let timer = LocalStore.fetch(localID: id, in: context),
            let activity = TimerActivity(timer: timer),
            activity.isInstantLoggable {
-            let start = (timer.payloadObject["start"] as? String)
-                ?? APIDate.isoDateTime.string(from: timer.timestamp)
-            var payload: [String: Any] = [
-                "start": start,
-                "end": APIDate.isoDateTime.string(from: .now),
-            ]
-            if let child = timer.childID { payload["child"] = child }
-            let logged = LocalRepository(context: context).convertTimer(
-                timer, to: activity.convertKind, payload: payload)
+            let repo = LocalRepository(context: context)
+            repo.stopTimer(timer)
+            let logged = repo.convertTimer(
+                timer, to: activity.convertKind, payload: timer.stoppedTimerPayload())
             Analytics.timerStopped(activity: activity.rawValue, source: .widget)
+            // The DELETE goes first: if it finds the timer gone, the create parks instead.
+            await TimerPush.pushTimerDelete(localID: id, in: context)
             if let logged { await TimerPush.pushCreate(localID: logged.localID, in: context) }
         }
         // Running in the app's process (via `LiveActivityIntent`), so end the timer's Live Activity

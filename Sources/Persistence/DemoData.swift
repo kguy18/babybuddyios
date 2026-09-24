@@ -205,7 +205,7 @@ enum DemoData {
         context.insert(staleTimed)
         let stale = PendingMutation(localID: staleTimed.localID, kind: .tummyTime, op: .create,
                                     payload: data(stalePayload))
-        stale.fail(SyncEngine.staleTimerMessage, disposition: .blockedStaleTimer)
+        stale.fail(LocalRepository.staleTimerMessage, disposition: .blockedStaleTimer)
         context.insert(stale)
 
         // A queued photo for the cached note (id 60) — pending work that used to be invisible here.

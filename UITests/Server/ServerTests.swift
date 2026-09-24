@@ -70,7 +70,8 @@ final class ServerTests: ServerTestCase {
     }
 
     /// Regression: #5 — stopping a timer used to raise a conflict against the timer it had just
-    /// consumed, on a real server only.
+    /// consumed, on a real server only. Also #145/#146: Stop deletes the server timer at once, and
+    /// the logged record ends at the Stop tap.
     func testStoppingTimerDoesNotRaiseConflict() async throws {
         signIn()
         tap(app.buttons["Add"])
@@ -87,16 +88,24 @@ final class ServerTests: ServerTestCase {
         let timerID = try XCTUnwrap(timer?["id"] as? Int, "The timer never reached the server")
         let start = try XCTUnwrap(timer?["start"] as? String)
 
+        // Stop alone stops it on the server (#146), before anything is logged.
+        let stopTapped = Date()
         tap(app.buttons["Stop"])
+        expect(app.navigationBars["Stop Timer"])
+        let stopped = try await api.waitForDeletion("timers", id: timerID)
+        XCTAssertTrue(stopped, "The stopped timer is still running on the server")
+
+        // Log well after Stop: the sleep ends at the Stop tap, not when the server got it (#145).
+        let loggedAfter = stopTapped.addingTimeInterval(20)
+        while Date() < loggedAfter { try await Task.sleep(for: .seconds(1)) }
         tap(app.buttons["Log sleep"])
         expect(app.buttons.labeled("Start a timer"))
 
-        let stopped = try await api.waitForDeletion("timers", id: timerID)
-        XCTAssertTrue(stopped, "The stopped timer is still running on the server")
-        let sleeps = try await api.list("sleep", ["limit": "20"])
-        let logged = sleeps.first { $0["start"] as? String == start }
+        let logged = try await api.waitForRecord("sleep", marker: start)
         XCTAssertNotNil(logged, "The timer's sleep never reached the server")
         if let id = logged?["id"] as? Int { try await api.delete("sleep", id: id) }
+        let end = try XCTUnwrap((logged?["end"] as? String).flatMap(Date.fromAPI))
+        XCTAssertLessThan(end.timeIntervalSince(stopTapped), 10, "The sleep should end at Stop, not at Log")
 
         tap(app.tabBars.buttons["Settings"])
         expect(app.staticTexts["All clear"])

@@ -243,12 +243,12 @@ final class BlockedSyncStateTests: XCTestCase {
 
     // MARK: Stale timer conversions (Work Package 4)
 
-    /// A queued conversion of a synced timer: the create carries the write-only `timer` id.
+    /// A conversion queued before #145: the create carries the write-only `timer` id. Conversions
+    /// no longer send it, but rows like this can still be sitting in a queue after an update.
     private func queueTimerConversion(timerID: Int = 42) -> (LocalEntity, PendingMutation) {
-        let timer = LocalStore.upsertFromServer(
-            data(["id": timerID, "child": 1, "name": "Tummy time", "start": iso]), kind: .timer, in: context)!
-        let activity = repo.convertTimer(timer, to: .tummyTime, payload: [
-            "child": 1, "start": iso, "end": "2024-01-15T10:15:00-05:00", "milestone": "", "tags": []])!
+        let activity = repo.create(kind: .tummyTime, payload: [
+            "child": 1, "start": iso, "end": "2024-01-15T10:15:00-05:00", "milestone": "", "tags": [],
+            "timer": timerID], source: .timerStop)!
         return (activity, mutations()[0])
     }
 
@@ -290,7 +290,7 @@ final class BlockedSyncStateTests: XCTestCase {
         await engine.pushPending()
         XCTAssertTrue(create.isBlocked)
         XCTAssertTrue(create.isStaleTimer)
-        XCTAssertEqual(create.lastError, SyncEngine.staleTimerMessage)
+        XCTAssertEqual(create.lastError, LocalRepository.staleTimerMessage)
         XCTAssertEqual(StubTransport.requests.count, 1)
 
         for _ in 0..<5 { await engine.pushPending() }
@@ -361,7 +361,7 @@ final class BlockedSyncStateTests: XCTestCase {
         XCTAssertEqual(activity.payloadObject["timer"] as? Int, 42, "and in the cached record")
         XCTAssertEqual(activity.payloadObject["milestone"] as? String, "Rolled over", "the edit itself lands")
         XCTAssertTrue(create.isStaleTimer, "still parked: the edit didn't change why")
-        XCTAssertEqual(create.lastError, SyncEngine.staleTimerMessage)
+        XCTAssertEqual(create.lastError, LocalRepository.staleTimerMessage)
 
         for _ in 0..<3 { await engine.pushPending() }
         XCTAssertEqual(StubTransport.requests.count, 1, "nothing is sent behind the user's back")
@@ -413,10 +413,115 @@ final class BlockedSyncStateTests: XCTestCase {
 
         // A stale-timer row is the app's to resolve — the extension never re-POSTs it.
         let (parked, parkedCreate) = queueTimerConversion(timerID: 43)
-        parkedCreate.fail(SyncEngine.staleTimerMessage, disposition: .blockedStaleTimer)
+        parkedCreate.fail(LocalRepository.staleTimerMessage, disposition: .blockedStaleTimer)
         await TimerPush.pushCreate(localID: parked.localID, in: context, client: StubTransport.makeClient())
         XCTAssertEqual(StubTransport.requests.count, 1)
         XCTAssertNil(parkedCreate.claimedAt, "not even claimed")
+    }
+
+    // MARK: Stopping a timer (#145, #146)
+
+    private static let end = "2024-01-15T10:15:00-05:00"
+    private static let created = #"{"id":77,"child":1,"start":"2024-01-15T10:00:00-05:00","end":"2024-01-15T10:15:00-05:00"}"#
+
+    private func syncedTimer(id: Int = 42) -> LocalEntity {
+        LocalStore.upsertFromServer(
+            data(["id": id, "child": 1, "name": "Tummy time", "start": iso]), kind: .timer, in: context)!
+    }
+
+    /// The GET the delete's conflict check makes: the timer as it was pulled.
+    private func timerBody(id: Int = 42) -> String {
+        String(decoding: data(["id": id, "child": 1, "name": "Tummy time", "start": iso]), as: UTF8.self)
+    }
+
+    private func log(_ timer: LocalEntity) -> LocalEntity {
+        repo.convertTimer(timer, to: .tummyTime, payload: [
+            "child": 1, "start": iso, "end": Self.end, "milestone": "", "tags": []])!
+    }
+
+    /// Stop deletes the server timer; Log posts the activity with its own start and end, no `timer`.
+    func testStopThenLogDeletesTimerThenPostsExplicitEnd() async {
+        let timer = syncedTimer()
+        repo.stopTimer(timer)
+        let activity = log(timer)
+        StubTransport.reset([.init(status: 200, body: timerBody()), .init(status: 204, body: ""),
+                             .init(status: 201, body: Self.created)])
+
+        await engine.pushPending()
+
+        XCTAssertEqual(StubTransport.requests.map(\.method), ["GET", "DELETE", "POST"])
+        XCTAssertTrue(mutations().isEmpty)
+        XCTAssertEqual(activity.serverID, 77)
+        XCTAssertNil(activity.payloadObject["timer"])
+    }
+
+    /// Logged before the DELETE went out, and the timer turns out to be gone: another device got
+    /// there first, so the create parks as a likely duplicate instead of going out.
+    func testTimerAlreadyGoneParksTheLoggedCreate() async {
+        let timer = syncedTimer()
+        repo.stopTimer(timer)
+        let activity = log(timer)
+        StubTransport.reset([.init(status: 404, body: "{}")])
+
+        await engine.pushPending()
+        for _ in 0..<3 { await engine.pushPending() }
+
+        XCTAssertEqual(StubTransport.requests.map(\.method), ["GET"])
+        let create = mutations().first { $0.localID == activity.localID }
+        XCTAssertEqual(create?.isStaleTimer, true)
+        XCTAssertEqual(create?.lastError, LocalRepository.staleTimerMessage)
+    }
+
+    /// The DELETE finds the timer gone while it's still a stopped draft: logging it parks at once.
+    func testTimerGoneBeforeLogParksOnLog() async {
+        let timer = syncedTimer()
+        repo.stopTimer(timer)
+        StubTransport.reset([.init(status: 404, body: "{}")])
+        await engine.pushPending()
+        XCTAssertNotNil(timer.stoppedAt, "the draft stays")
+        XCTAssertNil(timer.serverID)
+
+        let activity = log(timer)
+        await engine.pushPending()
+        XCTAssertEqual(StubTransport.requests.count, 1, "the create never goes out")
+        XCTAssertEqual(mutations().first { $0.localID == activity.localID }?.isStaleTimer, true)
+    }
+
+    /// Once the DELETE lands, the stopped draft is local-only; Resume files a new server timer with
+    /// the original start.
+    func testResumeAfterDeleteCreatesANewTimer() async {
+        let timer = syncedTimer()
+        repo.stopTimer(timer)
+        StubTransport.reset([.init(status: 200, body: timerBody()), .init(status: 204, body: "")])
+        await engine.pushPending()
+        XCTAssertNil(timer.serverID)
+        XCTAssertEqual(timer.syncState, .synced)
+        XCTAssertNotNil(timer.stoppedAt)
+
+        repo.resumeTimer(timer)
+        XCTAssertNil(timer.stoppedAt)
+        XCTAssertTrue(timer.isRunningTimer)
+        let create = mutations().first
+        XCTAssertEqual(create?.op, .create)
+        XCTAssertNil(json(create!.payload)["id"])
+        XCTAssertEqual(json(create!.payload)["start"] as? String, iso)
+    }
+
+    /// The widget's one-tap Stop pushes from the extension: DELETE first, so a 404 parks the create
+    /// before ``TimerPush/pushCreate`` would send it.
+    func testWidgetStopPushesDeleteFirstAndHonoursA404() async {
+        let timer = syncedTimer()
+        let timerID = timer.localID
+        repo.stopTimer(timer)
+        let activity = log(timer)
+        StubTransport.reset([.init(status: 404, body: "{}")])
+
+        await TimerPush.pushTimerDelete(localID: timerID, in: context, client: StubTransport.makeClient())
+        await TimerPush.pushCreate(localID: activity.localID, in: context, client: StubTransport.makeClient())
+
+        XCTAssertEqual(StubTransport.requests.map(\.method), ["DELETE"])
+        XCTAssertEqual(mutations().map(\.op), [.create])
+        XCTAssertEqual(mutations().first?.isStaleTimer, true)
     }
 
     // MARK: Image-upload queue

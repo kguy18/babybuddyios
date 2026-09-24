@@ -214,6 +214,7 @@ struct DashboardView: View {
             }) { timer in
                 StopTimerSheet(timer: timer,
                                onLog: { kind in stopTimer(timer, as: kind) },
+                               onResume: { resumeTimer(timer); stoppingTimer = nil },
                                onDiscard: { discardTimer(timer); stoppingTimer = nil })
             }
             .sheet(item: $milestoneAsk, onDismiss: finishMilestoneAsk) { ask in
@@ -224,13 +225,15 @@ struct DashboardView: View {
             }
             .sheet(isPresented: $showingSupporter) { SupporterSheet(source: supporterSource) }
             .refreshable { await sync.sync() }
-            .onChange(of: router.openTimerLocalID) { _, id in openTimerActions(id) }
+            .onChange(of: router.openTimerLocalID) { _, id in showTimer(id) }
+            .onChange(of: router.stopTimerLocalID) { _, id in openStop(id) }
             .onChange(of: router.convertTarget) { _, target in openConvert(target) }
             .onChange(of: router.openDayKind) { _, kind in openDay(kind) }
             .onChange(of: router.repeatDoseLocalID) { _, id in openRepeatDose(id) }
             .onAppear {
                 // handle a deep link that arrived before this view existed
-                openTimerActions(router.openTimerLocalID)
+                showTimer(router.openTimerLocalID)
+                openStop(router.stopTimerLocalID)
                 openConvert(router.convertTarget)
                 openDay(router.openDayKind)
                 openRepeatDose(router.repeatDoseLocalID)
@@ -462,31 +465,48 @@ struct DashboardView: View {
     }
 
     private func timerHero(_ timer: LocalEntity) -> some View {
-        BBCard {
+        let started = timer.timestamp.formatted(date: .omitted, time: .shortened)
+        return BBCard {
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 8) {
-                        RunningDot().accessibilityHidden(true)
+                        if timer.stoppedAt == nil { RunningDot().accessibilityHidden(true) }
                         Text(timerTitle(timer))
                             .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(BBColor.success)
+                            .foregroundStyle(timer.stoppedAt == nil ? BBColor.success : .secondary)
                         Spacer()
                     }
-                    Text(timer.timestamp, style: .timer)
-                        .font(BBFont.timer)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                    Text("Started \(timer.timestamp.formatted(date: .omitted, time: .shortened))")
+                    Group {
+                        if let stoppedAt = timer.stoppedAt {
+                            Text(EntityFormatting.clock(stoppedAt.timeIntervalSince(timer.timestamp)))
+                                .monospacedDigit()
+                        } else {
+                            Text(timer.timestamp, style: .timer)
+                        }
+                    }
+                    .font(BBFont.timer)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    Text("Started \(started)")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-                // Read the running timer as one phrase; the live seconds aren't announced (they'd
-                // fire VoiceOver every second), but the label and start time are.
+                // Read the timer as one phrase; the live seconds aren't announced (they'd fire
+                // VoiceOver every second), but the label and start time are, and a stopped
+                // timer's frozen duration.
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(timerTitle(timer)), started \(timer.timestamp.formatted(date: .omitted, time: .shortened))")
-                Button { stoppingTimer = timer } label: {
-                    Label("Stop", systemImage: "stop.fill")
+                .accessibilityLabel(timer.stoppedAt.map {
+                    "\(timerTitle(timer)) after \(EntityFormatting.spokenDuration($0.timeIntervalSince(timer.timestamp))), started \(started)"
+                } ?? "\(timerTitle(timer)), started \(started)")
+                if timer.stoppedAt == nil {
+                    Button { beginStop(timer) } label: {
+                        Label("Stop", systemImage: "stop.fill")
+                    }
+                    .buttonStyle(.bbStop)
+                } else {
+                    // Stopped but not yet logged: pick up where the Stop sheet was left.
+                    Button("Log timer") { stoppingTimer = timer }
+                        .buttonStyle(.bbPrimary)
                 }
-                .buttonStyle(.bbStop)
             }
         }
     }
@@ -510,12 +530,13 @@ struct DashboardView: View {
         .disabled(children.isEmpty)
     }
 
-    /// Title shown above the running timer. Uses the timer's name when set.
+    /// Title shown above the timer. Uses the timer's name when set.
     private func timerTitle(_ timer: LocalEntity) -> String {
+        let state = timer.stoppedAt == nil ? "running" : "stopped"
         if let name = timer.payloadObject["name"] as? String, !name.isEmpty {
-            return "\(name) running"
+            return "\(name) \(state)"
         }
-        return "Timer running"
+        return "Timer \(state)"
     }
 
     // MARK: Today
@@ -605,13 +626,23 @@ struct DashboardView: View {
         }
     }
 
-    /// Open the Stop sheet for a timer arriving via deep link (Active Timer widget).
-    private func openTimerActions(_ id: UUID?) {
+    /// Show a timer whose widget, Live Activity or alert was tapped: switch to its child. The tap
+    /// isn't a Stop, so the timer keeps running.
+    private func showTimer(_ id: UUID?) {
+        guard let id else { return }
+        router.openTimerLocalID = nil
+        if let child = allEntities.first(where: { $0.localID == id && $0.kind == .timer })?.childID {
+            selectedChildID = child
+        }
+    }
+
+    /// Stop on a widget or Live Activity for an untyped timer: stop it and ask what to log.
+    private func openStop(_ id: UUID?) {
         guard let id,
               let timer = allEntities.first(where: { $0.localID == id && $0.kind == .timer })
         else { return }
-        stoppingTimer = timer
-        router.openTimerLocalID = nil
+        router.stopTimerLocalID = nil
+        beginStop(timer)
     }
 
     /// Open a new dose pre-filled from the one a tapped medication reminder was about. Looked up in
@@ -630,6 +661,9 @@ struct DashboardView: View {
         guard let target,
               let timer = allEntities.first(where: { $0.localID == target.localID && $0.kind == .timer })
         else { return }
+        // ponytail: the link's arrival stands in for the tap, a second or two later on a cold launch.
+        // An intent that stops before opening the app would pin it exactly.
+        stop(timer)
         convertRequest = ConvertRequest(timer: timer, kind: target.kind)
         router.convertTarget = nil
     }
@@ -642,6 +676,27 @@ struct DashboardView: View {
         router.openDayKind = nil
     }
 
+    /// Stop tapped: the timer stops now, here and (once the DELETE lands) on the server, then the
+    /// Stop sheet asks what to log it as.
+    private func beginStop(_ timer: LocalEntity) {
+        stop(timer)
+        stoppingTimer = timer
+    }
+
+    private func stop(_ timer: LocalEntity) {
+        guard timer.stoppedAt == nil else { return }
+        LocalRepository(context: context).stopTimer(timer)
+        Task { await sync.sync() }
+        Task { await liveActivity.reconcile() } // the Live Activity ends at Stop, not at Log
+    }
+
+    /// Stop was a mistake: the timer runs on from its original start.
+    private func resumeTimer(_ timer: LocalEntity) {
+        LocalRepository(context: context).resumeTimer(timer)
+        Task { await sync.sync() }
+        Task { await liveActivity.reconcile() }
+    }
+
     /// File a stopped timer as the chosen activity. Sleep/tummy time log in one tap; feeding and
     /// pumping need extra fields, so they defer to the pre-filled convert editor (opened once the
     /// Stop sheet has dismissed). The timer's existing type may be overridden by the picker.
@@ -651,14 +706,7 @@ struct DashboardView: View {
             stoppingTimer = nil
             return
         }
-        let p = timer.payloadObject
-        let start = (p["start"] as? String) ?? APIDate.isoDateTime.string(from: timer.timestamp)
-        var payload: [String: Any] = [
-            "start": start,
-            "end": APIDate.isoDateTime.string(from: .now),
-        ]
-        if let child = timer.childID { payload["child"] = child }
-        LocalRepository(context: context).convertTimer(timer, to: kind, payload: payload)
+        LocalRepository(context: context).convertTimer(timer, to: kind, payload: timer.stoppedTimerPayload())
         let activity = TimerActivity(convertKind: kind)?.rawValue ?? "other"
         Analytics.timerStopped(activity: activity, source: .app)
         Task { await sync.sync() }
@@ -666,9 +714,9 @@ struct DashboardView: View {
         stoppingTimer = nil
     }
 
-    /// Discard a running timer without logging anything.
+    /// Discard a stopped timer without logging anything.
     private func discardTimer(_ timer: LocalEntity) {
-        LocalRepository(context: context).delete(timer)
+        LocalRepository(context: context).discardStoppedTimer(timer)
         Task { await sync.sync() }
         Task { await liveActivity.reconcile() } // end the Live Activity for the discarded timer
     }
@@ -712,8 +760,11 @@ struct DashboardView: View {
             .sorted { $0.next < $1.next }
     }
 
+    /// Running timers, and stopped ones not yet logged or discarded (whose DELETE may be queued).
     private var activeTimers: [LocalEntity] {
-        childEntities.filter { $0.kind == .timer }
+        allEntities.filter {
+            $0.childID == selectedChildID && ($0.isRunningTimer || ($0.kind == .timer && $0.stoppedAt != nil))
+        }
     }
 
     private func count(of kind: EntityKind, today: Bool) -> Int {

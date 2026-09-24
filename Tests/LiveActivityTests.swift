@@ -40,7 +40,7 @@ final class LiveActivityTests: XCTestCase {
         XCTAssertEqual(TimerStopRoute.convertForm(localID: "A", kind: .feeding).deepLink,
                        URL(string: "babybuddy://convert/A/feeding"))
         XCTAssertEqual(TimerStopRoute.openActions(localID: "A").deepLink,
-                       URL(string: "babybuddy://timer/A"))
+                       URL(string: "babybuddy://stop/A"))
     }
 
     // MARK: Attribute construction

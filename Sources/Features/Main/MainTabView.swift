@@ -44,6 +44,9 @@ struct MainTabView: View {
         .onChange(of: router.openTimerLocalID) { _, id in
             if id != nil { selectedTab = 0 } // a timer deep link targets the Home tab
         }
+        .onChange(of: router.stopTimerLocalID) { _, id in
+            if id != nil { selectedTab = 0 }
+        }
         .onChange(of: router.convertTarget) { _, target in
             if target != nil { selectedTab = 0 }
         }

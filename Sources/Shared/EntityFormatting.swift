@@ -112,6 +112,18 @@ enum EntityFormatting {
         return nil
     }
 
+    /// A stopped timer's elapsed time, laid out like a running one's `Text(_:style: .timer)`.
+    static func clock(_ seconds: TimeInterval) -> String {
+        Duration.seconds(Int(max(seconds, 0)))
+            .formatted(.time(pattern: seconds >= 3600 ? .hourMinuteSecond : .minuteSecond))
+    }
+
+    /// The same elapsed time as VoiceOver should read it: "25 minutes, 13 seconds".
+    static func spokenDuration(_ seconds: TimeInterval) -> String {
+        Duration.seconds(Int(max(seconds, 0)))
+            .formatted(.units(allowed: [.hours, .minutes, .seconds], width: .wide))
+    }
+
     static func formatInterval(_ seconds: TimeInterval) -> String {
         let total = Int(seconds)
         let h = total / 3600, m = (total % 3600) / 60

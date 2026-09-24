@@ -1,14 +1,16 @@
 import SwiftUI
 
-/// Confirms stopping a running timer: shows what's being logged (activity + elapsed) and lets you
-/// confirm or change the type before it's filed, replacing the system action-sheet popup. Logging
-/// and discarding are handed back to the caller (the dashboard owns the cache writes + sync); for
-/// feeding/pumping the caller routes to the pre-filled detail editor, which needs extra fields.
+/// Files a stopped timer: shows what's being logged (activity + the duration frozen at Stop) and
+/// lets you confirm or change the type. The timer stopped when Stop was tapped, so closing the
+/// sheet leaves it stopped; "Resume timer" undoes that. Logging, resuming and discarding are handed
+/// back to the caller (the dashboard owns the cache writes + sync); for feeding/pumping the caller
+/// routes to the pre-filled detail editor, which needs extra fields.
 struct StopTimerSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     let timer: LocalEntity
     let onLog: (EntityKind) -> Void
+    let onResume: () -> Void
     let onDiscard: () -> Void
 
     @State private var selected: EntityKind?
@@ -17,9 +19,11 @@ struct StopTimerSheet: View {
     private let activities: [EntityKind] = [.feeding, .sleep, .tummyTime, .pumping]
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
-    init(timer: LocalEntity, onLog: @escaping (EntityKind) -> Void, onDiscard: @escaping () -> Void) {
+    init(timer: LocalEntity, onLog: @escaping (EntityKind) -> Void, onResume: @escaping () -> Void,
+         onDiscard: @escaping () -> Void) {
         self.timer = timer
         self.onLog = onLog
+        self.onResume = onResume
         self.onDiscard = onDiscard
         _selected = State(initialValue: TimerActivity(timer: timer)?.convertKind)
     }
@@ -45,7 +49,7 @@ struct StopTimerSheet: View {
             .navigationTitle("Stop Timer")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
             }
             .safeAreaInset(edge: .bottom) { actions }
         }
@@ -64,11 +68,15 @@ struct StopTimerSheet: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
-                Text(timer.timestamp, style: .timer)
+                Text(EntityFormatting.clock(elapsed))
                     .font(.title2.weight(.semibold)).monospacedDigit()
+                    .accessibilityLabel("Stopped after \(EntityFormatting.spokenDuration(elapsed))")
             }
         }
     }
+
+    /// Frozen at Stop, so a parent who walks away mid-sheet comes back to the same number.
+    private var elapsed: TimeInterval { (timer.stoppedAt ?? .now).timeIntervalSince(timer.timestamp) }
 
     /// Reflects what's being logged: the chosen type (so it stays in step with the tile and the
     /// picker), falling back to the timer's name when no type is selected.
@@ -87,10 +95,15 @@ struct StopTimerSheet: View {
                 .disabled(selected == nil)
                 .opacity(selected == nil ? 0.5 : 1)
 
-            Button("Discard timer", role: .destructive) { onDiscard() }
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(BBColor.danger)
-                .padding(.vertical, 4)
+            HStack {
+                Button("Resume timer") { onResume() }
+                    .foregroundStyle(BBColor.brandAccent)
+                Spacer()
+                Button("Discard timer", role: .destructive) { onDiscard() }
+                    .foregroundStyle(BBColor.danger)
+            }
+            .font(.subheadline.weight(.medium))
+            .padding(.vertical, 4)
         }
         .padding(.horizontal, 16)
         .padding(.top, 10)

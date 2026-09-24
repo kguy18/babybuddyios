@@ -52,12 +52,11 @@ struct LocalRepository {
     func update(_ entity: LocalEntity, payload: [String: Any]) {
         var payload = payload
         let pending = pendingMutation(for: entity.localID)
-        // The editor rebuilds the body from its fields and never sets `timer`, so an edit would
-        // silently strip it and re-queue — the duplicate path "Create without timer" exists to
-        // gate. Carry the dead reference over and keep the row parked: the edit changes the
-        // record, not why it's blocked.
-        let keepsStaleTimer = pending?.isStaleTimer == true && entity.payloadObject["timer"] != nil
-        if keepsStaleTimer { payload["timer"] = entity.payloadObject["timer"] }
+        // An edit must not unpark a likely duplicate: that's what "Create without timer" exists to
+        // gate. Keep the row parked, since the edit changes the record, not why it's blocked. The
+        // editor never sets `timer`, so a row queued before #145 carries its dead reference over.
+        let keepsStaleTimer = pending?.isStaleTimer == true
+        if keepsStaleTimer, let timer = entity.payloadObject["timer"] { payload["timer"] = timer }
 
         guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
         entity.payload = data
@@ -102,38 +101,129 @@ struct LocalRepository {
         try? context.save()
     }
 
-    // MARK: Timer conversion
+    // MARK: Timer stop
 
-    /// Remove a record from the cache *without* enqueueing a server delete. Drops any queued
-    /// mutation for it too. Used when the server disposes of the record as a side effect of
-    /// another write (e.g. converting a timer into an activity deletes the timer server-side),
-    /// so a separate DELETE would be redundant and could race the conversion.
-    func removeLocally(_ entity: LocalEntity) {
-        if let pending = pendingMutation(for: entity.localID) { context.delete(pending) }
-        context.delete(entity)
+    /// Stop a running timer at `time`. Its duration freezes here, and because a Baby Buddy timer
+    /// has no end, stopping it on the server means deleting it: other devices drop it on their
+    /// next sync. The record stays on this device as a stopped draft until it's logged
+    /// (``convertTimer``), discarded (``discardStoppedTimer``) or resumed (``resumeTimer``).
+    func stopTimer(_ timer: LocalEntity, at time: Date = .now) {
+        guard timer.kind == .timer, timer.stoppedAt == nil else { return }
+        timer.stoppedAt = time
+        queueServerTimerDelete(timer)
         try? context.save()
     }
 
-    /// Convert a running timer into a completed activity (feeding/sleep/tummy-time/pumping).
+    /// Undo a Stop. A DELETE that hasn't gone out is cancelled; once it has, the server timer is
+    /// gone, so a new one is created with the original start.
+    func resumeTimer(_ timer: LocalEntity) {
+        guard timer.stoppedAt != nil else { return }
+        timer.stoppedAt = nil
+        timer.stoppedTimerWasGone = nil
+        if let pending = pendingMutation(for: timer.localID), pending.op == .delete {
+            context.delete(pending)
+            timer.syncState = .synced
+        } else if timer.serverID == nil {
+            recreate(timer)
+        }
+        try? context.save()
+    }
+
+    /// Log a timer as a completed activity (feeding/sleep/tummy-time/pumping) with the payload's
+    /// explicit `start` and `end`. Stops it first if nothing has.
     ///
-    /// The activity is created locally with the supplied payload (typically `start =
-    /// timer.start`, `end = now`). For a **synced** timer the payload carries the write-only
-    /// `timer` id so a single POST makes the server create the activity *and* delete the
-    /// timer; for an **unsynced** timer no server timer exists yet, so we post a plain
-    /// activity and just drop the timer's queued create. Either way the local timer is
-    /// removed without enqueueing a delete.
+    /// The create never carries Baby Buddy's write-only `timer` field: with it the server replaces
+    /// `start` and `end` with the timer's start and its own clock (#145). The timer's DELETE is
+    /// its own queued request, ahead of the create. If that DELETE finds the timer already gone,
+    /// another device got there first and the create is parked as a likely duplicate
+    /// (``QueueDisposition/blockedStaleTimer``).
     @discardableResult
     func convertTimer(_ timer: LocalEntity, to kind: EntityKind, payload: [String: Any]) -> LocalEntity? {
-        var body = payload
-        if let serverID = timer.serverID { body["timer"] = serverID }
-        let activity = create(kind: kind, payload: body, source: .timerStop)
-        removeLocally(timer)
+        stopTimer(timer)
+        let activity = create(kind: kind, payload: payload, source: .timerStop)
+        if let activity {
+            if timer.stoppedTimerWasGone == true {
+                pendingMutation(for: activity.localID)?
+                    .fail(Self.staleTimerMessage, disposition: .blockedStaleTimer)
+            } else if let delete = pendingMutation(for: timer.localID), delete.op == .delete {
+                // Links the create to the DELETE, which parks it on a 404 (``settleTimerDelete``).
+                // A DELETE sends no body, so the payload is free to carry this.
+                delete.payload = (try? JSONSerialization.data(
+                    withJSONObject: ["loggedAs": activity.localID.uuidString])) ?? delete.payload
+            }
+        }
+        context.delete(timer) // a queued DELETE stays: the timer is still on the server
+        try? context.save()
         return activity
     }
 
-    /// The user's explicit answer to ``QueueDisposition/blockedStaleTimer``: drop the dead `timer`
-    /// reference from both the queued body and the cached record (so they can't disagree about
-    /// what was sent), keep child/start/end exactly as chosen, and give the row one more try. The
+    /// Discard a stopped timer without logging anything. Its DELETE, if still queued, stays.
+    func discardStoppedTimer(_ timer: LocalEntity) {
+        guard timer.stoppedAt != nil else { return delete(timer) }
+        queueServerTimerDelete(timer)
+        context.delete(timer)
+        try? context.save()
+    }
+
+    /// A timer's DELETE has been answered: `alreadyGone` for a 404. Shared by
+    /// `SyncEngine` and ``TimerPush`` so both settle it the same way. Deletes the mutation.
+    func settleTimerDelete(_ mutation: PendingMutation, alreadyGone: Bool) {
+        if let timer = LocalStore.fetch(localID: mutation.localID, in: context) {
+            if timer.stoppedAt != nil {
+                // A stopped draft: now local-only, which neither pull purges nor upserts onto.
+                timer.serverID = nil
+                timer.syncState = .synced
+                if alreadyGone { timer.stoppedTimerWasGone = true }
+            } else if timer.syncState == .pendingDelete {
+                context.delete(timer)
+            } else {
+                // Resumed while this DELETE was already on its way.
+                timer.serverID = nil
+                recreate(timer)
+            }
+        }
+        if alreadyGone,
+           let body = try? JSONSerialization.jsonObject(with: mutation.payload) as? [String: Any],
+           let logged = (body["loggedAs"] as? String).flatMap(UUID.init(uuidString:)),
+           let create = pendingMutation(for: logged), create.op == .create {
+            create.fail(Self.staleTimerMessage, disposition: .blockedStaleTimer)
+        }
+        context.delete(mutation)
+    }
+
+    nonisolated static let staleTimerMessage = "The timer this was logged from no longer exists on the server. It may already have been saved from another device — check before creating it again."
+
+    /// Queue the DELETE for a timer's server copy, unless one is queued already. A timer the
+    /// server never saw just loses its queued create.
+    private func queueServerTimerDelete(_ timer: LocalEntity) {
+        let pending = pendingMutation(for: timer.localID)
+        if pending?.op == .delete { return }
+        if let pending { context.delete(pending) }
+        guard let serverID = timer.serverID else {
+            timer.syncState = .synced
+            return
+        }
+        timer.syncState = .pendingDelete
+        context.insert(PendingMutation(
+            localID: timer.localID, kind: .timer, op: .delete,
+            payload: Data("{}".utf8), baseSnapshot: timer.baseSnapshot, serverID: serverID))
+    }
+
+    /// Queue a fresh create for a timer whose server copy is gone, keeping its start and name.
+    private func recreate(_ timer: LocalEntity) {
+        var p = timer.payloadObject
+        for key in ["id", "url", "duration", "end"] { p.removeValue(forKey: key) }
+        guard let data = try? JSONSerialization.data(withJSONObject: p) else { return }
+        timer.payload = data
+        timer.baseSnapshot = nil
+        timer.syncState = .pendingCreate
+        context.insert(PendingMutation(localID: timer.localID, kind: .timer, op: .create, payload: data))
+    }
+
+    /// The user's explicit answer to ``QueueDisposition/blockedStaleTimer``: drop any dead `timer`
+    /// reference (only rows queued before #145 carry one) from both the queued body and the cached
+    /// record, so they can't disagree about what was sent, keep child/start/end exactly as chosen,
+    /// and give the row one more try. The
     /// duplicate warning lives in the UI — this method assumes it has been shown.
     func createWithoutTimer(_ mutation: PendingMutation) {
         guard mutation.isStaleTimer else { return }

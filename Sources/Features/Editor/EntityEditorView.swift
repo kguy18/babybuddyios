@@ -16,8 +16,8 @@ struct EntityEditorView: View {
     let childID: Int
     /// nil → creating a new record; non-nil → editing.
     let entity: LocalEntity?
-    /// Set when this editor is converting a running timer into an activity. Pre-fills
-    /// start = timer.start, end = now, and routes Save through ``LocalRepository/convertTimer``.
+    /// Set when this editor is converting a stopped timer into an activity. Pre-fills
+    /// start = timer.start, end = its Stop, and routes Save through ``LocalRepository/convertTimer``.
     let sourceTimer: LocalEntity?
     /// Set when logging the next dose from a medication reminder: a new record pre-filled from this
     /// one, timed now.
@@ -738,9 +738,9 @@ struct EntityEditorView: View {
 
     private func populate() {
         if let timer = sourceTimer, entity == nil {
-            // Converting: inherit the timer's start, end the activity now.
+            // Converting: inherit the timer's start, end the activity when Stop was tapped.
             if let s = timer.payloadObject["start"] as? String, let d = APIDate.parse(s) { start = d }
-            end = Date()
+            end = timer.stoppedAt ?? Date()
             return
         }
         // A template (the dose a reminder was about) fills the form like an edit, but stays a new

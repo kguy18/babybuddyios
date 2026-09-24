@@ -5,13 +5,13 @@ import Foundation
 ///
 /// - sleep / tummy time (`isInstantLoggable`) → log in one tap via `LogTimerIntent`
 /// - feeding / pumping → open a pre-filled convert form (needs extra fields)
-/// - uncategorized / custom timer → open the generic timer actions
+/// - uncategorized / custom timer → open the Stop sheet to pick a type
 enum TimerStopRoute: Equatable {
     /// Instant-loggable: record via `LogTimerIntent(timerLocalID:)` in one tap (no app launch).
     case log(localID: String)
     /// Needs extra fields: open the pre-filled convert form via a `babybuddy://convert` deep link.
     case convertForm(localID: String, kind: EntityKind)
-    /// Uncategorized/custom timer: open the generic actions via a `babybuddy://timer` deep link.
+    /// Uncategorized/custom timer: open the Stop sheet via a `babybuddy://stop` deep link.
     case openActions(localID: String)
 
     /// Resolve the route for a timer's activity (or `nil` for an uncategorized timer).
@@ -31,7 +31,7 @@ enum TimerStopRoute: Equatable {
         case .convertForm(let id, let kind):
             return URL(string: "babybuddy://convert/\(id)/\(kind.rawValue)")
         case .openActions(let id):
-            return URL(string: "babybuddy://timer/\(id)")
+            return URL(string: "babybuddy://stop/\(id)")
         }
     }
 }
