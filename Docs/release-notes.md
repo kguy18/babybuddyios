@@ -29,8 +29,23 @@ The rest of the store listing (description, keywords, review information) lives 
 ## 1.1.1
 
 ```appstore
+#New
+- Medication reminders. The medication editor has a new "Next dose after" picker, and your iPhone can tell you when the next dose is OK. The Dashboard counts down to it, and logging a dose too early shows a warning — it is a warning only, it does not stop you from logging another dose. Tapping the reminder opens a new dose already filled in. Off by default: Settings → Notifications. Each phone schedules its own reminders (only local notifications,) from synced doses, so pull to refresh before giving one.
+- Forgotten timer alerts. If a timer runs past a configurable limit you choose you get a notification that opens straight to Stop Timer. Off by default: Settings → Notifications.
+- Undo after logging. Every record you log shows "Undo" for five seconds, so a mis-tap at 2 a.m. is one tap to fix. You can turn it off in Settings → Quick Log.
+- The Dashboard and the status widget now say when the data was last updated, and change color when it is getting old. Choose how old in Settings → Server → Stale after.
+- Trends now charts tummy time (minutes per day) and pumping (amount and sessions per day).
+- Home's Latest section now lists the newest medication, note and measurement as well as the five timed activities, and tapping any Latest row opens the Timeline filtered to that kind.
+- A short What's New card appears the first time you open the app after an update. It is also at the top of Settings.
+
+#Improved
+- VoiceOver: the sign-out buttons, the switches in Settings and the Trends period picker now read as what they are, the lock screen keeps VoiceOver inside it, and a record the server refused says it needs attention instead of "waiting to sync".
+- The app version and build number are at the bottom of Settings, for bug reports.
+
 #Fixed
-- Supporter tips work again. 1.1.0 went out without its App Store purchase configuration, so the supporter screen said purchases weren't available. Nothing else changes.
+- A mistyped API token now says the token was rejected, instead of "You don't have permission to do that."
+- Turning Live Activity off and straight back on no longer leaves a running timer without its banner.
+- Supporter tips work again. 1.1.0 went out without its App Store purchase configuration, so the supporter screen said purchases weren't available.
 ```
 
 ```whatsnew
