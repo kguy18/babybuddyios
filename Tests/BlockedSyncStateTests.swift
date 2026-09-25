@@ -388,6 +388,26 @@ final class BlockedSyncStateTests: XCTestCase {
         XCTAssertEqual(activity.payloadObject["milestone"] as? String, "Rolled over")
     }
 
+    /// An edit before the conversion is delivered keeps the timer reference, so the server timer
+    /// is still deleted rather than left running.
+    func testEditingQueuedConversionStillDeletesTimer() async {
+        let (activity, create) = queueTimerConversion()
+
+        // An editor save: same record, no `timer` key, one field changed.
+        repo.update(activity, payload: ["child": 1, "start": iso, "end": "2024-01-15T10:15:00-05:00",
+                                        "milestone": "Rolled over", "tags": []])
+        XCTAssertEqual(json(create.payload)["timer"] as? Int, 42)
+        XCTAssertFalse(create.isBlocked)
+
+        StubTransport.reset([Self.timerDeleted,
+                             .init(status: 201, body: #"{"id":82,"child":1,"start":"2024-01-15T10:00:00-05:00","milestone":"Rolled over"}"#)])
+        await engine.pushPending()
+        XCTAssertEqual(StubTransport.requests.map(\.method), ["DELETE", "POST"])
+        XCTAssertEqual(StubTransport.requests.first?.url, "https://stub.invalid/api/timers/42/")
+        XCTAssertTrue(mutations().isEmpty)
+        XCTAssertEqual(activity.serverID, 82)
+    }
+
     /// App/extension coordination: the extension delivers its own fresh create, the app's push
     /// loop honours the claim, and a parked row is never re-sent from the extension.
     func testWidgetClaimedAndParkedCreatesDoNotDoublePost() async {

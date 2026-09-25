@@ -52,12 +52,14 @@ struct LocalRepository {
     func update(_ entity: LocalEntity, payload: [String: Any]) {
         var payload = payload
         let pending = pendingMutation(for: entity.localID)
-        // The editor rebuilds the body from its fields and never sets `timer`, so an edit would
-        // silently strip it and re-queue — the duplicate path "Create without timer" exists to
-        // gate. Carry the dead reference over and keep the row parked: the edit changes the
-        // record, not why it's blocked.
-        let keepsStaleTimer = pending?.isStaleTimer == true && entity.payloadObject["timer"] != nil
-        if keepsStaleTimer { payload["timer"] = entity.payloadObject["timer"] }
+        // The editor rebuilds the body from its fields and never sets `timer`. On a queued timer
+        // conversion that key is what deletes the server timer (``TimerPush/sendCreate``), so an
+        // edit before delivery would leave that timer running. Carry it over. A parked stale-timer
+        // row also stays parked: stripping the dead reference is the duplicate path "Create
+        // without timer" exists to gate, and the edit changes the record, not why it's blocked.
+        let timer = pending?.op == .create ? entity.payloadObject["timer"] : nil
+        if let timer { payload["timer"] = timer }
+        let keepsStaleTimer = pending?.isStaleTimer == true && timer != nil
 
         guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
         entity.payload = data
