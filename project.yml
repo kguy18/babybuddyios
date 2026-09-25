@@ -34,6 +34,11 @@ targets:
   BabyBuddy:
     type: application
     platform: iOS
+    # Fails the build on the wrong signing team, and a Release build without its secrets.
+    preBuildScripts:
+      - name: Guard team and secrets
+        path: scripts/guard-build.sh
+        basedOnDependencyAnalysis: false
     sources:
       - path: Sources
       # The release notes ship as a resource so the What's New card reads the same file the App
