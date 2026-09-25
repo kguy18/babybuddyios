@@ -16,10 +16,10 @@ final class LiveActivityTests: UITestCase {
         let before = tummyToday.label
 
         showNotificationCenter()
-        let activity = expect(liveActivity)
+        let activity = expect(liveActivity, timeout: bannerTimeout)
         XCTAssertTrue(activity.staticTexts["Maya · Tummy time"].exists, "The banner should name the timer")
         tap(activity.buttons["Stop"]) // tummy time logs in one tap, without opening the app
-        expectGone(liveActivity)
+        expectGone(liveActivity, timeout: bannerTimeout)
 
         returnToApp()
         expect(app.buttons.labeled("Start a timer"))
@@ -36,7 +36,7 @@ final class LiveActivityTests: UITestCase {
         expect(app.buttons.labeled("Start a timer"))
 
         showNotificationCenter()
-        expectGone(liveActivity)
+        expectGone(liveActivity, timeout: bannerTimeout)
     }
 
     /// Settings ▸ Live Activity is the way out for anyone who doesn't want a timer on their Lock
@@ -47,10 +47,10 @@ final class LiveActivityTests: UITestCase {
         expect(live)
         XCTAssertEqual(live.value as? String, "1", "Live Activities are on by default")
 
-        live.tap()
-        expectValue(live, "0")
+        toggle(live, to: "0")
         showNotificationCenter()
-        expectGone(liveActivity) // the seeded timer's banner, which the test above finds there
+        // The seeded timer's banner, which the test above finds there.
+        expectGone(liveActivity, timeout: bannerTimeout)
     }
 
     /// And straight back on, for the timer that is still running. An activity the app has already
@@ -60,13 +60,11 @@ final class LiveActivityTests: UITestCase {
         launch(["BB_START_TAB": "settings"])
         let live = app.switches["Live Activity"]
         expect(live)
-        live.tap()
-        expectValue(live, "0")
-        live.tap()
-        expectValue(live, "1")
+        toggle(live, to: "0")
+        toggle(live, to: "1")
 
         showNotificationCenter()
-        expect(liveActivity)
+        expect(liveActivity, timeout: bannerTimeout)
     }
 
     /// A feeding can't be filed from a single tap — it needs a type and a method — so Stop on the
@@ -81,7 +79,7 @@ final class LiveActivityTests: UITestCase {
 
         showNotificationCenter()
         // The newest running timer is the one with the banner — the feeding just started.
-        let activity = expect(liveActivity)
+        let activity = expect(liveActivity, timeout: bannerTimeout)
         XCTAssertTrue(activity.staticTexts["Maya · Feeding"].exists)
         tap(activity.buttons["Stop"])
 
@@ -97,6 +95,16 @@ final class LiveActivityTests: UITestCase {
     /// The app's Live Activity as SpringBoard draws it, in Notification Center or the Dynamic
     /// Island. `activity-content-view` is ActivityKit's own container, not something the app sets.
     private var liveActivity: XCUIElement { springboard.otherElements["activity-content-view"] }
+
+    /// How long to wait for SpringBoard to draw or remove the banner. `expect`'s 10 seconds is
+    /// sized for the app's own screens, but the banner is drawn out of process by the system's widget
+    /// renderer, which the app doesn't control. In a CI failure of
+    /// `testSettingsToggleBackOnStartsItAgain`, 20 seconds after the app turned the setting back on,
+    /// SpringBoard already had the new activity (its Dynamic Island container and its Notification
+    /// Center cell were both in the tree) but hadn't drawn anything inside either. The app had done
+    /// its part and the renderer was still catching up. A missing activity still fails here, only
+    /// later.
+    private let bannerTimeout: TimeInterval = 60
 
     /// Leaves the app and pulls Notification Center down, where the banner shows in full.
     private func showNotificationCenter() {

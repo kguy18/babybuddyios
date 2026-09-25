@@ -502,6 +502,8 @@ struct DashboardView: View {
                         Label("Stop", systemImage: "stop.fill")
                     }
                     .buttonStyle(.bbStop)
+                    // Every running timer has a "Stop", so a UI test picks its own timer's by name.
+                    .accessibilityIdentifier("Stop \(timerTitle(timer))")
                 } else {
                     // Stopped but not yet logged: pick up where the Stop sheet was left.
                     Button("Log timer") { stoppingTimer = timer }

@@ -85,6 +85,19 @@ class UITestCase: XCTestCase {
                describedAs: "to read “\(value)”", file: file, line: line)
     }
 
+    /// Taps a switch and waits for it to read `value`, tapping once more if the first tap changed
+    /// nothing. XCUITest scrolls a switch below the fold into view and taps it straight away, and on
+    /// a hosted runner that tap can land while the list is still moving. In the recording of a failed
+    /// run the list has scrolled to the switch and the switch never flips. The second tap is
+    /// only made when the value hasn't moved, so it can't undo a first one that worked; a first tap
+    /// that landed later than five seconds would flip it back and fail below, not pass.
+    func toggle(_ element: XCUIElement, to value: String, file: StaticString = #filePath, line: UInt = #line) {
+        tap(element, file: file, line: line)
+        let flipped = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", value), object: element)
+        if XCTWaiter().wait(for: [flipped], timeout: 5) != .completed { element.tap() }
+        expectValue(element, value, file: file, line: line)
+    }
+
     /// Waits for a predicate about an element — the general form behind ``expectValue``. Write it
     /// as a block (`NSPredicate { … }`) for anything but `value`: the format-string form reads
     /// attributes through KVC, and `"selected == true"` never became true even with the trait

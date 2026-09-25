@@ -198,8 +198,8 @@ jobs:
   # eating an hour.
   #
   # Deliberately NOT sharded, and never to be: all six tests sign into one shared server, so two of
-  # them running at once would see each other's records — a second running timer puts a second
-  # "Stop" on the Dashboard, and the tap can no longer tell them apart. The tests skip themselves
+  # them running at once would see each other's records. One test's teardown could delete the sleep
+  # another test's Repeat is meant to overlap, for example. The tests skip themselves
   # if the server is unreachable, and the summary raises a warning when they do.
   #
   # Its result bundle is deliberately NOT uploaded: this repository is public, and XCUITest records

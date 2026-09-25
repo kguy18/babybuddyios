@@ -90,7 +90,8 @@ final class ServerTests: ServerTestCase {
 
         // Stop alone stops it on the server (#146), before anything is logged.
         let stopTapped = Date()
-        tap(app.buttons["Stop"])
+        // The owner's device shares this server, so its running timers have a Stop here too.
+        tap(app.buttons["Stop \(marker) running"])
         expect(app.navigationBars["Stop Timer"])
         let stopped = try await api.waitForDeletion("timers", id: timerID)
         XCTAssertTrue(stopped, "The stopped timer is still running on the server")
@@ -99,7 +100,7 @@ final class ServerTests: ServerTestCase {
         let loggedAfter = stopTapped.addingTimeInterval(20)
         while Date() < loggedAfter { try await Task.sleep(for: .seconds(1)) }
         tap(app.buttons["Log sleep"])
-        expect(app.buttons.labeled("Start a timer"))
+        expectGone(element(labeled: "\(marker) ")) // "Start a timer" only shows once no timer runs
 
         let logged = try await api.waitForRecord("sleep", marker: start)
         XCTAssertNotNil(logged, "The timer's sleep never reached the server")
@@ -115,9 +116,11 @@ final class ServerTests: ServerTestCase {
     /// version" sends the device's copy (#16).
     func testServerEditRaisesConflict() async throws {
         let child = try await api.firstChild()
-        let start = Date().addingTimeInterval(-45 * 60)
+        // Any free quarter hour in the last 30 days will do, since the app pulls that far back.
+        let slot = try await api.freeSlot("feedings", child: child.id, length: 15 * 60...15 * 60,
+                                          before: Date().addingTimeInterval(-30 * 60))
         let feeding = try await api.create("feedings", [
-            "child": child.id, "start": start.apiTime, "end": start.addingTimeInterval(15 * 60).apiTime,
+            "child": child.id, "start": slot.start.apiTime, "end": slot.end.apiTime,
             "type": "formula", "method": "bottle", "amount": 90, "notes": marker,
         ])
         let id = try XCTUnwrap(feeding["id"] as? Int)
@@ -150,17 +153,25 @@ final class ServerTests: ServerTestCase {
     /// row says it needs attention (not "waiting to sync"), and Pending Changes explains why.
     func testOverlapRejectionReadsCleanly() async throws {
         let child = try await api.firstChild()
-        let start = Date().addingTimeInterval(-60 * 60)
+        // Repeat copies the sleep to end at the tap, with the same duration, and the server has to
+        // refuse the copy for overlapping something. Usually that's the seed itself, filling the
+        // free time up to a minute ago, so the copy covers its end. A sleep that ended in the last
+        // ten minutes leaves no room there, so the seed goes further back and lasts an hour, and the
+        // copy overlaps that recent sleep instead.
+        let before = Date().addingTimeInterval(-60)
+        var slot = try await api.freeSlot("sleep", child: child.id, length: 10 * 60...60 * 60, before: before)
+        if slot.end < before {
+            slot = try await api.freeSlot("sleep", child: child.id, length: 60 * 60...60 * 60, before: before)
+        }
         try await api.create("sleep", [
-            "child": child.id, "start": start.apiTime,
-            "end": Date().addingTimeInterval(-60).apiTime, "notes": marker,
+            "child": child.id, "start": slot.start.apiTime, "end": slot.end.apiTime, "notes": marker,
         ])
 
         signIn()
         syncAndSearch(for: marker)
         let row = expect(element(labeled: "Sleep, "))
 
-        // Repeating it keeps the duration and ends now, so it overlaps the entry it came from.
+        // Repeating it keeps the duration and ends now, so it overlaps a sleep already there.
         row.swipeRight()
         let repeatAction = app.buttons["Repeat"]
         if repeatAction.waitForExistence(timeout: 2) { repeatAction.tap() }
