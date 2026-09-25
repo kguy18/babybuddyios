@@ -35,6 +35,13 @@ final class LocalEntity {
     /// Local-only and never sent to the server, so it survives sync (server timers are generic);
     /// `nil` for uncategorized timers and all non-timer records.
     var timerActivityRaw: String?
+    /// For a `.timer` the user has tapped Stop on: when. Baby Buddy timers have no end, so the
+    /// server copy is deleted at Stop and this record stays on this device as a stopped draft until
+    /// it's logged, discarded or resumed. Local-only, like `timerActivityRaw`.
+    var stoppedAt: Date?
+    /// The stopped timer's DELETE found it already gone from the server: another device logged or
+    /// discarded it first, so logging it here would likely be a duplicate.
+    var stoppedTimerWasGone: Bool?
 
     init(localID: UUID = UUID(), kind: EntityKind, serverID: Int?, childID: Int?,
          timestamp: Date, payload: Data, syncState: SyncState,
@@ -52,6 +59,20 @@ final class LocalEntity {
     }
 
     var kind: EntityKind { EntityKind(rawValue: kindRaw) ?? .note }
+    /// A timer that is counting: not stopped, not being deleted. What the Live Activity, the
+    /// widgets and the forgotten-timer alerts show.
+    var isRunningTimer: Bool { kind == .timer && stoppedAt == nil && syncState != .pendingDelete }
+
+    /// The `child`/`start`/`end` of the activity a timer logs as: its start to its Stop, or to now
+    /// if nothing has stopped it.
+    func stoppedTimerPayload() -> [String: Any] {
+        var payload: [String: Any] = [
+            "start": (payloadObject["start"] as? String) ?? APIDate.isoDateTime.string(from: timestamp),
+            "end": APIDate.isoDateTime.string(from: stoppedAt ?? .now),
+        ]
+        if let childID { payload["child"] = childID }
+        return payload
+    }
     var syncState: SyncState {
         get { SyncState(rawValue: syncStateRaw) ?? .synced }
         set { syncStateRaw = newValue.rawValue }

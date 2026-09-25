@@ -1,13 +1,14 @@
 import Foundation
 import SwiftData
 
-/// Best-effort immediate delivery of a pending *create* to the server, callable from any
+/// Best-effort immediate delivery of a pending write to the server, callable from any
 /// process — notably the widget/intents extension, which can't run the `@MainActor`
-/// `SyncEngine`. Every widget timer action (start, and stop-as-log) is a create, and creates
-/// can't conflict, so this needs none of `SyncEngine`'s GET-before-write conflict checks: it
-/// `POST`s and reconciles. On any failure it leaves the mutation queued for the app's next sync.
+/// `SyncEngine`. Every widget timer action is a create, or a stopped timer's DELETE, and neither
+/// needs `SyncEngine`'s GET-before-write conflict checks: a create can't conflict, and a timer the
+/// user just stopped goes whatever changed on it. On any failure it leaves the mutation queued
+/// for the app's next sync.
 enum TimerPush {
-    /// How long a claimed-but-undelivered create is skipped by the app's push loop, so the app
+    /// How long a claimed-but-undelivered write is skipped by the app's push loop, so the app
     /// and the extension don't both `POST` the same record. After this it's treated as a stale
     /// claim (e.g. the extension was killed mid-push) and delivered normally.
     static let claimWindow: TimeInterval = 30
@@ -38,6 +39,33 @@ enum TimerPush {
             mutation.claimedAt = nil // release so the app retries on its next sync
             try? context.save()
         }
+    }
+
+    /// Deliver the queued DELETE that stops the timer `localID`, if signed in. Best-effort, like
+    /// ``pushCreate``, and sent first: a 404 parks the create logged from the timer as a likely
+    /// duplicate, so ``pushCreate`` then leaves it alone.
+    @MainActor
+    static func pushTimerDelete(localID: UUID, in context: ModelContext,
+                                client: APIClient? = KeychainStore.load().map { APIClient(config: $0) }) async {
+        guard let client else { return }
+        let descriptor = FetchDescriptor<PendingMutation>(
+            predicate: #Predicate { $0.localID == localID && $0.opRaw == "delete" })
+        guard let mutation = try? context.fetch(descriptor).first, !mutation.isBlocked,
+              let serverID = mutation.serverID else { return }
+
+        mutation.claimedAt = .now
+        try? context.save()
+
+        let repo = LocalRepository(context: context)
+        do {
+            try await client.deleteRaw(path: EntityKind.timer.path, id: serverID)
+            repo.settleTimerDelete(mutation, alreadyGone: false)
+        } catch APIError.notFound {
+            repo.settleTimerDelete(mutation, alreadyGone: true)
+        } catch {
+            mutation.claimedAt = nil
+        }
+        try? context.save()
     }
 
     /// Apply an authoritative server response onto a cached entity after a create. Shared with

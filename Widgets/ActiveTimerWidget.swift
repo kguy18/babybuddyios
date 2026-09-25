@@ -61,7 +61,7 @@ struct ActiveTimerProvider: TimelineProvider {
             predicate: #Predicate { $0.kindRaw == "timer" },
             sortBy: [SortDescriptor(\.timestamp, order: .reverse)])
         guard let timers = try? context.fetch(descriptor),
-              let timer = timers.first(where: { $0.syncState != .pendingDelete })
+              let timer = timers.first(where: \.isRunningTimer)
         else { return nil }
         let name = (timer.payloadObject["name"] as? String) ?? "Timer"
         return TimerSnapshot(localID: timer.localID.uuidString, name: name, start: timer.timestamp,

@@ -271,7 +271,7 @@ final class LocalAlerts {
             let first = children.first { $0.serverID == childID }?.payloadObject["first_name"] as? String
             return first.flatMap { $0.isEmpty ? nil : $0 }
         }
-        let timers = fetch("timer").filter { $0.syncState != .pendingDelete }.map {
+        let timers = fetch("timer").filter(\.isRunningTimer).map {
             ForgottenTimerPolicy.request(for: $0, childName: firstName($0.childID))
         }
         let doses = MedicationReminderPolicy.latestDoses(fetch("medication")).compactMap {

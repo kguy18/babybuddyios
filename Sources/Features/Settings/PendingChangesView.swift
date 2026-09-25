@@ -38,7 +38,11 @@ struct PendingChangesView: View {
                                  lastError: mutation.lastError,
                                  isBlocked: mutation.isBlocked,
                                  createdAt: mutation.createdAt,
-                                 onRetry: { sync.retry(mutation) },
+                                 // A parked create with no `timer` field (the DELETE found the timer
+                                 // gone) has nothing for the server to refuse: Retry would file the
+                                 // duplicate unasked, so only "Create without timer" sends it.
+                                 onRetry: mutation.isStaleTimer && !carriesTimer(mutation)
+                                     ? nil : { sync.retry(mutation) },
                                  onCreateWithoutTimer: mutation.isStaleTimer
                                      ? { creatingWithoutTimer = mutation } : nil,
                                  highlighted: mutation.localID == highlight),
@@ -91,6 +95,10 @@ struct PendingChangesView: View {
                 Text("If this \(mutation.kind.displayName.lowercased()) was already saved when the timer was stopped, you'll end up with two copies. Check the server first if you're unsure.")
             }
         }
+    }
+
+    private func carriesTimer(_ mutation: PendingMutation) -> Bool {
+        (try? JSONSerialization.jsonObject(with: mutation.payload) as? [String: Any])?["timer"] != nil
     }
 
     private var createWithoutTimerPrompt: Binding<Bool> {
@@ -178,7 +186,7 @@ private struct QueueRow: View {
     let lastError: String?
     let isBlocked: Bool
     let createdAt: Date
-    let onRetry: () -> Void
+    let onRetry: (() -> Void)?
     /// Present only on a stale-timer create — the one blocked state with a second way out.
     let onCreateWithoutTimer: (() -> Void)?
     /// Outlined so the eye lands on it when arriving from the editor's sync banner.
@@ -204,7 +212,7 @@ private struct QueueRow: View {
                 }
                 if isBlocked {
                     HStack(spacing: 8) {
-                        action("Retry", systemImage: "arrow.clockwise", onRetry)
+                        if let onRetry { action("Retry", systemImage: "arrow.clockwise", onRetry) }
                         if let onCreateWithoutTimer {
                             action("Create without timer", systemImage: "timer.slash", onCreateWithoutTimer)
                         }

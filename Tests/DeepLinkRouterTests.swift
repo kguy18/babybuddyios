@@ -19,6 +19,15 @@ final class DeepLinkRouterTests: XCTestCase {
         XCTAssertEqual(router.openTimerLocalID, id)
     }
 
+    /// Stop on a widget for an untyped timer; a body tap (`timer/`) must not stop it.
+    func testStopLinkParsesLocalID() {
+        let router = DeepLinkRouter()
+        let id = UUID()
+        XCTAssertTrue(router.handle(URL(string: "babybuddy://stop/\(id.uuidString)")!))
+        XCTAssertEqual(router.stopTimerLocalID, id)
+        XCTAssertNil(router.openTimerLocalID)
+    }
+
     func testConvertLinkWithUnknownKindIsIgnored() {
         let router = DeepLinkRouter()
         XCTAssertTrue(router.handle(URL(string: "babybuddy://convert/\(UUID().uuidString)/notakind")!))

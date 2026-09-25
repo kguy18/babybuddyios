@@ -84,7 +84,7 @@ final class LiveActivityManager {
             predicate: #Predicate { $0.kindRaw == "timer" },
             sortBy: [SortDescriptor(\.timestamp, order: .reverse)])
         guard let timers = try? context.fetch(descriptor),
-              let timer = timers.first(where: { $0.syncState != .pendingDelete })
+              let timer = timers.first(where: \.isRunningTimer)
         else { return nil }
         return RunningTimerAttributes.from(timer: timer,
                                            childName: childFirstName(for: timer.childID, in: context))

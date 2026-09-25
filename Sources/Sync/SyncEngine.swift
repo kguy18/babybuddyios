@@ -240,7 +240,7 @@ final class SyncEngine {
                     break mutations // offline/5xx: stop, retry whole queue later
                 case .blocked:
                     if Self.isStaleTimerRejection(mutation, error) {
-                        mutation.fail(Self.staleTimerMessage, disposition: .blockedStaleTimer)
+                        mutation.fail(LocalRepository.staleTimerMessage, disposition: .blockedStaleTimer)
                     } else {
                         mutation.fail(error.userMessage, blocked: true)
                     }
@@ -255,7 +255,8 @@ final class SyncEngine {
         return run
     }
 
-    /// A create the server refused on its write-only `timer` field and nothing else. Only that
+    /// A create the server refused on its write-only `timer` field and nothing else. Creates stopped
+    /// sending `timer` in #145; this still settles rows queued before that. Only that
     /// exact shape is ambiguous-but-recoverable (see ``QueueDisposition/blockedStaleTimer``); a
     /// body that also names another field (pumping's `amount` + `timer`) has a real validation
     /// problem too, so it stays plainly blocked with both reasons in `lastError` and no
@@ -264,8 +265,6 @@ final class SyncEngine {
         guard mutation.op == .create, case .badRequest(_, _, let fields) = error else { return false }
         return fields == ["timer"]
     }
-
-    nonisolated static let staleTimerMessage = "The timer this was logged from no longer exists on the server. It may already have been saved from another device — check before creating it again."
 
     /// Delivers one mutation. Returns `true` when it performed an actual server write (POST/
     /// PATCH/DELETE), `false` when it raised a conflict or only cleaned up locally.
@@ -302,21 +301,27 @@ final class SyncEngine {
             }
 
         case .delete:
+            // A timer's DELETE is how it stops, and a stopped timer stays on as a draft.
+            func finish(alreadyGone: Bool) {
+                if mutation.kind == .timer {
+                    LocalRepository(context: context).settleTimerDelete(mutation, alreadyGone: alreadyGone)
+                } else {
+                    if let entity { context.delete(entity) }
+                    context.delete(mutation)
+                }
+            }
             guard let serverID = mutation.serverID else {
-                if let entity { context.delete(entity) }
-                context.delete(mutation); return false
+                finish(alreadyGone: false); return false
             }
             let current: Data
             do {
                 current = try await client.getRaw(path: mutation.kind.path, id: serverID)
             } catch APIError.notFound {
-                if let entity { context.delete(entity) } // already gone — our delete is satisfied
-                context.delete(mutation); return false
+                finish(alreadyGone: true); return false // already gone — our delete is satisfied
             }
             if Self.unchangedSinceBase(current, mutation.baseSnapshot) {
                 try await client.deleteRaw(path: mutation.kind.path, id: serverID)
-                if let entity { context.delete(entity) }
-                context.delete(mutation)
+                finish(alreadyGone: false)
                 return true
             } else {
                 // Server changed under a local delete — let the user decide.

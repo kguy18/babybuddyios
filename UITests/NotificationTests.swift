@@ -78,8 +78,9 @@ final class NotificationTests: UITestCase {
     }
 
     /// Regression: #116 — a tapped alert routed into the app off the main actor, and the app
-    /// crashed on its way back from the background. Fixed in #118.
-    func testForgottenTimerAlertTapOpensStopTimer() {
+    /// crashed on its way back from the background. Fixed in #118. The tap shows the timer without
+    /// stopping it: only Stop stops a timer (#146).
+    func testForgottenTimerAlertTapShowsTheRunningTimer() {
         launch(["BB_TIMER_ALERT_SECONDS": "25"])
         allowNotificationsIfAsked() // the hook turns the alerts on, so the reset install asks
 
@@ -100,8 +101,8 @@ final class NotificationTests: UITestCase {
         tapNotification(containing: "Sleep timer still running")
 
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 15), "The tap should bring the app back")
-        expect(app.navigationBars["Stop Timer"])
-        expect(app.buttons["Log sleep"]) // the sheet is for the timer the alert was about
+        expect(element(labeled: "Sleep running"))
+        XCTAssertFalse(app.navigationBars["Stop Timer"].exists)
     }
 
     /// A tapped medication reminder logs the next dose, pre-filled from the last one (#118).

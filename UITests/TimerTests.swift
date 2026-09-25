@@ -42,6 +42,28 @@ final class TimerTests: UITestCase {
         XCTAssertFalse(app.otherElements["Logged Tummy Time"].exists)
     }
 
+    /// Stop freezes the timer (#146): the sheet's duration holds still, closing the sheet leaves the
+    /// timer stopped on Home, and Resume sets it running again.
+    func testStopFreezesAndResumeRestarts() {
+        launch()
+        tap(app.buttons["Stop"])
+        let duration = expect(element(labeled: "Stopped after "))
+        let frozen = duration.label
+        sleep(3)
+        XCTAssertEqual(duration.label, frozen, "The duration kept counting after Stop")
+
+        tap(app.buttons["Close"])
+        let card = expect(element(labeled: "Tummy time stopped after "))
+        XCTAssertFalse(app.buttons["Stop"].exists)
+
+        tap(app.buttons["Log timer"])
+        XCTAssertEqual(expect(element(labeled: "Stopped after ")).label, frozen, "Reopened, still the Stop tap's number")
+        tap(app.buttons["Resume timer"])
+        expectGone(card)
+        expect(element(labeled: "Tummy time running"))
+        expect(app.buttons["Stop"])
+    }
+
     /// Timers run side by side: a typed one names itself after its activity, an untyped one doesn't.
     func testStartTypedAndUntypedTimers() {
         launch()

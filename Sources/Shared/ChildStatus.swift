@@ -36,7 +36,7 @@ struct ChildStatus: Equatable {
 
         // A running timer is a cached `.timer` record for this child (most recent wins).
         let running = mine
-            .filter { $0.kind == .timer }
+            .filter(\.isRunningTimer)
             .max { $0.timestamp < $1.timestamp }
             .map { timer -> RunningTimer in
                 let name = (timer.payloadObject["name"] as? String).flatMap { $0.isEmpty ? nil : $0 }

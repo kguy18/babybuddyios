@@ -13,8 +13,13 @@ final class DeepLinkRouter {
         let kind: EntityKind
     }
 
-    /// Set when a widget asks to open a specific timer's actions; cleared once handled.
+    /// Set when a widget body, Live Activity or forgotten-timer alert is tapped: show that timer on
+    /// Home. Cleared once handled.
     var openTimerLocalID: UUID?
+
+    /// Set when Stop is tapped on a widget or Live Activity for a timer with no type: stop it and
+    /// open the Stop sheet. Cleared once handled.
+    var stopTimerLocalID: UUID?
 
     /// Set when a widget asks to convert a specific timer; cleared once handled.
     var convertTarget: ConvertTarget?
@@ -47,6 +52,9 @@ final class DeepLinkRouter {
         switch url.host {
         case "timer": // babybuddy://timer/<localID>
             if let id = parts.first.flatMap(UUID.init(uuidString:)) { openTimerLocalID = id }
+            return true
+        case "stop": // babybuddy://stop/<localID>
+            if let id = parts.first.flatMap(UUID.init(uuidString:)) { stopTimerLocalID = id }
             return true
         case "convert": // babybuddy://convert/<localID>/<kindRaw>
             if parts.count >= 2, let id = UUID(uuidString: parts[0]), let kind = EntityKind(rawValue: parts[1]) {
