@@ -104,20 +104,43 @@ final class DialogTests: UITestCase {
         tap(app.buttons["Advanced configuration"])
         let sheet = expect(app.navigationBars["Advanced configuration"])
         tap(app.buttons["Add header"])
-        tap(app.buttons["Add header"])
+        tap(app.buttons["Add another header"])
         XCTAssertEqual(names.count, 2)
         tap(app.buttons["Remove header"].firstMatch)
         expectGone(names.element(boundBy: 1))
         XCTAssertEqual(names.count, 1)
         replaceText(names.firstMatch, with: "Authorization")
         replaceText(app.secureTextFields["Header value"], with: "x")
-        tap(sheet.buttons["Done"])
+        tap(app.buttons["Save"])
         expectGone(sheet)
         expect(element(labeled: "Advanced configuration"))
 
         replaceText(app.textFields["Your server URL or IP address"], with: "baby.example.com")
         replaceText(app.secureTextFields["Paste your API token"], with: "abc\n")
         expect(element(labeled: "Authorization carries your API token"))
+    }
+
+    /// #148: after Cloudflare Access answers, Advanced configuration shows where sign-in stopped,
+    /// asks for the service token by name, and shows the way through once it's filled in.
+    /// `BB_GATE_PREVIEW` stands in for the gate.
+    func testCloudflareServiceTokenSheet() {
+        launch(["BB_GATE_PREVIEW": "cloudflareAccess"], demo: false)
+        expect(app.navigationBars["Advanced configuration"])
+        expect(element(labeled: "Where sign-in stopped"))
+        expect(app.staticTexts["Stopped here"])
+        let retry = app.buttons["Save and try again"]
+        XCTAssertFalse(retry.isEnabled, "nothing to send yet")
+
+        // Return ends editing: with the keyboard up, the pinned Save button covers the next field.
+        replaceText(app.textFields["Client ID"], with: "abc.access\n")
+        replaceText(app.secureTextFields["Client Secret"], with: "s3cret")
+        expect(element(labeled: "On the next try"))
+        expectGone(app.staticTexts["Stopped here"])
+        XCTAssertTrue(retry.isEnabled)
+
+        tap(app.buttons["Cancel"])
+        expectGone(app.navigationBars["Advanced configuration"])
+        XCTAssertFalse(app.buttons.labeled("Advanced configuration ·").exists, "Cancel kept the edits")
     }
 
     /// #148: Settings lists the header names, and an edit that fails keeps the old set. A rejected

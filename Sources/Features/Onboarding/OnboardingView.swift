@@ -11,10 +11,13 @@ struct OnboardingView: View {
     @State private var serverURL = ""
     @State private var token = ""
     @State private var headerRows: [HeaderRow] = []
-    @State private var showAdvanced = false
+    /// Advanced configuration, open. It carries the gate the sheet explains, fixed when it opens.
+    @State private var advanced: AdvancedRequest?
     /// A gate answered a sign-in the scanner started. Advanced configuration opens once the scanner
     /// has finished closing, since a sheet can't present while another one is dismissing.
-    @State private var advancedAfterScanner = false
+    @State private var advancedAfterScanner: AdvancedRequest?
+    /// Saved from Advanced configuration with "Save and try again": sign in once the sheet has closed.
+    @State private var retryAfterAdvanced = false
     @State private var isValidating = false
     @State private var showScanner = false
     @State private var showHelp = false
@@ -71,15 +74,24 @@ struct OnboardingView: View {
         .background(BBColor.surface.ignoresSafeArea())
         .scrollDismissesKeyboard(.interactively)
         .sheet(isPresented: $showScanner, onDismiss: {
-            if advancedAfterScanner {
-                advancedAfterScanner = false
-                showAdvanced = true
+            if let request = advancedAfterScanner {
+                advancedAfterScanner = nil
+                advanced = request
             }
         }) {
             QRScannerSheet(onScan: handleScan)
         }
-        .sheet(isPresented: $showAdvanced) {
-            AdvancedConfigurationSheet(rows: $headerRows, gate: session.lastGate)
+        .sheet(item: $advanced, onDismiss: {
+            if retryAfterAdvanced {
+                retryAfterAdvanced = false
+                submit()
+            }
+        }) { request in
+            AdvancedConfigurationSheet(rows: headerRows, gate: request.gate,
+                                       host: normalizedHost ?? "your server") { rows, retry in
+                headerRows = rows
+                retryAfterAdvanced = retry
+            }
         }
         .alert("Finding your details", isPresented: $showHelp) {
             Button("Got it", role: .cancel) {}
@@ -89,6 +101,11 @@ struct OnboardingView: View {
         #if DEBUG
         .task {
             if ProcessInfo.processInfo.environment["BB_SCANNER_PREVIEW"] == "1" { showScanner = true }
+            // Open Advanced configuration as if this gate had answered: neither the simulator nor
+            // the UI tests can reach one.
+            if let raw = ProcessInfo.processInfo.environment["BB_GATE_PREVIEW"], let gate = AccessGate(rawValue: raw) {
+                advanced = AdvancedRequest(gate: gate)
+            }
         }
         #endif
     }
@@ -362,7 +379,7 @@ struct OnboardingView: View {
     private var advancedButton: some View {
         Button {
             focusedField = nil
-            showAdvanced = true
+            advanced = AdvancedRequest(gate: session.lastGate)
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "slider.horizontal.3")
@@ -411,13 +428,10 @@ struct OnboardingView: View {
         submit(method: .qr)
     }
 
-    /// Opens Advanced configuration after a gate answered. For Cloudflare Access, which always takes
-    /// the same two headers, an empty set starts with both names filled in.
+    /// Opens Advanced configuration after a gate answered.
     private func openAdvanced(for gate: AccessGate) {
-        if gate == .cloudflareAccess, headerRows.isEmpty {
-            headerRows = [HeaderRow(name: "CF-Access-Client-Id"), HeaderRow(name: "CF-Access-Client-Secret")]
-        }
-        if showScanner { advancedAfterScanner = true } else { showAdvanced = true }
+        let request = AdvancedRequest(gate: gate)
+        if showScanner { advancedAfterScanner = request } else { advanced = request }
     }
 
     private func submit(method: Analytics.SignInMethod = .manual) {
@@ -431,4 +445,10 @@ struct OnboardingView: View {
             if !ok, let gate = session.lastGate, gate.acceptsHeaders { openAdvanced(for: gate) }
         }
     }
+}
+
+/// One opening of Advanced configuration, and the gate that answered the sign-in before it.
+private struct AdvancedRequest: Identifiable {
+    let id = UUID()
+    let gate: AccessGate?
 }

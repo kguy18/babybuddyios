@@ -216,4 +216,36 @@ final class CustomHeaderTests: XCTestCase {
         XCTAssertEqual(APIError.accessGate(.unknown).userMessage,
                        APIError.decoding(Analytics.ListShape.nonJSON.rawValue).userMessage)
     }
+
+    // MARK: - Advanced configuration
+
+    func testCloudflareHeadersGetTheirServiceTokenLabels() {
+        let rows = HeaderRow.cloudflareServiceToken()
+        XCTAssertEqual(rows.map(\.name), ["CF-Access-Client-Id", "CF-Access-Client-Secret"])
+        XCTAssertEqual(rows.map { $0.preset?.label }, ["Client ID", "Client Secret"])
+        XCTAssertEqual(rows.map { $0.preset?.secret }, [false, true])
+        // A saved one reopened in Settings keeps its label, whatever case it was typed in.
+        XCTAssertEqual(HeaderRow(CustomHeader(name: "cf-access-client-id", value: "x")).preset?.label, "Client ID")
+        XCTAssertNil(HeaderRow(CustomHeader(name: "X-Gate", value: "x")).preset)
+    }
+
+    func testTheTraceStopsAtCloudflareThenGoesThroughItOnceFilledIn() {
+        let stopped = SignInTrace.hops(for: .cloudflareAccess, host: "baby.example.com", ready: false)
+        XCTAssertEqual(stopped.map(\.title), ["This app", "baby.example.com", "Cloudflare Access"])
+        XCTAssertEqual(stopped.last?.kind, .stopped)
+
+        let next = SignInTrace.hops(for: .cloudflareAccess, host: "baby.example.com", ready: true)
+        XCTAssertEqual(next.map(\.kind), [.plain, .gate, .arrived])
+        XCTAssertEqual(next.last?.detail, "baby.example.com")
+    }
+
+    func testAnUnknownGateStopsInFrontOfTheServer() {
+        let stopped = SignInTrace.hops(for: .unknown, host: "baby.example.com", ready: false)
+        XCTAssertEqual(stopped.count, 2)
+        XCTAssertEqual(stopped.last?.title, "The gate in front of baby.example.com")
+        XCTAssertEqual(stopped.last?.kind, .stopped)
+        XCTAssertEqual(AdvancedConfigurationSheet.steps(for: .unknown, host: "baby.example.com").count, 1)
+        XCTAssertTrue(AdvancedConfigurationSheet.steps(for: .cloudflareAccess, host: "baby.example.com")[1]
+            .contains("**baby.example.com**"))
+    }
 }
