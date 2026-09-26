@@ -28,8 +28,11 @@ design/
 App Store Assets/
 localorg/
 
-# Local Claude Code configuration
-.claude/
+# Local Claude Code configuration, except the release skill, which is part of how the app ships.
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/babybuddy-release/
 
 # macOS
 .DS_Store
