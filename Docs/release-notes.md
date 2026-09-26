@@ -26,6 +26,40 @@ trimming is the whole parser.
 The rest of the store listing (description, keywords, review information) lives in
 `app_store_listing.md`, which is gitignored because it stages the reviewer's demo credentials.
 
+## 1.2.0
+
+```appstore
+#New
+- Sick mode. Triggered with a fever, Home turns into a dashboard for the illness: the newest temperature, a 24-hour chart of readings and medication doses, a card per medicine with its next-dose countdown, and a timeline of what's due and what's done. Automatically suggested when a fever is recorded.
+- Trends has a Temperature card. It draws every reading in the period as a curve, with your fever line dashed across it and a colored mark at each dose.
+- Temperatures show one decimal in your phone's unit, °F or °C, and you can change it in Settings → Sick mode. Two phones on one server can use different units and both read every temperature correctly.
+- A timer can start earlier than now. Pick a time, or tap −5, −15 or −30 min. On the Stop sheet you can correct the start time, or restart the timer if needed.
+- Custom authorization headers, for a server behind an access gate such as Cloudflare Access or an nginx shared secret. Tap Advanced configuration when you sign in. If Cloudflare Access answers instead of Baby Buddy, the app automatically detects it and opens the header section for you.
+
+#Improved
+- Stop now stops the timer the moment you tap it, on your phone and on the server. Before, the clock kept running until you saved the record. If you tap Stop by mistake, "Resume timer" carries on from the original start.
+- Tapping a timer's Live Activity or its "still running" alert opens the app and leaves the timer running.
+
+#Fixed
+- Logging a timer no longer saves the moment the server received it as the end time. The End you set is the one that's kept.
+- Editing an activity logged from a timer before it synced no longer brings the timer back.
+- Signing in to a server behind a login proxy such as Authentik now says to let /api/ and /media/ through, instead of failing on the first sync with "Couldn't read the server response".
+- An address with no Baby Buddy server behind it says so at sign-in, instead of "That record no longer exists on the server."
+```
+
+```whatsnew
+#New
+- new | Sick mode | Home becomes a fever dashboard: temperatures, doses, and what's due next.
+- new | Fever chart in Trends | Every temperature as a curve, with a mark at each medication dose.
+- timer | Start a timer earlier | Pick a start time or tap -15 min. Fix it on the Stop sheet too.
+- timer | Stop means stopped | The timer stops when you tap Stop, not when you save.
+- guard | Cloudflare Access support | Reach a server behind Cloudflare Access or another header gate.
+#Fixed
+- A logged timer keeps the End you set
+- Editing an unsynced timer record no longer revives the timer
+- A login failure due to a proxy at sign-in says which paths to let through
+```
+
 ## 1.1.1
 
 ```appstore
