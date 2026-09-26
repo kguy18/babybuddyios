@@ -48,6 +48,29 @@ struct CustomHeaderFields: View {
     @Binding var rows: [HeaderRow]
     var addTitle = "Add header"
 
+    /// Return moves through the fields in order (Client ID, then Client Secret) and closes the
+    /// keyboard after the last one.
+    @FocusState private var focus: Field?
+
+    private enum Field: Hashable {
+        case name(UUID), value(UUID)
+    }
+
+    /// The fields in the order Return walks them: a preset row has only its value.
+    private var order: [Field] {
+        rows.flatMap { $0.preset == nil ? [Field.name($0.id), .value($0.id)] : [.value($0.id)] }
+    }
+
+    private func advance(from field: Field) {
+        guard let index = order.firstIndex(of: field), index + 1 < order.count else {
+            focus = nil
+            return
+        }
+        focus = order[index + 1]
+    }
+
+    private func isLast(_ field: Field) -> Bool { order.last == field }
+
     var body: some View {
         VStack(spacing: 0) {
             ForEach($rows) { $row in
@@ -100,6 +123,9 @@ struct CustomHeaderFields: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .accessibilityLabel(preset.label)
+                .focused($focus, equals: .value(row.wrappedValue.id))
+                .submitLabel(isLast(.value(row.wrappedValue.id)) ? .done : .next)
+                .onSubmit { advance(from: .value(row.wrappedValue.id)) }
                 pasteButton(into: row.value)
             }
         }
@@ -110,9 +136,15 @@ struct CustomHeaderFields: View {
             VStack(spacing: 10) {
                 TextField("Header name", text: row.name)
                     .font(.system(size: 16).monospaced())
+                    .focused($focus, equals: .name(row.wrappedValue.id))
+                    .submitLabel(.next)
+                    .onSubmit { advance(from: .name(row.wrappedValue.id)) }
                 HStack(spacing: 8) {
                     SecureField("Header value", text: row.value)
                         .font(.system(size: 17))
+                        .focused($focus, equals: .value(row.wrappedValue.id))
+                        .submitLabel(isLast(.value(row.wrappedValue.id)) ? .done : .next)
+                        .onSubmit { advance(from: .value(row.wrappedValue.id)) }
                     pasteButton(into: row.value)
                 }
             }

@@ -131,9 +131,10 @@ final class DialogTests: UITestCase {
         let retry = app.buttons["Save and try again"]
         XCTAssertFalse(retry.isEnabled, "nothing to send yet")
 
-        // Return ends editing: with the keyboard up, the pinned Save button covers the next field.
+        // Return on the Client ID moves to the Client Secret: typing there without a tap fails unless
+        // it has keyboard focus.
         replaceText(app.textFields["Client ID"], with: "abc.access\n")
-        replaceText(app.secureTextFields["Client Secret"], with: "s3cret")
+        expect(app.secureTextFields["Client Secret"]).typeText("s3cret\n")
         expect(element(labeled: "On the next try"))
         expectGone(app.staticTexts["Stopped here"])
         XCTAssertTrue(retry.isEnabled)
