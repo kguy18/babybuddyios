@@ -126,6 +126,43 @@ final class TimerConvertTests: XCTestCase {
         XCTAssertEqual(try mutations().map(\.op), [.create], "so Resume files it afresh")
     }
 
+    // MARK: Start correction (#72)
+
+    func testCorrectedStartOnStoppedTimerStaysLocalAndLogsWithIt() throws {
+        let timer = try syncedTimer(id: 42)
+        repo.stopTimer(timer, at: Date(timeIntervalSince1970: 1_705_331_700))
+        let earlier = APIDate.isoDateTime.date(from: "2024-01-15T09:40:00-05:00")!
+
+        repo.setTimerStart(timer, to: earlier)
+
+        XCTAssertEqual(timer.timestamp, earlier)
+        XCTAssertEqual(try mutations().map(\.op), [.delete], "nothing queued: the server copy is going")
+        XCTAssertEqual(timer.stoppedTimerPayload()["start"] as? String, APIDate.isoDateTime.string(from: earlier))
+    }
+
+    func testResumeSendsAStartCorrectedWhileStopped() throws {
+        let timer = try syncedTimer(id: 42)
+        repo.stopTimer(timer)
+        repo.setTimerStart(timer, to: APIDate.isoDateTime.date(from: "2024-01-15T09:40:00-05:00")!)
+
+        repo.resumeTimer(timer)
+
+        XCTAssertTrue(timer.isRunningTimer)
+        let muts = try mutations()
+        XCTAssertEqual(muts.map(\.op), [.update])
+        XCTAssertEqual(muts.first?.serverID, 42)
+        let body = try JSONSerialization.jsonObject(with: muts[0].payload) as? [String: Any]
+        XCTAssertEqual((body?["start"] as? String).flatMap(APIDate.isoDateTime.date(from:)),
+                       APIDate.isoDateTime.date(from: "2024-01-15T09:40:00-05:00"))
+    }
+
+    func testResumeWithoutAnEditQueuesNothing() throws {
+        let timer = try syncedTimer(id: 42)
+        repo.stopTimer(timer)
+        repo.resumeTimer(timer)
+        XCTAssertTrue(try mutations().isEmpty)
+    }
+
     func testDiscardStoppedTimerKeepsItsDelete() throws {
         let timer = try syncedTimer(id: 42)
         repo.stopTimer(timer)

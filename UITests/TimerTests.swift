@@ -87,4 +87,31 @@ final class TimerTests: UITestCase {
         XCTAssertTrue(element(labeled: "Tummy time running").exists)
         XCTAssertTrue(element(labeled: "Sleep running").exists)
     }
+
+    /// A nap noticed late: the timer starts 30 minutes back, so it has already run 30 minutes.
+    func testBackdatedStart() {
+        launch()
+        tap(app.buttons["Stop"])
+        tap(app.buttons["Discard timer"]) // one timer, so one Stop button below
+        tap(app.buttons["Add"])
+        tap(app.buttons["Start timer"])
+        tap(app.buttons["Sleep"])
+        tap(app.buttons["−30 min"])
+        tap(app.buttons["Start sleep timer"])
+
+        tap(app.buttons["Stop"])
+        expect(app.staticTexts.labeled("30:"))
+    }
+
+    /// Restart puts the seeded 8-minute timer back to zero, and it keeps running.
+    func testRestartFromNow() {
+        launch()
+        tap(app.buttons["Stop"])
+        expect(app.staticTexts.labeled("8:"))
+        tap(app.buttons["Restart from now"])
+        expectGone(app.navigationBars["Stop Timer"])
+
+        tap(app.buttons["Stop"])
+        expect(app.staticTexts.labeled("0:0"))
+    }
 }

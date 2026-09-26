@@ -123,9 +123,26 @@ struct LocalRepository {
         if let pending = pendingMutation(for: timer.localID), pending.op == .delete {
             context.delete(pending)
             timer.syncState = .synced
+            try? context.save()
+            // A start corrected while it was stopped (``setTimerStart``) hasn't reached the server.
+            if timer.payload != timer.baseSnapshot { update(timer, payload: timer.payloadObject) }
         } else if timer.serverID == nil {
             recreate(timer)
         }
+        try? context.save()
+    }
+
+    /// Correct a timer's start (#72). A stopped draft's server copy is gone or going, so the edit
+    /// stays local: the logged record carries the start (``LocalEntity/stoppedTimerPayload``), and
+    /// ``resumeTimer`` sends it if the timer runs on instead. A running timer's edit is queued.
+    func setTimerStart(_ timer: LocalEntity, to date: Date) {
+        var payload = timer.payloadObject
+        payload["start"] = APIDate.isoDateTime.string(from: date)
+        guard timer.stoppedAt != nil else { return update(timer, payload: payload) }
+        guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        timer.payload = data
+        timer.timestamp = date
+        timer.updatedAt = .now
         try? context.save()
     }
 
