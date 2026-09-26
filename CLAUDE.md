@@ -16,7 +16,7 @@ An offline-first iOS client for a self-hosted [Baby Buddy](https://github.com/ba
   but only once App Store Connect reports the version `READY_FOR_DISTRIBUTION` and the build Apple
   shipped matches the draft's commit. GitHub Releases carry notes and an App Store link, never a
   build. `node scripts/release.mjs status <version>` asks App Store Connect the same question
-  locally, with `ASC_KEY_ID`, `ASC_ISSUER_ID` and `ASC_APP_ID` set.
+  locally, with `ASC_KEY_ID` and `ASC_ISSUER_ID` set.
 
 ## Sorting PRs: a milestone or `internal`
 
