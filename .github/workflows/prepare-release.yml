@@ -2,11 +2,12 @@ name: Prepare Release
 
 # Run by hand after the release-preparation PR has merged and the version exists in App Store
 # Connect. It puts the release notes into the version's "What's New" and makes a draft GitHub
-# Release pinned to this commit — the commit to archive from. It never changes a version number,
-# creates the App Store version, picks a build, submits, tags, or uploads anything.
+# Release. It never changes a version number, creates the App Store version, builds, uploads,
+# picks a build, submits, or tags. Builds come from `/babybuddy-release testflight`, and Publish
+# Release moves the draft to the commit of the build Apple shipped.
 #
-# Safe to rerun: it overwrites the same What's New and retargets the same draft. After a
-# rejection, merge the fix and the build-number bump, then run it again.
+# Safe to rerun: it overwrites the same What's New and edits the same draft. Rerun it whenever the
+# notes change on main.
 
 on:
   workflow_dispatch:
@@ -53,7 +54,6 @@ jobs:
           fail() { echo "::error::$1"; exit 1; }
           field() { sed -nE "s/^ *$1: *\"?([^\"]*)\"? *$/\1/p" project.yml | head -1; }
           [ "$(field MARKETING_VERSION)" = "$VERSION" ] || fail "MARKETING_VERSION is $(field MARKETING_VERSION), not $VERSION — merge the release-preparation PR first"
-          echo "build=$(field CURRENT_PROJECT_VERSION)" >> "$GITHUB_OUTPUT"
 
           node scripts/release.mjs validate
           node scripts/release.mjs body "$VERSION" > "$RUNNER_TEMP/body.md"
@@ -89,14 +89,10 @@ jobs:
       - name: Summary
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-          ## Baby Buddy Companion $VERSION, build ${{ steps.check.outputs.build }}
-
-          Archive from \`$GITHUB_SHA\`:
-
-              git fetch origin && git checkout $GITHUB_SHA && xcodegen generate
+          ## Baby Buddy Companion $VERSION
 
           - App Store Connect: What's New updated for $VERSION.
-          - GitHub: draft release \`$TAG\` targets this commit. No tag exists until Publish Release.
+          - GitHub: draft release \`$TAG\`. No tag exists until Publish Release.
 
-          Next: archive, upload, select build ${{ steps.check.outputs.build }}, submit. Once the version is live, run Publish Release.
+          Next: \`/babybuddy-release testflight\` uploads a build of main. Submit the one you want, and once the version is live, run Publish Release.
           EOF
