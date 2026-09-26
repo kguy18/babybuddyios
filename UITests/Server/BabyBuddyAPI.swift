@@ -110,9 +110,9 @@ struct BabyBuddyAPI {
     /// Deletes timers left running by a run that never reached its teardown — a cancelled CI job,
     /// a stopped `xcodebuild`, a crashed runner.
     ///
-    /// Timers are the only litter that breaks the *next* run rather than merely sitting there: a
-    /// second running timer puts a second "Stop" on the Dashboard, and the tap then can't tell them
-    /// apart. Everything else a killed run leaves behind carries a marker no later test looks for.
+    /// A running timer is the one piece of litter that shows on every signed-in device's Dashboard.
+    /// A killed run's other records sit in history, carrying a marker no later test looks for, and
+    /// the seeds pick free time around them (``freeSlot``).
     ///
     /// Age-gated rather than a blanket delete of every `ci-` timer, so two runs overlapping on the
     /// same server don't delete each other's live timer — an in-flight one is seconds old.
@@ -126,6 +126,30 @@ struct BabyBuddyAPI {
             else { continue }
             try? await delete("timers", id: id)
         }
+    }
+
+    /// The latest stretch ending by `before` in which `child` has no `path` record. It runs to
+    /// `length.upperBound` where there's room and is never shorter than `length.lowerBound`.
+    ///
+    /// Baby Buddy refuses a sleep, feeding or tummy time that overlaps another of the child's, and
+    /// this server is shared. The owner's own device logs to it, and a run killed before its
+    /// teardown leaves its records behind, so a seed over a fixed window such as the last hour
+    /// answers 400 whenever something is already there.
+    func freeSlot(_ path: String, child: Int, length: ClosedRange<TimeInterval>,
+                  before: Date) async throws -> (start: Date, end: Date) {
+        let margin: TimeInterval = 60 // API times drop fractions of a second
+        var end = before
+        // One kind's records never overlap each other, so newest start first is newest end first.
+        for record in try await list(path, ["child": "\(child)", "ordering": "-start"]) {
+            guard let start = (record["start"] as? String).flatMap(Date.fromAPI),
+                  let finish = (record["end"] as? String).flatMap(Date.fromAPI) else { continue }
+            let free = finish.addingTimeInterval(margin)
+            if end.timeIntervalSince(free) >= length.lowerBound {
+                return (max(free, end.addingTimeInterval(-length.upperBound)), end)
+            }
+            end = min(end, start.addingTimeInterval(-margin))
+        }
+        return (end.addingTimeInterval(-length.upperBound), end)
     }
 
     /// The child the app will select: the server's first.

@@ -40,10 +40,10 @@ class ServerTestCase: UITestCase {
     /// Clears timers an earlier run left running, once per run.
     ///
     /// `addTeardownBlock` only fires when a test finishes, so a run killed part-way — a cancelled
-    /// CI job, a stopped `xcodebuild` — leaves its timer running on the shared server. The next run
-    /// then finds two "Stop" buttons on the Dashboard and fails on the ambiguity, and stays failing
-    /// until someone deletes the timer by hand. Sweeping before the first test is what makes that
-    /// self-healing rather than a manual step; per-test teardown still handles the normal path.
+    /// CI job, a stopped `xcodebuild` — leaves its timer running on the shared server, where it
+    /// shows on every signed-in device's Dashboard, App Review's included, until someone deletes it
+    /// by hand. Sweeping before the first test cleans that up; per-test teardown still handles the
+    /// normal path. The tests themselves tap their own timer's Stop, so a leftover can't break them.
     private static func sweepOnce(_ api: BabyBuddyAPI) async {
         guard !swept else { return }
         swept = true
