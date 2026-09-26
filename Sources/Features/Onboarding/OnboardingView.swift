@@ -58,8 +58,8 @@ struct OnboardingView: View {
                 if hasError { errorBanner }
                 manualCard
                 supplemental
-                primaryButton
                 advancedButton
+                primaryButton
                 helpLink
             }
             .padding(.horizontal, 18)
@@ -357,8 +357,8 @@ struct OnboardingView: View {
         }
     }
 
-    /// Custom headers, for a server behind an access gate. A sheet rather than rows on this screen,
-    /// so the few who need them don't push Connect down for everyone else.
+    /// Custom headers, for a server behind an access gate. Above Connect, so they're set before the
+    /// first try; a sheet rather than rows on this screen, so they don't push Connect down.
     private var advancedButton: some View {
         Button {
             focusedField = nil
@@ -377,7 +377,7 @@ struct OnboardingView: View {
         }
         .buttonStyle(.plain)
         .disabled(isValidating)
-        .padding(.top, 16)
+        .padding(.bottom, 16)
     }
 
     private var helpLink: some View {
