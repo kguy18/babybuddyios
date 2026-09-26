@@ -110,20 +110,26 @@ jobs:
 
       # Called from here rather than an `on: release` workflow: a release published with
       # GITHUB_TOKEN does not fire one.
-      - name: Rebuild babybuddy.app
+      # The query string changes each try so the poll never reads an edge-cached copy. Cloudflare
+      # builds the site in under a minute, so five minutes is generous: a miss means the build
+      # failed or the hook was dropped, and one more hook covers a dropped request. A second miss
+      # fails the job, so the failure email says which part of the release did not land — the
+      # GitHub Release above is already valid either way.
+      - name: Rebuild babybuddy.app and check /whatsnew/ shows the version
         env:
           HOOK: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK_URL }}
-        run: curl -fsS -X POST "$HOOK" -o /dev/null && echo "website build requested"
-
-      # The query string changes each try so the poll never reads an edge-cached copy. A timeout is
-      # a warning only: the GitHub Release is valid whether or not the site caught up.
-      - name: /whatsnew/ shows the version
         run: |
           PATTERN=">Version ${VERSION//./\\.}<"
-          for TRY in $(seq 1 30); do
-            if curl -fsS "https://babybuddy.app/whatsnew/?run=$GITHUB_RUN_ID-$TRY" | grep -qE "$PATTERN"; then
-              echo "babybuddy.app/whatsnew/ shows $VERSION" | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
-            fi
-            sleep 20
+          shows() { curl -fsS "https://babybuddy.app/whatsnew/?run=$GITHUB_RUN_ID-$1" | grep -qE "$PATTERN"; }
+          for ATTEMPT in 1 2; do
+            curl -fsS -X POST "$HOOK" -o /dev/null && echo "website build requested (attempt $ATTEMPT)"
+            for TRY in $(seq 1 15); do
+              sleep 20
+              if shows "$ATTEMPT-$TRY"; then
+                echo "babybuddy.app/whatsnew/ shows $VERSION (build attempt $ATTEMPT)" | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
+              fi
+            done
+            [ "$ATTEMPT" = 1 ] && echo "::warning::babybuddy.app/whatsnew/ did not show $VERSION five minutes after the first build; requesting another"
           done
-          echo "::warning::babybuddy.app/whatsnew/ does not show $VERSION after 10 minutes — check the Cloudflare build"
+          echo "::error::babybuddy.app/whatsnew/ still does not show $VERSION after two site builds — check the Cloudflare build log for babybuddyweb"
+          exit 1
