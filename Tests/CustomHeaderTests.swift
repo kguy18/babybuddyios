@@ -2,8 +2,8 @@ import XCTest
 @testable import BabyBuddy
 
 /// Custom headers for a server behind an access gate (#148): which rows are accepted, that every
-/// request to the server carries them, that no other host ever gets them, and that a gate's 403
-/// isn't read as Baby Buddy rejecting the token.
+/// request to the server carries them, that no other host ever gets them, that a gate's 403 isn't
+/// read as Baby Buddy rejecting the token, and which gate answered.
 final class CustomHeaderTests: XCTestCase {
     private let gate = [CustomHeader(name: "CF-Access-Client-Id", value: "id.access"),
                         CustomHeader(name: "CF-Access-Client-Secret", value: "s3cret")]
@@ -120,36 +120,100 @@ final class CustomHeaderTests: XCTestCase {
 
     // MARK: - A gate's 403
 
+    private func probeError(_ api: APIClient) async -> APIError? {
+        do {
+            try await api.validateToken()
+            XCTFail("the probe passed")
+            return nil
+        } catch {
+            return error as? APIError
+        }
+    }
+
     func testAGatePageOn403IsNotTheTokenBeingRejected() async {
         let api = client(serving: ["<html>Forbidden</html>"])
         StubProtocol.status = 403
-        do {
-            try await api.validateToken()
-            XCTFail("a 403 passed the probe")
-        } catch {
-            XCTAssertEqual(error as? APIError, .decoding(Analytics.ListShape.nonJSON.rawValue))
-        }
+        let error = await probeError(api)
+        XCTAssertEqual(error, .accessGate(.unknown))
+    }
+
+    /// Baby Buddy's own refusals are JSON, so a 403 page at sign-in is a gate even with no headers
+    /// set: the person is told about the gate, not about their token.
+    func testWithoutHeadersA403PageAtSignInIsStillTheGate() async {
+        let api = client(serving: ["<html>Forbidden</html>"], headers: [])
+        StubProtocol.status = 403
+        let error = await probeError(api)
+        XCTAssertEqual(error, .accessGate(.unknown))
     }
 
     func testBabyBuddysOwn403IsStillForbidden() async {
         let api = client(serving: [#"{"detail": "Invalid token."}"#])
         StubProtocol.status = 403
+        let error = await probeError(api)
+        XCTAssertEqual(error, .forbidden)
+    }
+
+    /// Past sign-in, a 403 page with headers set is a failure to read the answer, parked like one.
+    func testDuringSyncA403PageWithHeadersIsNonJSON() async {
+        let api = client(serving: ["<html>Forbidden</html>"])
+        StubProtocol.status = 403
         do {
-            try await api.validateToken()
-            XCTFail("a 403 passed the probe")
+            _ = try await api.getRaw(path: "notes", id: 1)
+            XCTFail("a 403 passed")
+        } catch {
+            XCTAssertEqual(error as? APIError, .decoding(Analytics.ListShape.nonJSON.rawValue))
+        }
+    }
+
+    func testDuringSyncA403PageWithoutHeadersIsForbidden() async {
+        let api = client(serving: ["<html>Forbidden</html>"], headers: [])
+        StubProtocol.status = 403
+        do {
+            _ = try await api.getRaw(path: "notes", id: 1)
+            XCTFail("a 403 passed")
         } catch {
             XCTAssertEqual(error as? APIError, .forbidden)
         }
     }
 
-    func testWithoutHeadersA403PageIsStillForbidden() async {
-        let api = client(serving: ["<html>Forbidden</html>"], headers: [])
-        StubProtocol.status = 403
-        do {
-            try await api.validateToken()
-            XCTFail("a 403 passed the probe")
-        } catch {
-            XCTAssertEqual(error as? APIError, .forbidden)
-        }
+    // MARK: - Naming the gate
+
+    /// Cloudflare Access answers a missing or wrong service token with a 302 to its team domain,
+    /// which URLSession follows to the login page.
+    func testARedirectToCloudflareAccessNamesIt() async {
+        let api = client(serving: ["<html>Sign in</html>"], headers: [])
+        StubProtocol.redirect = URL(string: "https://team.cloudflareaccess.com/cdn-cgi/access/login/baby.example.com")!
+        let error = await probeError(api)
+        XCTAssertEqual(error, .accessGate(.cloudflareAccess))
+    }
+
+    private func gate(at url: String, page: String) -> AccessGate {
+        let response = HTTPURLResponse(url: URL(string: url)!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+        return AccessGate(response: response, body: Data(page.utf8))
+    }
+
+    func testTheGateIsNamedFromTheLoginPage() {
+        XCTAssertEqual(gate(at: "https://baby.example.com/cdn-cgi/access/login", page: "<html></html>"), .cloudflareAccess)
+        XCTAssertEqual(gate(at: "https://auth.example.com/if/flow/default-authentication-flow/", page: "<html></html>"),
+                       .authentik)
+        XCTAssertEqual(gate(at: "https://auth.example.com/", page: "<title>Login - Authelia</title>"), .authelia)
+        XCTAssertEqual(gate(at: "https://baby.example.com/login", page: "<title>Sign in</title>"), .unknown)
+    }
+
+    /// Authentik's and Authelia's header logins use `Authorization`, the header carrying the Baby
+    /// Buddy token, so sign-in doesn't open custom headers for them.
+    func testOnlyGatesHeadersCanPassOpenAdvancedConfiguration() {
+        XCTAssertTrue(AccessGate.cloudflareAccess.acceptsHeaders)
+        XCTAssertTrue(AccessGate.unknown.acceptsHeaders)
+        XCTAssertFalse(AccessGate.authentik.acceptsHeaders)
+        XCTAssertFalse(AccessGate.authelia.acceptsHeaders)
+    }
+
+    func testANamedGateSaysHowToLetTheAppThrough() {
+        XCTAssertTrue(APIError.accessGate(.cloudflareAccess).userMessage.contains("Advanced configuration"))
+        XCTAssertTrue(APIError.accessGate(.authentik).userMessage.contains("Unauthenticated Paths"))
+        XCTAssertTrue(APIError.accessGate(.authelia).userMessage.contains("bypass"))
+        XCTAssertEqual(APIError.accessGate(.unknown).userMessage,
+                       APIError.decoding(Analytics.ListShape.nonJSON.rawValue).userMessage)
     }
 }

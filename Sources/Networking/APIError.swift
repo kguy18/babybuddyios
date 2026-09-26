@@ -27,6 +27,9 @@ enum APIError: Error, Equatable {
     case decoding(String)
     /// The configured server URL is invalid.
     case invalidURL
+    /// Something in front of the server answered the sign-in probe instead of Baby Buddy: a login
+    /// page, or a refusal that isn't Baby Buddy's JSON. Only ``APIClient/validateToken()`` throws it.
+    case accessGate(AccessGate)
 
     /// Why a request never got an answer. Derived from `URLError.Code`.
     enum TransportFailure: String {
@@ -101,7 +104,7 @@ enum APIError: Error, Equatable {
         // `notFound` here is only what escapes `deliver()`'s own 404 handling — an image upload
         // whose target is gone, or a create against an endpoint this server version lacks. The
         // update/delete conflict and satisfied-delete paths intercept 404 before this.
-        case .forbidden, .notFound, .badRequest, .decoding: return .blocked
+        case .forbidden, .notFound, .badRequest, .decoding, .accessGate: return .blocked
         case .conflict, .invalidURL: return .recordAndRetry
         }
     }
@@ -142,6 +145,45 @@ enum APIError: Error, Equatable {
             return "The server answered with a web page instead of the Baby Buddy API. If a login proxy such as Authentik or Authelia is in front of it, let /api/ and /media/ through."
         case .decoding(let detail): return "Couldn't read the server response. \(detail)"
         case .invalidURL: return "The server address is not valid."
+        case .accessGate(.cloudflareAccess):
+            return "Cloudflare Access answered instead of Baby Buddy. Add a service token's headers under Advanced configuration."
+        case .accessGate(.authentik):
+            return "Authentik answered instead of Baby Buddy. In its proxy provider, add ^/api/.* and ^/media/.* to Unauthenticated Paths."
+        case .accessGate(.authelia):
+            return "Authelia answered instead of Baby Buddy. Add an access control rule that bypasses ^/api/.* and ^/media/.* for this server."
+        case .accessGate(.unknown):
+            return APIError.decoding(Analytics.ListShape.nonJSON.rawValue).userMessage
+        }
+    }
+}
+
+/// Who answered in Baby Buddy's place, as far as the response shows. A closed set of names, so it
+/// is safe to report.
+enum AccessGate: String {
+    case cloudflareAccess, authentik, authelia, unknown
+
+    /// Whether custom headers can get a request through it. Authentik's and Authelia's header logins
+    /// use `Authorization`, which carries the Baby Buddy token, so the fix there is letting /api/
+    /// and /media/ through instead.
+    var acceptsHeaders: Bool { self == .cloudflareAccess || self == .unknown }
+
+    /// Names the gate from the response that ended the probe. URLSession has followed any redirect
+    /// by then, so `response.url` is the login page's address rather than the server's. Cloudflare
+    /// Access answers a missing or wrong service token with a 302 to `<team>.cloudflareaccess.com`.
+    init(response: HTTPURLResponse, body: Data) {
+        let host = response.url?.host?.lowercased() ?? ""
+        let path = response.url?.path.lowercased() ?? ""
+        let page = String(decoding: body.prefix(100_000), as: UTF8.self).lowercased()
+        if host.hasSuffix("cloudflareaccess.com") || path.hasPrefix("/cdn-cgi/access/")
+            || page.contains("cloudflareaccess.com") {
+            self = .cloudflareAccess
+        } else if path.contains("/outpost.goauthentik.io/") || path.hasPrefix("/if/flow/")
+            || page.contains("authentik") {
+            self = .authentik
+        } else if page.contains("authelia") {
+            self = .authelia
+        } else {
+            self = .unknown
         }
     }
 }

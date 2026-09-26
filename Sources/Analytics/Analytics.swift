@@ -597,6 +597,8 @@ extension Analytics {
             if let shape = ListShape(rawValue: detail) { parameters["shape"] = shape.rawValue }
         case .invalidURL:
             name = "Error.serverRejected"; parameters["reason"] = "invalidURL"
+        case .accessGate(let gate):
+            name = "Error.serverRejected"; parameters["reason"] = "accessGate"; parameters["gate"] = gate.rawValue
         }
         signal(name, parameters: parameters)
     }

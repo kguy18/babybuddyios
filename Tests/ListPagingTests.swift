@@ -211,7 +211,7 @@ final class ListPagingTests: XCTestCase {
             try await api.validateToken()
             XCTFail("a login page passed as the API")
         } catch {
-            XCTAssertEqual(error as? APIError, .decoding(Analytics.ListShape.nonJSON.rawValue))
+            XCTAssertEqual(error as? APIError, .accessGate(.unknown))
         }
     }
 

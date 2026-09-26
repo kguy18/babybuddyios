@@ -11,7 +11,10 @@ struct OnboardingView: View {
     @State private var serverURL = ""
     @State private var token = ""
     @State private var headerRows: [HeaderRow] = []
-    @State private var showHeaders = false
+    @State private var showAdvanced = false
+    /// A gate answered a sign-in the scanner started. Advanced configuration opens once the scanner
+    /// has finished closing, since a sheet can't present while another one is dismissing.
+    @State private var advancedAfterScanner = false
     @State private var isValidating = false
     @State private var showScanner = false
     @State private var showHelp = false
@@ -54,9 +57,9 @@ struct OnboardingView: View {
                 divider
                 if hasError { errorBanner }
                 manualCard
-                headersSection
                 supplemental
                 primaryButton
+                advancedButton
                 helpLink
             }
             .padding(.horizontal, 18)
@@ -67,8 +70,16 @@ struct OnboardingView: View {
         }
         .background(BBColor.surface.ignoresSafeArea())
         .scrollDismissesKeyboard(.interactively)
-        .sheet(isPresented: $showScanner) {
+        .sheet(isPresented: $showScanner, onDismiss: {
+            if advancedAfterScanner {
+                advancedAfterScanner = false
+                showAdvanced = true
+            }
+        }) {
             QRScannerSheet(onScan: handleScan)
+        }
+        .sheet(isPresented: $showAdvanced) {
+            AdvancedConfigurationSheet(rows: $headerRows, gate: session.lastGate)
         }
         .alert("Finding your details", isPresented: $showHelp) {
             Button("Got it", role: .cancel) {}
@@ -242,47 +253,6 @@ struct OnboardingView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: Custom headers (collapsed; only for a server behind an access gate)
-
-    private var headersSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Button {
-                withAnimation { showHeaders.toggle() }
-            } label: {
-                HStack(spacing: 6) {
-                    Text("Custom headers")
-                        .font(.subheadline.weight(.medium))
-                    if !showHeaders, !headerRows.isEmpty {
-                        Text("\(headerRows.count)")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 13, weight: .semibold))
-                        .rotationEffect(.degrees(showHeaders ? 90 : 0))
-                }
-                .foregroundStyle(BBColor.brandAccent)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 6)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityValue(showHeaders ? "Expanded" : "Collapsed")
-
-            if showHeaders {
-                BBCard(cornerRadius: BBRadius.tile, padding: 0) {
-                    CustomHeaderFields(rows: $headerRows)
-                }
-                Text(CustomHeaderFields.footnote)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-            }
-        }
-        .padding(.top, 4)
-    }
-
     // MARK: Supplemental row — caption / connecting subline (error uses the banner above)
 
     @ViewBuilder private var supplemental: some View {
@@ -387,6 +357,29 @@ struct OnboardingView: View {
         }
     }
 
+    /// Custom headers, for a server behind an access gate. A sheet rather than rows on this screen,
+    /// so the few who need them don't push Connect down for everyone else.
+    private var advancedButton: some View {
+        Button {
+            focusedField = nil
+            showAdvanced = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "slider.horizontal.3")
+                Text("Advanced configuration")
+                if !headerRows.isEmpty {
+                    Text(headerRows.count == 1 ? "· 1 header" : "· \(headerRows.count) headers")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(BBColor.brandAccent)
+        }
+        .buttonStyle(.plain)
+        .disabled(isValidating)
+        .padding(.top, 16)
+    }
+
     private var helpLink: some View {
         Button {
             focusedField = nil
@@ -418,6 +411,15 @@ struct OnboardingView: View {
         submit(method: .qr)
     }
 
+    /// Opens Advanced configuration after a gate answered. For Cloudflare Access, which always takes
+    /// the same two headers, an empty set starts with both names filled in.
+    private func openAdvanced(for gate: AccessGate) {
+        if gate == .cloudflareAccess, headerRows.isEmpty {
+            headerRows = [HeaderRow(name: "CF-Access-Client-Id"), HeaderRow(name: "CF-Access-Client-Secret")]
+        }
+        if showScanner { advancedAfterScanner = true } else { showAdvanced = true }
+    }
+
     private func submit(method: Analytics.SignInMethod = .manual) {
         focusedField = nil
         isValidating = true
@@ -426,6 +428,7 @@ struct OnboardingView: View {
                                           headers: headerRows.map(\.header))
             if ok { Analytics.onboardingCompleted(method: method, customHeaders: headerRows.count) }
             isValidating = false
+            if !ok, let gate = session.lastGate, gate.acceptsHeaders { openAdvanced(for: gate) }
         }
     }
 }

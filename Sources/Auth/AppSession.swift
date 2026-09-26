@@ -19,6 +19,10 @@ final class AppSession {
     /// Set when a request fails validation during onboarding, for inline display.
     var lastError: String?
 
+    /// What answered the last failed probe in Baby Buddy's place, if something did. Sign-in opens
+    /// Advanced configuration when it's a gate that custom headers can get through.
+    private(set) var lastGate: AccessGate?
+
     /// When true (DEBUG launch with `BB_DEMO=1`), the app runs against seeded local data
     /// and skips all network access.
     let isDemo: Bool
@@ -138,6 +142,7 @@ final class AppSession {
     /// A client for `config` if the server answers ``APIClient/validateToken()``; otherwise `nil`,
     /// with ``lastError`` saying why.
     private func probe(_ config: ServerConfig, context: String) async -> APIClient? {
+        lastGate = nil
         let probe = APIClient(config: config)
         do {
             try await probe.validateToken()
@@ -153,8 +158,18 @@ final class AppSession {
             // same thing to someone signing in — the token — so don't send them off to look at
             // permissions for a mistyped one.
             var message = error.isForbidden ? APIError.unauthorized.userMessage : error.userMessage
-            if !config.headers.isEmpty, error == .decoding(Analytics.ListShape.nonJSON.rawValue) {
-                message += " Check the custom headers."
+            // The API root always exists on a Baby Buddy server, so a 404 here is the wrong address,
+            // not the record message the sync queue shows.
+            if error == .notFound { message = "There's no Baby Buddy API at that address. Check the server URL." }
+            if case .accessGate(let gate) = error {
+                lastGate = gate
+                switch gate {
+                case .cloudflareAccess where !config.headers.isEmpty:
+                    message = "Cloudflare Access turned down the custom headers. Check the service token's client ID and secret."
+                case .unknown where !config.headers.isEmpty:
+                    message += " Check the custom headers."
+                default: break
+                }
             }
             lastError = message
             return nil

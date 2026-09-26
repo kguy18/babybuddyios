@@ -309,16 +309,19 @@ final class APIClient {
 
     /// Lightweight reachability + auth probe used during onboarding.
     ///
-    /// A 2xx alone doesn't prove the API answered. A login proxy in front of it (Authentik or
-    /// Authelia forward auth) redirects to its sign-in page, which URLSession follows to a 200
-    /// HTML page. Without the JSON check sign-in succeeds and the first sync fails instead.
+    /// Baby Buddy answers this with JSON whatever the status, Django REST's refusals included, so a
+    /// page in its place came from something in front of it. Forward auth (Authentik, Authelia) and
+    /// Cloudflare Access redirect to a login page, which URLSession follows to a 200; a gate can
+    /// also refuse outright with a 401 or 403 page. Without this check sign-in would succeed on the
+    /// 200 and the first sync fail instead, or a gate's 403 read as a rejected token.
     @discardableResult
     func validateToken() async throws -> Bool {
-        let req = try makeRequest(path: "", method: "GET")
-        let data = try await sendRaw(req)
-        guard (try? JSONSerialization.jsonObject(with: data)) != nil else {
-            throw APIError.decoding(Analytics.ListShape.nonJSON.rawValue)
+        let (data, http) = try await fetch(try makeRequest(path: "", method: "GET"))
+        let isJSON = (try? JSONSerialization.jsonObject(with: data)) != nil
+        if !isJSON, (200..<300).contains(http.statusCode) || http.statusCode == 401 || http.statusCode == 403 {
+            throw APIError.accessGate(AccessGate(response: http, body: data))
         }
+        _ = try check(data, http)
         return true
     }
 
@@ -352,6 +355,11 @@ final class APIClient {
 
     @discardableResult
     private func sendRaw(_ req: URLRequest) async throws -> Data {
+        let (data, http) = try await fetch(req)
+        return try check(data, http)
+    }
+
+    private func fetch(_ req: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let data: Data
         let response: URLResponse
         do {
@@ -364,6 +372,10 @@ final class APIClient {
         guard let http = response as? HTTPURLResponse else {
             throw APIError.offline(reason: .other)
         }
+        return (data, http)
+    }
+
+    private func check(_ data: Data, _ http: HTTPURLResponse) throws -> Data {
         switch http.statusCode {
         case 200...299:
             return data

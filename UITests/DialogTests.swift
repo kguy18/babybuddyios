@@ -96,21 +96,25 @@ final class DialogTests: UITestCase {
         XCTAssertFalse(connect.isEnabled)
     }
 
-    /// #148: the custom header rows on sign-in. A forbidden name is caught before any request goes
-    /// out, so this needs no server.
+    /// #148: the custom header rows, in sign-in's Advanced configuration. A forbidden name is caught
+    /// before any request goes out, so this needs no server.
     func testCustomHeaderRows() {
         launch(demo: false)
         let names = app.textFields.matching(NSPredicate(format: "placeholderValue == %@", "Header name"))
-        tap(app.buttons["Custom headers"])
+        tap(app.buttons["Advanced configuration"])
+        let sheet = expect(app.navigationBars["Advanced configuration"])
         tap(app.buttons["Add header"])
         tap(app.buttons["Add header"])
         XCTAssertEqual(names.count, 2)
         tap(app.buttons["Remove header"].firstMatch)
         expectGone(names.element(boundBy: 1))
         XCTAssertEqual(names.count, 1)
-
         replaceText(names.firstMatch, with: "Authorization")
         replaceText(app.secureTextFields["Header value"], with: "x")
+        tap(sheet.buttons["Done"])
+        expectGone(sheet)
+        expect(element(labeled: "Advanced configuration"))
+
         replaceText(app.textFields["Your server URL or IP address"], with: "baby.example.com")
         replaceText(app.secureTextFields["Paste your API token"], with: "abc\n")
         expect(element(labeled: "Authorization carries your API token"))
@@ -120,7 +124,8 @@ final class DialogTests: UITestCase {
     /// name fails before the probe; the demo server's address would take a minute to time out.
     func testCustomHeaderEditInSettings() {
         launch(["BB_START_TAB": "settings"])
-        tap(element(labeled: "Custom headers"))
+        tap(app.buttons.labeled("Custom headers"))
+        expect(app.navigationBars["Custom headers"])
         tap(app.buttons["Add header"])
         replaceText(app.textFields["Header name"], with: "Cookie")
         replaceText(app.secureTextFields["Header value"], with: "x")
