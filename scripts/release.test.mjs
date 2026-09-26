@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { generateKeyPairSync, verify } from 'node:crypto'
-import { APP_STORE_LIMIT, appStoreNotes, githubBody, jwt, validate } from './release.mjs'
+import { APP_STORE_LIMIT, appStoreNotes, githubBody, jwt, nextBuild, validate, whatToTest } from './release.mjs'
 
 const F = '```'
 const section = (version, appstore, whatsnew = '#New\n- new | A title | A body') =>
@@ -102,4 +102,58 @@ test('the App Store Connect token is ES256 with a raw, not DER, signature', () =
   const raw = Buffer.from(signature, 'base64url')
   assert.equal(raw.length, 64) // r‖s; a DER signature is 70-72 bytes
   assert.ok(verify('sha256', Buffer.from(`${head}.${claims}`), { key: publicKey, dsaEncoding: 'ieee-p1363' }, raw))
+})
+
+test('the next build number is one past the highest uploaded, whatever the order', () => {
+  assert.equal(nextBuild([]), 1)
+  assert.equal(nextBuild([{ build: '2' }, { build: '10' }, { build: '3' }]), 11)
+})
+
+const PR = (number, title, body, extra = {}) =>
+  ({ number, title, body, labels: [], mergedAt: '2026-09-25T10:00:00Z', ...extra })
+const BODY = `## Summary
+
+Closes #1.
+
+## What to test
+
+- Open the Timeline from a Latest row.
+- The filter shows that kind only.
+
+## UI tests
+
+- [x] Added one.
+`
+
+test('What to Test is each PR title over its What to test bullets', () => {
+  const prs = [PR(1, 'Open the Timeline from Latest', BODY), PR(2, 'Reload thresholds', '## What to test\n\n- Leave a timer running.\n')]
+  assert.equal(whatToTest(prs), `Open the Timeline from Latest
+- Open the Timeline from a Latest row.
+- The filter shows that kind only.
+
+Reload thresholds
+- Leave a timer running.`)
+})
+
+test('a single PR object works as well as a list, and the template placeholder is not text', () => {
+  const template = '## What to test\n\n<Tester-facing. Two to four plain bullets.>\n\n-\n\n## UI tests\n'
+  assert.equal(whatToTest(PR(3, 'Version 1.2.0 (build 1)', template)), 'Version 1.2.0 (build 1)')
+  assert.equal(whatToTest(PR(4, 'No body at all', null)), 'No body at all')
+})
+
+test('internal PRs and PRs merged before `since` are left out', () => {
+  const prs = [
+    PR(1, 'Kept', BODY),
+    PR(2, 'Internal', BODY, { labels: [{ name: 'internal' }] }),
+    PR(3, 'Old', BODY, { mergedAt: '2026-09-24T10:00:00Z' }),
+    PR(4, 'Same second', BODY, { mergedAt: '2026-09-24T12:00:00Z' }),
+  ]
+  assert.equal(whatToTest(prs, '2026-09-24T12:00:00Z').split('\n')[0], 'Kept')
+  assert.equal(whatToTest(prs, '2026-09-24T12:00:00Z').split('\n\n').length, 1)
+  // Apple's uploadedDate carries an offset; the same instant as above, written Apple's way.
+  assert.equal(whatToTest(prs, '2026-09-24T05:00:00-07:00').split('\n\n').length, 1)
+})
+
+test("What to Test respects App Store Connect's 4,000 characters", () => {
+  assert.throws(() => whatToTest(PR(1, 'x'.repeat(APP_STORE_LIMIT + 1), '')), /4001 characters/)
 })
