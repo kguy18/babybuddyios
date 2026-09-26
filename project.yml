@@ -16,11 +16,11 @@ packages:
 settings:
   base:
     # Applies to the app and the widget extension alike — App Store Connect rejects an upload whose
-    # extension version doesn't match the app's. Bump CURRENT_PROJECT_VERSION for every upload: a
-    # build number may only be used once per MARKETING_VERSION.
+    # extension version doesn't match the app's. CURRENT_PROJECT_VERSION numbers local builds only:
+    # an upload takes its build number from App Store Connect at archive time (see CLAUDE.md).
     #
     # MARKETING_VERSION is the App Store version, and a new one sends the TestFlight build through
-    # App Store review. NEVER bump it unprompted — "bump the version" means the build number below.
+    # App Store review. NEVER bump it unprompted.
     # It changes only when the owner asks for a release.
     MARKETING_VERSION: "1.2.0"
     CURRENT_PROJECT_VERSION: "1"
