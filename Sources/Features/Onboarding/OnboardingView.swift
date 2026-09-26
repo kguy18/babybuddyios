@@ -10,6 +10,14 @@ struct OnboardingView: View {
 
     @State private var serverURL = ""
     @State private var token = ""
+    @State private var headerRows: [HeaderRow] = []
+    /// Advanced configuration, open. It carries the gate the sheet explains, fixed when it opens.
+    @State private var advanced: AdvancedRequest?
+    /// A gate answered a sign-in the scanner started. Advanced configuration opens once the scanner
+    /// has finished closing, since a sheet can't present while another one is dismissing.
+    @State private var advancedAfterScanner: AdvancedRequest?
+    /// Saved from Advanced configuration with "Save and try again": sign in once the sheet has closed.
+    @State private var retryAfterAdvanced = false
     @State private var isValidating = false
     @State private var showScanner = false
     @State private var showHelp = false
@@ -53,6 +61,7 @@ struct OnboardingView: View {
                 if hasError { errorBanner }
                 manualCard
                 supplemental
+                advancedButton
                 primaryButton
                 helpLink
             }
@@ -64,8 +73,25 @@ struct OnboardingView: View {
         }
         .background(BBColor.surface.ignoresSafeArea())
         .scrollDismissesKeyboard(.interactively)
-        .sheet(isPresented: $showScanner) {
+        .sheet(isPresented: $showScanner, onDismiss: {
+            if let request = advancedAfterScanner {
+                advancedAfterScanner = nil
+                advanced = request
+            }
+        }) {
             QRScannerSheet(onScan: handleScan)
+        }
+        .sheet(item: $advanced, onDismiss: {
+            if retryAfterAdvanced {
+                retryAfterAdvanced = false
+                submit()
+            }
+        }) { request in
+            AdvancedConfigurationSheet(rows: headerRows, gate: request.gate,
+                                       host: normalizedHost ?? "your server") { rows, retry in
+                headerRows = rows
+                retryAfterAdvanced = retry
+            }
         }
         .alert("Finding your details", isPresented: $showHelp) {
             Button("Got it", role: .cancel) {}
@@ -75,6 +101,11 @@ struct OnboardingView: View {
         #if DEBUG
         .task {
             if ProcessInfo.processInfo.environment["BB_SCANNER_PREVIEW"] == "1" { showScanner = true }
+            // Open Advanced configuration as if this gate had answered: neither the simulator nor
+            // the UI tests can reach one.
+            if let raw = ProcessInfo.processInfo.environment["BB_GATE_PREVIEW"], let gate = AccessGate(rawValue: raw) {
+                advanced = AdvancedRequest(gate: gate)
+            }
         }
         #endif
     }
@@ -343,6 +374,29 @@ struct OnboardingView: View {
         }
     }
 
+    /// Custom headers, for a server behind an access gate. Above Connect, so they're set before the
+    /// first try; a sheet rather than rows on this screen, so they don't push Connect down.
+    private var advancedButton: some View {
+        Button {
+            focusedField = nil
+            advanced = AdvancedRequest(gate: session.lastGate)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "slider.horizontal.3")
+                Text("Advanced configuration")
+                if !headerRows.isEmpty {
+                    Text(headerRows.count == 1 ? "· 1 header" : "· \(headerRows.count) headers")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(BBColor.brandAccent)
+        }
+        .buttonStyle(.plain)
+        .disabled(isValidating)
+        .padding(.bottom, 16)
+    }
+
     private var helpLink: some View {
         Button {
             focusedField = nil
@@ -362,7 +416,8 @@ struct OnboardingView: View {
     // MARK: Logic (unchanged)
 
     /// Decode a scanned QR payload. On success, fill the fields and connect immediately;
-    /// otherwise surface a hint so the user knows they scanned the wrong code.
+    /// otherwise surface a hint so the user knows they scanned the wrong code. The code carries only
+    /// the URL and token, so any custom headers already entered go with it.
     private func handleScan(_ raw: String) {
         guard let credentials = DeviceLoginQR.parse(raw) else {
             session.lastError = "That QR code isn't a Baby Buddy login code. Open User → Add a Device on your server to show it."
@@ -373,13 +428,27 @@ struct OnboardingView: View {
         submit(method: .qr)
     }
 
+    /// Opens Advanced configuration after a gate answered.
+    private func openAdvanced(for gate: AccessGate) {
+        let request = AdvancedRequest(gate: gate)
+        if showScanner { advancedAfterScanner = request } else { advanced = request }
+    }
+
     private func submit(method: Analytics.SignInMethod = .manual) {
         focusedField = nil
         isValidating = true
         Task {
-            let ok = await session.signIn(serverURL: serverURL, token: token)
-            if ok { Analytics.onboardingCompleted(method: method) }
+            let ok = await session.signIn(serverURL: serverURL, token: token,
+                                          headers: headerRows.map(\.header))
+            if ok { Analytics.onboardingCompleted(method: method, customHeaders: headerRows.count) }
             isValidating = false
+            if !ok, let gate = session.lastGate, gate.acceptsHeaders { openAdvanced(for: gate) }
         }
     }
+}
+
+/// One opening of Advanced configuration, and the gate that answered the sign-in before it.
+private struct AdvancedRequest: Identifiable {
+    let id = UUID()
+    let gate: AccessGate?
 }

@@ -110,9 +110,11 @@ extension Analytics {
 
     enum SignInMethod: String { case qr, manual }
 
-    /// A successful first sign-in, and how the credentials were supplied.
-    static func onboardingCompleted(method: SignInMethod) {
-        signal("Onboarding.completed", parameters: ["method": method.rawValue])
+    /// A successful first sign-in, how the credentials were supplied, and how many custom headers
+    /// it sent. The count only: header names and values never leave the device.
+    static func onboardingCompleted(method: SignInMethod, customHeaders: Int) {
+        signal("Onboarding.completed", parameters: ["method": method.rawValue,
+                                                    "customHeaders": String(customHeaders)])
     }
 
     /// Where a timer action originated.
@@ -595,6 +597,8 @@ extension Analytics {
             if let shape = ListShape(rawValue: detail) { parameters["shape"] = shape.rawValue }
         case .invalidURL:
             name = "Error.serverRejected"; parameters["reason"] = "invalidURL"
+        case .accessGate(let gate):
+            name = "Error.serverRejected"; parameters["reason"] = "accessGate"; parameters["gate"] = gate.rawValue
         }
         signal(name, parameters: parameters)
     }
