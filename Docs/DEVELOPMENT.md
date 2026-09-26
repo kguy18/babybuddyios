@@ -45,6 +45,17 @@ directly. The app and the extension are scanned as separate bundles and so need 
 two in step. Adding a required-reason API (`UserDefaults`, file timestamps, disk space, boot time,
 active keyboards) to code the widget also compiles means updating both.
 
+## Build guard
+
+`scripts/guard-build.sh` runs before every build of the app target. It fails the build when
+`DEVELOPMENT_TEAM` is not `547DWTTFY6`, and fails a Release build on that team when
+`REVENUECAT_API_KEY`, `TELEMETRYDECK_APP_ID` or `TELEMETRYDECK_SALT` is empty. Those come from
+`Config/Secrets.xcconfig`, which is gitignored and included with `#include?`, so without the guard a
+missing file builds silently. Debug builds and CI carry no secrets and are not checked for them.
+
+Building a fork: set `EXPECTED_TEAM` at the top of the script to your own team, next to
+`DEVELOPMENT_TEAM` in `project.yml`.
+
 ## Debug launch flags (simulator)
 
 Pass these via `SIMCTL_CHILD_<NAME>` environment variables to `xcrun simctl launch`:
