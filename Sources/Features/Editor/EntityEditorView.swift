@@ -29,6 +29,12 @@ struct EntityEditorView: View {
     /// creating; locked to the passed-in value when editing or converting.
     @State private var kind: EntityKind
 
+    /// Which baby this record is filed under. Starts at `childID`; editing an existing record
+    /// lets it be reassigned to any other child in the family (``showsChildPicker``).
+    @State private var selectedChildID: Int
+    @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "child" }, sort: \.timestamp)
+    private var children: [LocalEntity]
+
     init(kind: EntityKind, childID: Int, entity: LocalEntity? = nil, sourceTimer: LocalEntity? = nil,
          template: LocalEntity? = nil, source: Analytics.ActivitySource = .editor) {
         self.childID = childID
@@ -37,6 +43,7 @@ struct EntityEditorView: View {
         self.template = template
         self.source = source
         _kind = State(initialValue: kind)
+        _selectedChildID = State(initialValue: childID)
     }
 
     // Common fields
@@ -190,6 +197,7 @@ struct EntityEditorView: View {
     /// The editable form (everything below the activity selector).
     @ViewBuilder private var formSections: some View {
         syncErrorBanner
+        babySection
         sectioned("When") { whenCard }
         sectioned(detailsTitle) { detailsCard }
         sectioned("Tags") { tagsCard }
@@ -254,6 +262,55 @@ struct EntityEditorView: View {
         case .note: return "Note"
         default: return k.displayName
         }
+    }
+
+    // MARK: Baby card
+
+    /// Reassigning is only meaningful once a record exists (there's nothing to move yet while
+    /// creating) and only offered when the family has more than one child to move it to — the
+    /// same gate the Dashboard/Settings child switcher uses.
+    private var showsChildPicker: Bool { isEditing && children.count > 1 }
+
+    @ViewBuilder private var babySection: some View {
+        if showsChildPicker {
+            sectioned("Baby") {
+                BBCard(cornerRadius: BBRadius.tile, padding: 0) { childRow }
+            }
+        }
+    }
+
+    private func childDisplayName(_ child: LocalEntity) -> String {
+        let p = child.payloadObject
+        let parts = [p["first_name"] as? String, p["last_name"] as? String]
+            .compactMap { $0 }.filter { !$0.isEmpty }
+        return parts.isEmpty ? "Unnamed" : parts.joined(separator: " ")
+    }
+
+    private var selectedChildName: String {
+        children.first { $0.serverID == selectedChildID }.map(childDisplayName) ?? "—"
+    }
+
+    private var childRow: some View {
+        HStack {
+            Text("Baby").font(.body)
+            Spacer()
+            Menu {
+                ForEach(children, id: \.serverID) { child in
+                    if let id = child.serverID {
+                        Button { selectedChildID = id } label: {
+                            menuLabel(childDisplayName(child), checked: id == selectedChildID)
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(selectedChildName)
+                    Image(systemName: "chevron.up.chevron.down").font(.caption2)
+                }
+                .foregroundStyle(BBColor.brandAccent)
+            }
+        }
+        .padding(.horizontal, 15).padding(.vertical, 11)
     }
 
     // MARK: When card
@@ -745,6 +802,7 @@ struct EntityEditorView: View {
         }
         // A template (the dose a reminder was about) fills the form like an edit, but stays a new
         // record timed now: `buildPayload` only carries `entity`'s id.
+        if let c = entity?.payloadObject["child"] as? Int { selectedChildID = c }
         guard let p = (entity ?? template)?.payloadObject else { return }
         defer { if entity == nil { time = Date() } }
         func parseDate(_ key: String) -> Date? { (p[key] as? String).flatMap(APIDate.parse) }
@@ -834,7 +892,7 @@ struct EntityEditorView: View {
     }
 
     private func buildPayload() -> [String: Any] {
-        var p: [String: Any] = ["child": childID]
+        var p: [String: Any] = ["child": selectedChildID]
         let tagList = tagNames
         func iso(_ d: Date) -> String { APIDate.isoDateTime.string(from: d) }
 

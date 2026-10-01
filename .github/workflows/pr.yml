@@ -160,7 +160,7 @@ jobs:
           - shard: timers
             classes: LiveActivityTests SmokeTests TimerTests
           - shard: timeline
-            classes: TimelineTests DialogTests SyncTests
+            classes: TimelineTests DialogTests SyncTests ReassignChildTests
           - shard: settings
             classes: NotificationTests SettingsTests DashboardTests
     steps:

@@ -46,6 +46,27 @@ final class LocalRepositoryTests: XCTestCase {
         XCTAssertEqual(entity.payloadObject["note"] as? String, "b")
     }
 
+    /// The Editor's Baby picker (multi-child households) reassigns a record by resubmitting its
+    /// payload with a different `child`; ``LocalRepository/update`` must carry that into both the
+    /// denormalized `childID` (timeline filtering) and the queued PATCH body.
+    func testUpdateReassignsChild() throws {
+        let entity = repo.create(kind: .feeding, payload: [
+            "child": 1, "start": "2024-01-15T10:00:00-05:00", "end": "2024-01-15T10:20:00-05:00",
+            "type": "formula", "method": "bottle",
+        ])!
+        repo.update(entity, payload: [
+            "child": 2, "start": "2024-01-15T10:00:00-05:00", "end": "2024-01-15T10:20:00-05:00",
+            "type": "formula", "method": "bottle",
+        ])
+
+        XCTAssertEqual(entity.childID, 2)
+        XCTAssertEqual(entity.payloadObject["child"] as? Int, 2)
+        let muts = try mutations()
+        XCTAssertEqual(muts.count, 1)
+        let queuedChild = (try JSONSerialization.jsonObject(with: muts[0].payload) as? [String: Any])?["child"] as? Int
+        XCTAssertEqual(queuedChild, 2)
+    }
+
     func testDeleteUnsyncedRemovesEverything() throws {
         let entity = repo.create(kind: .note, payload: ["child": 1, "time": "2024-01-15T10:00:00-05:00", "note": "x"])!
         repo.delete(entity)

@@ -99,7 +99,21 @@ enum DemoData {
         if let sick = ProcessInfo.processInfo.environment["BB_SEED_SICK"], ["1", "clear"].contains(sick) {
             seedSick(clear: sick == "clear", into: context)
         }
+        if ProcessInfo.processInfo.environment["BB_SEED_SECOND_CHILD"] == "1" {
+            seedSecondChild(into: context)
+        }
         try? context.save()
+    }
+
+    /// `BB_SEED_SECOND_CHILD=1`: a second child with no records of her own, so the Editor's Baby
+    /// picker and the ChildSwitcher have somewhere to reassign/switch to. Exercises the
+    /// multi-child gate on both (``EntityEditorView/showsChildPicker``, ``ChildSwitcher``),
+    /// which the single-child demo household never reaches.
+    private static func seedSecondChild(into context: ModelContext) {
+        insert(.child, id: 2, [
+            "id": 2, "first_name": "Leo", "last_name": "Guy",
+            "birth_date": "2025-11-02", "slug": "leo-guy", "picture": NSNull(),
+        ], context)
     }
 
     /// `BB_SEED_SICK=1`: a day and a half of fever for the demo child, with sick mode on since the
