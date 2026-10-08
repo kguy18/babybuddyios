@@ -136,6 +136,22 @@ class UITestCase: XCTestCase {
         element.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: existing.count) + text)
     }
 
+    /// Sets the editor's Start time (its first date picker) to `date`'s hour and minute. Only the
+    /// time wheels move, so `date` must fall on the picker's current day.
+    func setStartTime(_ date: Date) {
+        // Start is the first picker; its buttons are the pair, the date, then the time.
+        tap(app.datePickers.element(boundBy: 0).buttons.element(boundBy: 2))
+        let wheels = app.pickerWheels
+        expect(wheels.element(boundBy: 1))
+        let format = DateFormatter()
+        let patterns: [String] = wheels.count == 3 ? ["h", "mm", "a"] : ["HH", "mm"]
+        for (index, pattern) in patterns.enumerated() {
+            format.dateFormat = pattern
+            wheels.element(boundBy: index).adjust(toPickerWheelValue: format.string(from: date))
+        }
+        tap(app.buttons["PopoverDismissRegion"])
+    }
+
     /// Home ▸ "+" ▸ More… ▸ `kind`. Not the quick-add rows: those log in one tap once #78 lands.
     func openEditor(_ kind: String) {
         tap(app.buttons["Add"])
