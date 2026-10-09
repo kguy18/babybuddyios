@@ -8,7 +8,9 @@ struct MainTabView: View {
     @Environment(DeepLinkRouter.self) private var router
     @Environment(AppSession.self) private var session
     @Environment(AppLockManager.self) private var lock
-    @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "child" }, sort: \.timestamp)
+    /// Oldest first; the id settles twins, so the default child doesn't change between launches.
+    @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "child" },
+           sort: [SortDescriptor<LocalEntity>(\.timestamp), SortDescriptor<LocalEntity>(\.serverID)])
     private var children: [LocalEntity]
     /// Every cached dose, for every child: medicine colors follow the order names first appear.
     @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "medication" })
