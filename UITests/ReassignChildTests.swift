@@ -42,4 +42,29 @@ final class ReassignChildTests: UITestCase {
         tap(app.buttons["Leo Guy"])
         expect(row)
     }
+
+    /// The overlap warning follows the Baby picker: an entry that overlaps another of Maya's warns,
+    /// and moving it to Leo, who has nothing logged, clears the warning.
+    func testOverlapWarningFollowsSelectedChild() throws {
+        let target = Date().addingTimeInterval(-80 * 60)
+        try XCTSkipUnless(Calendar.current.isDateInToday(target), "Start would land on yesterday's date")
+        launch(["BB_SEED_SECOND_CHILD": "1"])
+        openEditor("Feeding")
+        let new = expect(app.navigationBars["New Feeding"])
+        setStartTime(target) // over the seeded Breast Milk feeding
+        expect(element(labeled: "Warning. Overlaps the"))
+        tap(new.buttons["Save"])
+        expectGone(new)
+
+        // Either feeding now overlaps the other; open the seeded one for editing.
+        tap(app.buttons.labeled("Feeding, "))
+        tap(elements("label BEGINSWITH 'Feeding, Breast Milk'").firstMatch)
+        expect(app.navigationBars["Edit Feeding"])
+        let warning = element(labeled: "Warning. Overlaps the")
+        expect(warning)
+
+        tap(app.buttons.labeled("Maya Guy"))
+        tap(app.buttons["Leo Guy"])
+        expectGone(warning)
+    }
 }

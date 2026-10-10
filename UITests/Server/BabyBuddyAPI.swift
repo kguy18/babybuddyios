@@ -153,8 +153,14 @@ struct BabyBuddyAPI {
     }
 
     /// The child the app will select: the server's first.
+    /// The child the app opens on after sign-in: the earliest birth date, then the lowest id (see
+    /// `MainTabView.children`). The API lists children by name, so its first isn't necessarily it.
     func firstChild() async throws -> (id: Int, firstName: String) {
-        guard let child = try await list("children", ["limit": "1"]).first,
+        let children = try await list("children")
+        func key(_ child: [String: Any]) -> (String, Int) {
+            (child["birth_date"] as? String ?? "", child["id"] as? Int ?? .max)
+        }
+        guard let child = children.min(by: { key($0) < key($1) }),
               let id = child["id"] as? Int else {
             throw Failure(method: "GET", path: "children", status: 404)
         }

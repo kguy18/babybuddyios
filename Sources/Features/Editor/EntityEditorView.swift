@@ -729,15 +729,16 @@ struct EntityEditorView: View {
     }
 
     /// Fetched rather than queried, so only records that could intersect are read: upstream caps a
-    /// period at 24 hours, so anything starting earlier than that has already ended.
+    /// period at 24 hours, so anything starting earlier than that has already ended. Checked against
+    /// the child the entry will be saved under, which the Baby picker can change.
     private var overlappingRecord: LocalEntity? {
         guard ActivityDraft.overlapCheckedKinds.contains(kind) else { return nil }
-        let kindRaw = kind.rawValue, child = Optional(childID)
+        let kindRaw = kind.rawValue, child = Optional(selectedChildID)
         let earliest = start.addingTimeInterval(-24 * 3600), latest = end
         let candidates = (try? context.fetch(FetchDescriptor<LocalEntity>(predicate: #Predicate {
             $0.kindRaw == kindRaw && $0.childID == child && $0.timestamp >= earliest && $0.timestamp < latest
         }))) ?? []
-        return ActivityDraft.overlapping(kind: kind, childID: childID, start: start, end: end,
+        return ActivityDraft.overlapping(kind: kind, childID: selectedChildID, start: start, end: end,
                                          excluding: entity?.localID, in: candidates)
     }
 

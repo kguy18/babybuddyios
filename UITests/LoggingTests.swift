@@ -227,17 +227,7 @@ final class LoggingTests: UITestCase {
         let bar = expect(app.navigationBars["New Feeding"])
         XCTAssertFalse(element(labeled: "Warning. Overlaps").exists, "start and end are both now")
 
-        // Start is the first picker; its buttons are the pair, the date, then the time.
-        tap(app.datePickers.element(boundBy: 0).buttons.element(boundBy: 2))
-        let wheels = app.pickerWheels
-        expect(wheels.element(boundBy: 1))
-        let format = DateFormatter()
-        let patterns: [String] = wheels.count == 3 ? ["h", "mm", "a"] : ["HH", "mm"]
-        for (index, pattern) in patterns.enumerated() {
-            format.dateFormat = pattern
-            wheels.element(boundBy: index).adjust(toPickerWheelValue: format.string(from: target))
-        }
-        tap(app.buttons["PopoverDismissRegion"])
+        setStartTime(target)
 
         expect(element(labeled: "Warning. Overlaps the"))
         XCTAssertTrue(bar.buttons["Save"].isEnabled, "An overlap warns, it doesn't block")
