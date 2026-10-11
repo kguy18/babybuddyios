@@ -29,7 +29,7 @@ An offline-first iOS client for a self-hosted [Baby Buddy](https://github.com/ba
 
 The owner never merges; the agent merges only on their say-so. The one merge signal is the owner
 writing "merge it" or "merge" in chat. "looks good", "nice" and anything else are not approval. On
-that signal, confirm the PR checks are green, then run `gh pr merge --merge --delete-branch`.
+that signal, confirm the PR checks are green, then run `gh pr merge <n> --squash --delete-branch`.
 
 ## Sorting PRs: a milestone or `internal`
 
