@@ -26,6 +26,27 @@ trimming is the whole parser.
 The rest of the store listing (description, keywords, review information) lives in
 `app_store_listing.md`, which is gitignored because it stages the reviewer's demo credentials.
 
+## 1.3.0
+
+```appstore
+#New
+- Move an entry to another child. If you have more than one child, editing a logged activity now shows a Baby field, so you can file it under the right one. Handy with twins, when something gets logged against the wrong child in a rush. Thanks @Confituurke for the contribution!
+- Overlap warning. Baby Buddy won't save two feedings, sleeps, tummy times or pumping sessions that overlap for the same child. The editor now tells you when the times you picked overlap an entry that's already logged, before you save. You can still save it.
+
+#Fixed
+- An entry that reached the server just as the connection dropped no longer gets stuck in Pending Changes as overlapping itself. The app finds the copy the server already saved and uses that.
+- If you have twins with the same birthday, the app now opens on the same child every time.
+```
+
+```whatsnew
+#New
+- new | Move an entry to another child | Edit a logged entry and pick a different Baby. Made for twins and multiples. Contributed by @Confituurke
+- alert | Overlap warning | The editor tells you when an entry overlaps one already logged, before you save.
+#Fixed
+- An entry saved as the connection dropped no longer gets stuck
+- Twins with the same birthday open on the same child every time
+```
+
 ## 1.2.0
 
 ```appstore
