@@ -33,6 +33,16 @@ final class SyncChangeDetectionTests: XCTestCase {
         XCTAssertTrue(LocalStore.payloadsEquivalent(a, b), "a running timer's drifting duration is not a change")
     }
 
+    /// Baby Buddy can write the same unchanged datetime in the user's offset on one request and in
+    /// UTC on the next (#176). The same instant is not a change; a different one is.
+    func testEquivalentComparesDatesByInstant() {
+        let pacific = json(["id": 1, "child": 2, "start": "2026-10-11T21:21:36-07:00"])
+        let utc = json(["id": 1, "child": 2, "start": "2026-10-12T04:21:36Z"])
+        let moved = json(["id": 1, "child": 2, "start": "2026-10-12T04:21:37Z"])
+        XCTAssertTrue(LocalStore.payloadsEquivalent(pacific, utc))
+        XCTAssertFalse(LocalStore.payloadsEquivalent(pacific, moved))
+    }
+
     func testDifferentValuesAreNotEquivalent() {
         let a = json(["id": 1, "child": 2, "note": "hi"])
         let b = json(["id": 1, "child": 2, "note": "bye"])

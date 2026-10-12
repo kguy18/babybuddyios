@@ -585,6 +585,38 @@ final class BlockedSyncStateTests: XCTestCase {
         XCTAssertNil(activity.payloadObject["timer"])
     }
 
+    /// The pre-delete GET returns the timer's start in UTC where the pull had the user's offset,
+    /// and someone renamed it. Neither is a reason to keep it running: the DELETE goes out (#176).
+    func testStopDeletesTimerDespiteDateFormatAndRename() async throws {
+        let timer = syncedTimer()
+        repo.stopTimer(timer)
+        let activity = log(timer)
+        let current = data(["id": 42, "child": 1, "name": "Renamed", "start": "2024-01-15T15:00:00Z"])
+        StubTransport.reset([.init(status: 200, body: String(decoding: current, as: UTF8.self)),
+                             .init(status: 204, body: ""), .init(status: 201, body: Self.created)])
+
+        await engine.pushPending()
+
+        XCTAssertEqual(StubTransport.requests.map(\.method), ["GET", "DELETE", "POST"])
+        XCTAssertTrue(mutations().isEmpty)
+        XCTAssertEqual(activity.serverID, 77)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<ConflictRecord>()).isEmpty)
+    }
+
+    /// Another device restarted the timer since the pull: deleting it would lose that, so the
+    /// DELETE becomes a conflict instead.
+    func testStopConflictsWhenTimerWasRestarted() async throws {
+        let timer = syncedTimer()
+        repo.stopTimer(timer)
+        let current = data(["id": 42, "child": 1, "name": "Tummy time", "start": "2024-01-15T16:30:00Z"])
+        StubTransport.reset([.init(status: 200, body: String(decoding: current, as: UTF8.self))])
+
+        await engine.pushPending()
+
+        XCTAssertEqual(StubTransport.requests.map(\.method), ["GET"])
+        XCTAssertEqual(try context.fetch(FetchDescriptor<ConflictRecord>()).count, 1)
+    }
+
     /// Logged before the DELETE went out, and the timer turns out to be gone: another device got
     /// there first, so the create parks as a likely duplicate instead of going out.
     func testTimerAlreadyGoneParksTheLoggedCreate() async {

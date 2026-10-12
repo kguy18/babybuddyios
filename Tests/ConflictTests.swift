@@ -50,6 +50,25 @@ final class ConflictTests: XCTestCase {
         XCTAssertFalse(SyncEngine.unchangedSinceBase(edited, base))
     }
 
+    /// The same instant written in another offset is not a server edit (#176).
+    func testUnchangedSinceBaseComparesDatesByInstant() {
+        let base = data(["id": 9, "child": 1, "start": "2026-10-11T21:21:36-07:00", "end": "2026-10-11T21:40:00-07:00"])
+        let utc = data(["id": 9, "child": 1, "start": "2026-10-12T04:21:36Z", "end": "2026-10-12T04:40:00Z"])
+        let edited = data(["id": 9, "child": 1, "start": "2026-10-12T04:21:36Z", "end": "2026-10-12T04:45:00Z"])
+        XCTAssertTrue(SyncEngine.unchangedSinceBase(utc, base))
+        XCTAssertFalse(SyncEngine.unchangedSinceBase(edited, base))
+    }
+
+    /// A timer's DELETE conflicts only on a moved start.
+    func testTimerStartUnchangedIgnoresEverythingButStart() {
+        let base = data(["id": 2, "child": 1, "name": "nap", "start": "2026-10-11T21:21:36-07:00"])
+        let renamed = data(["id": 2, "child": 1, "name": "feeding", "start": "2026-10-12T04:21:36Z"])
+        let restarted = data(["id": 2, "child": 1, "name": "nap", "start": "2026-10-12T05:00:00Z"])
+        XCTAssertTrue(SyncEngine.timerStartUnchanged(renamed, base))
+        XCTAssertFalse(SyncEngine.timerStartUnchanged(restarted, base))
+        XCTAssertFalse(SyncEngine.timerStartUnchanged(renamed, nil), "no base: nothing to vouch for it")
+    }
+
     /// Sets up a cached note plus a conflict between a local edit and a divergent server version.
     private func makeConflict(op: MutationOp, serverDeleted: Bool = false) -> (LocalEntity, ConflictRecord) {
         let base = data(["id": 5, "child": 1, "time": "2024-01-15T10:00:00-05:00", "note": "base"])
