@@ -64,9 +64,9 @@ final class ConflictTests: XCTestCase {
         let base = data(["id": 2, "child": 1, "name": "nap", "start": "2026-10-11T21:21:36-07:00"])
         let renamed = data(["id": 2, "child": 1, "name": "feeding", "start": "2026-10-12T04:21:36Z"])
         let restarted = data(["id": 2, "child": 1, "name": "nap", "start": "2026-10-12T05:00:00Z"])
-        XCTAssertTrue(SyncEngine.timerStartUnchanged(renamed, base))
-        XCTAssertFalse(SyncEngine.timerStartUnchanged(restarted, base))
-        XCTAssertFalse(SyncEngine.timerStartUnchanged(renamed, nil), "no base: nothing to vouch for it")
+        XCTAssertTrue(LocalStore.timerStartUnchanged(renamed, base))
+        XCTAssertFalse(LocalStore.timerStartUnchanged(restarted, base))
+        XCTAssertFalse(LocalStore.timerStartUnchanged(renamed, nil), "no base: nothing to vouch for it")
     }
 
     /// Sets up a cached note plus a conflict between a local edit and a divergent server version.

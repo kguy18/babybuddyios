@@ -332,7 +332,7 @@ final class SyncEngine {
                 finish(alreadyGone: true); return false // already gone — our delete is satisfied
             }
             let unchanged = mutation.kind == .timer
-                ? Self.timerStartUnchanged(current, mutation.baseSnapshot)
+                ? LocalStore.timerStartUnchanged(current, mutation.baseSnapshot)
                 : Self.unchangedSinceBase(current, mutation.baseSnapshot)
             if unchanged {
                 try await client.deleteRaw(path: mutation.kind.path, id: serverID)
@@ -487,20 +487,6 @@ final class SyncEngine {
     static func unchangedSinceBase(_ current: Data?, _ base: Data?) -> Bool {
         guard let current, let base else { return false }
         return LocalStore.payloadsEquivalent(current, base)
-    }
-
-    /// The conflict check for a timer's DELETE, which is how Stop and Discard reach the server.
-    /// Only a moved `start` counts: another device restarted the timer or corrected its start, and
-    /// deleting it would lose that. Any other server change is no reason to keep a timer the user
-    /// has stopped running (#176).
-    static func timerStartUnchanged(_ current: Data, _ base: Data?) -> Bool {
-        func start(_ data: Data?) -> Date? {
-            guard let data, let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-            else { return nil }
-            return (obj["start"] as? String).flatMap(APIDate.parse)
-        }
-        guard let now = start(current), let then = start(base) else { return false }
-        return now == then
     }
 
     /// Order-independent deep equality of two JSON object payloads.

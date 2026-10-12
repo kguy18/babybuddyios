@@ -58,6 +58,14 @@ enum TimerPush {
 
         let repo = LocalRepository(context: context)
         do {
+            // The same check as the app's: a moved start means another device restarted the
+            // timer. Leave the DELETE queued for the app's sync, which raises the conflict.
+            let current = try await client.getRaw(path: EntityKind.timer.path, id: serverID)
+            guard LocalStore.timerStartUnchanged(current, mutation.baseSnapshot) else {
+                mutation.claimedAt = nil
+                try? context.save()
+                return
+            }
             try await client.deleteRaw(path: EntityKind.timer.path, id: serverID)
             repo.settleTimerDelete(mutation, alreadyGone: false)
         } catch APIError.notFound {

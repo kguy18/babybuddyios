@@ -139,6 +139,21 @@ enum LocalStore {
         return NSDictionary(dictionary: oa).isEqual(to: ob)
     }
 
+    /// The conflict check for a timer's DELETE, which is how Stop and Discard reach the server, from the app
+    /// (`SyncEngine`) and from the widget and Live Activity (`TimerPush`).
+    /// Only a moved `start` counts: another device restarted the timer or corrected its start, and
+    /// deleting it would lose that. Any other server change is no reason to keep a timer the user
+    /// has stopped running (#176).
+    static func timerStartUnchanged(_ current: Data, _ base: Data?) -> Bool {
+        func start(_ data: Data?) -> Date? {
+            guard let data, let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            else { return nil }
+            return (obj["start"] as? String).flatMap(APIDate.parse)
+        }
+        guard let now = start(current), let then = start(base) else { return false }
+        return now == then
+    }
+
     /// A payload reduced to what a change means: volatile fields dropped, and each date string
     /// replaced by its instant. Baby Buddy may write one unchanged datetime as `…-07:00` on one
     /// request and `…Z` on the next, depending on which server thread answers (#176).
