@@ -26,6 +26,21 @@ trimming is the whole parser.
 The rest of the store listing (description, keywords, review information) lives in
 `app_store_listing.md`, which is gitignored because it stages the reviewer's demo credentials.
 
+## 1.3.1
+
+```appstore
+#Fixed
+- Stopping a timer now stops it on the server every time. Some servers send the same time in two different formats, and the app mistook that for a change made on another device. The entry was saved, but the timer kept running on every phone and left an entry under Settings → Conflicts. If you have one of those, tap Keep mine to finish stopping the timer. Thanks @TristanLMartin for tracking this down!
+- Editing or deleting an entry no longer reports a conflict just because the server wrote its times in a different time zone.
+- If someone restarts a timer before your phone has caught up, stopping it from the widget or the Live Activity now leaves their timer running, the same as stopping it in the app.
+```
+
+```whatsnew
+#Fixed
+- Stopping a timer always stops it on the server
+- No more false conflicts from time zone differences
+```
+
 ## 1.3.0
 
 ```appstore
