@@ -29,16 +29,27 @@ The rest of the store listing (description, keywords, review information) lives 
 ## 1.3.1
 
 ```appstore
+#New
+- Move an entry to another child. If you have more than one child, editing a logged activity now shows a Baby field, so you can file it under the right one. Handy with twins, when something gets logged against the wrong child in a rush. Thanks @Confituurke for the contribution!
+- Overlap warning. Baby Buddy won't save two feedings, sleeps, tummy times or pumping sessions that overlap for the same child. The editor now tells you when the times you picked overlap an entry that's already logged, before you save. You can still save it.
+
 #Fixed
 - Stopping a timer now stops it on the server every time. Some servers send the same time in two different formats, and the app mistook that for a change made on another device. The entry was saved, but the timer kept running on every phone and left an entry under Settings → Conflicts. If you have one of those, tap Keep mine to finish stopping the timer. Thanks @TristanLMartin for tracking this down!
 - Editing or deleting an entry no longer reports a conflict just because the server wrote its times in a different time zone.
 - If someone restarts a timer before your phone has caught up, stopping it from the widget or the Live Activity now leaves their timer running, the same as stopping it in the app.
+- An entry that reached the server just as the connection dropped no longer gets stuck in Pending Changes as overlapping itself. The app finds the copy the server already saved and uses that.
+- If you have twins with the same birthday, the app now opens on the same child every time.
 ```
 
 ```whatsnew
+#New
+- new | Move an entry to another child | Edit a logged entry and pick a different Baby. Made for twins and multiples. Contributed by @Confituurke
+- alert | Overlap warning | The editor tells you when an entry overlaps one already logged, before you save.
 #Fixed
 - Stopping a timer always stops it on the server
 - No more false conflicts from time zone differences
+- An entry saved as the connection dropped no longer gets stuck
+- Twins with the same birthday open on the same child every time
 ```
 
 ## 1.3.0
