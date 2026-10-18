@@ -35,11 +35,20 @@ final class CustomHeaderTests: XCTestCase {
         }
     }
 
-    func testAnEmptyNameOrValueIsAnErrorNotSkipped() {
-        for row in [CustomHeader(name: "", value: "x"), CustomHeader(name: "X-Gate", value: "  ")] {
+    func testAMissingNameIsAnErrorNotSkipped() {
+        for row in [CustomHeader(name: "", value: "x"), CustomHeader(name: " \u{200B}", value: " ")] {
             XCTAssertThrowsError(try CustomHeader.validated([row])) {
-                XCTAssertEqual($0 as? CustomHeader.Problem, .empty)
+                XCTAssertEqual($0 as? CustomHeader.Problem, .missingName)
+                XCTAssertEqual(($0 as? CustomHeader.Problem)?.message,
+                               "A header is missing its name. Add one or remove the header.")
             }
+        }
+    }
+
+    func testAMissingValueNamesTheHeader() {
+        XCTAssertThrowsError(try CustomHeader.validated([CustomHeader(name: " test ", value: " \u{FEFF}")])) {
+            XCTAssertEqual($0 as? CustomHeader.Problem, .missingValue("test"))
+            XCTAssertEqual(($0 as? CustomHeader.Problem)?.message, "test needs a value. Add one or remove the header.")
         }
     }
 

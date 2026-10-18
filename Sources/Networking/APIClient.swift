@@ -17,7 +17,8 @@ struct CustomHeader: Codable, Equatable {
 
     /// Why a set of rows can't be saved, worded for the person who typed them.
     enum Problem: Error, Equatable {
-        case empty
+        case missingName
+        case missingValue(String)
         case reserved(String)
         case invalidName(String)
         case invalidValue(String)
@@ -25,7 +26,8 @@ struct CustomHeader: Codable, Equatable {
 
         var message: String {
             switch self {
-            case .empty: return "Each custom header needs a name and a value."
+            case .missingName: return "A header is missing its name. Add one or remove the header."
+            case .missingValue(let name): return "\(name) needs a value. Add one or remove the header."
             case .reserved(let name) where name.lowercased() == "authorization":
                 return "Authorization carries your API token, so it can't be a custom header."
             case .reserved(let name): return "The app sets \(name) itself, so it can't be a custom header."
@@ -59,7 +61,8 @@ struct CustomHeader: Codable, Equatable {
         return try rows.map { row in
             let name = withoutFormatCharacters(row.name).trimmingCharacters(in: .whitespacesAndNewlines)
             let value = withoutFormatCharacters(row.value).trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !name.isEmpty, !value.isEmpty else { throw Problem.empty }
+            guard !name.isEmpty else { throw Problem.missingName }
+            guard !value.isEmpty else { throw Problem.missingValue(name) }
             guard name.unicodeScalars.allSatisfy(tokenCharacters.contains) else { throw Problem.invalidName(name) }
             guard !reserved.contains(name.lowercased()) else { throw Problem.reserved(name) }
             guard !value.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) else {
