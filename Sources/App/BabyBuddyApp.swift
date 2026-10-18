@@ -85,10 +85,14 @@ struct BabyBuddyApp: App {
         // Starting on `.inactive` rather than `.active` matters: the first screen appears in
         // between, and a launch-time signal such as `WhatsNew.shown` would be lost. Purchases
         // follow analytics so RevenueCat gets the TelemetryDeck identity. Repeat calls do nothing.
+        // Unit tests host the app, and starting RevenueCat there registers a new anonymous sandbox
+        // customer on every fresh simulator, so a test host never starts purchases.
         .onChange(of: scenePhase, initial: true) { _, phase in
             guard phase != .background else { return }
             Analytics.start()
-            purchases.start()
+            if !Self.isHostingTests {
+                purchases.start()
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
