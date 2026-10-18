@@ -45,13 +45,20 @@ struct CustomHeader: Codable, Equatable {
     private static let tokenCharacters = CharacterSet(
         charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%&'*+-.^_`|~")
 
+    /// Drops invisible format characters (Unicode Cf), such as a byte order mark, a zero-width space
+    /// or a direction mark. Text copied from a web dashboard or a password manager often carries
+    /// them, and the user can't see them to delete. Control characters (Cc) stay and are rejected.
+    static func withoutFormatCharacters(_ text: String) -> String {
+        String(String.UnicodeScalarView(text.unicodeScalars.filter { $0.properties.generalCategory != .format }))
+    }
+
     /// The rows trimmed, or the first problem with them. A row with an empty name or value is an
     /// error rather than skipped: dropping it quietly would sign in without a header the user typed.
     static func validated(_ rows: [CustomHeader]) throws -> [CustomHeader] {
         var seen: Set<String> = []
         return try rows.map { row in
-            let name = row.name.trimmingCharacters(in: .whitespacesAndNewlines)
-            let value = row.value.trimmingCharacters(in: .whitespacesAndNewlines)
+            let name = withoutFormatCharacters(row.name).trimmingCharacters(in: .whitespacesAndNewlines)
+            let value = withoutFormatCharacters(row.value).trimmingCharacters(in: .whitespacesAndNewlines)
             guard !name.isEmpty, !value.isEmpty else { throw Problem.empty }
             guard name.unicodeScalars.allSatisfy(tokenCharacters.contains) else { throw Problem.invalidName(name) }
             guard !reserved.contains(name.lowercased()) else { throw Problem.reserved(name) }

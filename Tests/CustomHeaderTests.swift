@@ -57,6 +57,23 @@ final class CustomHeaderTests: XCTestCase {
         }
     }
 
+    func testInvisibleFormatCharactersAreStripped() throws {
+        let rows = try CustomHeader.validated([
+            CustomHeader(name: "\u{FEFF}CF-Access-Client-Id", value: "\u{FEFF}abc\u{200B}123.access\u{200E}"),
+            CustomHeader(name: "X-Gate", value: "\u{2060}o\u{00AD}pen\u{200F} "),
+        ])
+        XCTAssertEqual(rows, [CustomHeader(name: "CF-Access-Client-Id", value: "abc123.access"),
+                              CustomHeader(name: "X-Gate", value: "open")])
+    }
+
+    func testAnEmbeddedLineBreakIsStillRejectedAfterStripping() {
+        for value in ["\u{200B}a\nb", "a\u{FEFF}\rb", "a\u{0}b"] {
+            XCTAssertThrowsError(try CustomHeader.validated([CustomHeader(name: "X-Gate", value: value)])) {
+                XCTAssertEqual($0 as? CustomHeader.Problem, .invalidValue("X-Gate"))
+            }
+        }
+    }
+
     func testDuplicateNamesAreRejectedWhateverTheirCase() {
         let rows = [CustomHeader(name: "X-Gate", value: "a"), CustomHeader(name: "x-gate", value: "b")]
         XCTAssertThrowsError(try CustomHeader.validated(rows)) {

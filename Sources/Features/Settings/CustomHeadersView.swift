@@ -169,7 +169,7 @@ struct CustomHeaderFields: View {
     private func pasteButton(into value: Binding<String>) -> some View {
         Button {
             if let clip = UIPasteboard.general.string {
-                value.wrappedValue = clip.trimmingCharacters(in: .whitespacesAndNewlines)
+                value.wrappedValue = CustomHeader.withoutFormatCharacters(clip).trimmingCharacters(in: .whitespacesAndNewlines)
             }
         } label: {
             Label("Paste", systemImage: "doc.on.clipboard")
