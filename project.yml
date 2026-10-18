@@ -22,7 +22,7 @@ settings:
     # MARKETING_VERSION is the App Store version, and a new one sends the TestFlight build through
     # App Store review. NEVER bump it unprompted.
     # It changes only when the owner asks for a release.
-    MARKETING_VERSION: "1.3.1"
+    MARKETING_VERSION: "1.3.2"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.0"
     DEVELOPMENT_TEAM: "547DWTTFY6"

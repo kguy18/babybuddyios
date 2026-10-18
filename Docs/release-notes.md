@@ -26,6 +26,20 @@ trimming is the whole parser.
 The rest of the store listing (description, keywords, review information) lives in
 `app_store_listing.md`, which is gitignored because it stages the reviewer's demo credentials.
 
+## 1.3.2
+
+```appstore
+#Fixed
+- Custom headers you paste from a website or a password manager now save. Copied text can carry invisible characters, and the app refused it with "can't contain a line break or control character". It now removes those characters for you.
+- If a custom header is missing its name or its value, the error now says which header, instead of a general message.
+```
+
+```whatsnew
+#Fixed
+- Pasted custom headers save, even with hidden characters
+- Header errors name the header that needs fixing
+```
+
 ## 1.3.1
 
 ```appstore
