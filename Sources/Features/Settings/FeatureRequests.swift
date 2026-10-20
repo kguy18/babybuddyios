@@ -7,13 +7,15 @@ import OpenWish
 /// talks to the server. It identifies the device by a random UUID it keeps in standard defaults.
 /// Nothing else about the user is sent: no `updateUser`, and no email field on a new request.
 enum FeatureRequests {
-    /// `OPENWISH_API_KEY` in project.yml, through the `OpenWishAPIKey` Info.plist key.
+    /// `OPENWISH_API_KEY` in Config/Secrets.xcconfig, through the `OpenWishAPIKey` Info.plist key.
     private static let apiKey = Bundle.main.object(forInfoDictionaryKey: "OpenWishAPIKey") as? String ?? ""
 
-    /// Hidden until a real key is set. `BB_FEEDBACK=1` shows the row anyway, for the UI test.
+    /// Hidden without a key, and under `BB_UITEST` whatever the key, so a local Secrets.xcconfig
+    /// can't change what the UI tests see. `BB_FEEDBACK=1` shows the row anyway.
     static var isAvailable: Bool {
-        (!apiKey.isEmpty && apiKey != "ow_api_PLACEHOLDER")
-            || ProcessInfo.processInfo.environment["BB_FEEDBACK"] == "1"
+        let environment = ProcessInfo.processInfo.environment
+        if environment["BB_FEEDBACK"] == "1" { return true }
+        return !apiKey.isEmpty && environment["BB_UITEST"] != "1"
     }
 
     @MainActor private static var isConfigured = false

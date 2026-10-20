@@ -62,7 +62,7 @@ final class SettingsTests: UITestCase {
     }
 
     /// Help ▸ Request a Feature opens the OpenWish board, and its close button brings Settings back.
-    /// The row is hidden while the API key is the placeholder, so `BB_FEEDBACK=1` forces it. The
+    /// The row is hidden without an API key and under `BB_UITEST`, so `BB_FEEDBACK=1` forces it. The
     /// board's contents come from the network (an error or empty list in CI), so only its frame is
     /// checked.
     func testFeatureRequestBoard() {
