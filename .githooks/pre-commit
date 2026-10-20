@@ -1,0 +1,26 @@
+#!/bin/sh
+# Blocks secret-bearing files and the personal Gmail from being committed,
+# then lints staged Swift. Activate once per clone:
+# git config core.hooksPath .githooks
+bad=$(git diff --cached --name-only | grep -E '(^|/)(Config\.local\.xcconfig|\.dev\.vars|\.env(\..*)?)$|\.(p8|p12|mobileprovision)$' | grep -v '\.env\.example$')
+if [ -n "$bad" ]; then
+  echo "pre-commit: refusing to commit secret files:" >&2
+  echo "$bad" >&2
+  exit 1
+fi
+if git diff --cached -U0 | grep '^+' | grep -qiE 'kguy18@gmail\.com'; then
+  echo "pre-commit: the personal Gmail address never goes in a repo. Use a business address or a placeholder." >&2
+  exit 1
+fi
+swift=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.swift$' || true)
+if [ -n "$swift" ] && [ -f .swift-format ] && command -v xcrun >/dev/null; then
+  # shellcheck disable=SC2086
+  xcrun swift-format lint --strict $swift || {
+    echo "pre-commit: swift-format found issues. Run: xcrun swift-format format -i $swift" >&2
+    exit 1
+  }
+fi
+# Repo-specific checks (kept out of this file so apply-baseline can refresh it).
+if [ -x .githooks/pre-commit.local ]; then
+  exec .githooks/pre-commit.local
+fi

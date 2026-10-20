@@ -1,0 +1,28 @@
+name: Attribution
+
+# Commit messages, PR title and PR body carry no agent attribution.
+# Canonical copy lives in kguydev/app-template (scripts/apply-baseline.sh).
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  attribution:
+    name: attribution
+    # The kguydev runner pool; repos outside the org fall back to GitHub-hosted.
+    runs-on: ${{ github.repository_owner == 'kguydev' && fromJSON('["self-hosted", "Linux"]') || 'ubuntu-latest' }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Commit messages
+        run: git log --format=%B "origin/${{ github.base_ref }}..HEAD" | scripts/check-attribution.sh
+      - name: PR title and body
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s\n%s\n' "$TITLE" "$BODY" | scripts/check-attribution.sh
