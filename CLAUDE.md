@@ -1,3 +1,5 @@
+@AGENTS.md
+
 # BabyBuddy
 
 An offline-first iOS client for a self-hosted [Baby Buddy](https://github.com/babybuddy/babybuddy) server. SwiftUI + SwiftData, a widget/App Intents extension, no backend of its own.
