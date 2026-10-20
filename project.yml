@@ -12,6 +12,12 @@ packages:
   RevenueCat:
     url: https://github.com/RevenueCat/purchases-ios-spm.git
     majorVersion: 5.0.0
+  # The in-app feature request board (Settings ▸ Request a Feature). OpenWish's fork of WishKit,
+  # because upstream WishKit can't point a shipped build at a self-hosted server. App target only.
+  # Pinned to a commit: the last tag (v1.0.1) predates the V2 API the server speaks.
+  OpenWish:
+    url: https://github.com/julianfbeck/OpenWish
+    revision: 4c88c1daefb3bb3440e82cc52ec96fe7b9186409
 
 settings:
   base:
@@ -54,9 +60,14 @@ targets:
       - package: TelemetryDeck
       - package: RevenueCat
         product: RevenueCat
+      - package: OpenWish
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kurtisguy.BabyBuddy
+        # The OpenWish project key for feedback.babybuddy.app. It's a client key the app sends in
+        # the clear, not a secret. While it's the placeholder, Settings hides the feature request
+        # row (Sources/Features/Settings/FeatureRequests.swift).
+        OPENWISH_API_KEY: ow_api_PLACEHOLDER
         # iPhone only. Archive validation rejects a universal app that declares just one interface
         # orientation: iPad demands all four for multitasking. Baby Buddy is portrait-locked with no
         # iPad layout — no size classes, no split view — and the old opt-out (UIRequiresFullScreen)
@@ -88,6 +99,7 @@ targets:
         TelemetryDeckAppID: "$(TELEMETRYDECK_APP_ID)"
         TelemetryDeckSalt: "$(TELEMETRYDECK_SALT)"
         RevenueCatAPIKey: "$(REVENUECAT_API_KEY)"
+        OpenWishAPIKey: "$(OPENWISH_API_KEY)"
         NSSupportsLiveActivities: true
         # The app uses only Apple-provided HTTPS and the platform Keychain — exempt encryption.
         # Declaring it here answers the export-compliance question at build time; without it every

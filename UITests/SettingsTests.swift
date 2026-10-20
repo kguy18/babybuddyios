@@ -61,6 +61,23 @@ final class SettingsTests: UITestCase {
         expectGone(app.staticTexts["Version 1.1.0"])
     }
 
+    /// Help ▸ Request a Feature opens the OpenWish board, and its close button brings Settings back.
+    /// The row is hidden while the API key is the placeholder, so `BB_FEEDBACK=1` forces it. The
+    /// board's contents come from the network (an error or empty list in CI), so only its frame is
+    /// checked.
+    func testFeatureRequestBoard() {
+        launch(["BB_START_TAB": "settings"])
+        expect(app.buttons.labeled("Contact Support"))
+        XCTAssertFalse(app.buttons.labeled("Request a Feature").exists, "No key, no row")
+
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK": "1"])
+        tap(app.buttons.labeled("Request a Feature"))
+        let board = expect(app.navigationBars["Feature Requests"])
+        tap(board.buttons["Close"])
+        expectGone(board)
+        expect(app.buttons.labeled("Request a Feature"))
+    }
+
     /// The footer credit for upstream Baby Buddy — a licence obligation, not decoration (#46).
     func testAcknowledgements() {
         launch(["BB_START_TAB": "settings"])

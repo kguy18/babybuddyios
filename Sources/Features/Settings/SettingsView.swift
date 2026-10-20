@@ -59,6 +59,7 @@ struct SettingsView: View {
     @State private var showingAcknowledgements = false
     @State private var showingWhatsNew = false
     @State private var showingSupporter = false
+    @State private var showingFeatureRequests = false
     /// Whether a nudge has been shown yet, which is what reveals the "Support reminders" switch.
     /// Refreshed on appear rather than observed: nudges only ever fire from the Dashboard, so this
     /// tab is re-entered after any change.
@@ -173,6 +174,7 @@ struct SettingsView: View {
                 Text("No email account is set up on this device. You can reach us at \(SupportContact.recipient).")
             }
             .sheet(isPresented: $showingSupporter) { SupporterSheet(source: .settings) }
+            .sheet(isPresented: $showingFeatureRequests) { FeatureRequestsSheet() }
             .sheet(isPresented: $showingAcknowledgements) { AcknowledgementsView() }
             .sheet(isPresented: $showingWhatsNew) {
                 if let note = whatsNewNote {
@@ -798,6 +800,17 @@ struct SettingsView: View {
                 }
             }
             .buttonStyle(.plain)
+
+            if FeatureRequests.isAvailable {
+                rowDivider
+
+                Button { showingFeatureRequests = true } label: {
+                    SettingsRow(symbol: "lightbulb", tint: BBColor.brand, title: "Request a Feature") {
+                        disclosure
+                    }
+                }
+                .buttonStyle(.plain)
+            }
 
             rowDivider
 
