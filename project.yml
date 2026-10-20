@@ -14,14 +14,15 @@ packages:
     majorVersion: 5.0.0
   # The in-app feature request board (Settings ▸ Request a Feature). App target only.
   # OpenWish is a fork of WishKit that can point a shipped build at a self-hosted server, and this
-  # is our fork of OpenWish (kguydev/OpenWish, branch babybuddy-sdk). It adds an error state with
-  # Retry, VoiceOver labels, Dynamic Type, dark-mode chip colors and a safe-area "+" on top of
-  # upstream 4c88c1d, and stops printing request URLs in release builds. Pinned to a commit because
+  # is our fork of OpenWish (kguydev/OpenWish, branch babybuddy-sdk). On top of upstream 4c88c1d
+  # it adds an error state with Retry, VoiceOver labels, Dynamic Type, dark-mode chip colors, a
+  # safe-area "+" and WishKit 5.1.2's on-device "See translation" button, and it stops printing
+  # request URLs in release builds. Pinned to a commit because
   # upstream's last tag (v1.0.1) predates the V2 API the server speaks. Move back to
   # julianfbeck/OpenWish once those fixes land there.
   OpenWish:
     url: https://github.com/kguydev/OpenWish
-    revision: 7bfd54e5806a1a7233d0becd9a313778498eca1d
+    revision: 2d691e66d8a5b54e53f8cdd1cdd04efbaec8fb17
 
 settings:
   base:
