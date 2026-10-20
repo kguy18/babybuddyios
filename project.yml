@@ -12,12 +12,16 @@ packages:
   RevenueCat:
     url: https://github.com/RevenueCat/purchases-ios-spm.git
     majorVersion: 5.0.0
-  # The in-app feature request board (Settings ▸ Request a Feature). OpenWish's fork of WishKit,
-  # because upstream WishKit can't point a shipped build at a self-hosted server. App target only.
-  # Pinned to a commit: the last tag (v1.0.1) predates the V2 API the server speaks.
+  # The in-app feature request board (Settings ▸ Request a Feature). App target only.
+  # OpenWish is a fork of WishKit that can point a shipped build at a self-hosted server, and this
+  # is our fork of OpenWish (kguydev/OpenWish, branch babybuddy-sdk). It adds an error state with
+  # Retry, VoiceOver labels, Dynamic Type, dark-mode chip colors and a safe-area "+" on top of
+  # upstream 4c88c1d, and stops printing request URLs in release builds. Pinned to a commit because
+  # upstream's last tag (v1.0.1) predates the V2 API the server speaks. Move back to
+  # julianfbeck/OpenWish once those fixes land there.
   OpenWish:
-    url: https://github.com/julianfbeck/OpenWish
-    revision: 4c88c1daefb3bb3440e82cc52ec96fe7b9186409
+    url: https://github.com/kguydev/OpenWish
+    revision: 7bfd54e5806a1a7233d0becd9a313778498eca1d
 
 settings:
   base:

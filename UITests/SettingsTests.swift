@@ -63,8 +63,8 @@ final class SettingsTests: UITestCase {
 
     /// Help ▸ Request a Feature opens the OpenWish board, and its close button brings Settings back.
     /// The row is hidden without an API key and under `BB_UITEST`, so `BB_FEEDBACK=1` forces it. The
-    /// board's contents come from the network (an error or empty list in CI), so only its frame is
-    /// checked.
+    /// test build has no key, so the server rejects the fetch (or there's no network): either way
+    /// the board shows its error state with Retry, never the empty-board text.
     func testFeatureRequestBoard() {
         launch(["BB_START_TAB": "settings"])
         expect(app.buttons.labeled("Contact Support"))
@@ -73,6 +73,9 @@ final class SettingsTests: UITestCase {
         launch(["BB_START_TAB": "settings", "BB_FEEDBACK": "1"])
         tap(app.buttons.labeled("Request a Feature"))
         let board = expect(app.navigationBars["Feature Requests"])
+        expect(app.buttons["Add a feature request"])
+        expect(app.staticTexts["Couldn't load feature requests"], timeout: 30)
+        expect(app.buttons["Retry"])
         tap(board.buttons["Close"])
         expectGone(board)
         expect(app.buttons.labeled("Request a Feature"))
