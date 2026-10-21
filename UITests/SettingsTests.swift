@@ -75,6 +75,14 @@ final class SettingsTests: UITestCase {
         XCTAssertFalse(app.buttons.labeled("Request a Feature").exists)
     }
 
+    /// The note says how posting works, and the hint promises only what Copy app details holds.
+    func testSendFeedbackSignInLineAndHint() {
+        launch(["BB_START_TAB": "settings"])
+        openSendFeedback()
+        expect(app.staticTexts["To post or vote, you'll sign in with your email. No password needed."])
+        XCTAssertTrue(app.staticTexts["Paste them into your message so I can see your version and device."].exists)
+    }
+
     /// Send Feedback: the note and its four links, the supporter link opening its sheet, each way
     /// into the feedback widget opening and closing, and Copy app details confirming. Whether the
     /// server answers doesn't matter: each sheet's own navigation bar is there either way, and
