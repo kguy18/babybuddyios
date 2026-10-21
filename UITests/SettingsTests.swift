@@ -82,7 +82,7 @@ final class SettingsTests: UITestCase {
         launch(["BB_START_TAB": "settings", "BB_FEEDBACK": DialogTests.unreachableServer])
         tap(app.buttons.labeled("Request a Feature"))
         let sheet = expect(app.navigationBars["Request a Feature"])
-        expect(app.staticTexts["Can't reach the feedback server"], timeout: 12)
+        expect(app.staticTexts["Can't reach the feedback server"], timeout: 6)
         tap(app.buttons["Email Support"])
         expectGone(sheet)
         tap(app.alerts["Contact Support"].buttons["Don't Include"])
