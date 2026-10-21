@@ -266,7 +266,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: The release tooling's own tests
-        run: node --test scripts/release.test.mjs
+        run: node --test scripts/*.test.mjs
       - name: Every release has valid notes
         run: node scripts/release.mjs validate
 

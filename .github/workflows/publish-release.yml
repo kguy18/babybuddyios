@@ -2,10 +2,13 @@ name: Publish Release
 
 # Run by hand once the App Store version is live. Publishes the draft GitHub Release that Prepare
 # Release made, on the commit of the build Apple shipped (its build/<version>/<build> tag), which
-# creates the version tag there. Then it rebuilds babybuddy.app so /whatsnew/ shows it. Uploads nothing: the App Store is the only place a build comes from.
+# creates the version tag there. Then it rebuilds babybuddy.app so /whatsnew/ shows it, posts the
+# notes to feedback.babybuddy.app's changelog and sets the requests the milestone names to Shipped.
+# Uploads nothing: the App Store is the only place a build comes from.
 #
 # Safe to run early or twice. Before Apple reports the version as live it stops without changing
-# anything; once the release is public it skips straight to the website rebuild.
+# anything; once the release is public it skips straight to the website and Quackback, which gets
+# the changelog entry once and notifies each request's voters once.
 
 on:
   workflow_dispatch:
@@ -21,6 +24,7 @@ concurrency:
 
 permissions:
   contents: write   # publish the release, which creates the tag
+  issues: read      # the milestone's issues and PRs, for their Quackback: lines
 
 jobs:
   publish:
@@ -98,6 +102,7 @@ jobs:
           RELEASE_NOTES="$RUNNER_TEMP/release-notes.md" node scripts/release.mjs body "$VERSION" > "$RUNNER_TEMP/body.md"
 
       - name: Publish
+        id: publish
         if: steps.release.outputs.draft == 'true'
         run: |
           gh release edit "$TAG" --target "${{ steps.shipped.outputs.sha }}" \
@@ -107,6 +112,7 @@ jobs:
           fi
 
       - name: Already public
+        id: public
         if: steps.release.outputs.draft != 'true'
         run: echo "$TAG is already published — only rebuilding the website" >> "$GITHUB_STEP_SUMMARY"
 
@@ -135,3 +141,28 @@ jobs:
           done
           echo "::error::babybuddy.app/whatsnew/ still does not show $VERSION after two site builds — check the Cloudflare build log for babybuddyweb"
           exit 1
+
+      # After the website, and run even when that failed, so neither blocks the other. The notes
+      # come from the release's tag, the commit Apple shipped, whichever step made the release
+      # public. scripts/quackback.mjs finds an earlier run's changelog entry by its title and skips
+      # posts already Shipped, so a rerun posts nothing twice and notifies nobody twice.
+      - name: Post the changelog and mark the milestone's requests Shipped
+        if: ${{ !cancelled() && (steps.publish.outcome == 'success' || steps.public.outcome == 'success') }}
+        env:
+          QUACKBACK_API_KEY: ${{ secrets.QUACKBACK_API_KEY }}
+        run: |
+          git fetch -q origin "refs/tags/$TAG:refs/tags/$TAG"
+          git show "$TAG:Docs/release-notes.md" > "$RUNNER_TEMP/quackback-notes.md"
+          PUBLISHED=$(gh release view "$TAG" --json publishedAt --jq .publishedAt)
+          # The issues endpoint returns the milestone's PRs as well as its issues.
+          MILESTONE=$(gh api "repos/$GITHUB_REPOSITORY/milestones?state=all&per_page=100" \
+            --jq ".[] | select(.title == \"$VERSION\") | .number")
+          if [ -n "$MILESTONE" ]; then
+            gh api --paginate "repos/$GITHUB_REPOSITORY/issues?milestone=$MILESTONE&state=all&per_page=100" \
+              --jq '.[].body // empty' > "$RUNNER_TEMP/bodies.txt"
+          else
+            echo "::warning::no $VERSION milestone, so no request is marked Shipped"
+            : > "$RUNNER_TEMP/bodies.txt"
+          fi
+          RELEASE_NOTES="$RUNNER_TEMP/quackback-notes.md" \
+            node scripts/quackback.mjs ship "$VERSION" "$PUBLISHED" < "$RUNNER_TEMP/bodies.txt"

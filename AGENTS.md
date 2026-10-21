@@ -74,3 +74,33 @@ on you.
     change moves the phase, completes or changes the next step, or switches
     the goal milestone. See `docs/agents/project-status.md`.
 <!-- baseline:end -->
+
+## Feedback requests (Quackback)
+
+Feature requests and bug reports from users live on Quackback at
+https://feedback.babybuddy.app. An issue or PR belongs to a request when its body has this line,
+one line per request:
+
+```
+Quackback: post_01...
+```
+
+The post ID is the `post=` value in the request's admin URL. Put the line on a line of its own;
+a mention inside a sentence doesn't count.
+
+`.github/workflows/quackback-status.yml` moves the request as the issue moves:
+
+- Opened, reopened, or edited to add a `Quackback:` line: **Planned**.
+- Closed as completed: **Complete** (merged, not yet released).
+- Closed as not planned: left alone. The job summary says so, and Kurtis decides what the request
+  becomes.
+
+Publish Release sets **Shipped** for every request named by an issue or PR on that version's
+milestone, after posting the version's `appstore` notes to the Quackback changelog as
+"Version <version>", dated with the GitHub Release. Shipped notifies the request's voters, and
+nothing moves a request back from Shipped.
+
+The workflow acts only on issues written by the owner or a collaborator, and an unknown post ID
+fails the job. Quackback's own GitHub status sync stays off, so the two don't fight. The rules
+live in `scripts/quackback.mjs`, tested by `scripts/quackback.test.mjs`. The workflows read the
+admin key from the repo secret `QUACKBACK_API_KEY`.
