@@ -5,7 +5,7 @@ import UIKit
 /// Where support email is sent and how the message is seeded. Centralized so the Settings
 /// "Contact Support" row (and any future entry point) share one recipient, subject, and body.
 enum SupportContact {
-    static let recipient = "support@babybuddy.app"
+    static let recipient = "hello@babybuddy.app"
     static let subject = "Baby Buddy Support"
 
     /// The device/app details we offer to attach so we can reproduce issues. Kept human-readable
