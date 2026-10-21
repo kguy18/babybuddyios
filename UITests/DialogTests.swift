@@ -27,7 +27,8 @@ final class DialogTests: UITestCase {
         expectGone(row)
     }
 
-    /// Nothing listens on port 1, so the feedback widget fails to load at once.
+    /// Nothing listens on port 1, so the feedback widget fails to load. The sheet gives up within
+    /// 8 seconds, so the tests wait 12.
     static let unreachableServer = "https://127.0.0.1:1"
 
     // Regression: #119 — Contact Support's choice of diagnostics had no Cancel on iOS 26. That choice
@@ -52,7 +53,7 @@ final class DialogTests: UITestCase {
     private func emailSupport(from row: XCUIElement) {
         tap(row)
         let sheet = expect(app.navigationBars["Contact Support"])
-        expect(app.staticTexts["Can't reach the feedback server"], timeout: 30)
+        expect(app.staticTexts["Can't reach the feedback server"], timeout: 12)
         tap(app.buttons["Email Support"])
         expectGone(sheet)
     }

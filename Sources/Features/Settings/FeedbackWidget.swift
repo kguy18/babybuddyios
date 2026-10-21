@@ -1,3 +1,4 @@
+import Network
 import SwiftUI
 import WebKit
 
@@ -18,8 +19,10 @@ enum FeedbackWidget: String, Identifiable {
 
     var title: String { self == .board ? "Request a Feature" : "Contact Support" }
 
-    /// The widget view `quackback:open` lands on. `chat` opens Messages, the support thread.
-    fileprivate var view: String { self == .board ? "home" : "chat" }
+    /// The widget view `quackback:open` lands on. Quackback 0.14.1 has no plain Feedback view to
+    /// open; `new-post` is the one that lands on the Feedback tab, with "What's your idea?" opened.
+    /// `chat` opens Messages, the support thread.
+    fileprivate var view: String { self == .board ? "new-post" : "chat" }
 
     /// `BB_FEEDBACK=<url>` points the widget at another server; the UI tests pass an unreachable
     /// one to reach the Mail fallback.
@@ -108,10 +111,19 @@ struct FeedbackSheet: View {
     }
 }
 
-/// The widget page. Reports `ready` once the widget says so, and `failed` when the page can't
-/// load, returns an HTTP error, or hasn't said ready within 20 seconds.
+/// The widget page. Reports `ready` once the widget says so, and `failed` at once when the device
+/// is offline or the page can't load or returns an HTTP error, or after `readyTimeout` for a slow
+/// server.
 struct FeedbackWebView: UIViewRepresentable {
     enum Phase { case loading, ready, failed }
+
+    static let readyTimeout: Duration = .seconds(8)
+
+    /// The widget's own X, which would sit beside the sheet's Close. Quackback 0.14.1 has no setting
+    /// to hide it when hosted natively, so this matches the header button that holds the X icon
+    /// (heroicons' XMarkIcon path) rather than its aria-label, which the widget translates. Its
+    /// `close` event still dismisses the sheet if a later widget brings it back.
+    private static let hideCloseButtonCSS = #"button.h-8.w-8:has(> svg.w-5 > path[d^="M5.47 5.47"]) { display: none !important; }"#
 
     let widget: FeedbackWidget
     @Binding var phase: Phase
@@ -128,6 +140,11 @@ struct FeedbackWebView: UIViewRepresentable {
                     { event: event, url: (message && typeof message.url === 'string') ? message.url : '' });
             } };
             """, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        content.addUserScript(WKUserScript(source: """
+            var style = document.createElement('style');
+            style.textContent = '\(Self.hideCloseButtonCSS)';
+            document.head.appendChild(style);
+            """, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
         content.add(context.coordinator, name: "quackback")
         let configuration = WKWebViewConfiguration()
         configuration.userContentController = content
@@ -137,8 +154,8 @@ struct FeedbackWebView: UIViewRepresentable {
         webView.backgroundColor = .clear
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
-        webView.load(URLRequest(url: widget.widgetURL, timeoutInterval: 20))
-        context.coordinator.startReadyTimer()
+        webView.load(URLRequest(url: widget.widgetURL, timeoutInterval: 8))
+        context.coordinator.startWatching()
         return webView
     }
 
@@ -147,17 +164,28 @@ struct FeedbackWebView: UIViewRepresentable {
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "quackback")
         coordinator.readyTimer?.cancel()
+        coordinator.pathMonitor.cancel()
     }
 
     @MainActor final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
         let parent: FeedbackWebView
         var readyTimer: Task<Void, Never>?
+        let pathMonitor = NWPathMonitor()
 
         init(_ parent: FeedbackWebView) { self.parent = parent }
 
-        func startReadyTimer() {
+        /// Fails at once when the first network path reading says offline, otherwise after
+        /// `readyTimeout` without a `ready`.
+        func startWatching() {
+            pathMonitor.pathUpdateHandler = { [weak self] path in
+                MainActor.assumeIsolated {
+                    self?.pathMonitor.cancel()
+                    if path.status != .satisfied { self?.fail() }
+                }
+            }
+            pathMonitor.start(queue: .main)
             readyTimer = Task { @MainActor [weak self] in
-                try? await Task.sleep(for: .seconds(20))
+                try? await Task.sleep(for: FeedbackWebView.readyTimeout)
                 guard !Task.isCancelled, let self, self.parent.phase == .loading else { return }
                 self.parent.phase = .failed
             }
@@ -165,6 +193,7 @@ struct FeedbackWebView: UIViewRepresentable {
 
         private func fail() {
             readyTimer?.cancel()
+            guard parent.phase == .loading else { return }
             parent.phase = .failed
         }
 
