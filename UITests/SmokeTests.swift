@@ -21,7 +21,7 @@ final class SmokeTests: UITestCase {
         }
 
         tap(app.tabBars.buttons["Settings"])
-        for section in ["SUPPORT THE APP", "SERVER", "NOTIFICATIONS", "QUICK LOG", "HELP"] {
+        for section in ["SUPPORT THE APP", "SERVER", "NOTIFICATIONS", "QUICK LOG", "FEEDBACK"] {
             expect(app.staticTexts[section])
         }
         XCTAssertTrue(app.buttons.labeled("Sign out").exists)

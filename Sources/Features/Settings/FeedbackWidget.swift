@@ -2,8 +2,8 @@ import Network
 import SwiftUI
 import WebKit
 
-/// Settings ▸ Help's Request a Feature and Contact Support: the Quackback widget at
-/// feedback.babybuddy.app, in a sheet.
+/// Settings ▸ Feedback ▸ Send Feedback's three ways into the Quackback widget at
+/// feedback.babybuddy.app, each in a sheet.
 ///
 /// A plain WKWebView speaking the widget's `postMessage` protocol, not QuackbackIO/quackback-ios.
 /// That package can't open the support conversation (its `OpenView` has no chat), its named
@@ -13,16 +13,28 @@ import WebKit
 /// Identity: the widget's anonymous session plus a random per-install ID (`quackback:device`).
 /// Nothing else about the user is sent.
 enum FeedbackWidget: String, Identifiable {
-    case board, support
+    case board, help, roadmap
 
     var id: Self { self }
 
-    var title: String { self == .board ? "Request a Feature" : "Contact Support" }
+    var title: String {
+        switch self {
+        case .board: "Request a Feature"
+        case .help: "Get Help"
+        case .roadmap: "Roadmap and Updates"
+        }
+    }
 
     /// The widget view `quackback:open` lands on. Quackback 0.14.1 has no plain Feedback view to
     /// open; `new-post` is the one that lands on the Feedback tab, with "What's your idea?" opened.
-    /// `chat` opens Messages, the support thread.
-    fileprivate var view: String { self == .board ? "new-post" : "chat" }
+    /// `chat` opens Messages, the support thread, and `home` the widget's Home.
+    fileprivate var view: String {
+        switch self {
+        case .board: "new-post"
+        case .help: "chat"
+        case .roadmap: "home"
+        }
+    }
 
     /// `BB_FEEDBACK=<url>` points the widget at another server; the UI tests pass an unreachable
     /// one to reach the Mail fallback.

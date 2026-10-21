@@ -38,6 +38,16 @@ final class UndoToastTests: XCTestCase {
         XCTAssertEqual(try mutations().count, 0)
     }
 
+    /// "App details copied" confirms and offers no Undo; logging still does.
+    func testConfirmationHasNoUndo() throws {
+        center.confirm("App details copied")
+        XCTAssertEqual(center.current?.title, "App details copied")
+        XCTAssertEqual(center.current?.canUndo, false)
+
+        center.show(logFeeding())
+        XCTAssertEqual(center.current?.canUndo, true)
+    }
+
     func testUndoOfSyncedRecordQueuesDelete() throws {
         let entity = logFeeding()
         entity.serverID = 42

@@ -61,25 +61,58 @@ final class SettingsTests: UITestCase {
         expectGone(app.staticTexts["Version 1.1.0"])
     }
 
-    /// Help ▸ Request a Feature and Contact Support each open the feedback widget in a sheet, and
-    /// its Close brings Settings back. Whether the server answers doesn't matter: the sheet's own
-    /// navigation bar is there either way, and nothing here reads what the server sends.
-    func testFeedbackSheetsOpenAndClose() {
+    /// Settings ▸ Feedback: Send Feedback, the source code and the App Store review, in that order.
+    /// Contact Support and Request a Feature moved onto the Send Feedback screen.
+    func testFeedbackSection() {
         launch(["BB_START_TAB": "settings"])
-        for title in ["Request a Feature", "Contact Support"] {
-            tap(app.buttons.labeled(title))
+        expect(app.staticTexts["FEEDBACK"])
+        XCTAssertFalse(app.staticTexts["HELP"].exists)
+        let rows = ["Send Feedback", "Source Code on GitHub", "Rate on the App Store"].map { element(labeled: $0) }
+        for row in rows { expect(row) }
+        XCTAssertLessThan(rows[0].frame.minY, rows[1].frame.minY)
+        XCTAssertLessThan(rows[1].frame.minY, rows[2].frame.minY)
+        XCTAssertFalse(app.buttons.labeled("Contact Support").exists)
+        XCTAssertFalse(app.buttons.labeled("Request a Feature").exists)
+    }
+
+    /// Send Feedback: the note and its four links, the supporter link opening its sheet, each way
+    /// into the feedback widget opening and closing, and Copy app details confirming. Whether the
+    /// server answers doesn't matter: each sheet's own navigation bar is there either way, and
+    /// nothing here reads what the server sends.
+    func testSendFeedbackScreen() {
+        launch(["BB_START_TAB": "settings"])
+        openSendFeedback()
+
+        expect(element(labeled: "Hi, I'm Kurtis."))
+        XCTAssertTrue(element(labeled: "I do read everything").exists)
+        XCTAssertTrue(element(labeled: "This app is an independent client").exists)
+        for link in ["Kurtis", "open source on GitHub", "supporters like you", "their GitHub"] {
+            XCTAssertTrue(app.links[link].exists, "\(link) should be a link")
+        }
+
+        tap(app.links["supporters like you"])
+        tap(app.buttons["Maybe later"])
+        expectGone(app.buttons["Maybe later"])
+
+        for (button, title) in [("Request a Feature", "Request a Feature"), ("Get Help", "Get Help"),
+                                ("See roadmap and updates", "Roadmap and Updates")] {
+            tap(app.buttons.labeled(button))
             let sheet = expect(app.navigationBars[title])
             tap(sheet.buttons["Close"])
             expectGone(sheet)
         }
-        expect(app.navigationBars["Settings"])
+
+        tap(app.buttons["Copy app details"])
+        expect(app.staticTexts["App details copied"])
+        XCTAssertFalse(app.buttons["Undo"].exists, "A confirmation has nothing to undo")
+        XCTAssertTrue(app.staticTexts.labeled("Paste them into your message").exists)
     }
 
     /// With the feedback server unreachable, Request a Feature offers email, and that leads to the
-    /// mail flow Contact Support always had (`DialogTests.testContactSupportAlertHasCancel` covers
-    /// it from Contact Support).
+    /// mail flow (`DialogTests.testContactSupportAlertHasCancel` covers it from Get Help).
     func testFeatureRequestFallsBackToMail() {
         launch(["BB_START_TAB": "settings", "BB_FEEDBACK": DialogTests.unreachableServer])
+        openSendFeedback()
         tap(app.buttons.labeled("Request a Feature"))
         let sheet = expect(app.navigationBars["Request a Feature"])
         expect(app.staticTexts["Can't reach the feedback server"], timeout: 6)

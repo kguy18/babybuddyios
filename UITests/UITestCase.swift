@@ -160,6 +160,12 @@ class UITestCase: XCTestCase {
         tap(app.buttons[kind])
     }
 
+    /// Settings ▸ Feedback ▸ Send Feedback.
+    func openSendFeedback() {
+        tap(app.buttons.labeled("Send Feedback"))
+        expect(app.navigationBars["Send Feedback"])
+    }
+
     /// Any element whose label starts with `prefix` — rows and tiles carry live values in their
     /// labels ("Diapers, 2", "Feeding, Formula · Bottle · 20m, 9:14 AM").
     func element(labeled prefix: String) -> XCUIElement {

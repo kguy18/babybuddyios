@@ -81,7 +81,7 @@ Pass these via `SIMCTL_CHILD_<NAME>` environment variables to `xcrun simctl laun
 | `BB_TIMER_ALERT_SECONDS=<n>` | Turn forgotten-timer alerts on and fire them `n` seconds after a timer starts, whatever Settings says |
 | `BB_DOSE_ALERT_SECONDS=<n>` | Turn medication reminders on and shorten every next-dose interval to `n` seconds (the editor's shortest is 4 h) |
 | `BB_TOAST_SECONDS=<n>` | Hold the undo toast open for `n` seconds instead of 5 |
-| `BB_FEEDBACK=<url>` | Point Request a Feature and Contact Support at another Quackback server instead of feedback.babybuddy.app. The UI tests pass an unreachable one to reach the Mail fallback |
+| `BB_FEEDBACK=<url>` | Point Settings ▸ Feedback ▸ Send Feedback at another Quackback server instead of feedback.babybuddy.app. The UI tests pass an unreachable one to reach the Mail fallback |
 
 `BB_DEMO=1` is the fastest way to see the app without standing up a server — it seeds a child,
 activity history and running timers entirely locally.
