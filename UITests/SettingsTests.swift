@@ -61,24 +61,32 @@ final class SettingsTests: UITestCase {
         expectGone(app.staticTexts["Version 1.1.0"])
     }
 
-    /// Help ▸ Request a Feature opens the OpenWish board, and its close button brings Settings back.
-    /// The row is hidden without an API key and under `BB_UITEST`, so `BB_FEEDBACK=1` forces it. The
-    /// test build has no key, so the server rejects the fetch (or there's no network): either way
-    /// the board shows its error state with Retry, never the empty-board text.
-    func testFeatureRequestBoard() {
+    /// Help ▸ Request a Feature and Contact Support each open the feedback widget in a sheet, and
+    /// its Close brings Settings back. Whether the server answers doesn't matter: the sheet's own
+    /// navigation bar is there either way, and nothing here reads what the server sends.
+    func testFeedbackSheetsOpenAndClose() {
         launch(["BB_START_TAB": "settings"])
-        expect(app.buttons.labeled("Contact Support"))
-        XCTAssertFalse(app.buttons.labeled("Request a Feature").exists, "No key, no row")
+        for title in ["Request a Feature", "Contact Support"] {
+            tap(app.buttons.labeled(title))
+            let sheet = expect(app.navigationBars[title])
+            tap(sheet.buttons["Close"])
+            expectGone(sheet)
+        }
+        expect(app.navigationBars["Settings"])
+    }
 
-        launch(["BB_START_TAB": "settings", "BB_FEEDBACK": "1"])
+    /// With the feedback server unreachable, Request a Feature offers email, and that leads to the
+    /// mail flow Contact Support always had (`DialogTests.testContactSupportAlertHasCancel` covers
+    /// it from Contact Support).
+    func testFeatureRequestFallsBackToMail() {
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK": DialogTests.unreachableServer])
         tap(app.buttons.labeled("Request a Feature"))
-        let board = expect(app.navigationBars["Feature Requests"])
-        expect(app.buttons["Add a feature request"])
-        expect(app.staticTexts["Couldn't load feature requests"], timeout: 30)
-        expect(app.buttons["Retry"])
-        tap(board.buttons["Close"])
-        expectGone(board)
-        expect(app.buttons.labeled("Request a Feature"))
+        let sheet = expect(app.navigationBars["Request a Feature"])
+        expect(app.staticTexts["Can't reach the feedback server"], timeout: 30)
+        tap(app.buttons["Email Support"])
+        expectGone(sheet)
+        tap(app.alerts["Contact Support"].buttons["Don't Include"])
+        tap(app.alerts["Set Up Mail"].buttons["OK"])
     }
 
     /// The footer credit for upstream Baby Buddy — a licence obligation, not decoration (#46).

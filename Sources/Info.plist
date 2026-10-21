@@ -37,8 +37,6 @@
 	<false/>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
-	<key>OpenWishAPIKey</key>
-	<string>$(OPENWISH_API_KEY)</string>
 	<key>RevenueCatAPIKey</key>
 	<string>$(REVENUECAT_API_KEY)</string>
 	<key>TelemetryDeckAppID</key>

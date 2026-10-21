@@ -59,14 +59,18 @@ struct SettingsView: View {
     @State private var showingAcknowledgements = false
     @State private var showingWhatsNew = false
     @State private var showingSupporter = false
-    @State private var showingFeatureRequests = false
+    /// The Quackback widget sheet, for Request a Feature or Contact Support.
+    @State private var feedback: FeedbackWidget?
+    /// Set by the widget sheet's "Email Support" when the server can't be reached: once the sheet
+    /// is gone, Contact Support falls back to the mail flow below.
+    @State private var emailAfterFeedback = false
     /// Whether a nudge has been shown yet, which is what reveals the "Support reminders" switch.
     /// Refreshed on appear rather than observed: nudges only ever fire from the Dashboard, so this
     /// tab is re-entered after any change.
     @State private var hasSeenNudge = false
 
-    // Contact Support: the row offers to attach diagnostics, then presents the mail composer
-    // (or falls back to a mailto: link when no Mail account is set up).
+    // The mail fallback for when the feedback server can't be reached: offer to attach
+    // diagnostics, then present the mail composer (or a mailto: link when no Mail account is set up).
     @State private var showingContactOptions = false
     @State private var mailPayload: MailPayload?
     @State private var showingMailUnavailable = false
@@ -174,7 +178,16 @@ struct SettingsView: View {
                 Text("No email account is set up on this device. You can reach us at \(SupportContact.recipient).")
             }
             .sheet(isPresented: $showingSupporter) { SupporterSheet(source: .settings) }
-            .sheet(isPresented: $showingFeatureRequests) { FeatureRequestsSheet() }
+            .sheet(item: $feedback, onDismiss: {
+                if emailAfterFeedback {
+                    emailAfterFeedback = false
+                    showingContactOptions = true
+                }
+            }) { widget in
+                FeedbackSheet(widget: widget) {
+                    emailAfterFeedback = true
+                }
+            }
             .sheet(isPresented: $showingAcknowledgements) { AcknowledgementsView() }
             .sheet(isPresented: $showingWhatsNew) {
                 if let note = whatsNewNote {
@@ -790,27 +803,25 @@ struct SettingsView: View {
 
     // MARK: Support
 
-    /// A single "Contact Support" row that opens an email to the Baby Buddy team. Tapping first
-    /// offers to attach diagnostics, then presents the in-app mail composer.
+    /// Contact Support and Request a Feature open the feedback widget (``FeedbackSheet``), which
+    /// offers email instead when its server can't be reached.
     private var supportCard: some View {
         card {
-            Button { showingContactOptions = true } label: {
+            Button { feedback = .support } label: {
                 SettingsRow(symbol: "envelope", tint: BBColor.info, title: "Contact Support") {
                     disclosure
                 }
             }
             .buttonStyle(.plain)
 
-            if FeatureRequests.isAvailable {
-                rowDivider
+            rowDivider
 
-                Button { showingFeatureRequests = true } label: {
-                    SettingsRow(symbol: "lightbulb", tint: BBColor.brand, title: "Request a Feature") {
-                        disclosure
-                    }
+            Button { feedback = .board } label: {
+                SettingsRow(symbol: "lightbulb", tint: BBColor.brand, title: "Request a Feature") {
+                    disclosure
                 }
-                .buttonStyle(.plain)
             }
+            .buttonStyle(.plain)
 
             rowDivider
 

@@ -27,12 +27,16 @@ final class DialogTests: UITestCase {
         expectGone(row)
     }
 
-    // Regression: #119 — Contact Support's choice of diagnostics had no Cancel on iOS 26.
+    /// Nothing listens on port 1, so the feedback widget fails to load at once.
+    static let unreachableServer = "https://127.0.0.1:1"
+
+    // Regression: #119 — Contact Support's choice of diagnostics had no Cancel on iOS 26. That choice
+    // now comes up when the feedback server can't be reached and the user picks email instead.
     func testContactSupportAlertHasCancel() {
-        launch(["BB_START_TAB": "settings"])
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK": Self.unreachableServer])
         let contact = app.buttons.labeled("Contact Support")
 
-        tap(contact)
+        emailSupport(from: contact)
         let alert = expect(app.alerts["Contact Support"])
         XCTAssertTrue(alert.buttons["Include Device Details"].exists)
         XCTAssertTrue(alert.buttons["Don't Include"].exists)
@@ -40,9 +44,17 @@ final class DialogTests: UITestCase {
         expectGone(alert)
 
         // With no mail account (the simulator) the fallback explains itself rather than doing nothing.
-        tap(contact)
+        emailSupport(from: contact)
         tap(app.alerts["Contact Support"].buttons["Don't Include"])
         tap(app.alerts["Set Up Mail"].buttons["OK"])
+    }
+
+    private func emailSupport(from row: XCUIElement) {
+        tap(row)
+        let sheet = expect(app.navigationBars["Contact Support"])
+        expect(app.staticTexts["Can't reach the feedback server"], timeout: 30)
+        tap(app.buttons["Email Support"])
+        expectGone(sheet)
     }
 
     // Regression: #87/#89/#90 — sign-out shipped as a confirmationDialog with no Cancel on iOS 26.
