@@ -22,7 +22,9 @@ An offline-first iOS client for a self-hosted [Baby Buddy](https://github.com/ba
   submits; rerun it whenever the notes change.
 - **Publish Release** (`.github/workflows/publish-release.yml`, run by hand from `main`) publishes
   a version's draft GitHub Release on the commit of the build Apple shipped (its build tag),
-  creating the `v<version>` tag there, and rebuilds babybuddy.app. It runs only once App Store
+  creating the `v<version>` tag there, rebuilds babybuddy.app, posts the notes to the feedback
+  site's changelog and sets the requests on the milestone to Shipped (AGENTS.md, "Feedback
+  requests"). It runs only once App Store
   Connect reports the version `READY_FOR_DISTRIBUTION`. GitHub Releases carry notes and an App
   Store link, never a build. `node scripts/release.mjs status <version>` asks App Store Connect the
   same question locally, with `ASC_KEY_ID` and `ASC_ISSUER_ID` set.
@@ -74,8 +76,8 @@ release notes can be written from the milestone:
 - `release-notes` runs on every PR, docs-only ones included: `node scripts/release.mjs validate`
   checks that each version in `Docs/release-notes.md` has a non-empty `appstore` and `whatsnew`
   block and that the store text fits App Store Connect's 4,000 characters. It reports through
-  `build-and-test`, the one check the ruleset requires. `node --test scripts/release.test.mjs`
-  runs its tests; both need nothing installed.
+  `build-and-test`, the one check the ruleset requires. `node --test scripts/*.test.mjs`
+  runs the tests for `release.mjs` and `quackback.mjs`; both need nothing installed.
 
 ## UI tests
 

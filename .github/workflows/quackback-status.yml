@@ -1,0 +1,38 @@
+name: Quackback status
+
+# Moves the feedback.babybuddy.app requests an issue names, through its `Quackback: post_<id>`
+# lines, as the issue moves: Planned when it opens, gains an ID or reopens, Complete when it closes
+# as completed. Closed as not planned leaves them alone and says so in the job summary. Only
+# Publish Release sets Shipped, and nothing here moves a post back from Shipped.
+# scripts/quackback.mjs holds the rules; Quackback's own GitHub status sync is off so the two
+# can't fight.
+
+on:
+  issues:
+    types: [opened, edited, closed, reopened]
+
+# One run at a time per issue, in order, so an edit and a close can't race.
+concurrency:
+  group: quackback-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  status:
+    name: status
+    # The body decides which requests move, so only bodies written by someone with access count.
+    # Only the author or a collaborator can edit, close or reopen an issue, so a stranger's issue
+    # never reaches Quackback. Issues with no `Quackback:` line skip here.
+    if: >-
+      contains(github.event.issue.body, 'Quackback:') &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.issue.author_association)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set the requests' status
+        env:
+          QUACKBACK_API_KEY: ${{ secrets.QUACKBACK_API_KEY }}
+        run: node scripts/quackback.mjs issue "$GITHUB_EVENT_PATH"
