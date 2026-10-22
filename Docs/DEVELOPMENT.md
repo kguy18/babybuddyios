@@ -82,7 +82,7 @@ Pass these via `SIMCTL_CHILD_<NAME>` environment variables to `xcrun simctl laun
 | `BB_DOSE_ALERT_SECONDS=<n>` | Turn medication reminders on and shorten every next-dose interval to `n` seconds (the editor's shortest is 4 h) |
 | `BB_TOAST_SECONDS=<n>` | Hold the undo toast open for `n` seconds instead of 5 |
 | `BB_FEEDBACK=<url>` | Point Settings ▸ Feedback ▸ Send Feedback at another Quackback server instead of feedback.babybuddy.app. The UI tests pass an unreachable one to reach the Mail fallback |
-| `BB_FEEDBACK_STUB=signed-out` | With `BB_UITEST`, the feedback sheet loads small inline pages instead of the server: a widget that reports no signed-in user and shows the view the app asks for, and a stand-in sign-in page whose "Signed in" link lands on the portal root as a real sign-in can. UI tests that open the sheet use it, so they need no network |
+| `BB_FEEDBACK_STUB=signed-out\|signed-in` | With `BB_UITEST`, the feedback sheet loads small inline pages instead of the server: a widget that reports no user (or, `signed-in`, a portal session's user before `ready`, as Quackback does) and shows the view the app asks for, and a stand-in sign-in page whose "Signed in" link lands on the portal root as a real sign-in can. UI tests that open the sheet use it, so they need no network |
 
 `BB_DEMO=1` is the fastest way to see the app without standing up a server — it seeds a child,
 activity history and running timers entirely locally.

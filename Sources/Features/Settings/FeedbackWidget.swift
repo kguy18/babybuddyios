@@ -61,10 +61,14 @@ enum FeedbackWidget: String, Identifiable {
 
     /// Sent once the widget reports `ready`. `quackback:mobile` hides the widget's panel-size
     /// control, which means nothing in a sheet.
+    ///
+    /// No `quackback:identify`: the widget is anonymous until someone signs in, and mints its
+    /// anonymous session on the first write. An anonymous identify also broke sign-in, because
+    /// Quackback 0.14.1 answers it, for a widget already on a portal session, with an
+    /// `auth-change` carrying a stale `null` user, so a signed-in user looked signed out.
     fileprivate var setupScript: String {
         let messages = [
             "{type:'quackback:mobile',data:true}",
-            #"{type:'quackback:identify',data:{anonymous:true}}"#,
             "{type:'quackback:device',data:'\(Self.installID)'}",
             "{type:'quackback:open',data:{view:'\(view)'}}",
         ]
@@ -86,17 +90,17 @@ enum FeedbackWidget: String, Identifiable {
             || (path == "/" || path.isEmpty) && (components?.queryItems ?? []).contains { $0.name == "auth" }
     }
 
-    /// After a sign-in has started, the first page on the server that is neither a sign-in page
-    /// nor the app's own widget URL means the sign-in is over, wherever the portal landed: `/`,
-    /// a board, a bare `/widget`. The sheet then reloads the widget on its view.
-    static func signInFinished(at url: URL) -> Bool {
+    /// A page on the server that the sheet shouldn't stay on: neither a sign-in page nor the app's
+    /// own widget URL. That's where a sign-in ends, wherever the portal landed (`/`, a board, a
+    /// bare `/widget`), and the sheet then reloads the widget on its view.
+    static func isPortalPage(_ url: URL) -> Bool {
         guard isOnServer(url), !isSignInURL(url) else { return false }
         return !(url.path.hasPrefix("/widget") && url.query?.contains("source=native") == true)
     }
 
     /// Quackback's sign-in, kept inside the sheet so its session cookie lands in the web view the
     /// widget reads. On success the portal client-navigates to `callbackUrl`, so it points at
-    /// `/widget`; `signInFinished(at:)` covers any other landing.
+    /// `/widget`; `isPortalPage(_:)` covers any other landing.
     static func inSheetURL(for url: URL) -> URL {
         guard isSignInURL(url), var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         else { return url }
@@ -109,7 +113,7 @@ enum FeedbackWidget: String, Identifiable {
     /// Every page load in the sheet goes through here, so the UI-test stub can stand in for them.
     @MainActor fileprivate static func load(_ url: URL, in webView: WKWebView) {
         if isStubbed {
-            if !isSignInURL(url), !url.path.hasPrefix("/widget") { stubSignedIn = true }
+            if isPortalPage(url), !url.path.hasPrefix("/widget") { stubSignedIn = true }
             webView.loadHTMLString(stubPage(for: url), baseURL: url)
         } else {
             webView.load(URLRequest(url: url, timeoutInterval: 8))
@@ -118,22 +122,24 @@ enum FeedbackWidget: String, Identifiable {
 
     // MARK: UI-test stub
 
-    /// `BB_FEEDBACK_STUB=signed-out`, honored only with `BB_UITEST`: the sheet's pages come from
-    /// `stubPage(for:)` instead of the network, so UI tests reach its signed-out states offline.
-    fileprivate static let isStubbed = ProcessInfo.processInfo.environment["BB_UITEST"] == "1"
-        && ProcessInfo.processInfo.environment["BB_FEEDBACK_STUB"] == "signed-out"
+    /// `BB_FEEDBACK_STUB=signed-out|signed-in`, honored only with `BB_UITEST`: the sheet's pages
+    /// come from `stubPage(for:)` instead of the network, so UI tests reach its states offline.
+    private static let stubMode = ProcessInfo.processInfo.environment["BB_UITEST"] == "1"
+        ? ProcessInfo.processInfo.environment["BB_FEEDBACK_STUB"] : nil
+    fileprivate static let isStubbed = stubMode == "signed-out" || stubMode == "signed-in"
 
-    /// Set once the stub's "Signed in" link lands on a portal page, as a real sign-in would.
-    @MainActor private static var stubSignedIn = false
+    /// Starts as the stub mode says, and turns on once the stub's "Signed in" link lands on a
+    /// portal page, as a real sign-in would.
+    @MainActor private static var stubSignedIn = stubMode == "signed-in"
 
-    /// The widget page plays the real one's part over the same bridge: `ready`, then
-    /// `auth-change` with no user until the stub sign-in, and it shows the `quackback:open` view
-    /// it's sent so a test can read it. A sign-in page has a "Signed in" link to the portal root;
-    /// any other page stands in for the portal.
+    /// The widget page plays the real one's part over the same bridge. Like Quackback 0.14.1, it
+    /// reports a portal session's user with `auth-change` before `ready` and says nothing for an
+    /// anonymous visitor. It shows the `quackback:open` view it's sent so a test can read it. A
+    /// sign-in page has a "Signed in" link to the portal root; any other page stands in for the
+    /// portal.
     @MainActor private static func stubPage(for url: URL) -> String {
         if isSignInURL(url) { return #"<p>Sign-in stub</p><p><a href="/">Signed in</a></p>"# }
         guard url.path.hasPrefix("/widget") else { return "<p>Portal stub</p>" }
-        let user = stubSignedIn ? "{ id: 'stub' }" : "null"
         return """
             <p id="view">Stub widget</p>
             <script>
@@ -142,8 +148,8 @@ enum FeedbackWidget: String, Identifiable {
                     document.getElementById('view').textContent = 'Stub widget: ' + e.data.data.view;
                 }
             });
+            \(stubSignedIn ? "window.__quackbackNative.dispatch('auth-change', { user: { id: 'stub' } });" : "")
             window.__quackbackNative.dispatch('ready', {});
-            window.__quackbackNative.dispatch('auth-change', { user: \(user) });
             </script>
             """
     }
@@ -378,9 +384,15 @@ struct FeedbackWebView: UIViewRepresentable {
         }
         if signInRequests != context.coordinator.handledSignInRequests {
             context.coordinator.handledSignInRequests = signInRequests
-            feedbackTrace("Sign In tapped")
-            context.coordinator.signInStarted = true
-            next = FeedbackWidget.inSheetURL(for: FeedbackWidget.serverURL.appending(path: "auth/login"))
+            if signedIn == true {
+                // Already signed in: Quackback's sign-in would just land on the portal.
+                feedbackTrace("Sign In tapped while signed in: reloading the widget")
+                next = widget.widgetURL
+            } else {
+                feedbackTrace("Sign In tapped")
+                context.coordinator.signInStarted = true
+                next = FeedbackWidget.inSheetURL(for: FeedbackWidget.serverURL.appending(path: "auth/login"))
+            }
         }
         if let next {
             DispatchQueue.main.async { FeedbackWidget.load(next, in: webView) }
@@ -401,6 +413,9 @@ struct FeedbackWebView: UIViewRepresentable {
         var urlObservation: NSKeyValueObservation?
         var handledBackRequests = 0
         var handledSignInRequests = 0
+        /// Reloads of the widget since its last `ready`, so a server that keeps redirecting it to the
+        /// portal can't loop.
+        var returnsWithoutReady = 0
         /// Set when a sign-in starts; the next sign-in-finished signal returns to the widget.
         var signInStarted = false {
             didSet { if signInStarted != oldValue { feedbackTrace("signInStarted = \(signInStarted)") } }
@@ -443,8 +458,16 @@ struct FeedbackWebView: UIViewRepresentable {
                 parent.awayFromWidget = !onWidget
             }
             if FeedbackWidget.isSignInURL(url) { signInStarted = true }
-            if signInStarted, FeedbackWidget.signInFinished(at: url) {
-                feedbackTrace("sign-in finished at \(FeedbackTrace.clean(url))")
+            // Wherever the sheet lands on the portal, after a sign-in or not, it goes back to the
+            // widget, so it never stays on the portal board.
+            if FeedbackWidget.isPortalPage(url) {
+                guard returnsWithoutReady < 3 else {
+                    feedbackTrace("on the portal at \(FeedbackTrace.clean(url)), not reloading again")
+                    return
+                }
+                returnsWithoutReady += 1
+                feedbackTrace((signInStarted ? "sign-in finished at " : "on the portal at ")
+                    + FeedbackTrace.clean(url))
                 returnToWidget(webView)
             }
         }
@@ -457,9 +480,11 @@ struct FeedbackWebView: UIViewRepresentable {
             FeedbackWidget.load(parent.widget.widgetURL, in: webView)
         }
 
-        /// Pages on the feedback server load here; anything else opens in Safari.
+        /// Sign-in pages and the widget load here; anything else, other portal pages included,
+        /// opens in Safari, since the sheet goes back to the widget from any portal page.
         private func open(_ url: URL, in webView: WKWebView?) {
-            if FeedbackWidget.isOnServer(url), let webView {
+            if FeedbackWidget.isOnServer(url), !FeedbackWidget.isPortalPage(url) || url.path.hasPrefix("/widget"),
+               let webView {
                 if FeedbackWidget.isSignInURL(url) { signInStarted = true }
                 FeedbackWidget.load(FeedbackWidget.inSheetURL(for: url), in: webView)
             } else {
@@ -484,6 +509,13 @@ struct FeedbackWebView: UIViewRepresentable {
             switch event {
             case "ready":
                 readyTimer?.cancel()
+                returnsWithoutReady = 0
+                // Quackback reports a portal session's user before `ready`, and nothing for an
+                // anonymous visitor.
+                if parent.signedIn == nil {
+                    feedbackTrace("no user before ready: signed out")
+                    parent.signedIn = false
+                }
                 message.webView?.evaluateJavaScript(parent.widget.setupScript)
                 if parent.phase != .ready { feedbackTrace("phase = ready") }
                 parent.phase = .ready
@@ -551,7 +583,7 @@ struct FeedbackWebView: UIViewRepresentable {
                 return
             }
             if action.navigationType == .linkActivated, let url = action.request.url,
-               !FeedbackWidget.isOnServer(url) {
+               !FeedbackWidget.isOnServer(url) || FeedbackWidget.isPortalPage(url) && !url.path.hasPrefix("/widget") {
                 UIApplication.shared.open(url)
                 decisionHandler(.cancel)
                 return

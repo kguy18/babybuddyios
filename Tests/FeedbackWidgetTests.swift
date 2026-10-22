@@ -22,12 +22,12 @@ final class FeedbackWidgetTests: XCTestCase {
         }
     }
 
-    /// Wherever the portal lands after sign-in, it counts as finished, so the sheet reloads the
+    /// Wherever the portal lands, after a sign-in or not, the sheet reloads the
     /// widget. A bare `/widget` counts too: it lacks the app's `source=native`.
     func testAnyPortalLandingFinishesSignIn() {
         for path in ["/", "/?board=feature-requests", "/b/feature-requests", "/roadmap",
                      "/widget", "/widget?board=feature-requests", "/settings/profile"] {
-            XCTAssertTrue(FeedbackWidget.signInFinished(at: url(path)), path)
+            XCTAssertTrue(FeedbackWidget.isPortalPage(url(path)), path)
         }
     }
 
@@ -35,9 +35,9 @@ final class FeedbackWidgetTests: XCTestCase {
         for path in ["/auth/login", "/auth/login?callbackUrl=/widget", "/auth/auth-complete",
                      "/?auth=signin&callbackUrl=%2Fwidget", "/?auth=signup",
                      "/widget?source=native&platform=ios"] {
-            XCTAssertFalse(FeedbackWidget.signInFinished(at: url(path)), path)
+            XCTAssertFalse(FeedbackWidget.isPortalPage(url(path)), path)
         }
-        XCTAssertFalse(FeedbackWidget.signInFinished(at: URL(string: "https://github.com/")!),
+        XCTAssertFalse(FeedbackWidget.isPortalPage(URL(string: "https://github.com/")!),
                        "Another site is not the portal")
     }
 }

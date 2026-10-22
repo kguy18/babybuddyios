@@ -100,6 +100,20 @@ final class SettingsTests: UITestCase {
         expect(app.navigationBars["Send Feedback"])
     }
 
+    /// Signed in, Get Help opens straight to the chat: no card, no Sign In. A device showed a
+    /// signed-in user the card, when an anonymous identify made Quackback report a stale null user.
+    func testGetHelpSignedInOpensTheChat() {
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in"])
+        openSendFeedback()
+        tap(app.buttons.labeled("Get Help"))
+        let sheet = expect(app.navigationBars["Get Help"])
+        expect(app.webViews.staticTexts["Stub widget: chat"])
+        XCTAssertFalse(app.staticTexts["Sign in with your email so I can reply to you."].exists)
+        XCTAssertFalse(sheet.buttons["Sign In"].exists)
+        tap(sheet.buttons["Close"])
+        expectGone(sheet)
+    }
+
     /// After sign-in the sheet goes back to the widget on the view it opened, wherever the portal
     /// lands. The stub's "Signed in" link goes to the portal root, as a real sign-in did on a
     /// device, and the stub widget then shows the `quackback:open` view the app sent.
