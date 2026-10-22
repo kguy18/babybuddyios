@@ -303,16 +303,42 @@ struct FeedbackWebView: UIViewRepresentable {
             window.__quackbackNative = { dispatch: function (event, message) {
                 window.webkit.messageHandlers.quackback.postMessage(
                     { event: event, url: (message && typeof message.url === 'string') ? message.url : '',
-                      signedIn: !!(message && message.user) });
+                      signedIn: !!(message && message.user),
+                      detail: (message && typeof message.detail === 'string') ? message.detail : '' });
             } };
             // The portal's sign-in dialog announces success on this channel, and may not
             // navigate at all afterwards.
-            try {
-                new BroadcastChannel('quackback-auth').onmessage = function (e) {
-                    if (e.data && e.data.type === 'auth-success') window.__quackbackNative.dispatch('signed-in', {});
-                };
-            } catch (e) {}
+            if (typeof BroadcastChannel === 'undefined') {
+                window.__quackbackNative.dispatch('trace', { detail: 'BroadcastChannel undefined' });
+            } else {
+                try {
+                    new BroadcastChannel('quackback-auth').onmessage = function (e) {
+                        if (e.data && e.data.type === 'auth-success') window.__quackbackNative.dispatch('signed-in', {});
+                    };
+                } catch (e) {
+                    window.__quackbackNative.dispatch('trace', { detail: 'BroadcastChannel threw: ' + e.name });
+                }
+            }
             """, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        #if DEBUG
+        // DEBUG trace: every history change, including the portal's client-side navigations.
+        content.addUserScript(WKUserScript(source: """
+            (function () {
+                var trace = function (what) {
+                    window.__quackbackNative.dispatch('trace', { detail: what, url: location.href });
+                };
+                ['pushState', 'replaceState'].forEach(function (name) {
+                    var original = history[name];
+                    history[name] = function () {
+                        var result = original.apply(this, arguments);
+                        trace(name);
+                        return result;
+                    };
+                });
+                window.addEventListener('popstate', function () { trace('popstate'); });
+            })();
+            """, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        #endif
         content.addUserScript(WKUserScript(source: """
             if (location.pathname.indexOf('/widget') === 0) {
                 var style = document.createElement('style');
@@ -331,6 +357,10 @@ struct FeedbackWebView: UIViewRepresentable {
         webView.backgroundColor = .clear
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
+        #if DEBUG
+        webView.isInspectable = true // so Safari's Web Inspector can attach on a device
+        #endif
+        feedbackTrace("open \(widget.rawValue) sheet: \(FeedbackTrace.clean(widget.widgetURL))")
         FeedbackWidget.load(widget.widgetURL, in: webView)
         context.coordinator.startWatching(webView)
         return webView
@@ -342,11 +372,13 @@ struct FeedbackWebView: UIViewRepresentable {
         var next: URL?
         if backRequests != context.coordinator.handledBackRequests {
             context.coordinator.handledBackRequests = backRequests
+            feedbackTrace("Back: reloading the widget")
             context.coordinator.signInStarted = false
             next = widget.widgetURL
         }
         if signInRequests != context.coordinator.handledSignInRequests {
             context.coordinator.handledSignInRequests = signInRequests
+            feedbackTrace("Sign In tapped")
             context.coordinator.signInStarted = true
             next = FeedbackWidget.inSheetURL(for: FeedbackWidget.serverURL.appending(path: "auth/login"))
         }
@@ -370,7 +402,9 @@ struct FeedbackWebView: UIViewRepresentable {
         var handledBackRequests = 0
         var handledSignInRequests = 0
         /// Set when a sign-in starts; the next sign-in-finished signal returns to the widget.
-        var signInStarted = false
+        var signInStarted = false {
+            didSet { if signInStarted != oldValue { feedbackTrace("signInStarted = \(signInStarted)") } }
+        }
 
         init(_ parent: FeedbackWebView) { self.parent = parent }
 
@@ -385,7 +419,7 @@ struct FeedbackWebView: UIViewRepresentable {
             pathMonitor.pathUpdateHandler = { [weak self] path in
                 MainActor.assumeIsolated {
                     self?.pathMonitor.cancel()
-                    if path.status != .satisfied { self?.fail() }
+                    if path.status != .satisfied { feedbackTrace("offline"); self?.fail() }
                 }
             }
             // The stub needs no network, so a test run offline must not fail on the path check.
@@ -393,6 +427,7 @@ struct FeedbackWebView: UIViewRepresentable {
             readyTimer = Task { @MainActor [weak self] in
                 try? await Task.sleep(for: FeedbackWebView.readyTimeout)
                 guard !Task.isCancelled, let self, self.parent.phase == .loading else { return }
+                feedbackTrace("phase = failed (no ready in time)")
                 self.parent.phase = .failed
             }
         }
@@ -400,16 +435,24 @@ struct FeedbackWebView: UIViewRepresentable {
         /// Tracks whether the sheet is off the widget, and returns to it once a sign-in is over.
         /// Client-side navigations change `url` without a delegate call, hence the observer.
         private func urlChanged(_ webView: WKWebView) {
+            feedbackTrace("url = \(FeedbackTrace.clean(webView.url))")
             guard let url = webView.url, FeedbackWidget.isOnServer(url) else { return }
             let onWidget = url.path.hasPrefix("/widget")
-            if parent.awayFromWidget == onWidget { parent.awayFromWidget = !onWidget }
+            if parent.awayFromWidget == onWidget {
+                feedbackTrace("awayFromWidget = \(!onWidget)")
+                parent.awayFromWidget = !onWidget
+            }
             if FeedbackWidget.isSignInURL(url) { signInStarted = true }
-            if signInStarted, FeedbackWidget.signInFinished(at: url) { returnToWidget(webView) }
+            if signInStarted, FeedbackWidget.signInFinished(at: url) {
+                feedbackTrace("sign-in finished at \(FeedbackTrace.clean(url))")
+                returnToWidget(webView)
+            }
         }
 
         /// A full load of the widget URL: its server render picks up the new session, and
         /// `ready` re-opens the sheet's view.
         private func returnToWidget(_ webView: WKWebView) {
+            feedbackTrace("reloading the widget")
             signInStarted = false
             FeedbackWidget.load(parent.widget.widgetURL, in: webView)
         }
@@ -427,22 +470,32 @@ struct FeedbackWebView: UIViewRepresentable {
         private func fail() {
             readyTimer?.cancel()
             guard parent.phase == .loading else { return }
+            feedbackTrace("phase = failed")
             parent.phase = .failed
         }
 
         func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
             guard let body = message.body as? [String: Any], let event = body["event"] as? String else { return }
+            // Only the event, the cleaned URL and the signed-in flag: never the user object.
+            feedbackTrace("bridge \(event)"
+                + ((body["detail"] as? String).map { $0.isEmpty ? "" : " \($0)" } ?? "")
+                + ((body["url"] as? String).map { $0.isEmpty ? "" : " \(FeedbackTrace.clean(URL(string: $0)))" } ?? "")
+                + (event == "auth-change" ? " signedIn=\(body["signedIn"] as? Bool ?? false)" : ""))
             switch event {
             case "ready":
                 readyTimer?.cancel()
                 message.webView?.evaluateJavaScript(parent.widget.setupScript)
+                if parent.phase != .ready { feedbackTrace("phase = ready") }
                 parent.phase = .ready
             case "close":
                 parent.onClose()
             case "auth-change":
                 parent.signedIn = body["signedIn"] as? Bool ?? false
             case "signed-in":
-                if signInStarted, let webView = message.webView { returnToWidget(webView) }
+                if signInStarted, let webView = message.webView {
+                    feedbackTrace("sign-in finished by broadcast")
+                    returnToWidget(webView)
+                }
             case "navigate":
                 if let url = URL(string: body["url"] as? String ?? ""), ["https", "http"].contains(url.scheme) {
                     open(url, in: message.webView)
@@ -452,16 +505,32 @@ struct FeedbackWebView: UIViewRepresentable {
             }
         }
 
+        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            feedbackTrace("didStart \(FeedbackTrace.clean(webView.url))")
+        }
+
+        func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+            feedbackTrace("didCommit \(FeedbackTrace.clean(webView.url))")
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            feedbackTrace("didFinish \(FeedbackTrace.clean(webView.url))")
+        }
+
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            feedbackTrace("didFailProvisional \((error as NSError).domain) \((error as NSError).code)")
             fail()
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            feedbackTrace("didFail \((error as NSError).domain) \((error as NSError).code)")
             fail()
         }
 
         func webView(_ webView: WKWebView, decidePolicyFor response: WKNavigationResponse,
                      decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+            feedbackTrace("decide response \(FeedbackTrace.clean(response.response.url))"
+                + " status=\((response.response as? HTTPURLResponse)?.statusCode ?? 0) mainFrame=\(response.isForMainFrame)")
             if response.isForMainFrame, let http = response.response as? HTTPURLResponse, http.statusCode >= 400 {
                 fail()
                 decisionHandler(.cancel)
@@ -473,6 +542,8 @@ struct FeedbackWebView: UIViewRepresentable {
         /// Links off the feedback server open in Safari rather than replacing the widget.
         func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
                      decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            feedbackTrace("decide action \(FeedbackTrace.clean(action.request.url))"
+                + " type=\(action.navigationType.rawValue) mainFrame=\(action.targetFrame?.isMainFrame ?? false)")
             // The stub's pages are inline, so its links load the next stub page, not the network.
             if FeedbackWidget.isStubbed, action.navigationType == .linkActivated, let url = action.request.url {
                 decisionHandler(.cancel)
@@ -495,4 +566,47 @@ struct FeedbackWebView: UIViewRepresentable {
             return nil
         }
     }
+}
+
+/// A trace line for the DEBUG feedback trace; compiled to nothing in release builds.
+@inline(__always) func feedbackTrace(_ message: @autoclosure () -> String) {
+    #if DEBUG
+    FeedbackTrace.log(message())
+    #endif
+}
+
+/// DEBUG only: one line per feedback-sheet event in `Documents/feedback-trace.log`, to see what a
+/// real sign-in does on a device. URLs keep only the `auth`, `callbackUrl`, `board` and `source`
+/// query parameters, and nothing logs cookies, codes or the widget's user object.
+enum FeedbackTrace {
+    static func clean(_ url: URL?) -> String {
+        guard let url, var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return "nil" }
+        let kept = (components.queryItems ?? []).filter { ["auth", "callbackUrl", "board", "source"].contains($0.name) }
+        components.queryItems = kept.isEmpty ? nil : kept
+        components.fragment = nil
+        components.user = nil
+        components.password = nil
+        return components.string ?? "?"
+    }
+
+    #if DEBUG
+    static let file = URL.documentsDirectory.appending(path: "feedback-trace.log")
+
+    private static let timestamp: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    static func log(_ message: String) {
+        guard let data = "\(timestamp.string(from: Date())) \(message)\n".data(using: .utf8) else { return }
+        if let handle = try? FileHandle(forWritingTo: file) {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.close()
+        } else {
+            try? data.write(to: file)
+        }
+    }
+    #endif
 }
