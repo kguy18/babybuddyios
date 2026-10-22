@@ -228,6 +228,46 @@ final class SettingsTests: UITestCase {
         XCTAssertFalse(signOut.exists)
     }
 
+    /// Delete Feedback Account asks first, and Cancel sends nothing.
+    func testDeleteFeedbackAccountCancel() {
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in", "BB_FEEDBACK_DELETION_MAIL": "sent"])
+        openSendFeedback()
+        tap(app.buttons["Delete Feedback Account"])
+        let alert = expect(app.alerts["Delete your feedback account?"])
+        XCTAssertTrue(alert.staticTexts.element(matching: NSPredicate(
+            format: "label BEGINSWITH %@", "I'll remove your feedback account within 7 days.")).exists)
+        XCTAssertTrue(alert.buttons["Request Deletion"].exists)
+        tap(alert.buttons["Cancel"])
+        expectGone(alert)
+        XCTAssertFalse(element(labeled: "Deletion requested").exists)
+        XCTAssertTrue(element(labeled: "Signed in to feedback as").exists)
+    }
+
+    /// A sent request says so and leaves the user signed in, so they can still read replies. The
+    /// stub stands in for Mail's "sent".
+    func testDeleteFeedbackAccountRequested() {
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in", "BB_FEEDBACK_DELETION_MAIL": "sent"])
+        openSendFeedback()
+        tap(app.buttons["Delete Feedback Account"])
+        tap(app.alerts["Delete your feedback account?"].buttons["Request Deletion"])
+        expect(app.staticTexts["Deletion requested. I'll remove your account within 7 days."])
+        XCTAssertTrue(element(labeled: "Signed in to feedback as parent@example.com").exists)
+        XCTAssertTrue(app.buttons["Sign Out of Feedback"].exists)
+    }
+
+    /// The test simulator has no Mail account, so the request can't go out: the card says where
+    /// to write, and Try Again tries again.
+    func testDeleteFeedbackAccountFailure() {
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in"])
+        openSendFeedback()
+        tap(app.buttons["Delete Feedback Account"])
+        tap(app.alerts["Delete your feedback account?"].buttons["Request Deletion"])
+        let failure = expect(app.staticTexts["Couldn't send your request. Try again, or email hello@babybuddy.app."])
+        tap(app.buttons["Try Again"])
+        XCTAssertTrue(failure.exists)
+        XCTAssertFalse(element(labeled: "Deletion requested").exists)
+    }
+
     /// The session outlives a relaunch: straight after it, Send Feedback offers Sign Out and the
     /// board opens signed in. The app goes to the Home Screen before it's killed, as it does when
     /// someone quits it, since WebKit writes its cookies to disk only now and then.

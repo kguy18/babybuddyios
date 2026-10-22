@@ -84,6 +84,7 @@ Pass these via `SIMCTL_CHILD_<NAME>` environment variables to `xcrun simctl laun
 | `BB_FEEDBACK=<url>` | Point Settings ▸ Feedback ▸ Send Feedback at another Quackback server instead of feedback.babybuddy.app. The UI tests pass an unreachable one to reach the Mail fallback |
 | `BB_FEEDBACK_STUB=signed-out\|signed-in` | With `BB_UITEST`, the feedback sheet and its sign-in use stubs instead of the server. The widget is a small inline page that shows the view the app asks for and reports a user (before `ready`, as Quackback does) only while the web view holds a session cookie. The sign-in calls answer locally: an email starting `busy@` hits the rate limit, the code `000000` and the password `wrong` are refused, and anything else signs in. `signed-in` starts the launch with a stub session. UI tests that open the sheet use it, so they need no network |
 | `BB_FEEDBACK_KEEP_SESSION=1` | With `BB_UITEST`, keep the feedback session the last launch left in the web view instead of clearing it, so a UI test can check that it survives a relaunch |
+| `BB_FEEDBACK_DELETION_MAIL=sent` | With `BB_UITEST`, Send Feedback ▸ Delete Feedback Account's request counts as sent without the Mail composer, which the simulator can't show without a Mail account |
 
 `BB_DEMO=1` is the fastest way to see the app without standing up a server — it seeds a child,
 activity history and running timers entirely locally.

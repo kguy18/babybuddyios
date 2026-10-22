@@ -69,16 +69,33 @@ enum SupportContact {
     }
 
     static var canSendMail: Bool { MFMailComposeViewController.canSendMail() }
+
+    // MARK: Feedback account deletion
+
+    /// Send Feedback ▸ Delete Feedback Account mails this request, which the owner fulfills with
+    /// Users ▸ Remove from portal in Quackback's admin. Quackback 0.14.1 has no self-service deletion
+    /// (kguydev/feedback-stack#18), and its messenger is reachable only through internal server
+    /// functions, so the request goes by Mail rather than the support chat.
+    static let deletionSubject = "Delete my feedback account"
+
+    /// The request and the app version, nothing else from the device. The feedback account's
+    /// email goes in too: the person may write from a different address.
+    static func deletionBody(feedbackEmail: String?) -> String {
+        var lines = ["Please delete my feedback account. (Sent from Baby Buddy Companion's Delete Feedback Account button.)", ""]
+        if let feedbackEmail { lines.append("Feedback account: \(feedbackEmail)") }
+        lines.append("App: Baby Buddy \(appVersion)")
+        return lines.joined(separator: "\n")
+    }
 }
 
 /// SwiftUI wrapper around `MFMailComposeViewController` so the Settings screen can present the
-/// system in-app mail composer as a sheet. `onFinish` fires for send/cancel/save/error alike —
-/// the caller just dismisses.
+/// system in-app mail composer as a sheet. `onFinish` fires for send, cancel, save and error
+/// alike, with the result for a caller that needs to know whether it was sent.
 struct MailComposeView: UIViewControllerRepresentable {
     let recipient: String
     let subject: String
     let body: String
-    var onFinish: () -> Void
+    var onFinish: (MFMailComposeResult) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(onFinish: onFinish) }
 
@@ -94,13 +111,13 @@ struct MailComposeView: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: MFMailComposeViewController, context: Context) {}
 
     final class Coordinator: NSObject, MFMailComposeViewControllerDelegate {
-        let onFinish: () -> Void
-        init(onFinish: @escaping () -> Void) { self.onFinish = onFinish }
+        let onFinish: (MFMailComposeResult) -> Void
+        init(onFinish: @escaping (MFMailComposeResult) -> Void) { self.onFinish = onFinish }
 
         func mailComposeController(_ controller: MFMailComposeViewController,
                                    didFinishWith result: MFMailComposeResult,
                                    error: Error?) {
-            onFinish()
+            onFinish(result)
         }
     }
 }

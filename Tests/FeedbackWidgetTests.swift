@@ -158,6 +158,27 @@ final class FeedbackWidgetTests: XCTestCase {
         }
     }
 
+    // MARK: Deletion request
+
+    /// Delete Feedback Account's mail: the request, the feedback account it's about and the app
+    /// version, to hello@babybuddy.app, and no other diagnostics.
+    func testDeletionRequest() {
+        XCTAssertEqual(SupportContact.recipient, "hello@babybuddy.app")
+        XCTAssertEqual(SupportContact.deletionSubject, "Delete my feedback account")
+        let body = SupportContact.deletionBody(feedbackEmail: "parent@example.com")
+        XCTAssertEqual(body, """
+            Please delete my feedback account. (Sent from Baby Buddy Companion's Delete Feedback Account button.)
+
+            Feedback account: parent@example.com
+            App: Baby Buddy \(SupportContact.appVersion)
+            """)
+        for detail in ["Device:", "System:", SupportContact.deviceModel] {
+            XCTAssertFalse(body.contains(detail), detail)
+        }
+        XCTAssertFalse(SupportContact.deletionBody(feedbackEmail: nil).contains("Feedback account"),
+                       "Offline the email is unknown; the line is left out rather than guessed")
+    }
+
     // MARK: Widget links
 
     /// A widget link to Quackback's sign-in opens the native one instead.

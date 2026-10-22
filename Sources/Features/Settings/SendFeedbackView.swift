@@ -20,6 +20,13 @@ struct SendFeedbackView: View {
     @State private var confirmingSignOut = false
     /// Set by Sign Out, for the line that replaces the card.
     @State private var signedOut = false
+    @State private var confirmingDeletion = false
+    /// Delete Feedback Account's request, in the Mail composer.
+    @State private var deletionMail: MailPayload?
+    @State private var deletion: DeletionRequest?
+
+    /// How the last deletion request went, for the line under the card's rows.
+    private enum DeletionRequest { case sent, failed }
     @Environment(\.openURL) private var openURL
 
     /// Wraps the seeded email body so `.sheet(item:)` has an `Identifiable` to present.
@@ -87,7 +94,7 @@ struct SendFeedbackView: View {
         .sheet(item: $mailPayload) { payload in
             MailComposeView(recipient: SupportContact.recipient,
                             subject: SupportContact.subject,
-                            body: payload.body) { mailPayload = nil }
+                            body: payload.body) { _ in mailPayload = nil }
                 .ignoresSafeArea()
         }
         .alert("Sign out of feedback?", isPresented: $confirmingSignOut) {
@@ -101,6 +108,25 @@ struct SendFeedbackView: View {
             }
         } message: {
             Text("You'll need your email to post, vote or chat again. Your Baby Buddy data isn't affected.")
+        }
+        .alert("Delete your feedback account?", isPresented: $confirmingDeletion) {
+            Button("Cancel", role: .cancel) {}
+            Button("Request Deletion", role: .destructive) { requestDeletion() }
+        } message: {
+            Text("I'll remove your feedback account within 7 days. Your posts and comments stay on the board under \"Deleted user\", your votes are removed, and your support chats are kept without your email. Your Baby Buddy data isn't affected.")
+        }
+        .sheet(item: $deletionMail) { payload in
+            MailComposeView(recipient: SupportContact.recipient,
+                            subject: SupportContact.deletionSubject,
+                            body: payload.body) { result in
+                deletionMail = nil
+                switch result {
+                case .sent: deletion = .sent
+                case .failed: deletion = .failed
+                default: break // Cancelled or saved as a draft: nothing was requested.
+                }
+            }
+            .ignoresSafeArea()
         }
         .alert("Set Up Mail", isPresented: $showingMailUnavailable) {
             Button("OK", role: .cancel) {}
@@ -207,14 +233,10 @@ struct SendFeedbackView: View {
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(email.map { "Signed in to feedback as \($0)" } ?? "Signed in to feedback")
                     Rectangle().fill(BBColor.divider).frame(height: 0.5)
-                    Button { confirmingSignOut = true } label: {
-                        Text("Sign Out of Feedback")
-                            .font(.system(size: 16))
-                            .foregroundStyle(BBColor.danger)
-                            .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
+                    dangerRow("Sign Out of Feedback") { confirmingSignOut = true }
+                    Rectangle().fill(BBColor.divider).frame(height: 0.5)
+                    dangerRow("Delete Feedback Account") { confirmingDeletion = true }
+                    deletionStatus
                 }
                 .padding(.horizontal, 15)
             }
@@ -227,6 +249,60 @@ struct SendFeedbackView: View {
                 .padding(.horizontal, 16)
         }
     }
+
+    private func dangerRow(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 16))
+                .foregroundStyle(BBColor.danger)
+                .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder private var deletionStatus: some View {
+        switch deletion {
+        case .sent:
+            Text("Deletion requested. I'll remove your account within 7 days.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 12)
+        case .failed:
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Couldn't send your request. Try again, or email \(SupportContact.recipient).")
+                    .font(.footnote)
+                    .foregroundStyle(BBColor.danger)
+                Button("Try Again") { requestDeletion() }
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(BBColor.brandAccent)
+                    .frame(minHeight: 44)
+                    .buttonStyle(.plain)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        case nil:
+            EmptyView()
+        }
+    }
+
+    /// Opens the request in Mail. Without a Mail account there's no way to send it from here,
+    /// so the line says where to write instead.
+    private func requestDeletion() {
+        guard case .signedIn(let email) = account else { return }
+        if Self.stubsSentMail {
+            deletion = .sent
+        } else if SupportContact.canSendMail {
+            deletionMail = MailPayload(body: SupportContact.deletionBody(feedbackEmail: email))
+        } else {
+            deletion = .failed
+        }
+    }
+
+    /// `BB_FEEDBACK_DELETION_MAIL=sent`, honored only with `BB_UITEST`: the request counts as
+    /// sent without the composer, which the simulator can't show without a Mail account.
+    private static let stubsSentMail = ProcessInfo.processInfo.environment["BB_UITEST"] == "1"
+        && ProcessInfo.processInfo.environment["BB_FEEDBACK_DELETION_MAIL"] == "sent"
 
     // MARK: Copy app details
 
