@@ -118,6 +118,7 @@ struct FeedbackSignInView: View {
             Button("Sign In", action: signInWithPassword)
                 .buttonStyle(.bbPrimary)
                 .disabled(!emailLooksValid || password.isEmpty || working || blocked)
+            if working { ProgressView().frame(maxWidth: .infinity) }
             quietLink("Use an email code instead") { show(.email) }
             // Rare enough that the portal's own reset flow, in Safari, is enough.
             quietLink("Forgot password?") { openURL(FeedbackWidget.serverURL.appending(path: "auth/login")) }

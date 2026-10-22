@@ -179,14 +179,24 @@ enum FeedbackAuth {
 
     /// Both cookie names, written before the widget reloads.
     static func save(_ session: FeedbackAuth.Session) async {
-        for cookie in FeedbackAuth.cookies(for: session) { await store.setCookie(cookie) }
+        feedbackTrace("saving session cookies")
+        for cookie in FeedbackAuth.cookies(for: session) {
+            await store.setCookie(cookie)
+            feedbackTrace("saved \(cookie.name)")
+        }
     }
 
     private static func sessionCookies() async -> [HTTPCookie] {
         let host = FeedbackWidget.serverURL.host() ?? ""
-        return await store.allCookies().filter {
+        // Straight after launch, before WebKit has read its cookies from disk, `allCookies()` comes
+        // back empty, which hid a saved session. Fetching the cookie records waits for that read.
+        _ = await WKWebsiteDataStore.default().dataRecords(ofTypes: [WKWebsiteDataTypeCookies])
+        let all = await store.allCookies()
+        let session = all.filter {
             FeedbackAuth.cookieNames.contains($0.name) && ($0.domain == host || $0.domain == "." + host)
         }
+        feedbackTrace("cookie store: \(all.count) cookies, \(session.count) session")
+        return session
     }
 
     static var isSignedIn: Bool {
@@ -205,8 +215,10 @@ enum FeedbackAuth {
 
     /// Each UI-test launch starts with no feedback session, or the stub's one under
     /// `BB_FEEDBACK_STUB=signed-in`; cookies otherwise outlive the launch.
+    /// `BB_FEEDBACK_KEEP_SESSION=1` keeps the last launch's, for a relaunch test.
     static func resetForUITests() {
-        guard ProcessInfo.processInfo.environment["BB_UITEST"] == "1" else { return }
+        let environment = ProcessInfo.processInfo.environment
+        guard environment["BB_UITEST"] == "1", environment["BB_FEEDBACK_KEEP_SESSION"] != "1" else { return }
         Task {
             for cookie in await sessionCookies() { await store.deleteCookie(cookie) }
             if FeedbackWidget.stubMode == "signed-in" {
