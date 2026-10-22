@@ -88,7 +88,7 @@ struct FeedbackSignInView: View {
     private func codeStep(now: Date, blocked: Bool) -> some View {
         VStack(spacing: 14) {
             field("Code", showsError: true) {
-                TextField("6-digit code", text: $code)
+                TextField("Code", text: $code, prompt: Text("6-digit code").foregroundStyle(.secondary))
                     .textContentType(.oneTimeCode)
                     .keyboardType(.numberPad)
                     .font(.system(size: 20, weight: .semibold).monospacedDigit())
@@ -134,7 +134,7 @@ struct FeedbackSignInView: View {
     /// The email field; send errors show under it on the email step.
     private var emailField: some View {
         field("Email", showsError: step == .email) {
-            TextField("you@example.com", text: $email)
+            TextField("Email", text: $email, prompt: Text("you@example.com").foregroundStyle(.secondary))
                 .textContentType(.emailAddress)
                 .keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never)
