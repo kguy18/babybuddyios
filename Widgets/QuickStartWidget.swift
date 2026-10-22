@@ -1,10 +1,11 @@
 import WidgetKit
 import SwiftUI
 import AppIntents
+import SwiftData
 
 /// Home-screen widget: a 2×2 grid of activity tiles that each start a Baby Buddy timer with
-/// one tap, via ``StartTimerIntent``. Static content — it looks the same whether or not a
-/// timer is running, so it's always useful.
+/// one tap, via ``StartTimerIntent``. Running activities show a stopwatch after the
+/// shared store changes and WidgetKit reloads the timeline.
 struct QuickStartWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "BabyBuddyQuickStart", provider: QuickStartProvider()) { entry in
@@ -19,17 +20,30 @@ struct QuickStartWidget: Widget {
 
 struct QuickStartEntry: TimelineEntry {
     let date: Date
+    var runningActivities: Set<TimerActivity> = []
 }
 
 struct QuickStartProvider: TimelineProvider {
+    private func currentEntry() -> QuickStartEntry {
+        guard let container = try? ModelContainer(
+            for: LocalStore.schema,
+            configurations: ModelConfiguration(schema: LocalStore.schema, url: LocalStore.storeURL))
+        else { return QuickStartEntry(date: .now) }
+        let context = ModelContext(container)
+        let descriptor = FetchDescriptor<LocalEntity>(
+            predicate: #Predicate { $0.kindRaw == "timer" })
+        let timers = (try? context.fetch(descriptor)) ?? []
+        return QuickStartEntry(date: .now, runningActivities: TimerActivity.runningActivities(in: timers))
+    }
+
     func placeholder(in context: Context) -> QuickStartEntry { QuickStartEntry(date: .now) }
 
     func getSnapshot(in context: Context, completion: @escaping (QuickStartEntry) -> Void) {
-        completion(QuickStartEntry(date: .now))
+        completion(currentEntry())
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<QuickStartEntry>) -> Void) {
-        completion(Timeline(entries: [QuickStartEntry(date: .now)], policy: .never))
+        completion(Timeline(entries: [currentEntry()], policy: .never))
     }
 }
 
@@ -62,7 +76,7 @@ struct QuickStartView: View {
         let tint = BBColor.tint(for: activity)
         return Button(intent: StartTimerIntent(activity: activity)) {
             VStack(alignment: .leading, spacing: 0) {
-                Image(systemName: activity.systemImage)
+                Image(systemName: entry.runningActivities.contains(activity) ? "stopwatch" : activity.systemImage)
                     .font(.system(size: 17, weight: .semibold))
                 Spacer(minLength: 2)
                 Text(activity.timerName)
@@ -76,5 +90,6 @@ struct QuickStartView: View {
             .foregroundStyle(tint)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(activity.timerName), \(entry.runningActivities.contains(activity) ? "timer running" : "start timer")")
     }
 }

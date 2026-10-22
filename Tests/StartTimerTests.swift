@@ -4,6 +4,31 @@ import SwiftData
 
 @MainActor
 final class StartTimerTests: XCTestCase {
+    func testQuickStartTracksAllRunningActivities() {
+        let container = LocalStore.makeContainer(inMemory: true)
+        let repo = LocalRepository(context: container.mainContext)
+        let sleep = repo.create(kind: .timer, payload: ["name": "Nap"], timerActivity: .sleep)!
+        let feeding = repo.create(kind: .timer, payload: ["name": "Feeding"])!
+        let anotherSleep = repo.create(kind: .timer, payload: ["name": "Sleep"])!
+        let unknown = repo.create(kind: .timer, payload: ["name": "Custom"])!
+
+        XCTAssertEqual(TimerActivity.runningActivities(in: [sleep, feeding, anotherSleep, unknown]),
+                       Set([.sleep, .feeding]))
+        sleep.stoppedAt = .now
+        XCTAssertEqual(TimerActivity.runningActivities(in: [sleep, anotherSleep]), Set([.sleep]))
+        anotherSleep.syncState = .pendingDelete
+        feeding.stoppedAt = .now
+        XCTAssertTrue(TimerActivity.runningActivities(in: [sleep, feeding, anotherSleep, unknown]).isEmpty)
+    }
+
+    func testQuickStartIgnoresCompletedRecords() {
+        let container = LocalStore.makeContainer(inMemory: true)
+        let record = LocalRepository(context: container.mainContext).create(
+            kind: .sleep, payload: ["name": "Sleep"])!
+        XCTAssertTrue(TimerActivity.runningActivities(in: [record]).isEmpty)
+        XCTAssertTrue(TimerActivity.runningActivities(in: []).isEmpty)
+    }
+
     func testActivityMapping() {
         XCTAssertEqual(TimerActivity.tummyTime.timerName, "Tummy time")
         XCTAssertEqual(TimerActivity.feeding.convertKind, .feeding)
