@@ -84,20 +84,14 @@ final class SettingsTests: UITestCase {
     }
 
     /// Get Help holds the chat until someone signs in, so every chat has an email to reply to, and
-    /// Back from its sign-in closes the sheet rather than showing the chat signed out. The widget
-    /// has to report the visitor as signed out, so this needs the feedback server and skips
-    /// without it; `DialogTests.testContactSupportAlertHasCancel` covers Get Help offline.
-    func testGetHelpAsksSignedOutUserToSignIn() throws {
-        launch(["BB_START_TAB": "settings"])
+    /// Back from its sign-in closes the sheet rather than showing the chat signed out. The stub
+    /// widget reports no signed-in user, and its stand-in sign-in page needs no network.
+    func testGetHelpAsksSignedOutUserToSignIn() {
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out"])
         openSendFeedback()
         tap(app.buttons.labeled("Get Help"))
         let sheet = expect(app.navigationBars["Get Help"])
-        let ask = app.staticTexts["Sign in with your email so I can reply to you."]
-        let unreachable = app.staticTexts["Can't reach the feedback server"]
-        if !ask.waitForExistence(timeout: 15), unreachable.exists {
-            throw XCTSkip("The feedback server isn't reachable")
-        }
-        expect(ask)
+        expect(app.staticTexts["Sign in with your email so I can reply to you."])
         XCTAssertTrue(sheet.buttons["Sign In"].exists)
 
         tap(app.buttons["Sign In with Email"])
@@ -107,11 +101,10 @@ final class SettingsTests: UITestCase {
     }
 
     /// Send Feedback: the note and its four links, the supporter link opening its sheet, each way
-    /// into the feedback widget opening and closing, and Copy app details confirming. Whether the
-    /// server answers doesn't matter: each sheet's own navigation bar is there either way, and
-    /// nothing here reads what the server sends.
+    /// into the feedback widget opening and closing, and Copy app details confirming. The sheets
+    /// load the stub widget, so this needs no network.
     func testSendFeedbackScreen() {
-        launch(["BB_START_TAB": "settings"])
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out"])
         openSendFeedback()
 
         expect(element(labeled: "Hi, I'm Kurtis."))

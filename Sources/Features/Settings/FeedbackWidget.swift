@@ -90,6 +90,34 @@ enum FeedbackWidget: String, Identifiable {
         components.queryItems = query + [URLQueryItem(name: "callbackUrl", value: "/widget")]
         return components.url ?? url
     }
+
+    /// Every page load in the sheet goes through here, so the UI-test stub can stand in for them.
+    fileprivate static func load(_ url: URL, in webView: WKWebView) {
+        if isStubbed {
+            webView.loadHTMLString(stubPage(for: url), baseURL: url)
+        } else {
+            webView.load(URLRequest(url: url, timeoutInterval: 8))
+        }
+    }
+
+    // MARK: UI-test stub
+
+    /// `BB_FEEDBACK_STUB=signed-out`, honored only with `BB_UITEST`: the sheet's pages come from
+    /// `stubPage(for:)` instead of the network, so UI tests reach its signed-out states offline.
+    fileprivate static let isStubbed = ProcessInfo.processInfo.environment["BB_UITEST"] == "1"
+        && ProcessInfo.processInfo.environment["BB_FEEDBACK_STUB"] == "signed-out"
+
+    /// The widget page plays the real one's part over the same bridge: `ready`, then
+    /// `auth-change` with no user. Any other page stands in for Quackback's sign-in.
+    private static func stubPage(for url: URL) -> String {
+        guard url.path.hasPrefix("/widget") else { return "<p>Sign-in stub</p>" }
+        return """
+            <script>
+            window.__quackbackNative.dispatch('ready', {});
+            window.__quackbackNative.dispatch('auth-change', { user: null });
+            </script>
+            """
+    }
 }
 
 struct FeedbackSheet: View {
@@ -267,7 +295,7 @@ struct FeedbackWebView: UIViewRepresentable {
         webView.backgroundColor = .clear
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
-        webView.load(URLRequest(url: widget.widgetURL, timeoutInterval: 8))
+        FeedbackWidget.load(widget.widgetURL, in: webView)
         context.coordinator.startWatching(webView)
         return webView
     }
@@ -285,7 +313,7 @@ struct FeedbackWebView: UIViewRepresentable {
             next = FeedbackWidget.inSheetURL(for: FeedbackWidget.serverURL.appending(path: "auth/login"))
         }
         if let next {
-            DispatchQueue.main.async { webView.load(URLRequest(url: next)) }
+            DispatchQueue.main.async { FeedbackWidget.load(next, in: webView) }
         }
     }
 
@@ -320,7 +348,8 @@ struct FeedbackWebView: UIViewRepresentable {
                     if path.status != .satisfied { self?.fail() }
                 }
             }
-            pathMonitor.start(queue: .main)
+            // The stub needs no network, so a test run offline must not fail on the path check.
+            if !FeedbackWidget.isStubbed { pathMonitor.start(queue: .main) }
             readyTimer = Task { @MainActor [weak self] in
                 try? await Task.sleep(for: FeedbackWebView.readyTimeout)
                 guard !Task.isCancelled, let self, self.parent.phase == .loading else { return }
@@ -339,14 +368,14 @@ struct FeedbackWebView: UIViewRepresentable {
             if wasAway == onWidget { parent.awayFromWidget = !onWidget }
             // Only on the way back from another page, so the widget's own URL changes never loop.
             if onWidget, wasAway, url.query?.contains("source=native") != true {
-                webView.load(URLRequest(url: parent.widget.widgetURL))
+                FeedbackWidget.load(parent.widget.widgetURL, in: webView)
             }
         }
 
         /// Pages on the feedback server load here; anything else opens in Safari.
         private func open(_ url: URL, in webView: WKWebView?) {
             if FeedbackWidget.isOnServer(url), let webView {
-                webView.load(URLRequest(url: FeedbackWidget.inSheetURL(for: url)))
+                FeedbackWidget.load(FeedbackWidget.inSheetURL(for: url), in: webView)
             } else {
                 UIApplication.shared.open(url)
             }
