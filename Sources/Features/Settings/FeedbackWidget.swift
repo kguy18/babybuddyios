@@ -77,23 +77,39 @@ enum FeedbackWidget: String, Identifiable {
         url.host == serverURL.host
     }
 
+    /// Quackback's sign-in pages: `/auth/...`, and the portal root with its `auth` dialog request
+    /// (`/auth/login` redirects to `/?auth=signin&callbackUrl=...`).
+    static func isSignInURL(_ url: URL) -> Bool {
+        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        let path = components?.path ?? url.path
+        return path == "/auth" || path.hasPrefix("/auth/")
+            || (path == "/" || path.isEmpty) && (components?.queryItems ?? []).contains { $0.name == "auth" }
+    }
+
+    /// After a sign-in has started, the first page on the server that is neither a sign-in page
+    /// nor the app's own widget URL means the sign-in is over, wherever the portal landed: `/`,
+    /// a board, a bare `/widget`. The sheet then reloads the widget on its view.
+    static func signInFinished(at url: URL) -> Bool {
+        guard isOnServer(url), !isSignInURL(url) else { return false }
+        return !(url.path.hasPrefix("/widget") && url.query?.contains("source=native") == true)
+    }
+
     /// Quackback's sign-in, kept inside the sheet so its session cookie lands in the web view the
-    /// widget reads. A signed-out Submit or Vote asks to navigate to `/auth/login`, which
-    /// redirects to the portal's sign-in dialog and, on success, client-navigates to `callbackUrl`.
-    /// Pointing that at `/widget` brings the user back here (see `Coordinator.urlChanged`).
+    /// widget reads. On success the portal client-navigates to `callbackUrl`, so it points at
+    /// `/widget`; `signInFinished(at:)` covers any other landing.
     static func inSheetURL(for url: URL) -> URL {
-        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        guard isSignInURL(url), var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        else { return url }
         let query = components.queryItems ?? []
-        let isSignIn = components.path == "/auth/login"
-            || (components.path == "/" && query.contains { $0.name == "auth" })
-        guard isSignIn, !query.contains(where: { $0.name == "callbackUrl" }) else { return url }
+        guard !query.contains(where: { $0.name == "callbackUrl" }) else { return url }
         components.queryItems = query + [URLQueryItem(name: "callbackUrl", value: "/widget")]
         return components.url ?? url
     }
 
     /// Every page load in the sheet goes through here, so the UI-test stub can stand in for them.
-    fileprivate static func load(_ url: URL, in webView: WKWebView) {
+    @MainActor fileprivate static func load(_ url: URL, in webView: WKWebView) {
         if isStubbed {
+            if !isSignInURL(url), !url.path.hasPrefix("/widget") { stubSignedIn = true }
             webView.loadHTMLString(stubPage(for: url), baseURL: url)
         } else {
             webView.load(URLRequest(url: url, timeoutInterval: 8))
@@ -107,14 +123,27 @@ enum FeedbackWidget: String, Identifiable {
     fileprivate static let isStubbed = ProcessInfo.processInfo.environment["BB_UITEST"] == "1"
         && ProcessInfo.processInfo.environment["BB_FEEDBACK_STUB"] == "signed-out"
 
+    /// Set once the stub's "Signed in" link lands on a portal page, as a real sign-in would.
+    @MainActor private static var stubSignedIn = false
+
     /// The widget page plays the real one's part over the same bridge: `ready`, then
-    /// `auth-change` with no user. Any other page stands in for Quackback's sign-in.
-    private static func stubPage(for url: URL) -> String {
-        guard url.path.hasPrefix("/widget") else { return "<p>Sign-in stub</p>" }
+    /// `auth-change` with no user until the stub sign-in, and it shows the `quackback:open` view
+    /// it's sent so a test can read it. A sign-in page has a "Signed in" link to the portal root;
+    /// any other page stands in for the portal.
+    @MainActor private static func stubPage(for url: URL) -> String {
+        if isSignInURL(url) { return #"<p>Sign-in stub</p><p><a href="/">Signed in</a></p>"# }
+        guard url.path.hasPrefix("/widget") else { return "<p>Portal stub</p>" }
+        let user = stubSignedIn ? "{ id: 'stub' }" : "null"
         return """
+            <p id="view">Stub widget</p>
             <script>
+            window.addEventListener('message', function (e) {
+                if (e.data && e.data.type === 'quackback:open') {
+                    document.getElementById('view').textContent = 'Stub widget: ' + e.data.data.view;
+                }
+            });
             window.__quackbackNative.dispatch('ready', {});
-            window.__quackbackNative.dispatch('auth-change', { user: null });
+            window.__quackbackNative.dispatch('auth-change', { user: \(user) });
             </script>
             """
     }
@@ -276,6 +305,13 @@ struct FeedbackWebView: UIViewRepresentable {
                     { event: event, url: (message && typeof message.url === 'string') ? message.url : '',
                       signedIn: !!(message && message.user) });
             } };
+            // The portal's sign-in dialog announces success on this channel, and may not
+            // navigate at all afterwards.
+            try {
+                new BroadcastChannel('quackback-auth').onmessage = function (e) {
+                    if (e.data && e.data.type === 'auth-success') window.__quackbackNative.dispatch('signed-in', {});
+                };
+            } catch (e) {}
             """, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         content.addUserScript(WKUserScript(source: """
             if (location.pathname.indexOf('/widget') === 0) {
@@ -306,10 +342,12 @@ struct FeedbackWebView: UIViewRepresentable {
         var next: URL?
         if backRequests != context.coordinator.handledBackRequests {
             context.coordinator.handledBackRequests = backRequests
+            context.coordinator.signInStarted = false
             next = widget.widgetURL
         }
         if signInRequests != context.coordinator.handledSignInRequests {
             context.coordinator.handledSignInRequests = signInRequests
+            context.coordinator.signInStarted = true
             next = FeedbackWidget.inSheetURL(for: FeedbackWidget.serverURL.appending(path: "auth/login"))
         }
         if let next {
@@ -331,6 +369,8 @@ struct FeedbackWebView: UIViewRepresentable {
         var urlObservation: NSKeyValueObservation?
         var handledBackRequests = 0
         var handledSignInRequests = 0
+        /// Set when a sign-in starts; the next sign-in-finished signal returns to the widget.
+        var signInStarted = false
 
         init(_ parent: FeedbackWebView) { self.parent = parent }
 
@@ -357,24 +397,27 @@ struct FeedbackWebView: UIViewRepresentable {
             }
         }
 
-        /// Tracks whether the sheet is off the widget, and returns to it after sign-in: the portal
-        /// lands on a bare `/widget`, without `source=native`, so the widget would neither report
-        /// to the app nor open the right view. A full load of the widget URL fixes both, and its
-        /// server-side render picks up the new session.
+        /// Tracks whether the sheet is off the widget, and returns to it once a sign-in is over.
+        /// Client-side navigations change `url` without a delegate call, hence the observer.
         private func urlChanged(_ webView: WKWebView) {
             guard let url = webView.url, FeedbackWidget.isOnServer(url) else { return }
             let onWidget = url.path.hasPrefix("/widget")
-            let wasAway = parent.awayFromWidget
-            if wasAway == onWidget { parent.awayFromWidget = !onWidget }
-            // Only on the way back from another page, so the widget's own URL changes never loop.
-            if onWidget, wasAway, url.query?.contains("source=native") != true {
-                FeedbackWidget.load(parent.widget.widgetURL, in: webView)
-            }
+            if parent.awayFromWidget == onWidget { parent.awayFromWidget = !onWidget }
+            if FeedbackWidget.isSignInURL(url) { signInStarted = true }
+            if signInStarted, FeedbackWidget.signInFinished(at: url) { returnToWidget(webView) }
+        }
+
+        /// A full load of the widget URL: its server render picks up the new session, and
+        /// `ready` re-opens the sheet's view.
+        private func returnToWidget(_ webView: WKWebView) {
+            signInStarted = false
+            FeedbackWidget.load(parent.widget.widgetURL, in: webView)
         }
 
         /// Pages on the feedback server load here; anything else opens in Safari.
         private func open(_ url: URL, in webView: WKWebView?) {
             if FeedbackWidget.isOnServer(url), let webView {
+                if FeedbackWidget.isSignInURL(url) { signInStarted = true }
                 FeedbackWidget.load(FeedbackWidget.inSheetURL(for: url), in: webView)
             } else {
                 UIApplication.shared.open(url)
@@ -398,6 +441,8 @@ struct FeedbackWebView: UIViewRepresentable {
                 parent.onClose()
             case "auth-change":
                 parent.signedIn = body["signedIn"] as? Bool ?? false
+            case "signed-in":
+                if signInStarted, let webView = message.webView { returnToWidget(webView) }
             case "navigate":
                 if let url = URL(string: body["url"] as? String ?? ""), ["https", "http"].contains(url.scheme) {
                     open(url, in: message.webView)
@@ -428,6 +473,12 @@ struct FeedbackWebView: UIViewRepresentable {
         /// Links off the feedback server open in Safari rather than replacing the widget.
         func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
                      decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            // The stub's pages are inline, so its links load the next stub page, not the network.
+            if FeedbackWidget.isStubbed, action.navigationType == .linkActivated, let url = action.request.url {
+                decisionHandler(.cancel)
+                FeedbackWidget.load(url, in: webView)
+                return
+            }
             if action.navigationType == .linkActivated, let url = action.request.url,
                !FeedbackWidget.isOnServer(url) {
                 UIApplication.shared.open(url)

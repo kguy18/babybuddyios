@@ -100,6 +100,34 @@ final class SettingsTests: UITestCase {
         expect(app.navigationBars["Send Feedback"])
     }
 
+    /// After sign-in the sheet goes back to the widget on the view it opened, wherever the portal
+    /// lands. The stub's "Signed in" link goes to the portal root, as a real sign-in did on a
+    /// device, and the stub widget then shows the `quackback:open` view the app sent.
+    func testGetHelpSignInReturnsToTheChat() {
+        signInThroughStub(from: "Get Help", tapping: app.buttons["Sign In with Email"], expecting: "chat")
+    }
+
+    func testFeatureRequestSignInReturnsToTheBoard() {
+        signInThroughStub(from: "Request a Feature",
+                          tapping: app.navigationBars["Request a Feature"].buttons["Sign In"],
+                          expecting: "new-post")
+    }
+
+    private func signInThroughStub(from row: String, tapping signIn: XCUIElement, expecting view: String) {
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out"])
+        openSendFeedback()
+        tap(app.buttons.labeled(row))
+        let sheet = expect(app.navigationBars[row])
+        tap(signIn)
+        expect(sheet.buttons["Back"])
+        tap(app.webViews.links["Signed in"])
+        expect(app.webViews.staticTexts["Stub widget: \(view)"])
+        XCTAssertFalse(sheet.buttons["Back"].exists, "Back to the widget, not the portal")
+        XCTAssertFalse(sheet.buttons["Sign In"].exists, "Signed in now")
+        tap(sheet.buttons["Close"])
+        expectGone(sheet)
+    }
+
     /// Send Feedback: the note and its four links, the supporter link opening its sheet, each way
     /// into the feedback widget opening and closing, and Copy app details confirming. The sheets
     /// load the stub widget, so this needs no network.

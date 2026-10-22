@@ -3,22 +3,41 @@ import XCTest
 
 /// The feedback widget's sign-in stays in the sheet and comes back to the widget afterwards.
 final class FeedbackWidgetTests: XCTestCase {
-    private func inSheet(_ string: String) -> String {
-        FeedbackWidget.inSheetURL(for: URL(string: string)!).absoluteString
+    private let server = "https://feedback.babybuddy.app"
+
+    private func url(_ path: String) -> URL { URL(string: server + path)! }
+
+    private func inSheet(_ path: String) -> String {
+        FeedbackWidget.inSheetURL(for: url(path)).absoluteString
     }
 
     func testSignInGetsACallbackToTheWidget() {
-        XCTAssertEqual(inSheet("https://feedback.babybuddy.app/auth/login"),
-                       "https://feedback.babybuddy.app/auth/login?callbackUrl=/widget")
-        XCTAssertEqual(inSheet("https://feedback.babybuddy.app/?auth=signin"),
-                       "https://feedback.babybuddy.app/?auth=signin&callbackUrl=/widget")
+        XCTAssertEqual(inSheet("/auth/login"), server + "/auth/login?callbackUrl=/widget")
+        XCTAssertEqual(inSheet("/?auth=signin"), server + "/?auth=signin&callbackUrl=/widget")
     }
 
     func testOtherPagesAndExistingCallbacksAreLeftAlone() {
-        for url in ["https://feedback.babybuddy.app/auth/login?callbackUrl=/b/features",
-                    "https://feedback.babybuddy.app/b/features/posts/1",
-                    "https://feedback.babybuddy.app/"] {
-            XCTAssertEqual(inSheet(url), url)
+        for path in ["/auth/login?callbackUrl=/b/features", "/b/features/posts/1", "/"] {
+            XCTAssertEqual(inSheet(path), server + path)
         }
+    }
+
+    /// Wherever the portal lands after sign-in, it counts as finished, so the sheet reloads the
+    /// widget. A bare `/widget` counts too: it lacks the app's `source=native`.
+    func testAnyPortalLandingFinishesSignIn() {
+        for path in ["/", "/?board=feature-requests", "/b/feature-requests", "/roadmap",
+                     "/widget", "/widget?board=feature-requests", "/settings/profile"] {
+            XCTAssertTrue(FeedbackWidget.signInFinished(at: url(path)), path)
+        }
+    }
+
+    func testSignInPagesAndTheAppsOwnWidgetDoNot() {
+        for path in ["/auth/login", "/auth/login?callbackUrl=/widget", "/auth/auth-complete",
+                     "/?auth=signin&callbackUrl=%2Fwidget", "/?auth=signup",
+                     "/widget?source=native&platform=ios"] {
+            XCTAssertFalse(FeedbackWidget.signInFinished(at: url(path)), path)
+        }
+        XCTAssertFalse(FeedbackWidget.signInFinished(at: URL(string: "https://github.com/")!),
+                       "Another site is not the portal")
     }
 }
