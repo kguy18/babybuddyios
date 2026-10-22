@@ -6,7 +6,7 @@ import WebKit
 ///
 /// The calls are the ones Quackback 0.14.1's own portal dialog makes: `portal-signin` mails a
 /// 6-digit code, better-auth's `sign-in/email-otp` and `sign-in/email` trade a code or a password
-/// for a session, and `sign-out` ends it. Nothing here logs the email, the code, the password or
+/// for a session, `get-session` says whose it is, and `sign-out` ends it. Nothing here logs the email, the code, the password or
 /// the session.
 enum FeedbackAuth {
     enum Request {
@@ -14,6 +14,8 @@ enum FeedbackAuth {
         case verifyCode(email: String, code: String)
         case password(email: String, password: String)
         case signOut(session: String)
+        /// Who the session belongs to, for Send Feedback's signed-in card.
+        case account(session: String)
 
         /// For the DEBUG trace: which call, never its values.
         var name: String {
@@ -22,26 +24,33 @@ enum FeedbackAuth {
             case .verifyCode: "verify code"
             case .password: "password"
             case .signOut: "sign out"
+            case .account: "get session"
             }
         }
 
-        /// Every call is a JSON POST. Sign-out names its session with a Bearer header, which
-        /// better-auth's `bearer()` plugin turns back into the session cookie.
+        /// JSON POSTs, except `get-session`, a GET. Sign-out and `get-session` name their session
+        /// with a Bearer header, which better-auth's `bearer()` plugin turns back into the cookie.
         func urlRequest(server: URL = FeedbackWidget.serverURL) -> URLRequest {
-            let (path, body): (String, [String: String]) = switch self {
+            let (path, body): (String, [String: String]?) = switch self {
             case .sendCode(let email): ("api/auth/portal-signin", ["email": email, "callbackURL": "/"])
             case .verifyCode(let email, let code): ("api/auth/sign-in/email-otp", ["email": email, "otp": code])
             case .password(let email, let password): ("api/auth/sign-in/email", ["email": email, "password": password])
             case .signOut: ("api/auth/sign-out", [:])
+            case .account: ("api/auth/get-session", nil)
             }
             var request = URLRequest(url: server.appending(path: path), timeoutInterval: 15)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("application/json", forHTTPHeaderField: "Accept")
-            if case .signOut(let session) = self {
+            switch self {
+            case .signOut(let session), .account(let session):
                 request.setValue("Bearer \(session)", forHTTPHeaderField: "Authorization")
+            default:
+                break
             }
-            request.httpBody = try? JSONSerialization.data(withJSONObject: body, options: .sortedKeys)
+            if let body {
+                request.httpMethod = "POST"
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.httpBody = try? JSONSerialization.data(withJSONObject: body, options: .sortedKeys)
+            }
             return request
         }
     }
@@ -89,7 +98,7 @@ enum FeedbackAuth {
             return .failed(.rateLimited(retryAfter: wait))
         }
         switch request {
-        case .sendCode, .signOut:
+        case .sendCode, .signOut, .account:
             return (200..<300).contains(status) ? .sent : .failed(.other)
         case .verifyCode, .password:
             if (200..<300).contains(status) {
@@ -100,6 +109,22 @@ enum FeedbackAuth {
             if case .password = request, status == 401 { return .failed(.wrongPassword) }
             return .failed(.other)
         }
+    }
+
+    /// What `get-session` says about a session: its user's email, `null` once the server has
+    /// ended it, or nothing usable.
+    enum Account: Equatable {
+        case signedIn(email: String)
+        case ended
+        case unknown
+    }
+
+    static func account(status: Int, body: Data) -> Account {
+        guard status == 200, let json = try? JSONSerialization.jsonObject(with: body, options: .fragmentsAllowed)
+        else { return .unknown }
+        if json is NSNull { return .ended }
+        let email = ((json as? [String: Any])?["user"] as? [String: Any])?["email"] as? String
+        return email.map { .signedIn(email: $0) } ?? .unknown
     }
 
     /// The names the session goes under. better-auth sets the `__Secure-` one over HTTPS, and reads
@@ -203,6 +228,39 @@ enum FeedbackAuth {
         get async { await !sessionCookies().isEmpty }
     }
 
+    enum Account: Equatable {
+        case signedOut
+        /// The email is `nil` when the server couldn't be asked.
+        case signedIn(email: String?)
+    }
+
+    /// Who is signed in, for Send Feedback's card. The email comes from the server each time,
+    /// so the app keeps no copy of it; a session the server has ended is cleared here.
+    static func account() async -> Account {
+        guard let session = await sessionCookies().first?.value else { return .signedOut }
+        var answer = FeedbackAuth.Account.signedIn(email: "parent@example.com")
+        if !FeedbackWidget.isStubbed {
+            if let (data, response) = try? await urlSession.data(for: FeedbackAuth.Request.account(session: session).urlRequest()),
+               let http = response as? HTTPURLResponse {
+                answer = FeedbackAuth.account(status: http.statusCode, body: data)
+            } else {
+                answer = .unknown
+            }
+        }
+        switch answer {
+        case .signedIn(let email):
+            feedbackTrace("auth get session: signed in")
+            return .signedIn(email: email)
+        case .ended:
+            feedbackTrace("auth get session: ended, clearing the cookies")
+            for cookie in await sessionCookies() { await store.deleteCookie(cookie) }
+            return .signedOut
+        case .unknown:
+            feedbackTrace("auth get session: no answer")
+            return .signedIn(email: nil)
+        }
+    }
+
     /// Clears both cookies, then ends the session on the server. The cookies go whatever the
     /// server says, so the next sheet opens signed out even offline.
     static func signOut() async {
@@ -235,7 +293,7 @@ enum FeedbackAuth {
         case .sendCode(let email): return email.hasPrefix("busy@") ? (429, ["Retry-After": "600"]) : (200, [:])
         case .verifyCode(_, let code): return code == "000000" ? (400, [:]) : signedIn
         case .password(_, let password): return password == "wrong" ? (401, [:]) : signedIn
-        case .signOut: return (200, [:])
+        case .signOut, .account: return (200, [:])
         }
     }
 }

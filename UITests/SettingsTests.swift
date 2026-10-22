@@ -104,6 +104,7 @@ final class SettingsTests: UITestCase {
         XCTAssertFalse(app.staticTexts["Sign in with your email so I can reply to you."].exists)
         tap(sheet.buttons["Close"])
         expectGone(sheet)
+        expect(element(labeled: "Signed in to feedback as parent@example.com"))
     }
 
     /// Signed in, Get Help opens straight to the chat: no sign-in, no Sign In. A device showed a
@@ -202,10 +203,22 @@ final class SettingsTests: UITestCase {
     func testSignOutOfFeedback() {
         launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in"])
         openSendFeedback()
-        let signOut = element(labeled: "Sign Out of Feedback")
+        expect(element(labeled: "Signed in to feedback as parent@example.com"))
+        let signOut = app.buttons["Sign Out of Feedback"]
+
+        // Cancel keeps the session.
         tap(signOut)
-        expect(app.staticTexts["Signed out of feedback"])
+        let alert = expect(app.alerts["Sign out of feedback?"])
+        XCTAssertTrue(alert.staticTexts["You'll need your email to post, vote or chat again. Your Baby Buddy data isn't affected."].exists)
+        tap(alert.buttons["Cancel"])
+        expectGone(alert)
+        XCTAssertTrue(signOut.exists)
+
+        tap(signOut)
+        tap(app.alerts["Sign out of feedback?"].buttons["Sign Out"])
+        expect(app.staticTexts["Signed out. You'll sign in again next time you post, vote or chat."])
         expectGone(signOut)
+        XCTAssertFalse(element(labeled: "Signed in to feedback as").exists)
 
         tap(app.buttons.labeled("Request a Feature"))
         let board = expect(app.navigationBars["Request a Feature"])

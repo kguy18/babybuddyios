@@ -14,8 +14,12 @@ struct SendFeedbackView: View {
     @State private var showingContactOptions = false
     @State private var mailPayload: MailPayload?
     @State private var showingMailUnavailable = false
-    /// Whether the web view holds a feedback session, for Sign Out of Feedback.
-    @State private var signedInToFeedback = false
+    /// Who is signed in to feedback, for the signed-in card; `nil` until the web view's cookie
+    /// store answers.
+    @State private var account: FeedbackSession.Account?
+    @State private var confirmingSignOut = false
+    /// Set by Sign Out, for the line that replaces the card.
+    @State private var signedOut = false
     @Environment(\.openURL) private var openURL
 
     /// Wraps the seeded email body so `.sheet(item:)` has an `Identifiable` to present.
@@ -33,6 +37,7 @@ struct SendFeedbackView: View {
             VStack(spacing: 14) {
                 note
                 actionsCard
+                feedbackAccount
                 copyDetails
             }
             .padding(.horizontal, 16)
@@ -60,9 +65,9 @@ struct SendFeedbackView: View {
         .overlay(alignment: .bottom) { UndoToastView().padding(.bottom, 60) }
         .navigationTitle("Send Feedback")
         .navigationBarTitleDisplayMode(.inline)
-        .task { signedInToFeedback = await FeedbackSession.isSignedIn }
+        .task { await refreshAccount() }
         .sheet(item: $feedback, onDismiss: {
-            Task { signedInToFeedback = await FeedbackSession.isSignedIn }
+            Task { await refreshAccount() }
             if emailAfterFeedback {
                 emailAfterFeedback = false
                 showingContactOptions = true
@@ -84,6 +89,18 @@ struct SendFeedbackView: View {
                             subject: SupportContact.subject,
                             body: payload.body) { mailPayload = nil }
                 .ignoresSafeArea()
+        }
+        .alert("Sign out of feedback?", isPresented: $confirmingSignOut) {
+            Button("Cancel", role: .cancel) {}
+            Button("Sign Out", role: .destructive) {
+                Task {
+                    await FeedbackSession.signOut()
+                    account = .signedOut
+                    signedOut = true
+                }
+            }
+        } message: {
+            Text("You'll need your email to post, vote or chat again. Your Baby Buddy data isn't affected.")
         }
         .alert("Set Up Mail", isPresented: $showingMailUnavailable) {
             Button("OK", role: .cancel) {}
@@ -127,10 +144,6 @@ struct SendFeedbackView: View {
                 Rectangle().fill(BBColor.divider).frame(height: 0.5)
                 actionRow(.help, symbol: "bubble.left", tint: BBColor.info,
                           subtitle: "Report a problem or ask a question")
-                if signedInToFeedback {
-                    Rectangle().fill(BBColor.divider).frame(height: 0.5)
-                    signOutRow
-                }
             }
             .padding(.horizontal, 15)
         }
@@ -147,19 +160,72 @@ struct SendFeedbackView: View {
         .buttonStyle(.plain)
     }
 
-    /// Ends the feedback session, so the next sheet opens signed out.
-    private var signOutRow: some View {
-        Button {
-            Task {
-                await FeedbackSession.signOut()
-                signedInToFeedback = false
-                UndoToastCenter.shared.confirm("Signed out of feedback")
+    // MARK: Feedback account
+
+    private func refreshAccount() async {
+        account = await FeedbackSession.account()
+        if account != .signedOut { signedOut = false }
+    }
+
+    /// While signed in, whose feedback account this is and a way out of it; after signing out, a
+    /// line saying so. Nothing while signed out otherwise.
+    @ViewBuilder private var feedbackAccount: some View {
+        if case .signedIn(let email) = account {
+            BBCard(cornerRadius: BBRadius.card, padding: 0) {
+                VStack(spacing: 0) {
+                    HStack(spacing: 12) {
+                        Text(email?.first.map { String($0).uppercased() } ?? "")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(BBColor.brandAccent)
+                            .frame(width: 34, height: 34)
+                            .background(BBColor.brandTint, in: Circle())
+                            .overlay {
+                                if email == nil {
+                                    Image(systemName: "person.fill")
+                                        .font(.system(size: 15))
+                                        .foregroundStyle(BBColor.brandAccent)
+                                }
+                            }
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 1) {
+                            if let email {
+                                Text("Signed in to feedback as")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                Text(email)
+                                    .font(.system(size: 16))
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                            } else {
+                                Text("Signed in to feedback")
+                                    .font(.system(size: 16))
+                            }
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.vertical, 12)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(email.map { "Signed in to feedback as \($0)" } ?? "Signed in to feedback")
+                    Rectangle().fill(BBColor.divider).frame(height: 0.5)
+                    Button { confirmingSignOut = true } label: {
+                        Text("Sign Out of Feedback")
+                            .font(.system(size: 16))
+                            .foregroundStyle(BBColor.danger)
+                            .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 15)
             }
-        } label: {
-            SettingsRow(symbol: "rectangle.portrait.and.arrow.right", tint: BBColor.danger,
-                        title: "Sign Out of Feedback") { EmptyView() }
+        } else if signedOut {
+            Text("Signed out. You'll sign in again next time you post, vote or chat.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 16)
         }
-        .buttonStyle(.plain)
     }
 
     // MARK: Copy app details

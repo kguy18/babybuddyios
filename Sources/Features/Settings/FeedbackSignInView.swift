@@ -49,7 +49,7 @@ struct FeedbackSignInView: View {
         let blocked = now < blockedUntil
         return VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Sign in")
+                Text(step == .code ? "Check your email" : "Sign in")
                     .font(.title2.weight(.bold))
                     .accessibilityAddTraits(.isHeader)
                 Text(step == .code ? "Enter the 6-digit code we sent to \(trimmedEmail)." : context)
@@ -79,6 +79,7 @@ struct FeedbackSignInView: View {
             Button("Send Code", action: sendCode)
                 .buttonStyle(.bbPrimary)
                 .disabled(!emailLooksValid || working || blocked)
+            hint("No password needed. You'll get a 6-digit code by email.")
             quietLink("Use a password instead") { show(.password) }
         }
         .onAppear { if email.isEmpty { focus = .email } }
@@ -97,6 +98,11 @@ struct FeedbackSignInView: View {
                     .onChange(of: code) { _, typed in codeChanged(typed) }
             }
             if working { ProgressView().frame(maxWidth: .infinity) }
+            // The field signs in on its sixth digit; the button is there for a retry.
+            Button("Sign In") { verify(code) }
+                .buttonStyle(.bbPrimary)
+                .disabled(code.count != 6 || working || blocked)
+            hint("The code fills in from Mail and signs you in on its own.")
             let wait = Int(resendAt.timeIntervalSince(now).rounded(.up))
             quietLink(wait > 0 ? "Resend code in \(wait)s" : "Resend code", action: sendCode)
                 .disabled(wait > 0 || working || blocked)
@@ -174,6 +180,14 @@ struct FeedbackSignInView: View {
         }
     }
 
+    private func hint(_ text: String) -> some View {
+        Text(text)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+    }
+
     private func quietLink(_ title: String, action: @escaping () -> Void) -> some View {
         Button(title, action: action)
             .font(.subheadline)
@@ -196,7 +210,12 @@ struct FeedbackSignInView: View {
     private func codeChanged(_ typed: String) {
         let digits = String(typed.filter(\.isNumber).prefix(6))
         guard digits == typed else { code = digits; return }
-        guard digits.count == 6, digits != triedCode, !working, Date.now >= blockedUntil else { return }
+        guard digits.count == 6, digits != triedCode else { return }
+        verify(digits)
+    }
+
+    private func verify(_ digits: String) {
+        guard digits.count == 6, !working, Date.now >= blockedUntil else { return }
         triedCode = digits
         run(.verifyCode(email: trimmedEmail, code: digits))
     }

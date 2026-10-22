@@ -45,7 +45,25 @@ final class FeedbackWidgetTests: XCTestCase {
         }
     }
 
-    func testOnlySignOutCarriesTheSession() {
+    /// `get-session` is a GET with the session as a Bearer, and no body.
+    func testAskingWhoIsSignedIn() {
+        let built = FeedbackAuth.Request.account(session: signed).urlRequest(server: server)
+        XCTAssertEqual(built.url, url("/api/auth/get-session"))
+        XCTAssertEqual(built.httpMethod, "GET")
+        XCTAssertNil(built.httpBody)
+        XCTAssertEqual(built.value(forHTTPHeaderField: "Authorization"), "Bearer \(signed)")
+    }
+
+    func testReadingWhoIsSignedIn() {
+        let session = Data(#"{"session":{"id":"s"},"user":{"id":"u","email":"parent@example.com","name":""}}"#.utf8)
+        XCTAssertEqual(FeedbackAuth.account(status: 200, body: session), .signedIn(email: "parent@example.com"))
+        XCTAssertEqual(FeedbackAuth.account(status: 200, body: Data("null".utf8)), .ended, "The server ended it")
+        XCTAssertEqual(FeedbackAuth.account(status: 200, body: Data("{}".utf8)), .unknown)
+        XCTAssertEqual(FeedbackAuth.account(status: 500, body: session), .unknown)
+        XCTAssertEqual(FeedbackAuth.account(status: 200, body: Data("<html>".utf8)), .unknown)
+    }
+
+    func testOnlySignOutAndGetSessionCarryTheSession() {
         XCTAssertEqual(FeedbackAuth.Request.signOut(session: signed).urlRequest(server: server)
             .value(forHTTPHeaderField: "Authorization"), "Bearer \(signed)")
         XCTAssertNil(FeedbackAuth.Request.sendCode(email: "a@b.co").urlRequest(server: server)
