@@ -110,9 +110,20 @@ struct FeedbackSheet: View {
 
     /// Quackback 0.14.1 disables Submit for a signed-out visitor on a board that needs sign-in
     /// and shows "Sign in to post on this board" as plain text, so the board needs a way in.
-    /// Not on Get Help: the chat works without signing in.
     private var showsSignIn: Bool {
-        widget != .help && phase == .ready && !awayFromWidget && signedIn == false
+        phase == .ready && !awayFromWidget && signedIn == false
+    }
+
+    /// Get Help needs a signed-in user, so every chat has an email to reply to. Quackback's chat
+    /// takes anonymous messages and 0.14.1 has no setting to stop that, so the sheet holds the
+    /// chat back until the widget reports a user, and asks a signed-out one to sign in first.
+    private var holdsChat: Bool {
+        widget == .help && !awayFromWidget && signedIn != true
+    }
+
+    /// The web view shows once the widget is ready, except a held chat.
+    private var showsWebView: Bool {
+        phase == .ready && !holdsChat
     }
 
     var body: some View {
@@ -125,8 +136,14 @@ struct FeedbackSheet: View {
                     FeedbackWebView(widget: widget, phase: $phase, awayFromWidget: $awayFromWidget,
                                     signedIn: $signedIn, backRequests: backRequests,
                                     signInRequests: signInRequests, onClose: { dismiss() })
-                        .opacity(phase == .ready ? 1 : 0)
-                    if phase == .loading { ProgressView() }
+                        .opacity(showsWebView ? 1 : 0)
+                        .accessibilityHidden(!showsWebView)
+                        .allowsHitTesting(showsWebView)
+                    if phase == .loading || (phase == .ready && holdsChat && signedIn == nil) {
+                        ProgressView()
+                    } else if phase == .ready && holdsChat {
+                        signInFirst
+                    }
                 }
             }
             .navigationTitle(widget.title)
@@ -140,13 +157,39 @@ struct FeedbackSheet: View {
                 }
                 if awayFromWidget {
                     ToolbarItem(placement: .topBarLeading) {
-                        Button { backRequests += 1 } label: {
+                        // Back from Get Help's sign-in closes the sheet: the chat behind it is
+                        // the anonymous one this sheet won't show.
+                        Button { if widget == .help { dismiss() } else { backRequests += 1 } } label: {
                             Label("Back", systemImage: "chevron.backward")
                         }
                     }
                 }
             }
         }
+    }
+
+    /// Get Help before sign-in.
+    private var signInFirst: some View {
+        BBCard(cornerRadius: BBRadius.card, padding: 20) {
+            VStack(spacing: 12) {
+                Image(systemName: "envelope")
+                    .font(.system(size: 30, weight: .semibold))
+                    .foregroundStyle(BBColor.brand)
+                    .accessibilityHidden(true)
+                Text("Sign in with your email so I can reply to you.")
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
+                Text("No password needed. You'll get a code by email.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                Button("Sign In with Email") { signInRequests += 1 }
+                    .buttonStyle(.bbPrimary)
+                    .padding(.top, 4)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(16)
     }
 
     private var unreachable: some View {

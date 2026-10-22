@@ -79,8 +79,31 @@ final class SettingsTests: UITestCase {
     func testSendFeedbackSignInLineAndHint() {
         launch(["BB_START_TAB": "settings"])
         openSendFeedback()
-        expect(app.staticTexts["To post or vote, you'll sign in with your email. No password needed."])
+        expect(app.staticTexts["To post, vote or chat, you'll sign in with your email. No password needed."])
         XCTAssertTrue(app.staticTexts["Paste them into your message so I can see your version and device."].exists)
+    }
+
+    /// Get Help holds the chat until someone signs in, so every chat has an email to reply to, and
+    /// Back from its sign-in closes the sheet rather than showing the chat signed out. The widget
+    /// has to report the visitor as signed out, so this needs the feedback server and skips
+    /// without it; `DialogTests.testContactSupportAlertHasCancel` covers Get Help offline.
+    func testGetHelpAsksSignedOutUserToSignIn() throws {
+        launch(["BB_START_TAB": "settings"])
+        openSendFeedback()
+        tap(app.buttons.labeled("Get Help"))
+        let sheet = expect(app.navigationBars["Get Help"])
+        let ask = app.staticTexts["Sign in with your email so I can reply to you."]
+        let unreachable = app.staticTexts["Can't reach the feedback server"]
+        if !ask.waitForExistence(timeout: 15), unreachable.exists {
+            throw XCTSkip("The feedback server isn't reachable")
+        }
+        expect(ask)
+        XCTAssertTrue(sheet.buttons["Sign In"].exists)
+
+        tap(app.buttons["Sign In with Email"])
+        tap(sheet.buttons["Back"], timeout: 15)
+        expectGone(sheet)
+        expect(app.navigationBars["Send Feedback"])
     }
 
     /// Send Feedback: the note and its four links, the supporter link opening its sheet, each way
