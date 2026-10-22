@@ -12,17 +12,6 @@ packages:
   RevenueCat:
     url: https://github.com/RevenueCat/purchases-ios-spm.git
     majorVersion: 5.0.0
-  # The in-app feature request board (Settings ▸ Request a Feature). App target only.
-  # OpenWish is a fork of WishKit that can point a shipped build at a self-hosted server, and this
-  # is our fork of OpenWish (kguydev/OpenWish, its main branch). On top of upstream 4c88c1d
-  # it adds an error state with Retry, VoiceOver labels, Dynamic Type, dark-mode chip colors, a
-  # safe-area "+" and WishKit 5.1.2's on-device "See translation" button, and it stops printing
-  # request URLs in release builds. Pinned to a commit because
-  # upstream's last tag (v1.0.1) predates the V2 API the server speaks. Move back to
-  # julianfbeck/OpenWish once those fixes land there.
-  OpenWish:
-    url: https://github.com/kguydev/OpenWish
-    revision: ade08981d6c81696f61e0d45b5d634ec968f8ddb
 
 settings:
   base:
@@ -65,7 +54,6 @@ targets:
       - package: TelemetryDeck
       - package: RevenueCat
         product: RevenueCat
-      - package: OpenWish
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kurtisguy.BabyBuddy
@@ -100,9 +88,6 @@ targets:
         TelemetryDeckAppID: "$(TELEMETRYDECK_APP_ID)"
         TelemetryDeckSalt: "$(TELEMETRYDECK_SALT)"
         RevenueCatAPIKey: "$(REVENUECAT_API_KEY)"
-        # The OpenWish key for feedback.babybuddy.app, from Config/Secrets.xcconfig. Empty hides
-        # Settings ▸ Request a Feature (Sources/Features/Settings/FeatureRequests.swift).
-        OpenWishAPIKey: "$(OPENWISH_API_KEY)"
         NSSupportsLiveActivities: true
         # The app uses only Apple-provided HTTPS and the platform Keychain — exempt encryption.
         # Declaring it here answers the export-compliance question at build time; without it every

@@ -23,6 +23,11 @@ final class UndoToastCenter {
         let title: String
         let subtitle: String?
         let revert: (@MainActor () -> Void)?
+        /// A glyph in place of the activity tile, for a toast that isn't about a record.
+        var symbol: String? = nil
+
+        /// Whether there is anything to undo; a confirmation has no Undo.
+        var canUndo: Bool { localID != nil || revert != nil }
 
         static func == (lhs: Item, rhs: Item) -> Bool { lhs.id == rhs.id }
     }
@@ -49,6 +54,12 @@ final class UndoToastCenter {
     /// A toast for a change that isn't a new record, with what undoing it does.
     func show(_ title: String, undo: @escaping @MainActor () -> Void) {
         present(Item(localID: nil, kind: nil, title: title, subtitle: nil, revert: undo))
+    }
+
+    /// A toast that only confirms something happened, with a check and no Undo.
+    func confirm(_ title: String) {
+        present(Item(localID: nil, kind: nil, title: title, subtitle: nil, revert: nil,
+                     symbol: "checkmark.circle.fill"))
     }
 
     private func present(_ item: Item) {
@@ -93,7 +104,14 @@ struct UndoToastView: View {
     @ViewBuilder private var toast: some View {
         if let item = center.current {
             HStack(spacing: 11) {
-                if let kind = item.kind { ActivityTile(kind: kind, size: 34, glyph: 18) }
+                if let kind = item.kind {
+                    ActivityTile(kind: kind, size: 34, glyph: 18)
+                } else if let symbol = item.symbol {
+                    Image(systemName: symbol)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(BBColor.success)
+                        .accessibilityHidden(true)
+                }
                 VStack(alignment: .leading, spacing: 1) {
                     Text(item.title)
                         .font(.subheadline.weight(.semibold))
@@ -102,16 +120,18 @@ struct UndoToastView: View {
                     }
                 }
                 Spacer(minLength: 8)
-                Button {
-                    center.undo(in: context)
-                } label: {
-                    Label("Undo", systemImage: "arrow.uturn.backward")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(BBColor.brandAccent)
-                        .padding(.horizontal, 12).padding(.vertical, 8)
-                        .background(BBColor.brandTint, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                if item.canUndo {
+                    Button {
+                        center.undo(in: context)
+                    } label: {
+                        Label("Undo", systemImage: "arrow.uturn.backward")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(BBColor.brandAccent)
+                            .padding(.horizontal, 12).padding(.vertical, 8)
+                            .background(BBColor.brandTint, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
             .padding(.horizontal, 12).padding(.vertical, 11)
             .background(alignment: .bottom) {
@@ -124,7 +144,9 @@ struct UndoToastView: View {
             .transition(.move(edge: .bottom).combined(with: .opacity))
             .accessibilityElement(children: .contain)
             .accessibilityLabel(item.kind.map { "Logged \($0.displayName)" } ?? item.title)
-            .accessibilityAction(named: "Undo") { center.undo(in: context) }
+            .accessibilityActions {
+                if item.canUndo { Button("Undo") { center.undo(in: context) } }
+            }
         }
     }
 }

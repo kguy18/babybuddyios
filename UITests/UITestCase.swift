@@ -29,8 +29,11 @@ class UITestCase: XCTestCase {
 
     /// A fresh install. `environment` adds any other `BB_*` hook (Docs/DEVELOPMENT.md); `demo: false`
     /// starts signed out, on onboarding.
+    ///
+    /// The feedback sheet points at a port nothing listens on unless a test says otherwise, so no
+    /// UI test reaches the live feedback server; `BB_FEEDBACK_STUB` stands in for it.
     func launch(_ environment: [String: String] = [:], demo: Bool = true) {
-        var env = ["BB_UITEST": "1"]
+        var env = ["BB_UITEST": "1", "BB_FEEDBACK": "https://127.0.0.1:2"]
         if demo { env["BB_DEMO"] = "1" }
         app.launchEnvironment = env.merging(environment) { $1 }
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"] // queries match English
@@ -158,6 +161,12 @@ class UITestCase: XCTestCase {
         tap(app.buttons.labeled("More…"))
         expect(app.navigationBars["Add Activity"])
         tap(app.buttons[kind])
+    }
+
+    /// Settings ▸ Feedback ▸ Send Feedback.
+    func openSendFeedback() {
+        tap(app.buttons.labeled("Send Feedback"))
+        expect(app.navigationBars["Send Feedback"])
     }
 
     /// Any element whose label starts with `prefix` — rows and tiles carry live values in their

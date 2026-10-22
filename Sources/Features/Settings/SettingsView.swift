@@ -59,24 +59,10 @@ struct SettingsView: View {
     @State private var showingAcknowledgements = false
     @State private var showingWhatsNew = false
     @State private var showingSupporter = false
-    @State private var showingFeatureRequests = false
     /// Whether a nudge has been shown yet, which is what reveals the "Support reminders" switch.
     /// Refreshed on appear rather than observed: nudges only ever fire from the Dashboard, so this
     /// tab is re-entered after any change.
     @State private var hasSeenNudge = false
-
-    // Contact Support: the row offers to attach diagnostics, then presents the mail composer
-    // (or falls back to a mailto: link when no Mail account is set up).
-    @State private var showingContactOptions = false
-    @State private var mailPayload: MailPayload?
-    @State private var showingMailUnavailable = false
-    @Environment(\.openURL) private var openURL
-
-    /// Wraps the seeded email body so `.sheet(item:)` has an `Identifiable` to present.
-    private struct MailPayload: Identifiable {
-        let id = UUID()
-        let body: String
-    }
 
     var body: some View {
         NavigationStack {
@@ -130,7 +116,7 @@ struct SettingsView: View {
                             .padding(.top, 2)
                     }
 
-                    sectioned("Help") { supportCard }
+                    sectioned("Feedback") { feedbackCard }
 
                     #if DEBUG
                     sectioned("Developer") { developerCard }
@@ -148,33 +134,13 @@ struct SettingsView: View {
             // "Sick mode ended" and its Undo, when it's ended from here.
             .overlay(alignment: .bottom) { UndoToastView().padding(.bottom, 12) }
             .navigationTitle("Settings")
-            // `.alert`, not `confirmationDialog`, which iOS 26 shows as a popover without its Cancel.
-            .alert("Contact Support", isPresented: $showingContactOptions) {
-                Button("Include Device Details") { presentMail(includeDiagnostics: true) }
-                Button("Don't Include") { presentMail(includeDiagnostics: false) }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("Attach your device model, iOS version, and app version to help us investigate? Nothing else is shared.")
-            }
             .fullScreenCover(isPresented: $showingSignOut) {
                 SignOutDialog(host: serverHost, pendingCount: pendingCount,
                               onCancel: { setSignOutDialog(false) },
                               onSignOut: { setSignOutDialog(false); session.signOut() })
                     .presentationBackground(.clear)
             }
-            .sheet(item: $mailPayload) { payload in
-                MailComposeView(recipient: SupportContact.recipient,
-                                subject: SupportContact.subject,
-                                body: payload.body) { mailPayload = nil }
-                    .ignoresSafeArea()
-            }
-            .alert("Set Up Mail", isPresented: $showingMailUnavailable) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("No email account is set up on this device. You can reach us at \(SupportContact.recipient).")
-            }
             .sheet(isPresented: $showingSupporter) { SupporterSheet(source: .settings) }
-            .sheet(isPresented: $showingFeatureRequests) { FeatureRequestsSheet() }
             .sheet(isPresented: $showingAcknowledgements) { AcknowledgementsView() }
             .sheet(isPresented: $showingWhatsNew) {
                 if let note = whatsNewNote {
@@ -788,29 +754,29 @@ struct SettingsView: View {
     }
     #endif
 
-    // MARK: Support
+    // MARK: Feedback
 
-    /// A single "Contact Support" row that opens an email to the Baby Buddy team. Tapping first
-    /// offers to attach diagnostics, then presents the in-app mail composer.
-    private var supportCard: some View {
+    /// Send Feedback pushes ``SendFeedbackView``, which holds the ways into the feedback widget.
+    private var feedbackCard: some View {
         card {
-            Button { showingContactOptions = true } label: {
-                SettingsRow(symbol: "envelope", tint: BBColor.info, title: "Contact Support") {
+            NavigationLink { SendFeedbackView() } label: {
+                SettingsRow(symbol: "bubble.left", tint: BBColor.brand, title: "Send Feedback") {
                     disclosure
                 }
             }
             .buttonStyle(.plain)
 
-            if FeatureRequests.isAvailable {
-                rowDivider
+            rowDivider
 
-                Button { showingFeatureRequests = true } label: {
-                    SettingsRow(symbol: "lightbulb", tint: BBColor.brand, title: "Request a Feature") {
-                        disclosure
-                    }
+            Link(destination: Self.sourceCodeURL) {
+                SettingsRow(symbol: "GitHubMark", symbolIsAsset: true, tint: BBColor.note,
+                            glyphColor: .primary, title: "Source Code on GitHub") {
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.tertiary)
                 }
-                .buttonStyle(.plain)
             }
+            .buttonStyle(.plain)
 
             rowDivider
 
@@ -836,19 +802,7 @@ struct SettingsView: View {
     private static let reviewURL =
         URL(string: "https://apps.apple.com/app/id6788966667?action=write-review")!
 
-    /// Present the mail composer seeded with (optionally) diagnostics. Falls back to a `mailto:`
-    /// link, then a "set up Mail" alert, when the in-app composer can't be shown.
-    private func presentMail(includeDiagnostics: Bool) {
-        if SupportContact.canSendMail {
-            mailPayload = MailPayload(body: SupportContact.body(includeDiagnostics: includeDiagnostics))
-        } else if let url = SupportContact.mailtoURL(includeDiagnostics: includeDiagnostics) {
-            openURL(url) { accepted in
-                if !accepted { showingMailUnavailable = true }
-            }
-        } else {
-            showingMailUnavailable = true
-        }
-    }
+    private static let sourceCodeURL = URL(string: "https://github.com/kguy18/babybuddyios")!
 
     // MARK: Sign out
 
@@ -1000,6 +954,9 @@ struct SettingsView: View {
 struct SettingsRow<Trailing: View>: View {
     @Environment(\.colorScheme) private var scheme
     let symbol: String
+    /// `symbol` names a template image in the asset catalog rather than an SF Symbol: the GitHub
+    /// mark, which SF Symbols doesn't have.
+    var symbolIsAsset = false
     let tint: Color
     var glyphColor: Color? = nil
     let title: String
@@ -1012,9 +969,18 @@ struct SettingsRow<Trailing: View>: View {
                 .fill(tint.opacity(scheme == .dark ? 0.22 : 0.15))
                 .frame(width: 30, height: 30)
                 .overlay {
-                    Image(systemName: symbol)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(glyphColor ?? tint)
+                    if symbolIsAsset {
+                        Image(symbol)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 16, height: 16)
+                            .foregroundStyle(glyphColor ?? tint)
+                            .accessibilityHidden(true)
+                    } else {
+                        Image(systemName: symbol)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(glyphColor ?? tint)
+                    }
                 }
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).font(.system(size: 16))

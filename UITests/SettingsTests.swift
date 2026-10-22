@@ -61,24 +61,131 @@ final class SettingsTests: UITestCase {
         expectGone(app.staticTexts["Version 1.1.0"])
     }
 
-    /// Help ▸ Request a Feature opens the OpenWish board, and its close button brings Settings back.
-    /// The row is hidden without an API key and under `BB_UITEST`, so `BB_FEEDBACK=1` forces it. The
-    /// test build has no key, so the server rejects the fetch (or there's no network): either way
-    /// the board shows its error state with Retry, never the empty-board text.
-    func testFeatureRequestBoard() {
+    /// Settings ▸ Feedback: Send Feedback, the source code and the App Store review, in that order.
+    /// Contact Support and Request a Feature moved onto the Send Feedback screen.
+    func testFeedbackSection() {
         launch(["BB_START_TAB": "settings"])
-        expect(app.buttons.labeled("Contact Support"))
-        XCTAssertFalse(app.buttons.labeled("Request a Feature").exists, "No key, no row")
+        expect(app.staticTexts["FEEDBACK"])
+        XCTAssertFalse(app.staticTexts["HELP"].exists)
+        let rows = ["Send Feedback", "Source Code on GitHub", "Rate on the App Store"].map { element(labeled: $0) }
+        for row in rows { expect(row) }
+        XCTAssertLessThan(rows[0].frame.minY, rows[1].frame.minY)
+        XCTAssertLessThan(rows[1].frame.minY, rows[2].frame.minY)
+        XCTAssertFalse(app.buttons.labeled("Contact Support").exists)
+        XCTAssertFalse(app.buttons.labeled("Request a Feature").exists)
+    }
 
-        launch(["BB_START_TAB": "settings", "BB_FEEDBACK": "1"])
+    /// The note says how posting works, and the hint promises only what Copy app details holds.
+    func testSendFeedbackSignInLineAndHint() {
+        launch(["BB_START_TAB": "settings"])
+        openSendFeedback()
+        expect(app.staticTexts["To post, vote or chat, you'll sign in with your email. No password needed."])
+        XCTAssertTrue(app.staticTexts["Paste them into your message so I can see your version and device."].exists)
+    }
+
+    /// Get Help holds the chat until someone signs in, so every chat has an email to reply to, and
+    /// Back from its sign-in closes the sheet rather than showing the chat signed out. The stub
+    /// widget reports no signed-in user, and its stand-in sign-in page needs no network.
+    func testGetHelpAsksSignedOutUserToSignIn() {
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out"])
+        openSendFeedback()
+        tap(app.buttons.labeled("Get Help"))
+        let sheet = expect(app.navigationBars["Get Help"])
+        expect(app.staticTexts["Sign in with your email so I can reply to you."])
+        XCTAssertTrue(sheet.buttons["Sign In"].exists)
+
+        tap(app.buttons["Sign In with Email"])
+        tap(sheet.buttons["Back"], timeout: 15)
+        expectGone(sheet)
+        expect(app.navigationBars["Send Feedback"])
+    }
+
+    /// Signed in, Get Help opens straight to the chat: no card, no Sign In. A device showed a
+    /// signed-in user the card, when an anonymous identify made Quackback report a stale null user.
+    func testGetHelpSignedInOpensTheChat() {
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in"])
+        openSendFeedback()
+        tap(app.buttons.labeled("Get Help"))
+        let sheet = expect(app.navigationBars["Get Help"])
+        expect(app.webViews.staticTexts["Stub widget: chat"])
+        XCTAssertFalse(app.staticTexts["Sign in with your email so I can reply to you."].exists)
+        XCTAssertFalse(sheet.buttons["Sign In"].exists)
+        tap(sheet.buttons["Close"])
+        expectGone(sheet)
+    }
+
+    /// After sign-in the sheet goes back to the widget on the view it opened, wherever the portal
+    /// lands. The stub's "Signed in" link goes to the portal root, as a real sign-in did on a
+    /// device, and the stub widget then shows the `quackback:open` view the app sent.
+    func testGetHelpSignInReturnsToTheChat() {
+        signInThroughStub(from: "Get Help", tapping: app.buttons["Sign In with Email"], expecting: "chat")
+    }
+
+    func testFeatureRequestSignInReturnsToTheBoard() {
+        signInThroughStub(from: "Request a Feature",
+                          tapping: app.navigationBars["Request a Feature"].buttons["Sign In"],
+                          expecting: "new-post")
+    }
+
+    private func signInThroughStub(from row: String, tapping signIn: XCUIElement, expecting view: String) {
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out"])
+        openSendFeedback()
+        tap(app.buttons.labeled(row))
+        let sheet = expect(app.navigationBars[row])
+        tap(signIn)
+        expect(sheet.buttons["Back"])
+        tap(app.webViews.links["Signed in"])
+        expect(app.webViews.staticTexts["Stub widget: \(view)"])
+        XCTAssertFalse(sheet.buttons["Back"].exists, "Back to the widget, not the portal")
+        XCTAssertFalse(sheet.buttons["Sign In"].exists, "Signed in now")
+        tap(sheet.buttons["Close"])
+        expectGone(sheet)
+    }
+
+    /// Send Feedback: the note and its four links, the supporter link opening its sheet, each way
+    /// into the feedback widget opening and closing, and Copy app details confirming. The sheets
+    /// load the stub widget, so this needs no network.
+    func testSendFeedbackScreen() {
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out"])
+        openSendFeedback()
+
+        expect(element(labeled: "Hi, I'm Kurtis."))
+        XCTAssertTrue(element(labeled: "I do read everything").exists)
+        XCTAssertTrue(element(labeled: "This app is an independent client").exists)
+        for link in ["Kurtis", "open source on GitHub", "supporters like you", "their GitHub"] {
+            XCTAssertTrue(app.links[link].exists, "\(link) should be a link")
+        }
+
+        tap(app.links["supporters like you"])
+        tap(app.buttons["Maybe later"])
+        expectGone(app.buttons["Maybe later"])
+
+        for (button, title) in [("Request a Feature", "Request a Feature"), ("Get Help", "Get Help"),
+                                ("See roadmap and updates", "Roadmap and Updates")] {
+            tap(app.buttons.labeled(button))
+            let sheet = expect(app.navigationBars[title])
+            tap(sheet.buttons["Close"])
+            expectGone(sheet)
+        }
+
+        tap(app.buttons["Copy app details"])
+        expect(app.staticTexts["App details copied"])
+        XCTAssertFalse(app.buttons["Undo"].exists, "A confirmation has nothing to undo")
+        XCTAssertTrue(app.staticTexts.labeled("Paste them into your message").exists)
+    }
+
+    /// With the feedback server unreachable, Request a Feature offers email, and that leads to the
+    /// mail flow (`DialogTests.testContactSupportAlertHasCancel` covers it from Get Help).
+    func testFeatureRequestFallsBackToMail() {
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK": DialogTests.unreachableServer])
+        openSendFeedback()
         tap(app.buttons.labeled("Request a Feature"))
-        let board = expect(app.navigationBars["Feature Requests"])
-        expect(app.buttons["Add a feature request"])
-        expect(app.staticTexts["Couldn't load feature requests"], timeout: 30)
-        expect(app.buttons["Retry"])
-        tap(board.buttons["Close"])
-        expectGone(board)
-        expect(app.buttons.labeled("Request a Feature"))
+        let sheet = expect(app.navigationBars["Request a Feature"])
+        expect(app.staticTexts["Can't reach the feedback server"], timeout: 6)
+        tap(app.buttons["Email Support"])
+        expectGone(sheet)
+        tap(app.alerts["Contact Support"].buttons["Don't Include"])
+        tap(app.alerts["Set Up Mail"].buttons["OK"])
     }
 
     /// The footer credit for upstream Baby Buddy — a licence obligation, not decoration (#46).
