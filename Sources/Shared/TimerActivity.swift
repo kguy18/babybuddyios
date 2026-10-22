@@ -44,6 +44,11 @@ enum TimerActivity: String, AppEnum, CaseIterable {
         return nil
     }
 
+    /// All running activities, including locally queued starts and custom-named timers with hints.
+    static func runningActivities(in timers: [LocalEntity]) -> Set<TimerActivity> {
+        Set(timers.filter(\.isRunningTimer).compactMap { TimerActivity(timer: $0) })
+    }
+
     /// The record kind this timer is expected to become when converted (drives the icon).
     var convertKind: EntityKind {
         switch self {
