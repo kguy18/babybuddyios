@@ -2,11 +2,11 @@ import SwiftUI
 
 /// Signs a feedback-widget user in with an email code, or a password they already have
 /// (kguydev/feedback-stack#18). Pushed in the feedback sheet from Sign In, and shown in place of Get
-/// Help's chat while signed out. On success the session is in the web view's cookie store and
-/// `onSignedIn` reloads the widget.
+/// Help's chat while signed out. On success `onSignedIn` gets the session, for the sheet to hand
+/// to the widget.
 struct FeedbackSignInView: View {
     let widget: FeedbackWidget
-    let onSignedIn: () -> Void
+    let onSignedIn: (FeedbackAuth.Session) -> Void
     /// No connection: the sheet shows its Mail fallback.
     let onUnreachable: () -> Void
 
@@ -226,9 +226,8 @@ struct FeedbackSignInView: View {
                 working = false
                 onSent()
             case .signedIn(let session):
-                await FeedbackSession.save(session)
                 working = false
-                onSignedIn()
+                onSignedIn(session)
             case .failed(.unreachable):
                 working = false
                 onUnreachable()

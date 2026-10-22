@@ -152,6 +152,8 @@ struct FeedbackSheet: View {
     @State private var signingIn = false
     /// Bumped after a sign-in; the web view reloads the widget, which then starts signed in.
     @State private var reloads = 0
+    /// A sign-in's session is going into the web view's cookie store.
+    @State private var savingSession = false
 
     /// Quackback 0.14.1 disables Submit for a signed-out visitor on a board that needs sign-in
     /// and shows "Sign in to post on this board" as plain text, so the board needs a way in. Get
@@ -169,7 +171,7 @@ struct FeedbackSheet: View {
 
     /// The web view shows once the widget is ready, except a held chat.
     private var showsWebView: Bool {
-        phase == .ready && !holdsChat
+        phase == .ready && !holdsChat && !savingSession
     }
 
     var body: some View {
@@ -185,7 +187,7 @@ struct FeedbackSheet: View {
                         .opacity(showsWebView ? 1 : 0)
                         .accessibilityHidden(!showsWebView)
                         .allowsHitTesting(showsWebView)
-                    if phase == .loading || (phase == .ready && holdsChat && signedIn == nil) {
+                    if phase == .loading || savingSession || (phase == .ready && holdsChat && signedIn == nil) {
                         ProgressView()
                     } else if phase == .ready && holdsChat {
                         signIn
@@ -215,11 +217,18 @@ struct FeedbackSheet: View {
     /// The native sign-in. Once it has written the session, the widget reloads and starts signed
     /// in, on the sheet's view. Offline, the sheet shows its Mail fallback.
     private var signIn: some View {
-        FeedbackSignInView(widget: widget, onSignedIn: {
-            feedbackTrace("signed in: reloading the widget")
+        FeedbackSignInView(widget: widget, onSignedIn: { session in
+            // Back to the widget first. While its web view is off screen WebKit can hold up the
+            // cookie write, by 20 seconds and more in testing.
             signingIn = false
             signedIn = nil
-            reloads += 1
+            savingSession = true
+            Task {
+                await FeedbackSession.save(session)
+                feedbackTrace("signed in: reloading the widget")
+                savingSession = false
+                reloads += 1
+            }
         }, onUnreachable: {
             signingIn = false
             phase = .failed
