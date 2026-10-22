@@ -14,6 +14,8 @@ struct SendFeedbackView: View {
     @State private var showingContactOptions = false
     @State private var mailPayload: MailPayload?
     @State private var showingMailUnavailable = false
+    /// Whether the web view holds a feedback session, for Sign Out of Feedback.
+    @State private var signedInToFeedback = false
     @Environment(\.openURL) private var openURL
 
     /// Wraps the seeded email body so `.sheet(item:)` has an `Identifiable` to present.
@@ -58,7 +60,9 @@ struct SendFeedbackView: View {
         .overlay(alignment: .bottom) { UndoToastView().padding(.bottom, 60) }
         .navigationTitle("Send Feedback")
         .navigationBarTitleDisplayMode(.inline)
+        .task { signedInToFeedback = await FeedbackSession.isSignedIn }
         .sheet(item: $feedback, onDismiss: {
+            Task { signedInToFeedback = await FeedbackSession.isSignedIn }
             if emailAfterFeedback {
                 emailAfterFeedback = false
                 showingContactOptions = true
@@ -123,6 +127,10 @@ struct SendFeedbackView: View {
                 Rectangle().fill(BBColor.divider).frame(height: 0.5)
                 actionRow(.help, symbol: "bubble.left", tint: BBColor.info,
                           subtitle: "Report a problem or ask a question")
+                if signedInToFeedback {
+                    Rectangle().fill(BBColor.divider).frame(height: 0.5)
+                    signOutRow
+                }
             }
             .padding(.horizontal, 15)
         }
@@ -135,6 +143,21 @@ struct SendFeedbackView: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.tertiary)
             }
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Ends the feedback session, so the next sheet opens signed out.
+    private var signOutRow: some View {
+        Button {
+            Task {
+                await FeedbackSession.signOut()
+                signedInToFeedback = false
+                UndoToastCenter.shared.confirm("Signed out of feedback")
+            }
+        } label: {
+            SettingsRow(symbol: "rectangle.portrait.and.arrow.right", tint: BBColor.danger,
+                        title: "Sign Out of Feedback") { EmptyView() }
         }
         .buttonStyle(.plain)
     }
