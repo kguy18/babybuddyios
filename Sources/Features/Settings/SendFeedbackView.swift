@@ -193,52 +193,60 @@ struct SendFeedbackView: View {
         if account != .signedOut { signedOut = false }
     }
 
-    /// While signed in, whose feedback account this is and a way out of it; after signing out, a
-    /// line saying so. Nothing while signed out otherwise.
+    /// While signed in, whose feedback account this is and a way out of it, with Delete Feedback
+    /// Account as a quiet link under the card; after signing out, a line saying so. Nothing while
+    /// signed out otherwise.
     @ViewBuilder private var feedbackAccount: some View {
         if case .signedIn(let email) = account {
-            BBCard(cornerRadius: BBRadius.card, padding: 0) {
-                VStack(spacing: 0) {
-                    HStack(spacing: 12) {
-                        Text(email?.first.map { String($0).uppercased() } ?? "")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(BBColor.brandAccent)
-                            .frame(width: 34, height: 34)
-                            .background(BBColor.brandTint, in: Circle())
-                            .overlay {
-                                if email == nil {
-                                    Image(systemName: "person.fill")
-                                        .font(.system(size: 15))
-                                        .foregroundStyle(BBColor.brandAccent)
+            VStack(spacing: 6) {
+                BBCard(cornerRadius: BBRadius.card, padding: 0) {
+                    VStack(spacing: 0) {
+                        HStack(spacing: 12) {
+                            Text(email?.first.map { String($0).uppercased() } ?? "")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(BBColor.brandAccent)
+                                .frame(width: 34, height: 34)
+                                .background(BBColor.brandTint, in: Circle())
+                                .overlay {
+                                    if email == nil {
+                                        Image(systemName: "person.fill")
+                                            .font(.system(size: 15))
+                                            .foregroundStyle(BBColor.brandAccent)
+                                    }
+                                }
+                                .accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 1) {
+                                if let email {
+                                    Text("Signed in to feedback as")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                    Text(email)
+                                        .font(.system(size: 16))
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                } else {
+                                    Text("Signed in to feedback")
+                                        .font(.system(size: 16))
                                 }
                             }
-                            .accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 1) {
-                            if let email {
-                                Text("Signed in to feedback as")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                Text(email)
-                                    .font(.system(size: 16))
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                            } else {
-                                Text("Signed in to feedback")
-                                    .font(.system(size: 16))
-                            }
+                            Spacer(minLength: 0)
                         }
-                        Spacer(minLength: 0)
+                        .padding(.vertical, 12)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(email.map { "Signed in to feedback as \($0)" } ?? "Signed in to feedback")
+                        Rectangle().fill(BBColor.divider).frame(height: 0.5)
+                        Button { confirmingSignOut = true } label: {
+                            Text("Sign Out of Feedback")
+                                .font(.system(size: 16))
+                                .foregroundStyle(BBColor.danger)
+                                .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .padding(.vertical, 12)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(email.map { "Signed in to feedback as \($0)" } ?? "Signed in to feedback")
-                    Rectangle().fill(BBColor.divider).frame(height: 0.5)
-                    dangerRow("Sign Out of Feedback") { confirmingSignOut = true }
-                    Rectangle().fill(BBColor.divider).frame(height: 0.5)
-                    dangerRow("Delete Feedback Account") { confirmingDeletion = true }
-                    deletionStatus
+                    .padding(.horizontal, 15)
                 }
-                .padding(.horizontal, 15)
+                deletionLink
             }
         } else if signedOut {
             Text("Signed out. You'll sign in again next time you post, vote or chat.")
@@ -250,39 +258,40 @@ struct SendFeedbackView: View {
         }
     }
 
-    private func dangerRow(_ title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 16))
-                .foregroundStyle(BBColor.danger)
-                .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    @ViewBuilder private var deletionStatus: some View {
+    /// Delete Feedback Account, then what became of the request in its place.
+    @ViewBuilder private var deletionLink: some View {
         switch deletion {
+        case nil:
+            Button("Delete Feedback Account") { confirmingDeletion = true }
+                .font(.subheadline)
+                .foregroundStyle(BBColor.danger)
+                .padding(.horizontal, 12)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+                .buttonStyle(.plain)
         case .sent:
             Text("Deletion requested. I'll remove your account within 7 days.")
-                .font(.footnote)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom, 12)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 4)
         case .failed:
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(spacing: 0) {
                 Text("Couldn't send your request. Try again, or email \(SupportContact.recipient).")
-                    .font(.footnote)
+                    .font(.subheadline)
                     .foregroundStyle(BBColor.danger)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 4)
                 Button("Try Again") { requestDeletion() }
-                    .font(.footnote.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(BBColor.brandAccent)
+                    .padding(.horizontal, 12)
                     .frame(minHeight: 44)
+                    .contentShape(Rectangle())
                     .buttonStyle(.plain)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        case nil:
-            EmptyView()
+            .padding(.horizontal, 16)
         }
     }
 

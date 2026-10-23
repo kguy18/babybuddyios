@@ -251,6 +251,7 @@ final class SettingsTests: UITestCase {
         tap(app.buttons["Delete Feedback Account"])
         tap(app.alerts["Delete your feedback account?"].buttons["Request Deletion"])
         expect(app.staticTexts["Deletion requested. I'll remove your account within 7 days."])
+        XCTAssertFalse(app.buttons["Delete Feedback Account"].exists, "The line replaces the link")
         XCTAssertTrue(element(labeled: "Signed in to feedback as parent@example.com").exists)
         XCTAssertTrue(app.buttons["Sign Out of Feedback"].exists)
     }
