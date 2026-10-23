@@ -14,6 +14,19 @@ struct SendFeedbackView: View {
     @State private var showingContactOptions = false
     @State private var mailPayload: MailPayload?
     @State private var showingMailUnavailable = false
+    /// Who is signed in to feedback, for the signed-in card; `nil` until the web view's cookie
+    /// store answers.
+    @State private var account: FeedbackSession.Account?
+    @State private var confirmingSignOut = false
+    /// Set by Sign Out, for the line that replaces the card.
+    @State private var signedOut = false
+    @State private var confirmingDeletion = false
+    /// Delete Feedback Account's request, in the Mail composer.
+    @State private var deletionMail: MailPayload?
+    @State private var deletion: DeletionRequest?
+
+    /// How the last deletion request went, for the line under the card's rows.
+    private enum DeletionRequest { case sent, failed }
     @Environment(\.openURL) private var openURL
 
     /// Wraps the seeded email body so `.sheet(item:)` has an `Identifiable` to present.
@@ -31,6 +44,7 @@ struct SendFeedbackView: View {
             VStack(spacing: 14) {
                 note
                 actionsCard
+                feedbackAccount
                 copyDetails
             }
             .padding(.horizontal, 16)
@@ -58,7 +72,9 @@ struct SendFeedbackView: View {
         .overlay(alignment: .bottom) { UndoToastView().padding(.bottom, 60) }
         .navigationTitle("Send Feedback")
         .navigationBarTitleDisplayMode(.inline)
+        .task { await refreshAccount() }
         .sheet(item: $feedback, onDismiss: {
+            Task { await refreshAccount() }
             if emailAfterFeedback {
                 emailAfterFeedback = false
                 showingContactOptions = true
@@ -78,8 +94,39 @@ struct SendFeedbackView: View {
         .sheet(item: $mailPayload) { payload in
             MailComposeView(recipient: SupportContact.recipient,
                             subject: SupportContact.subject,
-                            body: payload.body) { mailPayload = nil }
+                            body: payload.body) { _ in mailPayload = nil }
                 .ignoresSafeArea()
+        }
+        .alert("Sign out of feedback?", isPresented: $confirmingSignOut) {
+            Button("Cancel", role: .cancel) {}
+            Button("Sign Out", role: .destructive) {
+                Task {
+                    await FeedbackSession.signOut()
+                    account = .signedOut
+                    signedOut = true
+                }
+            }
+        } message: {
+            Text("You'll need your email to post, vote or chat again. Your Baby Buddy data isn't affected.")
+        }
+        .alert("Delete your feedback account?", isPresented: $confirmingDeletion) {
+            Button("Cancel", role: .cancel) {}
+            Button("Request Deletion", role: .destructive) { requestDeletion() }
+        } message: {
+            Text("I'll remove your feedback account within 7 days. Your posts and comments stay on the board under \"Deleted user\", your votes are removed, and your support chats are kept without your email. Your Baby Buddy data isn't affected.")
+        }
+        .sheet(item: $deletionMail) { payload in
+            MailComposeView(recipient: SupportContact.recipient,
+                            subject: SupportContact.deletionSubject,
+                            body: payload.body) { result in
+                deletionMail = nil
+                switch result {
+                case .sent: deletion = .sent
+                case .failed: deletion = .failed
+                default: break // Cancelled or saved as a draft: nothing was requested.
+                }
+            }
+            .ignoresSafeArea()
         }
         .alert("Set Up Mail", isPresented: $showingMailUnavailable) {
             Button("OK", role: .cancel) {}
@@ -138,6 +185,133 @@ struct SendFeedbackView: View {
         }
         .buttonStyle(.plain)
     }
+
+    // MARK: Feedback account
+
+    private func refreshAccount() async {
+        account = await FeedbackSession.account()
+        if account != .signedOut { signedOut = false }
+    }
+
+    /// While signed in, whose feedback account this is and a way out of it, with Delete Feedback
+    /// Account as a quiet link under the card; after signing out, a line saying so. Nothing while
+    /// signed out otherwise.
+    @ViewBuilder private var feedbackAccount: some View {
+        if case .signedIn(let email) = account {
+            VStack(spacing: 6) {
+                BBCard(cornerRadius: BBRadius.card, padding: 0) {
+                    VStack(spacing: 0) {
+                        HStack(spacing: 12) {
+                            Text(email?.first.map { String($0).uppercased() } ?? "")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(BBColor.brandAccent)
+                                .frame(width: 34, height: 34)
+                                .background(BBColor.brandTint, in: Circle())
+                                .overlay {
+                                    if email == nil {
+                                        Image(systemName: "person.fill")
+                                            .font(.system(size: 15))
+                                            .foregroundStyle(BBColor.brandAccent)
+                                    }
+                                }
+                                .accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 1) {
+                                if let email {
+                                    Text("Signed in to feedback as")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                    Text(email)
+                                        .font(.system(size: 16))
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                } else {
+                                    Text("Signed in to feedback")
+                                        .font(.system(size: 16))
+                                }
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.vertical, 12)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(email.map { "Signed in to feedback as \($0)" } ?? "Signed in to feedback")
+                        Rectangle().fill(BBColor.divider).frame(height: 0.5)
+                        Button { confirmingSignOut = true } label: {
+                            Text("Sign Out of Feedback")
+                                .font(.system(size: 16))
+                                .foregroundStyle(BBColor.danger)
+                                .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 15)
+                }
+                deletionLink
+            }
+        } else if signedOut {
+            Text("Signed out. You'll sign in again next time you post, vote or chat.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 16)
+        }
+    }
+
+    /// Delete Feedback Account, then what became of the request in its place.
+    @ViewBuilder private var deletionLink: some View {
+        switch deletion {
+        case nil:
+            Button("Delete Feedback Account") { confirmingDeletion = true }
+                .font(.subheadline)
+                .foregroundStyle(BBColor.danger)
+                .padding(.horizontal, 12)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+                .buttonStyle(.plain)
+        case .sent:
+            Text("Deletion requested. I'll remove your account within 7 days.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 4)
+        case .failed:
+            VStack(spacing: 0) {
+                Text("Couldn't send your request. Try again, or email \(SupportContact.recipient).")
+                    .font(.subheadline)
+                    .foregroundStyle(BBColor.danger)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 4)
+                Button("Try Again") { requestDeletion() }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(BBColor.brandAccent)
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    /// Opens the request in Mail. Without a Mail account there's no way to send it from here,
+    /// so the line says where to write instead.
+    private func requestDeletion() {
+        guard case .signedIn(let email) = account else { return }
+        if Self.stubsSentMail {
+            deletion = .sent
+        } else if SupportContact.canSendMail {
+            deletionMail = MailPayload(body: SupportContact.deletionBody(feedbackEmail: email))
+        } else {
+            deletion = .failed
+        }
+    }
+
+    /// `BB_FEEDBACK_DELETION_MAIL=sent`, honored only with `BB_UITEST`: the request counts as
+    /// sent without the composer, which the simulator can't show without a Mail account.
+    private static let stubsSentMail = ProcessInfo.processInfo.environment["BB_UITEST"] == "1"
+        && ProcessInfo.processInfo.environment["BB_FEEDBACK_DELETION_MAIL"] == "sent"
 
     // MARK: Copy app details
 
