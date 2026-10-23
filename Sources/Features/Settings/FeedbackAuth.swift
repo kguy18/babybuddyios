@@ -211,7 +211,14 @@ enum FeedbackAuth {
         }
     }
 
+    /// Every read of the session waits for the UI-test reset, so a screen that reads it at launch
+    /// sees the launch's session, not the last one's or none.
     private static func sessionCookies() async -> [HTTPCookie] {
+        await uiTestReset?.value
+        return await storedSessionCookies()
+    }
+
+    private static func storedSessionCookies() async -> [HTTPCookie] {
         let host = FeedbackWidget.serverURL.host() ?? ""
         // Straight after launch, before WebKit has read its cookies from disk, `allCookies()` comes
         // back empty, which hid a saved session. Fetching the cookie records waits for that read.
@@ -274,11 +281,13 @@ enum FeedbackAuth {
     /// Each UI-test launch starts with no feedback session, or the stub's one under
     /// `BB_FEEDBACK_STUB=signed-in`; cookies otherwise outlive the launch.
     /// `BB_FEEDBACK_KEEP_SESSION=1` keeps the last launch's, for a relaunch test.
+    private static var uiTestReset: Task<Void, Never>?
+
     static func resetForUITests() {
         let environment = ProcessInfo.processInfo.environment
         guard environment["BB_UITEST"] == "1", environment["BB_FEEDBACK_KEEP_SESSION"] != "1" else { return }
-        Task {
-            for cookie in await sessionCookies() { await store.deleteCookie(cookie) }
+        uiTestReset = Task {
+            for cookie in await storedSessionCookies() { await store.deleteCookie(cookie) }
             if FeedbackWidget.stubMode == "signed-in" {
                 await save(FeedbackAuth.Session(value: "stub.signature", expires: .now.addingTimeInterval(86_400)))
             }
