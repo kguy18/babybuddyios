@@ -50,18 +50,16 @@ struct ActiveTimerProvider: TimelineProvider {
                             policy: .never))
     }
 
-    /// The most-recent running timer in the shared store, or `nil` if none is running.
+    /// The selected child's most-recent running timer in the shared store, or `nil` if none.
     static func currentTimer() -> TimerSnapshot? {
         guard let container = try? ModelContainer(
             for: LocalStore.schema,
             configurations: ModelConfiguration(schema: LocalStore.schema, url: LocalStore.storeURL))
         else { return nil }
         let context = ModelContext(container)
-        let descriptor = FetchDescriptor<LocalEntity>(
-            predicate: #Predicate { $0.kindRaw == "timer" },
-            sortBy: [SortDescriptor(\.timestamp, order: .reverse)])
+        let descriptor = FetchDescriptor<LocalEntity>(predicate: #Predicate { $0.kindRaw == "timer" })
         guard let timers = try? context.fetch(descriptor),
-              let timer = timers.first(where: \.isRunningTimer)
+              let timer = TimerActivity.runningTimers(in: timers, childID: SharedDefaults.selectedChildID).first
         else { return nil }
         let name = (timer.payloadObject["name"] as? String) ?? "Timer"
         return TimerSnapshot(localID: timer.localID.uuidString, name: name, start: timer.timestamp,

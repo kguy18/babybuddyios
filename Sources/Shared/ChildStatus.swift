@@ -77,7 +77,7 @@ struct ChildStatus: Equatable {
     }
 
     /// The child's first name (falling back to last name, then "Child") — matches the Dashboard.
-    private static func firstName(_ child: LocalEntity) -> String {
+    static func firstName(_ child: LocalEntity) -> String {
         let p = child.payloadObject
         let first = (p["first_name"] as? String) ?? ""
         if !first.isEmpty { return first }

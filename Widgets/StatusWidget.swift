@@ -128,7 +128,7 @@ struct StatusWidgetView: View {
                     .foregroundStyle(BBColor.success)
                     .lineLimit(1).minimumScaleFactor(0.7)
                     .frame(width: 48, alignment: .trailing)
-                runningDot(diameter: 11, dot: 6)
+                WidgetRunningDot(diameter: 11, dot: 6)
             }
         } else {
             Text(status.childName ?? "Baby Buddy")
@@ -196,7 +196,7 @@ struct StatusWidgetView: View {
                     .foregroundStyle(BBColor.success)
                     .lineLimit(1).minimumScaleFactor(0.7)
                     .frame(width: 58, alignment: .trailing)
-                runningDot(diameter: 13, dot: 7)
+                WidgetRunningDot(diameter: 13, dot: 7)
             }
         } else {
             Text(status.childName ?? "Baby Buddy")
@@ -246,14 +246,6 @@ struct StatusWidgetView: View {
         case .sleep: return "Sleep"
         case .change: return "Diaper"
         default: return kind.displayName
-        }
-    }
-
-    /// A green running dot with a faint halo — matches the app's `RunningDot`.
-    private func runningDot(diameter: CGFloat, dot: CGFloat) -> some View {
-        ZStack {
-            Circle().fill(BBColor.success.opacity(0.25)).frame(width: diameter, height: diameter)
-            Circle().fill(BBColor.success).frame(width: dot, height: dot)
         }
     }
 
@@ -355,5 +347,18 @@ struct StatusWidgetView: View {
     /// The most recently occurring tracked kind (for the single-line inline accessory).
     private var mostRecent: KindStatus? {
         status.all.filter { $0.last != nil }.max { ($0.last ?? .distantPast) < ($1.last ?? .distantPast) }
+    }
+}
+
+/// A green running dot with a faint halo, shared by the widgets. Matches the app's `RunningDot`.
+struct WidgetRunningDot: View {
+    let diameter: CGFloat
+    let dot: CGFloat
+
+    var body: some View {
+        ZStack {
+            Circle().fill(BBColor.success.opacity(0.25)).frame(width: diameter, height: diameter)
+            Circle().fill(BBColor.success).frame(width: dot, height: dot)
+        }
     }
 }

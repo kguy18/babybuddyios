@@ -12,21 +12,62 @@ final class StartTimerTests: XCTestCase {
         let anotherSleep = repo.create(kind: .timer, payload: ["name": "Sleep"])!
         let unknown = repo.create(kind: .timer, payload: ["name": "Custom"])!
 
-        XCTAssertEqual(TimerActivity.runningActivities(in: [sleep, feeding, anotherSleep, unknown]),
-                       Set([.sleep, .feeding]))
+        func running(_ timers: [LocalEntity]) -> Set<TimerActivity> {
+            Set(TimerActivity.runningActivities(in: timers, childID: nil).keys)
+        }
+        XCTAssertEqual(running([sleep, feeding, anotherSleep, unknown]), Set([.sleep, .feeding]))
         sleep.stoppedAt = .now
-        XCTAssertEqual(TimerActivity.runningActivities(in: [sleep, anotherSleep]), Set([.sleep]))
+        XCTAssertEqual(running([sleep, anotherSleep]), Set([.sleep]))
         anotherSleep.syncState = .pendingDelete
         feeding.stoppedAt = .now
-        XCTAssertTrue(TimerActivity.runningActivities(in: [sleep, feeding, anotherSleep, unknown]).isEmpty)
+        XCTAssertTrue(running([sleep, feeding, anotherSleep, unknown]).isEmpty)
     }
 
     func testQuickStartIgnoresCompletedRecords() {
         let container = LocalStore.makeContainer(inMemory: true)
         let record = LocalRepository(context: container.mainContext).create(
             kind: .sleep, payload: ["name": "Sleep"])!
-        XCTAssertTrue(TimerActivity.runningActivities(in: [record]).isEmpty)
-        XCTAssertTrue(TimerActivity.runningActivities(in: []).isEmpty)
+        XCTAssertTrue(TimerActivity.runningActivities(in: [record], childID: nil).isEmpty)
+        XCTAssertTrue(TimerActivity.runningActivities(in: [], childID: nil).isEmpty)
+    }
+
+    /// Only the selected child's timers count; with no child selected (nil or 0) only unassigned
+    /// ones do, since that's where `StartTimerIntent` puts a timer then.
+    func testQuickStartCountsOnlySelectedChildsTimers() {
+        let container = LocalStore.makeContainer(inMemory: true)
+        let repo = LocalRepository(context: container.mainContext)
+        let timers = [
+            repo.create(kind: .timer, payload: ["name": "Sleep", "child": 1])!,
+            repo.create(kind: .timer, payload: ["name": "Feeding", "child": 2])!,
+            repo.create(kind: .timer, payload: ["name": "Pumping"])!,
+        ]
+
+        XCTAssertEqual(Set(TimerActivity.runningActivities(in: timers, childID: 1).keys), [.sleep])
+        XCTAssertEqual(Set(TimerActivity.runningActivities(in: timers, childID: 2).keys), [.feeding])
+        XCTAssertEqual(Set(TimerActivity.runningActivities(in: timers, childID: nil).keys), [.pumping])
+        XCTAssertEqual(Set(TimerActivity.runningActivities(in: timers, childID: 0).keys), [.pumping])
+        XCTAssertEqual(TimerActivity.runningTimers(in: timers, childID: 1).map(\.localID), [timers[0].localID])
+    }
+
+    /// A running tile and the Active Timer widget open the newest running timer.
+    func testRunningTimerToOpenIsTheNewest() {
+        let container = LocalStore.makeContainer(inMemory: true)
+        let repo = LocalRepository(context: container.mainContext)
+        func sleep(startedAgo seconds: TimeInterval, child: Int) -> LocalEntity {
+            repo.create(kind: .timer, payload: [
+                "name": "Sleep", "child": child,
+                "start": APIDate.isoDateTime.string(from: .now.addingTimeInterval(-seconds)),
+            ])!
+        }
+        let older = sleep(startedAgo: 3600, child: 1)
+        let newer = sleep(startedAgo: 60, child: 1)
+        let otherChild = sleep(startedAgo: 1, child: 2)
+        let timers = [older, otherChild, newer]
+
+        XCTAssertEqual(TimerActivity.runningActivities(in: timers, childID: 1)[.sleep], newer.localID)
+        XCTAssertEqual(TimerActivity.runningTimers(in: timers, childID: 1).first?.localID, newer.localID)
+        newer.stoppedAt = .now
+        XCTAssertEqual(TimerActivity.runningActivities(in: timers, childID: 1)[.sleep], older.localID)
     }
 
     func testActivityMapping() {

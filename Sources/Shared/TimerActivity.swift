@@ -44,9 +44,25 @@ enum TimerActivity: String, AppEnum, CaseIterable {
         return nil
     }
 
-    /// All running activities, including locally queued starts and custom-named timers with hints.
-    static func runningActivities(in timers: [LocalEntity]) -> Set<TimerActivity> {
-        Set(timers.filter(\.isRunningTimer).compactMap { TimerActivity(timer: $0) })
+    /// `childID`'s running timers, newest first, including locally queued starts. With no child
+    /// selected (`nil` or 0) these are the unassigned timers, which is where ``StartTimerIntent``
+    /// puts a new one.
+    static func runningTimers(in timers: [LocalEntity], childID: Int?) -> [LocalEntity] {
+        let child = childID.flatMap { $0 > 0 ? $0 : nil }
+        return timers.filter { $0.isRunningTimer && $0.childID == child }
+            .sorted { $0.timestamp > $1.timestamp }
+    }
+
+    /// Each of `childID`'s running activities, mapped to the local ID of its newest running timer
+    /// (the one a running Quick start tile opens). Custom-named timers count through their hints.
+    static func runningActivities(in timers: [LocalEntity], childID: Int?) -> [TimerActivity: UUID] {
+        var newest: [TimerActivity: UUID] = [:]
+        for timer in runningTimers(in: timers, childID: childID) {
+            if let activity = TimerActivity(timer: timer), newest[activity] == nil {
+                newest[activity] = timer.localID
+            }
+        }
+        return newest
     }
 
     /// The record kind this timer is expected to become when converted (drives the icon).
