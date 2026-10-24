@@ -788,6 +788,14 @@ struct SettingsView: View {
             .buttonStyle(.plain)
 
         }
+        .environment(\.openURL, OpenURLAction { url in
+            switch url {
+            case Self.sourceCodeURL: Analytics.feedbackLinkTapped(.sourceCode)
+            case Self.reviewURL: Analytics.feedbackLinkTapped(.rate)
+            default: break
+            }
+            return .systemAction
+        })
     }
 
     /// The current release's card copy, read once per body evaluation rather than held in state —

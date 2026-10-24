@@ -37,7 +37,10 @@ struct SendFeedbackView: View {
         .background(BBColor.surface)
         .navigationTitle("Send Feedback")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await refreshAccount() }
+        .task {
+            await refreshAccount()
+            if let account { Analytics.feedbackOpened(signedIn: account != .signedOut) }
+        }
         .navigationDestination(isPresented: $showingAccount) {
             if case .signedIn(let email) = account {
                 FeedbackAccountView(email: email) { account = .signedOut }
@@ -52,7 +55,7 @@ struct SendFeedbackView: View {
         }) { widget in
             FeedbackSheet(widget: widget) { emailAfterFeedback = true }
         }
-        .sheet(isPresented: $showingSupporter) { SupporterSheet(source: .settings) }
+        .sheet(isPresented: $showingSupporter) { SupporterSheet(source: .feedback) }
         // `.alert`, not `confirmationDialog`, which iOS 26 shows as a popover without its Cancel.
         .alert("Contact Support", isPresented: $showingContactOptions) {
             Button("Include Device Details") { presentMail(includeDiagnostics: true) }
@@ -93,11 +96,21 @@ struct SendFeedbackView: View {
             .fixedSize(horizontal: false, vertical: true)
         }
         .environment(\.openURL, OpenURLAction { url in
-            guard url == Self.supporterLink else { return .systemAction }
-            showingSupporter = true
-            return .handled
+            if url == Self.supporterLink {
+                showingSupporter = true
+                return .handled
+            }
+            if let link = Self.noteLinks[url] { Analytics.feedbackLinkTapped(link) }
+            return .systemAction
         })
     }
+
+    /// The note's web links, by their `Feedback.linkTapped` name.
+    private static let noteLinks: [URL: Analytics.FeedbackLink] = [
+        URL(string: "https://github.com/kguy18")!: .kurtis,
+        URL(string: "https://github.com/kguy18/babybuddyios")!: .openSource,
+        URL(string: "https://github.com/babybuddy/babybuddy")!: .serverGitHub,
+    ]
 
     // MARK: Rows
 
@@ -133,7 +146,10 @@ struct SendFeedbackView: View {
     }
 
     private func actionRow(_ widget: FeedbackWidget, symbol: String, tint: Color, subtitle: String?) -> some View {
-        Button { feedback = widget } label: {
+        Button {
+            Analytics.feedbackWidgetOpened(view: widget.analyticsView)
+            feedback = widget
+        } label: {
             SettingsRow(symbol: symbol, tint: tint, title: widget.title, subtitle: subtitle) { chevron }
         }
         .buttonStyle(.plain)
@@ -216,6 +232,7 @@ struct FeedbackAccountView: View {
             Button("Cancel", role: .cancel) {}
             Button("Sign Out", role: .destructive) {
                 Task {
+                    Analytics.feedbackSignedOut()
                     await FeedbackSession.signOut()
                     onSignedOut()
                     dismiss()
@@ -238,9 +255,14 @@ struct FeedbackAccountView: View {
                             body: payload.body) { result in
                 deletionMail = nil
                 switch result {
-                case .sent: deletionSent = true
-                case .failed: deletionFailed = true
-                default: break // Cancelled or saved as a draft: nothing was requested.
+                case .sent:
+                    deletionSent = true
+                    Analytics.feedbackDeletionRequested(result: .sent)
+                case .failed:
+                    deletionFailed = true
+                    Analytics.feedbackDeletionRequested(result: .failed)
+                default: // Cancelled or saved as a draft: nothing was requested.
+                    Analytics.feedbackDeletionRequested(result: .cancelled)
                 }
             }
             .ignoresSafeArea()

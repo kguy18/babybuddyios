@@ -43,6 +43,7 @@ struct FeedbackSignInView: View {
         }
         .background(BBColor.surface)
         .scrollDismissesKeyboard(.interactively)
+        .onAppear { Analytics.feedbackSignInStarted(from: widget.analyticsView) }
     }
 
     private func content(now: Date) -> some View {
@@ -246,12 +247,26 @@ struct FeedbackSignInView: View {
                 onSent()
             case .signedIn(let session):
                 working = false
+                if case .password = request {
+                    Analytics.feedbackSignInCompleted(method: .password)
+                } else {
+                    Analytics.feedbackSignInCompleted(method: .code)
+                }
                 onSignedIn(session)
             case .failed(.unreachable):
                 working = false
+                Analytics.feedbackSignInFailed(reason: .network)
                 onUnreachable()
             case .failed(let failure):
                 working = false
+                let reason: Analytics.FeedbackSignInFailure = switch failure {
+                case .wrongCode: .wrongCode
+                case .wrongPassword: .wrongPassword
+                case .rateLimited: .rateLimited
+                case .unreachable: .network
+                case .other: .other
+                }
+                Analytics.feedbackSignInFailed(reason: reason)
                 self.failure = failure
                 if case .rateLimited(let wait?) = failure { blockedUntil = .now.addingTimeInterval(wait) }
             }

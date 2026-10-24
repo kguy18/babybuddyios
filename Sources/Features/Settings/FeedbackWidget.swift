@@ -25,6 +25,15 @@ enum FeedbackWidget: String, Identifiable {
         }
     }
 
+    /// This widget's name in the `Feedback.*` signals.
+    var analyticsView: Analytics.FeedbackView {
+        switch self {
+        case .board: .feature
+        case .help: .help
+        case .roadmap: .roadmap
+        }
+    }
+
     /// The widget view `quackback:open` lands on. Quackback 0.14.1 has no plain Feedback view to
     /// open; `new-post` is the one that lands on the Feedback tab, with "What's your idea?" opened.
     /// `chat` opens Messages, the support thread, and `home` the widget's Home.
@@ -194,6 +203,9 @@ struct FeedbackSheet: View {
                     }
                 }
             }
+            .onChange(of: phase) { _, phase in
+                if phase == .failed { Analytics.feedbackOffline() }
+            }
             // The presenting screen's toast is under the sheet; "App details copied" shows here.
             .overlay(alignment: .bottom) { UndoToastView().padding(.bottom, 12) }
             .navigationTitle(widget.title)
@@ -204,6 +216,7 @@ struct FeedbackSheet: View {
                     ToolbarItem(placement: .primaryAction) {
                         Button {
                             UIPasteboard.general.string = SupportContact.diagnostics
+                            Analytics.feedbackAppDetailsCopied()
                             UndoToastCenter.shared.confirm("App details copied")
                         } label: {
                             Label("Copy App Details", systemImage: "doc.on.doc")

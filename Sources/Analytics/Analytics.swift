@@ -359,6 +359,107 @@ extension Analytics {
         signal("Settings.appIconChanged", parameters: ["icon": icon])
     }
 
+    // MARK: Feedback
+    //
+    // How the feedback screens are used: which way into the feedback widget people take, how
+    // sign-in goes, and how often the server can't be reached. Never an email, a code, a password
+    // or anything typed.
+
+    /// Which part of the feedback widget a row opened, or which one a sign-in started from.
+    enum FeedbackView: String, CaseIterable {
+        /// Request a Feature.
+        case feature
+        /// Get Help.
+        case help
+        /// Roadmap and Updates.
+        case roadmap
+    }
+
+    /// A link on the feedback screens.
+    enum FeedbackLink: String, CaseIterable {
+        /// "Kurtis" in the Send Feedback note.
+        case kurtis
+        /// "open source on GitHub" in the note.
+        case openSource
+        /// "their GitHub" in the note, the Baby Buddy server project.
+        case serverGitHub
+        /// Settings ▸ Source Code on GitHub.
+        case sourceCode
+        /// Settings ▸ Rate on the App Store.
+        case rate
+    }
+
+    /// How a feedback sign-in went through.
+    enum FeedbackSignInMethod: String, CaseIterable {
+        case code, password
+    }
+
+    /// Why a feedback sign-in step failed.
+    enum FeedbackSignInFailure: String, CaseIterable {
+        case wrongCode, wrongPassword, rateLimited
+        /// The server couldn't be reached; the sheet shows its offline screen instead of an error.
+        case network
+        case other
+    }
+
+    /// What became of a feedback-account deletion request in Mail. A saved draft counts as
+    /// cancelled, since nothing was sent.
+    enum FeedbackDeletionResult: String, CaseIterable {
+        case sent, failed, cancelled
+    }
+
+    /// Send Feedback appeared. It's sent once the account check has answered, so `signedIn` is
+    /// always "true" or "false".
+    static func feedbackOpened(signedIn: Bool) {
+        signal("Feedback.opened", parameters: ["signedIn": String(signedIn)])
+    }
+
+    /// A Send Feedback row opened the feedback widget's sheet.
+    static func feedbackWidgetOpened(view: FeedbackView) {
+        signal("Feedback.widgetOpened", parameters: ["view": view.rawValue])
+    }
+
+    /// A link on the Send Feedback note or in Settings' Feedback section was tapped.
+    static func feedbackLinkTapped(_ link: FeedbackLink) {
+        signal("Feedback.linkTapped", parameters: ["link": link.rawValue])
+    }
+
+    /// The native feedback sign-in appeared, in the sheet opened for `from`.
+    static func feedbackSignInStarted(from: FeedbackView) {
+        signal("Feedback.signInStarted", parameters: ["from": from.rawValue])
+    }
+
+    /// A feedback sign-in got a session.
+    static func feedbackSignInCompleted(method: FeedbackSignInMethod) {
+        signal("Feedback.signInCompleted", parameters: ["method": method.rawValue])
+    }
+
+    /// A feedback sign-in step failed.
+    static func feedbackSignInFailed(reason: FeedbackSignInFailure) {
+        signal("Feedback.signInFailed", parameters: ["reason": reason.rawValue])
+    }
+
+    /// Sign Out of Feedback was confirmed.
+    static func feedbackSignedOut() {
+        signal("Feedback.signedOut")
+    }
+
+    /// The Mail sheet for a feedback-account deletion request closed.
+    static func feedbackDeletionRequested(result: FeedbackDeletionResult) {
+        signal("Feedback.deletionRequested", parameters: ["result": result.rawValue])
+    }
+
+    /// Copy App Details was tapped in the Get Help sheet.
+    static func feedbackAppDetailsCopied() {
+        signal("Feedback.appDetailsCopied")
+    }
+
+    /// The feedback sheet showed its offline screen: the server couldn't be reached, or the widget
+    /// didn't say it was ready in time.
+    static func feedbackOffline() {
+        signal("Feedback.offline")
+    }
+
     // MARK: In-app purchases & supporter status
     //
     // Tip funnel. Every feature is free; these track the optional supporter tips. Like every event
@@ -385,6 +486,8 @@ extension Analytics {
         case nudgeMilestone
         /// The quiet inline Dashboard banner (nudge variant D).
         case nudgeBanner
+        /// "supporters like you" in the Send Feedback note.
+        case feedback
     }
 
     /// What the supporter sheet actually had to show when it opened.

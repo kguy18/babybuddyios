@@ -214,7 +214,7 @@ final class AnalyticsSignalTests: XCTestCase {
     func testEverySupportSurfaceHasItsOwnSource() {
         XCTAssertEqual(
             Analytics.SupporterSource.allCases.map(\.rawValue).sorted(),
-            ["deeplink", "nudgeBanner", "nudgeGentle", "nudgeMilestone", "settings", "whatsNew"])
+            ["deeplink", "feedback", "nudgeBanner", "nudgeGentle", "nudgeMilestone", "settings", "whatsNew"])
     }
 
     func testNudgeDismissedAndRetiredCarryTheTally() {
@@ -417,6 +417,44 @@ final class AnalyticsSignalTests: XCTestCase {
         XCTAssertEqual(recorder.names, ["SickMode.started", "SickMode.ended", "SickMode.endUndone"])
         XCTAssertEqual(recorder.parameters("SickMode.started"), ["source": "settings"])
         XCTAssertEqual(recorder.parameters("SickMode.ended"), ["source": "home"])
+    }
+
+    // MARK: - Feedback
+
+    func testFeedbackSignalsCarryOnlyTheirEnum() {
+        Analytics.feedbackOpened(signedIn: true)
+        Analytics.feedbackWidgetOpened(view: .help)
+        Analytics.feedbackLinkTapped(.serverGitHub)
+        Analytics.feedbackSignInStarted(from: .feature)
+        Analytics.feedbackSignInCompleted(method: .password)
+        Analytics.feedbackSignInFailed(reason: .rateLimited)
+        Analytics.feedbackDeletionRequested(result: .cancelled)
+        XCTAssertEqual(recorder.parameters("Feedback.opened"), ["signedIn": "true"])
+        XCTAssertEqual(recorder.parameters("Feedback.widgetOpened"), ["view": "help"])
+        XCTAssertEqual(recorder.parameters("Feedback.linkTapped"), ["link": "serverGitHub"])
+        XCTAssertEqual(recorder.parameters("Feedback.signInStarted"), ["from": "feature"])
+        XCTAssertEqual(recorder.parameters("Feedback.signInCompleted"), ["method": "password"])
+        XCTAssertEqual(recorder.parameters("Feedback.signInFailed"), ["reason": "rateLimited"])
+        XCTAssertEqual(recorder.parameters("Feedback.deletionRequested"), ["result": "cancelled"])
+    }
+
+    func testFeedbackCountsCarryNothing() {
+        Analytics.feedbackSignedOut()
+        Analytics.feedbackAppDetailsCopied()
+        Analytics.feedbackOffline()
+        XCTAssertEqual(recorder.names, ["Feedback.signedOut", "Feedback.appDetailsCopied", "Feedback.offline"])
+        XCTAssertTrue(recorder.signals.allSatisfy { $0.parameters.isEmpty })
+    }
+
+    func testEveryFeedbackValueIsSpelledAsExpected() {
+        XCTAssertEqual(Analytics.FeedbackView.allCases.map(\.rawValue), ["feature", "help", "roadmap"])
+        XCTAssertEqual(Analytics.FeedbackLink.allCases.map(\.rawValue),
+                       ["kurtis", "openSource", "serverGitHub", "sourceCode", "rate"])
+        XCTAssertEqual(Analytics.FeedbackSignInMethod.allCases.map(\.rawValue), ["code", "password"])
+        XCTAssertEqual(Analytics.FeedbackSignInFailure.allCases.map(\.rawValue),
+                       ["wrongCode", "wrongPassword", "rateLimited", "network", "other"])
+        XCTAssertEqual(Analytics.FeedbackDeletionResult.allCases.map(\.rawValue), ["sent", "failed", "cancelled"])
+        XCTAssertEqual([FeedbackWidget.board, .help, .roadmap].map(\.analyticsView), [.feature, .help, .roadmap])
     }
 }
 #endif
