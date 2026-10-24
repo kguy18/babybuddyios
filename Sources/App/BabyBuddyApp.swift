@@ -38,6 +38,7 @@ struct BabyBuddyApp: App {
         #if DEBUG
         // `BB_UITEST`: wipe to a clean install before anything below reads defaults or the store.
         DemoData.resetForUITests(container.mainContext)
+        FeedbackSession.resetForUITests()
         #endif
         if !Self.isHostingTests {
             // Stamped before any Dashboard can ask whether a support nudge is due — every time-based

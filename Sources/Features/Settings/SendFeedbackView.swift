@@ -1,8 +1,7 @@
 import SwiftUI
-import UIKit
 
 /// Settings ▸ Feedback ▸ Send Feedback: a note from me, the ways into the feedback widget
-/// (``FeedbackSheet``), app details to paste into a message, and the roadmap.
+/// (``FeedbackSheet``), the roadmap, and while signed in the feedback account.
 ///
 /// When the feedback server can't be reached, the sheet's Email Support falls back to Mail: offer
 /// to attach diagnostics, then present the composer (or a `mailto:` link without a Mail account).
@@ -14,13 +13,11 @@ struct SendFeedbackView: View {
     @State private var showingContactOptions = false
     @State private var mailPayload: MailPayload?
     @State private var showingMailUnavailable = false
+    /// Who is signed in to feedback, for the Feedback Account row; `nil` until the web view's
+    /// cookie store answers.
+    @State private var account: FeedbackSession.Account?
+    @State private var showingAccount = false
     @Environment(\.openURL) private var openURL
-
-    /// Wraps the seeded email body so `.sheet(item:)` has an `Identifiable` to present.
-    private struct MailPayload: Identifiable {
-        let id = UUID()
-        let body: String
-    }
 
     /// The note's "supporters like you" link: the app's own supporter link, caught by the note's
     /// `openURL` handler so the sheet opens over this screen.
@@ -31,34 +28,26 @@ struct SendFeedbackView: View {
             VStack(spacing: 14) {
                 note
                 actionsCard
-                copyDetails
+                moreCard
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 16)
         }
         .background(BBColor.surface)
-        .safeAreaInset(edge: .bottom) {
-            Button { feedback = .roadmap } label: {
-                HStack(spacing: 4) {
-                    Text("See roadmap and updates")
-                    Image(systemName: "chevron.right")
-                        .font(.footnote.weight(.semibold))
-                        .accessibilityHidden(true)
-                }
-                .font(.subheadline)
-                .foregroundStyle(BBColor.brandAccent)
-                .frame(minHeight: 44)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .frame(maxWidth: .infinity)
-            .background(BBColor.surface)
-        }
-        .overlay(alignment: .bottom) { UndoToastView().padding(.bottom, 60) }
         .navigationTitle("Send Feedback")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await refreshAccount()
+            if let account { Analytics.feedbackOpened(signedIn: account != .signedOut) }
+        }
+        .navigationDestination(isPresented: $showingAccount) {
+            if case .signedIn(let email) = account {
+                FeedbackAccountView(email: email) { account = .signedOut }
+            }
+        }
         .sheet(item: $feedback, onDismiss: {
+            Task { await refreshAccount() }
             if emailAfterFeedback {
                 emailAfterFeedback = false
                 showingContactOptions = true
@@ -66,7 +55,7 @@ struct SendFeedbackView: View {
         }) { widget in
             FeedbackSheet(widget: widget) { emailAfterFeedback = true }
         }
-        .sheet(isPresented: $showingSupporter) { SupporterSheet(source: .settings) }
+        .sheet(isPresented: $showingSupporter) { SupporterSheet(source: .feedback) }
         // `.alert`, not `confirmationDialog`, which iOS 26 shows as a popover without its Cancel.
         .alert("Contact Support", isPresented: $showingContactOptions) {
             Button("Include Device Details") { presentMail(includeDiagnostics: true) }
@@ -78,7 +67,7 @@ struct SendFeedbackView: View {
         .sheet(item: $mailPayload) { payload in
             MailComposeView(recipient: SupportContact.recipient,
                             subject: SupportContact.subject,
-                            body: payload.body) { mailPayload = nil }
+                            body: payload.body) { _ in mailPayload = nil }
                 .ignoresSafeArea()
         }
         .alert("Set Up Mail", isPresented: $showingMailUnavailable) {
@@ -96,7 +85,7 @@ struct SendFeedbackView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Hi, I'm [Kurtis](https://github.com/kguy18). I build Baby Buddy Companion in my free time, and it's [open source on GitHub](https://github.com/kguy18/babybuddyios). It's free, and [supporters like you](babybuddy://supporter) keep it going.")
                 Text("I do read everything and try to reply to everyone.")
-                Text("To post, vote or chat, you'll sign in with your email. No password needed.")
+                Text("To post, vote, or chat, you'll sign in with your email - this account is only on the feedback system and not related to your own hosted Baby Buddy instance. No password needed. Sign in with a code.")
                 Text("This app is an independent client not affiliated with Baby Buddy the open source server project, so if you have server-side issues please open a ticket on [their GitHub](https://github.com/babybuddy/babybuddy).")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -107,13 +96,23 @@ struct SendFeedbackView: View {
             .fixedSize(horizontal: false, vertical: true)
         }
         .environment(\.openURL, OpenURLAction { url in
-            guard url == Self.supporterLink else { return .systemAction }
-            showingSupporter = true
-            return .handled
+            if url == Self.supporterLink {
+                showingSupporter = true
+                return .handled
+            }
+            if let link = Self.noteLinks[url] { Analytics.feedbackLinkTapped(link) }
+            return .systemAction
         })
     }
 
-    // MARK: Actions
+    /// The note's web links, by their `Feedback.linkTapped` name.
+    private static let noteLinks: [URL: Analytics.FeedbackLink] = [
+        URL(string: "https://github.com/kguy18")!: .kurtis,
+        URL(string: "https://github.com/kguy18/babybuddyios")!: .openSource,
+        URL(string: "https://github.com/babybuddy/babybuddy")!: .serverGitHub,
+    ]
+
+    // MARK: Rows
 
     private var actionsCard: some View {
         BBCard(cornerRadius: BBRadius.card, padding: 0) {
@@ -128,40 +127,42 @@ struct SendFeedbackView: View {
         }
     }
 
-    private func actionRow(_ widget: FeedbackWidget, symbol: String, tint: Color, subtitle: String) -> some View {
-        Button { feedback = widget } label: {
-            SettingsRow(symbol: symbol, tint: tint, title: widget.title, subtitle: subtitle) {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.tertiary)
+    /// The roadmap, and while signed in the way to the feedback account.
+    private var moreCard: some View {
+        BBCard(cornerRadius: BBRadius.card, padding: 0) {
+            VStack(spacing: 0) {
+                actionRow(.roadmap, symbol: "map", tint: BBColor.note, subtitle: nil)
+                if case .signedIn(let email) = account {
+                    Rectangle().fill(BBColor.divider).frame(height: 0.5)
+                    Button { showingAccount = true } label: {
+                        SettingsRow(symbol: "person", tint: BBColor.note, title: "Feedback Account",
+                                    subtitle: email) { chevron }
+                    }
+                    .buttonStyle(.plain)
+                }
             }
+            .padding(.horizontal, 15)
+        }
+    }
+
+    private func actionRow(_ widget: FeedbackWidget, symbol: String, tint: Color, subtitle: String?) -> some View {
+        Button {
+            Analytics.feedbackWidgetOpened(view: widget.analyticsView)
+            feedback = widget
+        } label: {
+            SettingsRow(symbol: symbol, tint: tint, title: widget.title, subtitle: subtitle) { chevron }
         }
         .buttonStyle(.plain)
     }
 
-    // MARK: Copy app details
+    private var chevron: some View {
+        Image(systemName: "chevron.right")
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(.tertiary)
+    }
 
-    private var copyDetails: some View {
-        VStack(spacing: 2) {
-            Button {
-                UIPasteboard.general.string = SupportContact.diagnostics
-                UndoToastCenter.shared.confirm("App details copied")
-            } label: {
-                Label("Copy app details", systemImage: "doc.on.doc")
-                    .font(.subheadline)
-                    .foregroundStyle(BBColor.brandAccent)
-                    .frame(minHeight: 44)
-                    .padding(.horizontal, 12)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            Text("Paste them into your message so I can see your version and device.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-        }
-        .frame(maxWidth: .infinity)
+    private func refreshAccount() async {
+        account = await FeedbackSession.account()
     }
 
     // MARK: Mail fallback
@@ -179,4 +180,188 @@ struct SendFeedbackView: View {
             showingMailUnavailable = true
         }
     }
+}
+
+/// Wraps a seeded email body so `.sheet(item:)` has an `Identifiable` to present.
+private struct MailPayload: Identifiable {
+    let id = UUID()
+    let body: String
+}
+
+/// Send Feedback ▸ Feedback Account: who is signed in, Sign Out, and Delete Feedback Account.
+/// Signing out, or sending the deletion request, goes back to Send Feedback.
+struct FeedbackAccountView: View {
+    /// `nil` when the server couldn't be asked.
+    let email: String?
+    let onSignedOut: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var confirmingSignOut = false
+    @State private var confirmingDeletion = false
+    /// Delete Feedback Account's request, in the Mail composer.
+    @State private var deletionMail: MailPayload?
+    /// Mail sent the request; the screen closes once the composer has.
+    @State private var deletionSent = false
+    /// The request couldn't go out; the line in its place says where to write instead.
+    @State private var deletionFailed = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 8) {
+                card
+                Text("Your Baby Buddy data isn't affected. This account is only for posting, voting and chatting with me.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 4)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 16)
+        }
+        .background(BBColor.surface)
+        .safeAreaInset(edge: .bottom) {
+            deletion
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 8)
+                .background(BBColor.surface)
+        }
+        .navigationTitle("Feedback Account")
+        .navigationBarTitleDisplayMode(.inline)
+        .alert("Sign out of feedback?", isPresented: $confirmingSignOut) {
+            Button("Cancel", role: .cancel) {}
+            Button("Sign Out", role: .destructive) {
+                Task {
+                    Analytics.feedbackSignedOut()
+                    await FeedbackSession.signOut()
+                    onSignedOut()
+                    dismiss()
+                }
+            }
+        } message: {
+            Text("You'll need your email to post, vote or chat again. Your Baby Buddy data isn't affected.")
+        }
+        .alert("Delete your feedback account?", isPresented: $confirmingDeletion) {
+            Button("Cancel", role: .cancel) {}
+            Button("Request Deletion", role: .destructive) { requestDeletion() }
+        } message: {
+            Text("I'll remove your feedback account within 7 days. Your posts and comments stay on the board under \"Deleted user\", your votes are removed, and your support chats are kept without your email. Your Baby Buddy data isn't affected.")
+        }
+        .sheet(item: $deletionMail, onDismiss: {
+            if deletionSent { dismiss() }
+        }) { payload in
+            MailComposeView(recipient: SupportContact.recipient,
+                            subject: SupportContact.deletionSubject,
+                            body: payload.body) { result in
+                deletionMail = nil
+                switch result {
+                case .sent:
+                    deletionSent = true
+                    Analytics.feedbackDeletionRequested(result: .sent)
+                case .failed:
+                    deletionFailed = true
+                    Analytics.feedbackDeletionRequested(result: .failed)
+                default: // Cancelled or saved as a draft: nothing was requested.
+                    Analytics.feedbackDeletionRequested(result: .cancelled)
+                }
+            }
+            .ignoresSafeArea()
+        }
+    }
+
+    private var card: some View {
+        BBCard(cornerRadius: BBRadius.card, padding: 0) {
+            VStack(spacing: 0) {
+                HStack(spacing: 12) {
+                    Text(email?.first.map { String($0).uppercased() } ?? "")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(BBColor.brandAccent)
+                        .frame(width: 34, height: 34)
+                        .background(BBColor.brandTint, in: Circle())
+                        .overlay {
+                            if email == nil {
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(BBColor.brandAccent)
+                            }
+                        }
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        if let email {
+                            Text("Signed in to feedback as")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                            Text(email)
+                                .font(.system(size: 16))
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        } else {
+                            Text("Signed in to feedback")
+                                .font(.system(size: 16))
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.vertical, 12)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(email.map { "Signed in to feedback as \($0)" } ?? "Signed in to feedback")
+                Rectangle().fill(BBColor.divider).frame(height: 0.5)
+                Button { confirmingSignOut = true } label: {
+                    Text("Sign Out of Feedback")
+                        .font(.system(size: 16))
+                        .foregroundStyle(BBColor.danger)
+                        .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 15)
+        }
+    }
+
+    /// Delete Feedback Account, or after a failed request, where to write and Try Again.
+    @ViewBuilder private var deletion: some View {
+        if deletionFailed {
+            VStack(spacing: 0) {
+                Text("Couldn't send your request. Try again, or email \(SupportContact.recipient).")
+                    .font(.subheadline)
+                    .foregroundStyle(BBColor.danger)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 4)
+                Button("Try Again") { requestDeletion() }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(BBColor.brandAccent)
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16)
+        } else {
+            Button("Delete Feedback Account") { confirmingDeletion = true }
+                .font(.subheadline)
+                .foregroundStyle(BBColor.danger)
+                .padding(.horizontal, 12)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+                .buttonStyle(.plain)
+        }
+    }
+
+    /// Opens the request in Mail. Without a Mail account there's no way to send it from here,
+    /// so the line says where to write instead.
+    private func requestDeletion() {
+        if Self.stubsSentMail {
+            dismiss()
+        } else if SupportContact.canSendMail {
+            deletionMail = MailPayload(body: SupportContact.deletionBody(feedbackEmail: email))
+        } else {
+            deletionFailed = true
+        }
+    }
+
+    /// `BB_FEEDBACK_DELETION_MAIL=sent`, honored only with `BB_UITEST`: the request counts as
+    /// sent without the composer, which the simulator can't show without a Mail account.
+    private static let stubsSentMail = ProcessInfo.processInfo.environment["BB_UITEST"] == "1"
+        && ProcessInfo.processInfo.environment["BB_FEEDBACK_DELETION_MAIL"] == "sent"
 }
