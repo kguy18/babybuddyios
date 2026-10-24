@@ -370,9 +370,10 @@ final class SettingsTests: UITestCase {
         }
     }
 
-    /// Send Feedback ▸ Feedback Account, from its row.
+    /// Send Feedback ▸ Feedback Account, from its row. The row waits on WebKit's cookie store,
+    /// which took from 8 to over 40 seconds after launch in a full local run.
     private func openFeedbackAccount() {
-        tap(app.buttons.labeled("Feedback Account"))
+        tap(app.buttons.labeled("Feedback Account"), timeout: 60)
         expect(app.navigationBars["Feedback Account"])
     }
 
