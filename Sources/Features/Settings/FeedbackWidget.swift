@@ -194,10 +194,22 @@ struct FeedbackSheet: View {
                     }
                 }
             }
+            // The presenting screen's toast is under the sheet; "App details copied" shows here.
+            .overlay(alignment: .bottom) { UndoToastView().padding(.bottom, 12) }
             .navigationTitle(widget.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
+                if widget == .help {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            UIPasteboard.general.string = SupportContact.diagnostics
+                            UndoToastCenter.shared.confirm("App details copied")
+                        } label: {
+                            Label("Copy App Details", systemImage: "doc.on.doc")
+                        }
+                    }
+                }
                 if showsSignIn {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Sign In") { signingIn = true }

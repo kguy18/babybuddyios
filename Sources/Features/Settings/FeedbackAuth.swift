@@ -14,7 +14,7 @@ enum FeedbackAuth {
         case verifyCode(email: String, code: String)
         case password(email: String, password: String)
         case signOut(session: String)
-        /// Who the session belongs to, for Send Feedback's signed-in card.
+        /// Who the session belongs to, for the Feedback Account row and screen.
         case account(session: String)
 
         /// For the DEBUG trace: which call, never its values.
@@ -241,8 +241,9 @@ enum FeedbackAuth {
         case signedIn(email: String?)
     }
 
-    /// Who is signed in, for Send Feedback's card. The email comes from the server each time,
-    /// so the app keeps no copy of it; a session the server has ended is cleared here.
+    /// Who is signed in, for the Feedback Account row and screen. The email comes from the
+    /// server each time, so the app keeps no copy of it; a session the server has ended is
+    /// cleared here.
     static func account() async -> Account {
         guard let session = await sessionCookies().first?.value else { return .signedOut }
         var answer = FeedbackAuth.Account.signedIn(email: "parent@example.com")

@@ -75,12 +75,20 @@ final class SettingsTests: UITestCase {
         XCTAssertFalse(app.buttons.labeled("Request a Feature").exists)
     }
 
-    /// The note says how posting works, and the hint promises only what Copy app details holds.
-    func testSendFeedbackSignInLineAndHint() {
-        launch(["BB_START_TAB": "settings"])
+    /// Get Help's Copy App Details confirms in the sheet, with nothing to undo. Signed in, so the
+    /// button sits over the chat.
+    func testGetHelpCopiesAppDetails() {
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in"])
         openSendFeedback()
-        expect(app.staticTexts["To post, vote or chat, you'll sign in with your email. No password needed."])
-        XCTAssertTrue(app.staticTexts["Paste them into your message so I can see your version and device."].exists)
+        XCTAssertFalse(app.buttons["Copy App Details"].exists, "Only in Get Help")
+        tap(app.buttons.labeled("Get Help"))
+        let sheet = expect(app.navigationBars["Get Help"])
+        expect(app.webViews.staticTexts["Stub widget: chat"])
+        tap(sheet.buttons["Copy App Details"])
+        expect(app.staticTexts["App details copied"])
+        XCTAssertFalse(app.buttons["Undo"].exists, "A confirmation has nothing to undo")
+        tap(sheet.buttons["Close"])
+        expectGone(sheet)
     }
 
     // MARK: Feedback sign-in
@@ -104,7 +112,7 @@ final class SettingsTests: UITestCase {
         XCTAssertFalse(app.staticTexts["Sign in with your email so I can reply to you."].exists)
         tap(sheet.buttons["Close"])
         expectGone(sheet)
-        expect(element(labeled: "Signed in to feedback as parent@example.com"))
+        expect(app.buttons.labeled("Feedback Account"))
     }
 
     /// Signed in, Get Help opens straight to the chat: no sign-in, no Sign In. A device showed a
@@ -199,11 +207,31 @@ final class SettingsTests: UITestCase {
         XCTAssertFalse(board.buttons["Sign In"].exists, "Signed in now")
     }
 
-    /// Sign Out of Feedback shows only while signed in, and the next sheet opens signed out.
+    /// Send Feedback's Feedback Account row, signed in, pushes the account screen: who is signed
+    /// in, Sign Out, the note, and Delete Feedback Account. Back returns to Send Feedback.
+    func testFeedbackAccountScreen() {
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in"])
+        openSendFeedback()
+        expect(app.buttons.labeled("Feedback Account"))
+        XCTAssertFalse(app.buttons["Sign Out of Feedback"].exists, "Sign Out lives on the account screen")
+        XCTAssertFalse(app.buttons["Delete Feedback Account"].exists)
+
+        openFeedbackAccount()
+        XCTAssertTrue(element(labeled: "Signed in to feedback as parent@example.com").exists)
+        XCTAssertTrue(app.buttons["Sign Out of Feedback"].exists)
+        XCTAssertTrue(app.buttons["Delete Feedback Account"].exists)
+        XCTAssertTrue(app.staticTexts["Your Baby Buddy data isn't affected. This account is only for posting, voting and chatting with me."].exists)
+
+        tap(app.navigationBars["Feedback Account"].buttons.firstMatch)
+        expect(app.navigationBars["Send Feedback"])
+    }
+
+    /// Sign Out of Feedback asks first, goes back to Send Feedback without the account row, and
+    /// the next sheet opens signed out.
     func testSignOutOfFeedback() {
         launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in"])
         openSendFeedback()
-        expect(element(labeled: "Signed in to feedback as parent@example.com"))
+        openFeedbackAccount()
         let signOut = app.buttons["Sign Out of Feedback"]
 
         // Cancel keeps the session.
@@ -216,22 +244,23 @@ final class SettingsTests: UITestCase {
 
         tap(signOut)
         tap(app.alerts["Sign out of feedback?"].buttons["Sign Out"])
-        expect(app.staticTexts["Signed out. You'll sign in again next time you post, vote or chat."])
-        expectGone(signOut)
-        XCTAssertFalse(element(labeled: "Signed in to feedback as").exists)
+        expect(app.navigationBars["Send Feedback"])
+        expectGone(app.navigationBars["Feedback Account"])
+        expectGone(app.buttons.labeled("Feedback Account"))
 
         tap(app.buttons.labeled("Request a Feature"))
         let board = expect(app.navigationBars["Request a Feature"])
         expect(board.buttons["Sign In"])
         tap(board.buttons["Close"])
         expectGone(board)
-        XCTAssertFalse(signOut.exists)
+        XCTAssertFalse(app.buttons.labeled("Feedback Account").exists)
     }
 
     /// Delete Feedback Account asks first, and Cancel sends nothing.
     func testDeleteFeedbackAccountCancel() {
         launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in", "BB_FEEDBACK_DELETION_MAIL": "sent"])
         openSendFeedback()
+        openFeedbackAccount()
         tap(app.buttons["Delete Feedback Account"])
         let alert = expect(app.alerts["Delete your feedback account?"])
         XCTAssertTrue(alert.staticTexts.element(matching: NSPredicate(
@@ -239,28 +268,29 @@ final class SettingsTests: UITestCase {
         XCTAssertTrue(alert.buttons["Request Deletion"].exists)
         tap(alert.buttons["Cancel"])
         expectGone(alert)
-        XCTAssertFalse(element(labeled: "Deletion requested").exists)
+        XCTAssertTrue(app.navigationBars["Feedback Account"].exists, "Still on the account screen")
         XCTAssertTrue(element(labeled: "Signed in to feedback as").exists)
     }
 
-    /// A sent request says so and leaves the user signed in, so they can still read replies. The
-    /// stub stands in for Mail's "sent".
+    /// A sent request goes back to Send Feedback and leaves the user signed in, so they can still
+    /// read replies. The stub stands in for Mail's "sent".
     func testDeleteFeedbackAccountRequested() {
         launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in", "BB_FEEDBACK_DELETION_MAIL": "sent"])
         openSendFeedback()
+        openFeedbackAccount()
         tap(app.buttons["Delete Feedback Account"])
         tap(app.alerts["Delete your feedback account?"].buttons["Request Deletion"])
-        expect(app.staticTexts["Deletion requested. I'll remove your account within 7 days."])
-        XCTAssertFalse(app.buttons["Delete Feedback Account"].exists, "The line replaces the link")
-        XCTAssertTrue(element(labeled: "Signed in to feedback as parent@example.com").exists)
-        XCTAssertTrue(app.buttons["Sign Out of Feedback"].exists)
+        expect(app.navigationBars["Send Feedback"])
+        expectGone(app.navigationBars["Feedback Account"])
+        XCTAssertTrue(app.buttons.labeled("Feedback Account").exists, "Still signed in")
     }
 
-    /// The test simulator has no Mail account, so the request can't go out: the card says where
+    /// The test simulator has no Mail account, so the request can't go out: the screen says where
     /// to write, and Try Again tries again.
     func testDeleteFeedbackAccountFailure() {
         launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in"])
         openSendFeedback()
+        openFeedbackAccount()
         tap(app.buttons["Delete Feedback Account"])
         tap(app.alerts["Delete your feedback account?"].buttons["Request Deletion"])
         let failure = expect(app.staticTexts["Couldn't send your request. Try again, or email hello@babybuddy.app."])
@@ -269,13 +299,14 @@ final class SettingsTests: UITestCase {
         XCTAssertFalse(element(labeled: "Deletion requested").exists)
     }
 
-    /// The session outlives a relaunch: straight after it, Send Feedback offers Sign Out and the
-    /// board opens signed in. The app goes to the Home Screen before it's killed, as it does when
-    /// someone quits it, since WebKit writes its cookies to disk only now and then.
+    /// The session outlives a relaunch: straight after it, Send Feedback shows the Feedback
+    /// Account row and the board opens signed in. The app goes to the Home Screen before it's
+    /// killed, as it does when someone quits it, since WebKit writes its cookies to disk only now
+    /// and then.
     func testSignInSurvivesARelaunch() {
         launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out"])
         openSendFeedback()
-        XCTAssertFalse(element(labeled: "Sign Out of Feedback").exists)
+        XCTAssertFalse(app.buttons.labeled("Feedback Account").exists)
         tap(app.buttons.labeled("Request a Feature"))
         let board = expect(app.navigationBars["Request a Feature"])
         tap(board.buttons["Sign In"])
@@ -288,7 +319,7 @@ final class SettingsTests: UITestCase {
         app.terminate()
         launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out", "BB_FEEDBACK_KEEP_SESSION": "1"])
         openSendFeedback()
-        expect(element(labeled: "Sign Out of Feedback"))
+        expect(app.buttons.labeled("Feedback Account"))
         tap(app.buttons.labeled("Request a Feature"))
         expect(app.webViews.staticTexts["Stub widget: new-post"], timeout: 30)
         XCTAssertFalse(board.buttons["Sign In"].exists, "Still signed in")
@@ -315,37 +346,34 @@ final class SettingsTests: UITestCase {
         app.textFields["Code"].typeText("123456")
     }
 
-    /// Send Feedback: the note and its four links, the supporter link opening its sheet, each way
-    /// into the feedback widget opening and closing, and Copy app details confirming. The sheets
-    /// load the stub widget, so this needs no network.
+    /// Send Feedback: the intro and the disclaimer with their links, and each way into the
+    /// feedback widget opening and closing. Signed out, there's no Feedback Account row. The
+    /// sheets load the stub widget, so this needs no network.
     func testSendFeedbackScreen() {
         launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out"])
         openSendFeedback()
 
-        expect(element(labeled: "Hi, I'm Kurtis."))
-        XCTAssertFalse(element(labeled: "Sign Out of Feedback").exists, "Signed out: no sign-out row")
-        XCTAssertTrue(element(labeled: "I do read everything").exists)
-        XCTAssertTrue(element(labeled: "This app is an independent client").exists)
-        for link in ["Kurtis", "open source on GitHub", "supporters like you", "their GitHub"] {
+        expect(element(labeled: "Hi, I'm Kurtis. I build this app in my free time and read every message."))
+        XCTAssertTrue(element(labeled: "Not affiliated with the Baby Buddy server project.").exists)
+        for link in ["Kurtis", "their GitHub"] {
             XCTAssertTrue(app.links[link].exists, "\(link) should be a link")
         }
+        XCTAssertFalse(app.buttons.labeled("Feedback Account").exists, "Signed out: no account row")
+        XCTAssertFalse(app.buttons["Copy app details"].exists, "Moved to Get Help")
+        XCTAssertFalse(app.buttons.labeled("See roadmap and updates").exists, "Now a row")
 
-        tap(app.links["supporters like you"])
-        tap(app.buttons["Maybe later"])
-        expectGone(app.buttons["Maybe later"])
-
-        for (button, title) in [("Request a Feature", "Request a Feature"), ("Get Help", "Get Help"),
-                                ("See roadmap and updates", "Roadmap and Updates")] {
-            tap(app.buttons.labeled(button))
+        for title in ["Request a Feature", "Get Help", "Roadmap and Updates"] {
+            tap(app.buttons.labeled(title))
             let sheet = expect(app.navigationBars[title])
             tap(sheet.buttons["Close"])
             expectGone(sheet)
         }
+    }
 
-        tap(app.buttons["Copy app details"])
-        expect(app.staticTexts["App details copied"])
-        XCTAssertFalse(app.buttons["Undo"].exists, "A confirmation has nothing to undo")
-        XCTAssertTrue(app.staticTexts.labeled("Paste them into your message").exists)
+    /// Send Feedback ▸ Feedback Account, from its row.
+    private func openFeedbackAccount() {
+        tap(app.buttons.labeled("Feedback Account"))
+        expect(app.navigationBars["Feedback Account"])
     }
 
     /// With the feedback server unreachable, Request a Feature offers email, and that leads to the
