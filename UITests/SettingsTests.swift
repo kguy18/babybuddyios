@@ -346,18 +346,24 @@ final class SettingsTests: UITestCase {
         app.textFields["Code"].typeText("123456")
     }
 
-    /// Send Feedback: the intro and the disclaimer with their links, and each way into the
-    /// feedback widget opening and closing. Signed out, there's no Feedback Account row. The
-    /// sheets load the stub widget, so this needs no network.
+    /// Send Feedback: the note and its four links, the supporter link opening its sheet, and each
+    /// way into the feedback widget opening and closing. Signed out, there's no Feedback Account
+    /// row. The sheets load the stub widget, so this needs no network.
     func testSendFeedbackScreen() {
         launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out"])
         openSendFeedback()
 
-        expect(element(labeled: "Hi, I'm Kurtis. I build this app in my free time and read every message."))
-        XCTAssertTrue(element(labeled: "Not affiliated with the Baby Buddy server project.").exists)
-        for link in ["Kurtis", "their GitHub"] {
+        expect(element(labeled: "Hi, I'm Kurtis."))
+        XCTAssertTrue(element(labeled: "I do read everything").exists)
+        XCTAssertTrue(app.staticTexts["To post, vote or chat, you'll sign in with your email. No password needed."].exists)
+        XCTAssertTrue(element(labeled: "This app is an independent client").exists)
+        for link in ["Kurtis", "open source on GitHub", "supporters like you", "their GitHub"] {
             XCTAssertTrue(app.links[link].exists, "\(link) should be a link")
         }
+
+        tap(app.links["supporters like you"])
+        tap(app.buttons["Maybe later"])
+        expectGone(app.buttons["Maybe later"])
         XCTAssertFalse(app.buttons.labeled("Feedback Account").exists, "Signed out: no account row")
         XCTAssertFalse(app.buttons["Copy app details"].exists, "Moved to Get Help")
         XCTAssertFalse(app.buttons.labeled("See roadmap and updates").exists, "Now a row")

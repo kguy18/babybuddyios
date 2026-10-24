@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Settings ▸ Feedback ▸ Send Feedback: a line from me, the ways into the feedback widget
+/// Settings ▸ Feedback ▸ Send Feedback: a note from me, the ways into the feedback widget
 /// (``FeedbackSheet``), the roadmap, and while signed in the feedback account.
 ///
 /// When the feedback server can't be reached, the sheet's Email Support falls back to Mail: offer
@@ -9,6 +9,7 @@ struct SendFeedbackView: View {
     @State private var feedback: FeedbackWidget?
     /// Set by the sheet's Email Support; the Mail flow starts once the sheet is gone.
     @State private var emailAfterFeedback = false
+    @State private var showingSupporter = false
     @State private var showingContactOptions = false
     @State private var mailPayload: MailPayload?
     @State private var showingMailUnavailable = false
@@ -18,15 +19,14 @@ struct SendFeedbackView: View {
     @State private var showingAccount = false
     @Environment(\.openURL) private var openURL
 
+    /// The note's "supporters like you" link: the app's own supporter link, caught by the note's
+    /// `openURL` handler so the sheet opens over this screen.
+    private static let supporterLink = URL(string: "babybuddy://supporter")!
+
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
-                Text("Hi, I'm [Kurtis](https://github.com/kguy18). I build this app in my free time and read every message.")
-                    .font(.callout)
-                    .tint(BBColor.brandAccent)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 4)
-                    .fixedSize(horizontal: false, vertical: true)
+                note
                 actionsCard
                 moreCard
             }
@@ -35,17 +35,6 @@ struct SendFeedbackView: View {
             .padding(.bottom, 16)
         }
         .background(BBColor.surface)
-        .safeAreaInset(edge: .bottom) {
-            Text("Not affiliated with the Baby Buddy server project. Server problems go to [their GitHub](https://github.com/babybuddy/babybuddy).")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .tint(BBColor.brandAccent)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 8)
-                .frame(maxWidth: .infinity)
-                .background(BBColor.surface)
-        }
         .navigationTitle("Send Feedback")
         .navigationBarTitleDisplayMode(.inline)
         .task { await refreshAccount() }
@@ -63,6 +52,7 @@ struct SendFeedbackView: View {
         }) { widget in
             FeedbackSheet(widget: widget) { emailAfterFeedback = true }
         }
+        .sheet(isPresented: $showingSupporter) { SupporterSheet(source: .settings) }
         // `.alert`, not `confirmationDialog`, which iOS 26 shows as a popover without its Cancel.
         .alert("Contact Support", isPresented: $showingContactOptions) {
             Button("Include Device Details") { presentMail(includeDiagnostics: true) }
@@ -82,6 +72,31 @@ struct SendFeedbackView: View {
         } message: {
             Text("No email account is set up on this device. You can reach us at \(SupportContact.recipient).")
         }
+    }
+
+    // MARK: Note
+
+    /// Markdown links: VoiceOver reads each as a link, and the supporter one opens the sheet here.
+    private var note: some View {
+        BBCard(cornerRadius: BBRadius.card, padding: 18) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Hi, I'm [Kurtis](https://github.com/kguy18). I build Baby Buddy Companion in my free time, and it's [open source on GitHub](https://github.com/kguy18/babybuddyios). It's free, and [supporters like you](babybuddy://supporter) keep it going.")
+                Text("I do read everything and try to reply to everyone.")
+                Text("To post, vote or chat, you'll sign in with your email. No password needed.")
+                Text("This app is an independent client not affiliated with Baby Buddy the open source server project, so if you have server-side issues please open a ticket on [their GitHub](https://github.com/babybuddy/babybuddy).")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .font(.callout)
+            .lineSpacing(3)
+            .tint(BBColor.brandAccent)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .environment(\.openURL, OpenURLAction { url in
+            guard url == Self.supporterLink else { return .systemAction }
+            showingSupporter = true
+            return .handled
+        })
     }
 
     // MARK: Rows
