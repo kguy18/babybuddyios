@@ -82,10 +82,12 @@ struct QuickStartView: View {
         }
     }
 
-    /// A running tile opens its timer in the app instead of starting a duplicate.
+    /// A running tile opens its timer in the app instead of starting a duplicate. It's an intent
+    /// button rather than a `Link`, which a small widget ignores.
     @ViewBuilder private func tile(_ activity: TimerActivity) -> some View {
-        if let id = entry.runningTimers[activity], let url = URL(string: "babybuddy://timer/\(id.uuidString)") {
-            Link(destination: url) { tileLabel(activity, running: true) }
+        if let id = entry.runningTimers[activity] {
+            Button(intent: OpenTimerIntent(timerLocalID: id)) { tileLabel(activity, running: true) }
+                .buttonStyle(.plain)
                 .accessibilityLabel("\(activity.timerName), timer running, open timer")
         } else {
             Button(intent: StartTimerIntent(activity: activity)) { tileLabel(activity, running: false) }

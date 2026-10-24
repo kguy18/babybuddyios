@@ -19,6 +19,29 @@ final class DeepLinkRouterTests: XCTestCase {
         XCTAssertEqual(router.openTimerLocalID, id)
     }
 
+    /// A running Quick start tile runs `OpenTimerIntent`, which leaves the timer in shared
+    /// defaults; the app takes it once, on the intent's callback or its next activation.
+    func testOpenTimerIntentRoutesPendingTimerOnce() async throws {
+        let id = UUID()
+        let router = DeepLinkRouter()
+        OpenTimerIntent.didRequestOpen = { router.openPendingTimer() }
+        defer { OpenTimerIntent.didRequestOpen = nil; SharedDefaults.pendingOpenTimerID = nil }
+
+        _ = try await OpenTimerIntent(timerLocalID: id).perform()
+        XCTAssertEqual(router.openTimerLocalID, id)
+        XCTAssertNil(SharedDefaults.pendingOpenTimerID)
+
+        router.openTimerLocalID = nil
+        router.openPendingTimer() // the next activation finds nothing left to open
+        XCTAssertNil(router.openTimerLocalID)
+
+        OpenTimerIntent.didRequestOpen = nil // run in the widget's process: picked up on activation
+        _ = try await OpenTimerIntent(timerLocalID: id).perform()
+        XCTAssertNil(router.openTimerLocalID)
+        router.openPendingTimer()
+        XCTAssertEqual(router.openTimerLocalID, id)
+    }
+
     /// Stop on a widget for an untyped timer; a body tap (`timer/`) must not stop it.
     func testStopLinkParsesLocalID() {
         let router = DeepLinkRouter()

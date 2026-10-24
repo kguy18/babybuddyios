@@ -52,6 +52,7 @@ struct BabyBuddyApp: App {
         }
         let router = DeepLinkRouter()
         _router = State(initialValue: router)
+        OpenTimerIntent.didRequestOpen = { router.openPendingTimer() }
         timerAlerts = TimerAlertDelegate(router: router)
         UNUserNotificationCenter.current().delegate = timerAlerts
         let session = AppSession(context: container.mainContext)
@@ -98,6 +99,7 @@ struct BabyBuddyApp: App {
             switch phase {
             case .active:
                 lock.willEnterForeground()
+                router.openPendingTimer() // a running Quick start tile's OpenTimerIntent
                 if session.isAuthenticated && !lock.isLocked { Task { await sync.sync() } }
                 // Sync the Live Activity to the current running timer — covers timers started or
                 // stopped from the widget/Siri, whose extension-process intents can't touch it.

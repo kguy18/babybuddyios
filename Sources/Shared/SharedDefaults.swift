@@ -67,4 +67,12 @@ enum SharedDefaults {
     static var stalenessThresholdMinutes: Int {
         suite.object(forKey: stalenessThresholdKey) as? Int ?? SyncFreshness.defaultThresholdMinutes
     }
+
+    /// A timer ``OpenTimerIntent`` asked the app to show. Written by the intent, which may run in
+    /// the widget's process, and taken (read and cleared) by the app when it becomes active.
+    static var pendingOpenTimerID: UUID? {
+        get { suite.string(forKey: pendingOpenTimerKey).flatMap(UUID.init(uuidString:)) }
+        set { suite.set(newValue?.uuidString, forKey: pendingOpenTimerKey) }
+    }
+    private static let pendingOpenTimerKey = "pendingOpenTimerID"
 }

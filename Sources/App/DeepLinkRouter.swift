@@ -76,4 +76,11 @@ final class DeepLinkRouter {
             return false
         }
     }
+
+    /// Show the timer ``OpenTimerIntent`` left in shared defaults, if any, and clear it.
+    func openPendingTimer() {
+        guard let id = SharedDefaults.pendingOpenTimerID else { return }
+        SharedDefaults.pendingOpenTimerID = nil
+        openTimerLocalID = id
+    }
 }
