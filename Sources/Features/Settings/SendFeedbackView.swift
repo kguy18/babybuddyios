@@ -85,7 +85,7 @@ struct SendFeedbackView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Hi, I'm [Kurtis](https://github.com/kguy18). I build Baby Buddy Companion in my free time, and it's [open source on GitHub](https://github.com/kguy18/babybuddyios). It's free, and [supporters like you](babybuddy://supporter) keep it going.")
                 Text("I do read everything and try to reply to everyone.")
-                Text("To post, vote or chat, you'll sign in with your email. No password needed.")
+                Text("To post, vote, or chat, you'll sign in with your email - this account is only on the feedback system and not related to your own hosted Baby Buddy instance. No password needed. Sign in with a code.")
                 Text("This app is an independent client not affiliated with Baby Buddy the open source server project, so if you have server-side issues please open a ticket on [their GitHub](https://github.com/babybuddy/babybuddy).")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)

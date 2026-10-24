@@ -355,7 +355,8 @@ final class SettingsTests: UITestCase {
 
         expect(element(labeled: "Hi, I'm Kurtis."))
         XCTAssertTrue(element(labeled: "I do read everything").exists)
-        XCTAssertTrue(app.staticTexts["To post, vote or chat, you'll sign in with your email. No password needed."].exists)
+        XCTAssertTrue(app.staticTexts.element(matching: NSPredicate(format: "label == %@",
+            "To post, vote, or chat, you'll sign in with your email - this account is only on the feedback system and not related to your own hosted Baby Buddy instance. No password needed. Sign in with a code.")).exists)
         XCTAssertTrue(element(labeled: "This app is an independent client").exists)
         for link in ["Kurtis", "open source on GitHub", "supporters like you", "their GitHub"] {
             XCTAssertTrue(app.links[link].exists, "\(link) should be a link")
