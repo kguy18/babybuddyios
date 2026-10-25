@@ -43,6 +43,7 @@ struct SettingsView: View {
     // Mirrors MedicationReminderPolicy.isEnabled.
     @AppStorage(MedicationReminderPolicy.enabledKey, store: SharedDefaults.suite) private var doseRemindersEnabled = false
     @AppStorage(UndoToastCenter.enabledKey) private var undoToastEnabled = true
+    @AppStorage(TodayTiles.key, store: SharedDefaults.suite) private var todayTilesRaw: String?
     // Sick mode (see ``SickMode``): the keys and defaults are the ones it reads.
     @State private var sickMode = SickModeStore.shared
     @State private var medicineColors = MedicineColorStore.shared
@@ -103,9 +104,7 @@ struct SettingsView: View {
                             .padding(.top, 2)
                     }
 
-                    if icons.isSupported {
-                        sectioned("Appearance") { appearanceCard }
-                    }
+                    sectioned("Appearance") { appearanceCard }
 
                     sectioned("Quick Log") {
                         quickFeedCard
@@ -555,22 +554,38 @@ struct SettingsView: View {
 
     // MARK: Appearance
 
-    /// The Home Screen icon, shown by name with the picker one tap away. Free for everyone — the
-    /// row carries no lock, badge, or price, and never consults ``PurchaseManager``.
+    /// Home's Today tiles, and the Home Screen icon shown by name with the picker one tap away.
+    /// Icons are free for everyone — the row carries no lock, badge, or price, and never consults
+    /// ``PurchaseManager``. Devices that can't switch icons get only the tiles row.
     private var appearanceCard: some View {
         card {
             NavigationLink {
-                AppIconPickerView()
+                TodayTilesView()
             } label: {
-                SettingsRow(symbol: "paintbrush.fill", tint: BBColor.tummy, title: "App Icon") {
+                SettingsRow(symbol: "square.grid.2x2.fill", tint: BBColor.brand, title: "Today tiles") {
                     HStack(spacing: 4) {
-                        Text(icons.selected.displayName)
+                        Text("\(TodayTiles.decode(todayTilesRaw).count) on")
                             .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                         disclosure
                     }
                 }
             }
             .buttonStyle(.plain)
+            if icons.isSupported {
+                rowDivider
+                NavigationLink {
+                    AppIconPickerView()
+                } label: {
+                    SettingsRow(symbol: "paintbrush.fill", tint: BBColor.tummy, title: "App Icon") {
+                        HStack(spacing: 4) {
+                            Text(icons.selected.displayName)
+                                .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                            disclosure
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 

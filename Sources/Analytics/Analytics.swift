@@ -359,6 +359,16 @@ extension Analytics {
         signal("Settings.appIconChanged", parameters: ["icon": icon])
     }
 
+    /// The Today tiles screen was left with a different set or order than it opened with. Carries
+    /// the chosen kinds' raw values in order, so it says which tiles people want on Home.
+    static func todayTilesChanged(_ kinds: [EntityKind], isDefault: Bool) {
+        signal("TodayTiles.changed", parameters: [
+            "tiles": kinds.map(\.rawValue).joined(separator: ","),
+            "count": String(kinds.count),
+            "isDefault": String(isDefault),
+        ])
+    }
+
     // MARK: Feedback
     //
     // How the feedback screens are used: which way into the feedback widget people take, how

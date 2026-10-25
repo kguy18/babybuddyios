@@ -69,6 +69,8 @@ struct DashboardView: View {
     @AppStorage(TemperatureUnit.key, store: SharedDefaults.suite) private var storedUnit: TemperatureUnit?
     @AppStorage(SickMode.feverLineKey, store: SharedDefaults.suite) private var feverLineCelsius = SickMode.defaultFeverLine
     @AppStorage(SickMode.suggestKey, store: SharedDefaults.suite) private var suggestsSickMode = true
+    // Settings ▸ Today tiles; `nil` until changed, which is the default four (``TodayTiles``).
+    @AppStorage(TodayTiles.key, store: SharedDefaults.suite) private var todayTilesRaw: String?
 
     /// A request to convert a specific timer into a specific activity kind.
     private struct ConvertRequest: Identifiable {
@@ -543,21 +545,22 @@ struct DashboardView: View {
 
     // MARK: Today
 
-    private var todaySection: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            SectionHeader("Today")
-            LazyVGrid(columns: columns, spacing: 9) {
-                metricLink(.feeding) {
-                    MetricTile(kind: .feeding, label: "Feedings", value: "\(count(of: .feeding, today: true))")
-                }
-                metricLink(.sleep) {
-                    MetricTile(kind: .sleep, label: "Sleep", value: sleepTodayText)
-                }
-                metricLink(.change) {
-                    MetricTile(kind: .change, label: "Diapers", value: "\(count(of: .change, today: true))")
-                }
-                metricLink(.tummyTime) {
-                    MetricTile(kind: .tummyTime, label: "Tummy time", value: tummyTodayText)
+    /// The tiles chosen in Settings ▸ Today tiles; with none chosen the section is left out.
+    @ViewBuilder private var todaySection: some View {
+        let kinds = TodayTiles.decode(todayTilesRaw)
+        if !kinds.isEmpty {
+            let today = childEntities.filter { Calendar.current.isDateInToday($0.timestamp) }
+            VStack(alignment: .leading, spacing: 9) {
+                SectionHeader("Today")
+                LazyVGrid(columns: columns, spacing: 9) {
+                    ForEach(kinds) { kind in
+                        metricLink(kind) {
+                            MetricTile(kind: kind, label: TodayTiles.label(kind),
+                                       value: TodayTiles.value(kind, today: today, unit: unit))
+                        }
+                        // Latest repeats the label ("Pumping, …"), so UI tests find tiles by id.
+                        .accessibilityIdentifier("today-\(kind.rawValue)")
+                    }
                 }
             }
         }
@@ -767,29 +770,6 @@ struct DashboardView: View {
         allEntities.filter {
             $0.childID == selectedChildID && ($0.isRunningTimer || ($0.kind == .timer && $0.stoppedAt != nil))
         }
-    }
-
-    private func count(of kind: EntityKind, today: Bool) -> Int {
-        childEntities.filter {
-            $0.kind == kind && (!today || Calendar.current.isDateInToday($0.timestamp))
-        }.count
-    }
-
-    private var sleepTodayText: String { durationToday(of: .sleep) }
-    private var tummyTodayText: String { durationToday(of: .tummyTime) }
-
-    /// Total logged duration today for a start/end-based kind, formatted (or "—").
-    private func durationToday(of kind: EntityKind) -> String {
-        let total = childEntities
-            .filter { $0.kind == kind && Calendar.current.isDateInToday($0.timestamp) }
-            .reduce(0.0) { acc, e in
-                let dates = e.startEndDates
-                if let start = dates.start, let end = dates.end {
-                    return acc + end.timeIntervalSince(start)
-                }
-                return acc
-            }
-        return total > 0 ? EntityFormatting.formatInterval(total) : "—"
     }
 }
 

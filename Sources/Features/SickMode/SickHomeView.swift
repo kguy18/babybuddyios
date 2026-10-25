@@ -300,13 +300,12 @@ struct SickHomeView<Timers: View>: View {
 
     private func todaySection(now: Date) -> some View {
         let today = entities.filter { Calendar.current.isDate($0.timestamp, inSameDayAs: now) }
-        let highest = SickMode.readings(today, unit: unit).map(\.value).max()
         let fluids = today.filter { $0.kind == .feeding }
             .compactMap { $0.payloadObject["amount"] as? Double }.reduce(0, +)
         return VStack(alignment: .leading, spacing: 9) {
             SectionHeader("Today")
             LazyVGrid(columns: columns, spacing: 9) {
-                tile(.temperature, "Highest", highest.map { TemperatureUnit.decimal($0) + "°" } ?? "—")
+                tile(.temperature, "Highest", SickMode.highestText(today, unit: unit))
                 tile(.medication, "Doses", "\(today.filter { $0.kind == .medication }.count)")
                 tile(.change, "Wet diapers",
                      "\(today.filter { $0.kind == .change && $0.payloadObject["wet"] as? Bool == true }.count)")

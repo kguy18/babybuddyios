@@ -54,6 +54,11 @@ enum SickMode {
         }
     }
 
+    /// The highest reading among `entities` as a Today tile shows it, "38.2°", or "—" with none.
+    static func highestText(_ entities: [LocalEntity], unit: TemperatureUnit) -> String {
+        readings(entities, unit: unit).map(\.value).max().map { TemperatureUnit.decimal($0) + "°" } ?? "—"
+    }
+
     /// At or over the line. Compared in tenths, so 38.0 °C and 100.4 °F land on the same side.
     static func isFever(_ value: Double, line: Double) -> Bool {
         (value * 10).rounded() >= (line * 10).rounded()
