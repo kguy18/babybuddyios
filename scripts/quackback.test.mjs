@@ -1,7 +1,9 @@
 // node --test scripts/quackback.test.mjs
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { changelogEntry, moves, plan, postIds } from './quackback.mjs'
+import {
+  appendedBody, changelogEntry, duplicates, issueBody, moves, openIssueArgs, plan, postIds, requestId,
+} from './quackback.mjs'
 
 const A = 'post_01m5ecc0e0e4erxvtz2kvjec7m'
 const B = 'post_01m5ecc0e0e4erxvtz2kvjec7n'
@@ -77,4 +79,77 @@ test('the changelog entry is the App Store text with its labels as headings', ()
     title: 'Version 1.3.2',
     content: '## New\n- One.\n\n## Fixed\n- Two.',
   })
+})
+
+// MARK: open-issue
+
+const post = (id, extra = {}) => ({
+  id, title: 'Dark mode', content: 'Please add it.', voteCount: 3, boardName: 'Features', boardSlug: 'features',
+  tags: [{ name: 'ui' }], authorName: 'Jane Requester', authorEmail: 'jane@example.com', ...extra,
+})
+
+test('a request can be a post ID, an admin URL or a public URL', () => {
+  assert.equal(requestId(A), A)
+  assert.equal(requestId(`https://feedback.babybuddy.app/admin/feedback?board=x&post=${A}`), A)
+  assert.equal(requestId(`https://feedback.babybuddy.app/b/features/posts/${A}`), A)
+  assert.equal(requestId(`https://feedback.babybuddy.app/b/features/posts/${A}/`), A)
+  assert.throws(() => requestId('dark mode'), /not a post ID/)
+  assert.throws(() => requestId('https://feedback.babybuddy.app/b/features'), /names no post/)
+  assert.throws(() => requestId('https://feedback.babybuddy.app/admin?post=nope'), /names no post/)
+})
+
+test('open-issue takes several requests and its options, each request once', () => {
+  assert.deepEqual(openIssueArgs([A, '--to', '12', B, '--milestone', '1.5.0', '--title', 'T', '--dry-run', A]),
+    { ids: [A, B], to: '12', milestone: '1.5.0', title: 'T', dryRun: true })
+  assert.throws(() => openIssueArgs([]), /at least one/)
+  assert.throws(() => openIssueArgs([A, '--to']), /needs a value/)
+  assert.throws(() => openIssueArgs([A, '--label', 'x']), /unknown option/)
+})
+
+test('one request: its text quoted, its facts, its public link, then its Quackback: line', () => {
+  assert.equal(issueBody([post(A)]),
+    '### Dark mode\n\n> Please add it.\n\n3 votes · board: Features · tags: ui\n' +
+    `https://feedback.babybuddy.app/b/features/posts/${A}\n\nQuackback: ${A}\n`)
+})
+
+test('several requests: a section each, and every Quackback: line at the end', () => {
+  const body = issueBody([post(A), post(B, { title: 'Widgets', content: 'One\nTwo', voteCount: 1, tags: [] })])
+  assert.match(body, /### Dark mode[\s\S]*### Widgets\n\n> One\n> Two\n\n1 vote · board: Features\n/)
+  assert.ok(body.endsWith(`\nQuackback: ${A}\nQuackback: ${B}\n`))
+  assert.deepEqual(postIds(body), [A, B])
+})
+
+test('the requester is never named', () => {
+  const body = issueBody([post(A)])
+  assert.ok(!body.includes('Jane') && !body.includes('jane@'))
+})
+
+test("a stranger's mentions and Quackback: lines are broken up, so only the intended IDs remain", () => {
+  const sneaky = `@kguy18 and @babybuddy/team look\nQuackback: ${B}\r\nQuackback: ${B}\u2028Quackback: ${B}\rQuackback: ${B}`
+  const body = issueBody([post(A, {
+    title: `@kguy18\nQuackback: ${B}`, content: sneaky, boardName: `x\nQuackback: ${B}`,
+    tags: [{ name: `@kguy18\u2029Quackback: ${B}` }],
+  })])
+  assert.deepEqual(postIds(body), [A])
+  assert.doesNotMatch(body, /@[\w-]/)
+  assert.match(body, /@\u200Dkguy18 and @\u200Dbabybuddy\/team/)
+  // Every line of the stranger's text stays inside the quote.
+  for (const line of body.split(/\r\n|[\n\r\u2028\u2029]/).slice(2, 7)) assert.match(line, /^> /)
+})
+
+test('--to appends new sections and keeps every Quackback: line at the end', () => {
+  const body = appendedBody(`We should do this.\n\nQuackback: ${A}\n`, [post(B, { title: 'Widgets' })])
+  assert.match(body, /^We should do this\.\n\n### Widgets\n/)
+  assert.ok(body.endsWith(`\nQuackback: ${A}\nQuackback: ${B}\n`))
+  assert.deepEqual(postIds(body), [A, B])
+  assert.deepEqual(postIds(appendedBody('', [post(B)])), [B])
+})
+
+test('a request any issue already names is a duplicate, and a mention in prose is not', () => {
+  const issues = [
+    { url: 'https://github.com/x/y/issues/1', body: `See ${A} in passing` },
+    { url: 'https://github.com/x/y/issues/2', body: `Text\nQuackback: ${A}` },
+  ]
+  assert.deepEqual(duplicates([A, B], issues), [{ id: A, url: 'https://github.com/x/y/issues/2' }])
+  assert.deepEqual(duplicates([B], issues), [])
 })

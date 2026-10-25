@@ -104,3 +104,10 @@ The workflow acts only on issues written by the owner or a collaborator, and an 
 fails the job. Quackback's own GitHub status sync stays off, so the two don't fight. The rules
 live in `scripts/quackback.mjs`, tested by `scripts/quackback.test.mjs`. The workflows read the
 admin key from the repo secret `QUACKBACK_API_KEY`.
+
+To turn requests into a `feature-request` issue, run
+`node scripts/quackback.mjs open-issue <request>... [--to <issue>] [--milestone <version>] [--title "<text>"] [--dry-run]`.
+A request is a post ID, an admin URL or a public URL. It creates the issue as your `gh` login, so
+the workflow trusts it, and stops if any issue already names a request. `--to` appends to an
+existing issue instead. Locally it reads the key from the login keychain
+(`security add-generic-password -a "$USER" -s babybuddy-quackback-api-key -w`).

@@ -4,6 +4,13 @@
 //
 //   node scripts/quackback.mjs issue <event.json>          an `issues` event: Planned or Complete
 //   node scripts/quackback.mjs ship <version> <published>  the changelog entry, then Shipped
+//   node scripts/quackback.mjs open-issue <request>... [--to <issue>] [--milestone <version>]
+//     [--title "<text>"] [--dry-run]                      a feature-request issue naming them
+//
+// A request is a post ID, its admin URL (`?post=post_…`) or its public URL (`/b/<board>/posts/post_…`).
+// `open-issue` creates the issue with the local `gh` login, so the status workflow trusts it, and
+// takes the key from the login keychain (`babybuddy-quackback-api-key`) when QUACKBACK_API_KEY is
+// unset. `--to` appends to an existing issue instead. It stops if any issue already names a request.
 //
 // `ship` reads issue and PR bodies on stdin and the notes from Docs/release-notes.md (or
 // `RELEASE_NOTES=<path>`). `<published>` is an ISO 8601 time, the GitHub Release's publishedAt.
@@ -14,12 +21,16 @@
 //
 // No dependencies, on purpose, like release.mjs.
 
+import { execFileSync } from 'node:child_process'
 import { appendFileSync, readFileSync } from 'node:fs'
+import { userInfo } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { appStoreNotes } from './release.mjs'
 
 const API = process.env.QUACKBACK_URL ?? 'https://feedback.babybuddy.app/api/v1'
 const DRY_RUN = process.env.QUACKBACK_DRY_RUN === '1'
+const SITE = new URL(API).origin
+const LABEL = 'feature-request'
 
 /// The post IDs named by `Quackback:` lines, in order, each once. Anything after `post_` is taken
 /// as written, so a mistyped ID reaches Quackback and fails there instead of being skipped.
@@ -52,6 +63,73 @@ export const moves = (current, target) => current !== target && current !== 'Shi
 export function changelogEntry(version, notes) {
   return { title: `Version ${version}`, content: notes.replace(/^#\s*(\S.*)$/gm, '## $1').trim() }
 }
+
+// MARK: open-issue, the pure part
+
+/// The post ID in a bare `post_…`, an admin URL's `post=` value, or a public `/posts/post_…` URL.
+export function requestId(input) {
+  if (/^post_[0-9a-z]+$/i.test(input)) return input
+  let url
+  try { url = new URL(input) } catch { fail(`"${input}" is not a post ID or a Quackback URL`) }
+  const id = url.searchParams.get('post') ?? url.pathname.match(/\/posts\/(post_[0-9a-z]+)\/?$/i)?.[1]
+  if (!id || !/^post_[0-9a-z]+$/i.test(id)) fail(`"${input}" names no post`)
+  return id
+}
+
+export function openIssueArgs(argv) {
+  const args = { ids: [], to: null, milestone: null, title: null, dryRun: false }
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]
+    if (arg === '--dry-run') args.dryRun = true
+    else if (['--to', '--milestone', '--title'].includes(arg)) {
+      if (argv[i + 1] === undefined) fail(`${arg} needs a value`)
+      args[arg.slice(2)] = argv[++i]
+    } else if (arg.startsWith('--')) fail(`unknown option ${arg}`)
+    else args.ids.push(requestId(arg))
+  }
+  args.ids = [...new Set(args.ids)]
+  if (args.ids.length === 0) fail('name at least one request')
+  return args
+}
+
+/// A stranger's text made inert: `@name` can't notify anyone and `Quackback:` can't name a post.
+/// A zero-width joiner splits each, so the text still reads the same.
+export const inert = (text) => (text ?? '')
+  .replace(/@(?=[\w-])/g, '@\u200D')
+  .replace(/(quack)(back)/gi, '$1\u200D$2')
+
+// Every line break JavaScript's `^` honours, not only \n, so no stranger's line goes unquoted.
+const LINES = /\r\n|[\n\r\u2028\u2029]/
+const oneLine = (text) => inert(text).split(LINES).join(' ').trim()
+
+/// One request's section: its title, its text quoted, its votes, board and tags, and its public
+/// link. Never the requester's name or email.
+export function section(post) {
+  const quoted = inert(post.content?.trim() || '(no text)').split(LINES).map((l) => `> ${l}`.trimEnd()).join('\n')
+  const tags = (post.tags ?? []).map((t) => oneLine(t.name)).filter(Boolean)
+  const facts = [`${post.voteCount ?? 0} vote${post.voteCount === 1 ? '' : 's'}`, `board: ${oneLine(post.boardName) || 'none'}`]
+  if (tags.length) facts.push(`tags: ${tags.join(', ')}`)
+  return `### ${oneLine(post.title)}\n\n${quoted}\n\n${facts.join(' · ')}\n` +
+    `${SITE}/b/${encodeURIComponent(post.boardSlug ?? '')}/posts/${post.id}`
+}
+
+const quackbackLines = (ids) => ids.map((id) => `Quackback: ${id}`).join('\n')
+
+export const issueBody = (posts) => `${posts.map(section).join('\n\n')}\n\n${quackbackLines(posts.map((p) => p.id))}\n`
+
+/// An existing body with the new sections added, and every `Quackback:` line, old then new, at
+/// the end.
+export function appendedBody(body, posts) {
+  const rest = (body ?? '').split(/\r?\n/).filter((line) => postIds(line).length === 0).join('\n').trimEnd()
+  const ids = [...new Set([...postIds(body), ...posts.map((p) => p.id)])]
+  return `${rest ? `${rest}\n\n` : ''}${posts.map(section).join('\n\n')}\n\n${quackbackLines(ids)}\n`
+}
+
+/// Each requested ID that one of `issues` already names, with that issue's URL.
+export const duplicates = (ids, issues) => ids.flatMap((id) => {
+  const issue = issues.find((i) => postIds(i.body).includes(id))
+  return issue ? [{ id, url: issue.url }] : []
+})
 
 // MARK: Quackback
 
@@ -163,6 +241,64 @@ export async function ship(version, publishedAt, ids, markdown) {
   await setStatus(posts, named, 'Shipped')
 }
 
+// MARK: open-issue, the GitHub part
+
+const gh = (args, input) => execFileSync('gh', args, { encoding: 'utf8', input, stdio: ['pipe', 'pipe', 'inherit'] })
+
+function loadApiKey() {
+  if (process.env.QUACKBACK_API_KEY) return
+  try {
+    process.env.QUACKBACK_API_KEY = execFileSync('security',
+      ['find-generic-password', '-a', userInfo().username, '-s', 'babybuddy-quackback-api-key', '-w'],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+  } catch {
+    fail('No Quackback API key. Set QUACKBACK_API_KEY, or add it to the login keychain with\n' +
+      '  security add-generic-password -a "$USER" -s babybuddy-quackback-api-key -w')
+  }
+}
+
+async function readPost(id) {
+  try {
+    return { ...(await api(`/posts/${id}`)).data, id }
+  } catch (error) {
+    if (error.status === 404 || error.status === 400) fail(`${id}: Quackback has no such post\n${error.message}`)
+    throw error
+  }
+}
+
+/// Reads every request from Quackback and checks every issue for them before writing anything.
+export async function openIssue(argv) {
+  const args = openIssueArgs(argv)
+  loadApiKey()
+  const posts = []
+  for (const id of args.ids) posts.push(await readPost(id))
+
+  // Search narrows the list; postIds on each body decides.
+  const issues = args.ids.flatMap((id) => JSON.parse(gh(['issue', 'list', '--state', 'all', '--search', id,
+    '--limit', '100', '--json', 'url,body'])))
+  const target = args.to && JSON.parse(gh(['issue', 'view', args.to, '--json', 'url,body']))
+  const dupes = duplicates(args.ids, target ? [target, ...issues] : issues)
+  if (dupes.length) fail(`${dupes.map((d) => `${d.id} is already named by ${d.url}`).join('\n')}\nNothing was written.`)
+
+  const title = args.title ?? posts[0].title
+  const body = target ? appendedBody(target.body, posts) : issueBody(posts)
+  if (args.dryRun || DRY_RUN) {
+    console.log(`${target ? `issue: ${target.url}` : `title: ${title}`}\nlabels: ${LABEL}\n` +
+      `milestone: ${args.milestone ?? 'none'}\n\n${body}`)
+    return
+  }
+  if (!JSON.parse(gh(['label', 'list', '--search', LABEL, '--json', 'name'])).some((l) => l.name === LABEL)) {
+    gh(['label', 'create', LABEL, '--description', 'Asked for on feedback.babybuddy.app'])
+  }
+  const milestone = args.milestone ? ['--milestone', args.milestone] : []
+  if (target) {
+    gh(['issue', 'edit', target.url, '--body-file', '-', '--add-label', LABEL, ...milestone], body)
+    console.log(target.url)
+  } else {
+    console.log(gh(['issue', 'create', '--title', title, '--body-file', '-', '--label', LABEL, ...milestone], body).trim())
+  }
+}
+
 function fail(message) {
   throw new Error(message)
 }
@@ -170,13 +306,16 @@ function fail(message) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [command, a, b] = process.argv.slice(2)
   try {
-    if (command === 'issue' && a) {
+    if (command === 'open-issue') {
+      await openIssue(process.argv.slice(3))
+    } else if (command === 'issue' && a) {
       await issueEvent(JSON.parse(readFileSync(a, 'utf8')))
     } else if (command === 'ship' && a && b) {
       const notesFile = process.env.RELEASE_NOTES ?? new URL('../Docs/release-notes.md', import.meta.url)
       await ship(a, b, postIds(readFileSync(0, 'utf8')), readFileSync(notesFile, 'utf8'))
     } else {
-      console.error('usage: quackback.mjs issue <event.json> | ship <version> <published-at> < bodies')
+      console.error('usage: quackback.mjs issue <event.json> | ship <version> <published-at> < bodies\n' +
+        '       quackback.mjs open-issue <request>... [--to <issue>] [--milestone <version>] [--title "<text>"] [--dry-run]')
       process.exit(2)
     }
   } catch (error) {
