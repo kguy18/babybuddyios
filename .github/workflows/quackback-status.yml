@@ -42,8 +42,26 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Read the issue's comments
+      # Whoever opened an issue can close or reopen it, so on a stranger's issue that would let them
+      # move the owner's requests. A close or reopen counts only from someone with write access.
+      - name: Check who closed or reopened it
+        id: sender
         if: github.event_name == 'issues' && (github.event.action == 'closed' || github.event.action == 'reopened')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SENDER: ${{ github.event.sender.login }}
+          ACTION: ${{ github.event.action }}
+        run: |
+          PERMISSION=$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$SENDER/permission" --jq .permission || true)
+          case "$PERMISSION" in
+            admin|maintain|write) echo "allowed=true" >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "allowed=false" >> "$GITHUB_OUTPUT"
+              echo "$SENDER $ACTION this issue without write access (${PERMISSION:-unknown}), so no request was moved." \
+                | tee -a "$GITHUB_STEP_SUMMARY" ;;
+          esac
+      - name: Read the issue's comments
+        if: steps.sender.outputs.allowed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           NUMBER: ${{ github.event.issue.number }}
@@ -51,6 +69,7 @@ jobs:
           gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments" \
             --jq '.[] | {author_association, body} | tojson' > "$RUNNER_TEMP/comments.jsonl"
       - name: Set the requests' status
+        if: steps.sender.outputs.allowed != 'false'
         env:
           QUACKBACK_API_KEY: ${{ secrets.QUACKBACK_API_KEY }}
         run: |
