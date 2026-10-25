@@ -125,6 +125,13 @@ export function appendedBody(body, posts) {
   return `${rest ? `${rest}\n\n` : ''}${posts.map(section).join('\n\n')}\n\n${quackbackLines(ids)}\n`
 }
 
+/// The post, or a failure if Quackback has deleted it: `GET /posts/<id>` still returns a deleted
+/// post, with `deletedAt` set, and its public link is gone.
+export function live(post) {
+  if (post.deletedAt) fail(`${post.id}: deleted in Quackback on ${post.deletedAt.slice(0, 10)}. Nothing was written.`)
+  return post
+}
+
 /// Each requested ID that one of `issues` already names, with that issue's URL.
 export const duplicates = (ids, issues) => ids.flatMap((id) => {
   const issue = issues.find((i) => postIds(i.body).includes(id))
@@ -259,7 +266,7 @@ function loadApiKey() {
 
 async function readPost(id) {
   try {
-    return { ...(await api(`/posts/${id}`)).data, id }
+    return live({ ...(await api(`/posts/${id}`)).data, id })
   } catch (error) {
     if (error.status === 404 || error.status === 400) fail(`${id}: Quackback has no such post\n${error.message}`)
     throw error

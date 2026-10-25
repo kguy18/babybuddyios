@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
-  appendedBody, changelogEntry, duplicates, issueBody, moves, openIssueArgs, plan, postIds, requestId,
+  appendedBody, changelogEntry, duplicates, issueBody, live, moves, openIssueArgs, plan, postIds, requestId,
 } from './quackback.mjs'
 
 const A = 'post_01m5ecc0e0e4erxvtz2kvjec7m'
@@ -117,6 +117,12 @@ test('several requests: a section each, and every Quackback: line at the end', (
   assert.match(body, /### Dark mode[\s\S]*### Widgets\n\n> One\n> Two\n\n1 vote · board: Features\n/)
   assert.ok(body.endsWith(`\nQuackback: ${A}\nQuackback: ${B}\n`))
   assert.deepEqual(postIds(body), [A, B])
+})
+
+test('a post Quackback deleted is refused, and a live one passes', () => {
+  assert.throws(() => live(post(A, { deletedAt: '2026-10-20T08:00:00.000Z' })),
+    new RegExp(`${A}: deleted in Quackback on 2026-10-20\\. Nothing was written\\.`))
+  assert.equal(live(post(A, { deletedAt: null })).id, A)
 })
 
 test('the requester is never named', () => {
