@@ -4,12 +4,16 @@ name: Quackback status
 # lines, as the issue moves: Planned when it opens, gains an ID or reopens, Complete when it closes
 # as completed. Closed as not planned leaves them alone and says so in the job summary. Only
 # Publish Release sets Shipped, and nothing here moves a post back from Shipped.
+# A line counts in the body of an issue the owner or a collaborator opened, or in a comment one of
+# them wrote on any issue, so a request can be linked to an issue a stranger opened.
 # scripts/quackback.mjs holds the rules; Quackback's own GitHub status sync is off so the two
 # can't fight.
 
 on:
   issues:
     types: [opened, edited, closed, reopened]
+  issue_comment:
+    types: [created, edited]
 
 # One run at a time per issue, in order, so an edit and a close can't race.
 concurrency:
@@ -18,21 +22,38 @@ concurrency:
 
 permissions:
   contents: read
+  issues: read   # the issue's comments, on a close or reopen
 
 jobs:
   status:
     name: status
-    # The body decides which requests move, so only bodies written by someone with access count.
-    # Only the author or a collaborator can edit, close or reopen an issue, so a stranger's issue
-    # never reaches Quackback. Issues with no `Quackback:` line skip here.
+    # Only text written by someone with access names a request; the script checks again. A
+    # stranger's issue still runs on a close or reopen, for its trusted comments. Comments on PRs,
+    # and bodies and comments with no `Quackback:` line, skip here.
     if: >-
-      contains(github.event.issue.body, 'Quackback:') &&
-      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.issue.author_association)
+      (github.event_name == 'issues' &&
+        (github.event.action == 'closed' || github.event.action == 'reopened' ||
+          (contains(github.event.issue.body, 'Quackback:') &&
+            contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.issue.author_association)))) ||
+      (github.event_name == 'issue_comment' && !github.event.issue.pull_request &&
+        contains(github.event.comment.body, 'Quackback:') &&
+        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+      - name: Read the issue's comments
+        if: github.event_name == 'issues' && (github.event.action == 'closed' || github.event.action == 'reopened')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments" \
+            --jq '.[] | {author_association, body} | tojson' > "$RUNNER_TEMP/comments.jsonl"
       - name: Set the requests' status
         env:
           QUACKBACK_API_KEY: ${{ secrets.QUACKBACK_API_KEY }}
-        run: node scripts/quackback.mjs issue "$GITHUB_EVENT_PATH"
+        run: |
+          COMMENTS="$RUNNER_TEMP/comments.jsonl"
+          [ -f "$COMMENTS" ] || COMMENTS=
+          node scripts/quackback.mjs issue "$GITHUB_EVENT_PATH" ${COMMENTS:+"$COMMENTS"}

@@ -78,20 +78,23 @@ on you.
 ## Feedback requests (Quackback)
 
 Feature requests and bug reports from users live on Quackback at
-https://feedback.babybuddy.app. An issue or PR belongs to a request when its body has this line,
-one line per request:
+https://feedback.babybuddy.app. An issue or PR belongs to a request when it has this line, one
+line per request, in the body of an issue or PR you opened, or in a comment you wrote on any
+issue (a comment on a PR counts only for Shipped):
 
 ```
 Quackback: post_01...
 ```
 
 The post ID is the `post=` value in the request's admin URL. Put the line on a line of its own;
-a mention inside a sentence doesn't count.
+a mention inside a sentence doesn't count. To link a request to an issue a stranger opened,
+comment the line on it; never edit their body.
 
 `.github/workflows/quackback-status.yml` moves the request as the issue moves:
 
-- Opened, reopened, or edited to add a `Quackback:` line: **Planned**.
-- Closed as completed: **Complete** (merged, not yet released).
+- Opened, reopened, or a body edit or comment that adds a `Quackback:` line: **Planned**.
+- Closed as completed: **Complete** (merged, not yet released). A line commented on an issue
+  that is already closed as completed also sets Complete.
 - Closed as not planned: left alone. The job summary says so, and Kurtis decides what the request
   becomes.
 
@@ -100,7 +103,8 @@ milestone, after posting the version's `appstore` notes to the Quackback changel
 "Version <version>", dated with the GitHub Release. Shipped notifies the request's voters, and
 nothing moves a request back from Shipped.
 
-The workflow acts only on issues written by the owner or a collaborator, and an unknown post ID
+Only text by the owner or a collaborator counts: an issue body only if they opened the issue, and
+only their comments. A stranger's issue body is ignored, even on close. An unknown post ID
 fails the job. Quackback's own GitHub status sync stays off, so the two don't fight. The rules
 live in `scripts/quackback.mjs`, tested by `scripts/quackback.test.mjs`. The workflows read the
 admin key from the repo secret `QUACKBACK_API_KEY`.
@@ -108,6 +112,7 @@ admin key from the repo secret `QUACKBACK_API_KEY`.
 To turn requests into a `feature-request` issue, run
 `node scripts/quackback.mjs open-issue <request>... [--to <issue>] [--milestone <version>] [--title "<text>"] [--dry-run]`.
 A request is a post ID, an admin URL or a public URL. It creates the issue as your `gh` login, so
-the workflow trusts it, and stops if any issue already names a request. `--to` appends to an
-existing issue instead. Locally it reads the key from the login keychain
+the workflow trusts it, and stops if any issue already names a request, in its body or a comment.
+`--to` appends to an existing issue instead, or, when a stranger opened that issue, posts the
+requests as a new comment from you. Locally it reads the key from the login keychain
 (`security add-generic-password -a "$USER" -s babybuddy-quackback-api-key -w`).

@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 // Keeps request statuses on Quackback (feedback.babybuddy.app) in step with GitHub. An issue or PR
-// belongs to a request when its body has a line `Quackback: post_<id>`, one line per request.
+// belongs to a request when a line `Quackback: post_<id>`, one line per request, is in its body
+// and the owner or a collaborator wrote that body, or is in a comment one of them wrote.
 //
-//   node scripts/quackback.mjs issue <event.json>          an `issues` event: Planned or Complete
+//   node scripts/quackback.mjs issue <event.json> [<comments.jsonl>]
+//                                                         an `issues` or `issue_comment` event:
+//                                                         Planned or Complete
 //   node scripts/quackback.mjs ship <version> <published>  the changelog entry, then Shipped
 //   node scripts/quackback.mjs open-issue <request>... [--to <issue>] [--milestone <version>]
 //     [--title "<text>"] [--dry-run]                      a feature-request issue naming them
@@ -10,9 +13,12 @@
 // A request is a post ID, its admin URL (`?post=post_…`) or its public URL (`/b/<board>/posts/post_…`).
 // `open-issue` creates the issue with the local `gh` login, so the status workflow trusts it, and
 // takes the key from the login keychain (`babybuddy-quackback-api-key`) when QUACKBACK_API_KEY is
-// unset. `--to` appends to an existing issue instead. It stops if any issue already names a request.
+// unset. `--to` appends to an existing issue instead, or comments on it when a stranger opened it. It
+// stops if any issue already names a request.
 //
-// `ship` reads issue and PR bodies on stdin and the notes from Docs/release-notes.md (or
+// `issue` reads the issue's comments, one REST comment object per line, on a close or reopen.
+// `ship` reads the milestone's issues and PRs on stdin, one per line, each a REST issue object
+// with its comments added as `comments`, and the notes from Docs/release-notes.md (or
 // `RELEASE_NOTES=<path>`). `<published>` is an ISO 8601 time, the GitHub Release's publishedAt.
 //
 // QUACKBACK_API_KEY is an admin API key. QUACKBACK_URL overrides the API base. QUACKBACK_DRY_RUN=1
@@ -39,16 +45,39 @@ export function postIds(body) {
   return [...new Set(found.map((m) => m[1]))]
 }
 
-/// What an `issues` event asks for: the status to set, by name, and the posts to set it on.
-/// `status` is null when the posts should be left alone. An edit acts only on IDs it added; any
-/// other action acts on every ID in the body.
-export function plan({ action, issue, changes }) {
-  let ids = postIds(issue.body)
-  if (action === 'edited') {
-    const before = new Set(postIds(changes?.body?.from ?? issue.body))
-    ids = ids.filter((id) => !before.has(id))
-  } else if (!['opened', 'closed', 'reopened'].includes(action)) {
-    ids = []
+/// Whether GitHub's `author_association` is someone with access to the repository. The workflow
+/// holds an admin key, so only their text may name a request.
+export const trusted = (association) => ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(association)
+
+/// Every post an issue or PR names: its body's IDs if a trusted user opened it, then those in its
+/// trusted users' comments. Anyone else's text is ignored.
+export function issueIds({ body, author_association, comments = [] }) {
+  const texts = [trusted(author_association) ? body : '', ...comments.filter((c) => trusted(c.author_association)).map((c) => c.body)]
+  return [...new Set(texts.flatMap(postIds))]
+}
+
+/// The IDs `text` has that `before` didn't.
+const added = (text, before) => {
+  const old = new Set(postIds(before))
+  return postIds(text).filter((id) => !old.has(id))
+}
+
+/// What an `issues` or `issue_comment` event asks for: the status to set, by name, and the posts to
+/// set it on. `status` is null when the posts should be left alone. A new or edited comment acts
+/// only on the IDs it added, and so does an edit to the body. A close or reopen acts on every ID
+/// the issue names, in its body or its comments.
+export function plan({ action, issue, changes, comment }, comments = []) {
+  let ids = []
+  if (comment) {
+    if (trusted(comment.author_association) && !issue.pull_request) {
+      if (action === 'created') ids = postIds(comment.body)
+      else if (action === 'edited') ids = added(comment.body, changes?.body?.from ?? comment.body)
+    }
+  } else if (action === 'closed' || action === 'reopened') {
+    ids = issueIds({ ...issue, comments })
+  } else if (trusted(issue.author_association)) {
+    if (action === 'opened') ids = postIds(issue.body)
+    else if (action === 'edited') ids = added(issue.body, changes?.body?.from ?? issue.body)
   }
   // Closed as not planned (or as a duplicate) leaves the request to a person.
   const status = issue.state === 'open' ? 'Planned' : issue.state_reason === 'completed' ? 'Complete' : null
@@ -132,11 +161,20 @@ export function live(post) {
   return post
 }
 
-/// Each requested ID that one of `issues` already names, with that issue's URL.
+/// Each requested ID that one of `issues` already names, by `issueIds`, with that issue's URL.
 export const duplicates = (ids, issues) => ids.flatMap((id) => {
-  const issue = issues.find((i) => postIds(i.body).includes(id))
+  const issue = issues.find((i) => issueIds(i).includes(id))
   return issue ? [{ id, url: issue.url }] : []
 })
+
+/// How `--to` adds the requests to an issue: a new body when a trusted user opened it, otherwise
+/// a comment, since only trusted text links a request and a stranger's body is theirs.
+export const addition = (issue, posts) => trusted(issue.author_association)
+  ? { body: appendedBody(issue.body, posts) }
+  : { comment: issueBody(posts) }
+
+/// One JSON object per line, as `jq -c` writes them.
+export const jsonLines = (text) => text.split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l))
 
 // MARK: Quackback
 
@@ -200,8 +238,8 @@ async function setStatus(posts, named, target) {
   }
 }
 
-export async function issueEvent(event) {
-  const { ids, status } = plan(event)
+export async function issueEvent(event, comments) {
+  const { ids, status } = plan(event, comments)
   if (ids.length === 0) return
   if (!status) {
     report(`#${event.issue.number} was closed as ${event.issue.state_reason?.replace('_', ' ') ?? 'not completed'}, so its requests were left alone. ` +
@@ -280,18 +318,20 @@ export async function openIssue(argv) {
   const posts = []
   for (const id of args.ids) posts.push(await readPost(id))
 
-  // Search narrows the list; postIds on each body decides.
-  const issues = args.ids.flatMap((id) => JSON.parse(gh(['issue', 'list', '--state', 'all', '--search', id,
-    '--limit', '100', '--json', 'url,body'])))
-  const target = args.to && JSON.parse(gh(['issue', 'view', args.to, '--json', 'url,body']))
-  const dupes = duplicates(args.ids, target ? [target, ...issues] : issues)
+  // Search, which covers comments too, narrows the list; issueIds on each issue decides.
+  const numbers = new Set(args.ids.flatMap((id) => JSON.parse(gh(['issue', 'list', '--state', 'all', '--search', id,
+    '--limit', '100', '--json', 'number'])).map((i) => String(i.number))))
+  const target = args.to && fullIssue(gh(['issue', 'view', args.to, '--json', 'number', '--jq', '.number']).trim())
+  if (target) numbers.delete(String(target.number))
+  const issues = [...(target ? [target] : []), ...[...numbers].map(fullIssue)]
+  const dupes = duplicates(args.ids, issues)
   if (dupes.length) fail(`${dupes.map((d) => `${d.id} is already named by ${d.url}`).join('\n')}\nNothing was written.`)
 
   const title = args.title ?? posts[0].title
-  const body = target ? appendedBody(target.body, posts) : issueBody(posts)
+  const { body, comment } = target ? addition(target, posts) : { body: issueBody(posts) }
   if (args.dryRun || DRY_RUN) {
-    console.log(`${target ? `issue: ${target.url}` : `title: ${title}`}\nlabels: ${LABEL}\n` +
-      `milestone: ${args.milestone ?? 'none'}\n\n${body}`)
+    console.log(`${target ? `issue: ${target.url}${comment ? ' (a new comment: a stranger opened it)' : ''}` : `title: ${title}`}\n` +
+      `labels: ${LABEL}\nmilestone: ${args.milestone ?? 'none'}\n\n${body ?? comment}`)
     return
   }
   if (!JSON.parse(gh(['label', 'list', '--search', LABEL, '--json', 'name'])).some((l) => l.name === LABEL)) {
@@ -299,11 +339,19 @@ export async function openIssue(argv) {
   }
   const milestone = args.milestone ? ['--milestone', args.milestone] : []
   if (target) {
-    gh(['issue', 'edit', target.url, '--body-file', '-', '--add-label', LABEL, ...milestone], body)
-    console.log(target.url)
+    gh(['issue', 'edit', target.url, ...(body ? ['--body-file', '-'] : []), '--add-label', LABEL, ...milestone], body)
+    console.log(comment ? gh(['issue', 'comment', target.url, '--body-file', '-'], comment).trim() : target.url)
   } else {
     console.log(gh(['issue', 'create', '--title', title, '--body-file', '-', '--label', LABEL, ...milestone], body).trim())
   }
+}
+
+/// An issue as the REST API has it, with `url` and its `comments`.
+function fullIssue(number) {
+  const issue = JSON.parse(gh(['api', `repos/{owner}/{repo}/issues/${number}`]))
+  const comments = jsonLines(gh(['api', '--paginate', `repos/{owner}/{repo}/issues/${number}/comments`,
+    '--jq', '.[] | {author_association, body} | tojson']))
+  return { ...issue, url: issue.html_url, comments }
 }
 
 function fail(message) {
@@ -316,12 +364,13 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     if (command === 'open-issue') {
       await openIssue(process.argv.slice(3))
     } else if (command === 'issue' && a) {
-      await issueEvent(JSON.parse(readFileSync(a, 'utf8')))
+      await issueEvent(JSON.parse(readFileSync(a, 'utf8')), b ? jsonLines(readFileSync(b, 'utf8')) : [])
     } else if (command === 'ship' && a && b) {
       const notesFile = process.env.RELEASE_NOTES ?? new URL('../Docs/release-notes.md', import.meta.url)
-      await ship(a, b, postIds(readFileSync(0, 'utf8')), readFileSync(notesFile, 'utf8'))
+      const ids = [...new Set(jsonLines(readFileSync(0, 'utf8')).flatMap(issueIds))]
+      await ship(a, b, ids, readFileSync(notesFile, 'utf8'))
     } else {
-      console.error('usage: quackback.mjs issue <event.json> | ship <version> <published-at> < bodies\n' +
+      console.error('usage: quackback.mjs issue <event.json> [<comments.jsonl>] | ship <version> <published-at> < issues.jsonl\n' +
         '       quackback.mjs open-issue <request>... [--to <issue>] [--milestone <version>] [--title "<text>"] [--dry-run]')
       process.exit(2)
     }

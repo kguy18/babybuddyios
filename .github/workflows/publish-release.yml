@@ -154,15 +154,19 @@ jobs:
           git fetch -q origin "refs/tags/$TAG:refs/tags/$TAG"
           git show "$TAG:Docs/release-notes.md" > "$RUNNER_TEMP/quackback-notes.md"
           PUBLISHED=$(gh release view "$TAG" --json publishedAt --jq .publishedAt)
-          # The issues endpoint returns the milestone's PRs as well as its issues.
+          # The issues endpoint returns the milestone's PRs as well as its issues. Each goes to the
+          # script as one line with its comments, and the script keeps only trusted users' text.
           MILESTONE=$(gh api "repos/$GITHUB_REPOSITORY/milestones?state=all&per_page=100" \
             --jq ".[] | select(.title == \"$VERSION\") | .number")
+          : > "$RUNNER_TEMP/issues.jsonl"
           if [ -n "$MILESTONE" ]; then
-            gh api --paginate "repos/$GITHUB_REPOSITORY/issues?milestone=$MILESTONE&state=all&per_page=100" \
-              --jq '.[].body // empty' > "$RUNNER_TEMP/bodies.txt"
+            for N in $(gh api --paginate "repos/$GITHUB_REPOSITORY/issues?milestone=$MILESTONE&state=all&per_page=100" --jq '.[].number'); do
+              gh api "repos/$GITHUB_REPOSITORY/issues/$N" --jq '{author_association, body}' > "$RUNNER_TEMP/issue.json"
+              gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$N/comments" --jq '.[] | {author_association, body}' |
+                jq -cs --slurpfile issue "$RUNNER_TEMP/issue.json" '$issue[0] + {comments: .}' >> "$RUNNER_TEMP/issues.jsonl"
+            done
           else
             echo "::warning::no $VERSION milestone, so no request is marked Shipped"
-            : > "$RUNNER_TEMP/bodies.txt"
           fi
           RELEASE_NOTES="$RUNNER_TEMP/quackback-notes.md" \
-            node scripts/quackback.mjs ship "$VERSION" "$PUBLISHED" < "$RUNNER_TEMP/bodies.txt"
+            node scripts/quackback.mjs ship "$VERSION" "$PUBLISHED" < "$RUNNER_TEMP/issues.jsonl"

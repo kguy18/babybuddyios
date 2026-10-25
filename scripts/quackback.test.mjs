@@ -2,7 +2,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
-  appendedBody, changelogEntry, duplicates, issueBody, live, moves, openIssueArgs, plan, postIds, requestId,
+  addition, appendedBody, changelogEntry, duplicates, issueBody, issueIds, jsonLines, live, moves, openIssueArgs, plan,
+  postIds, requestId,
 } from './quackback.mjs'
 
 const A = 'post_01m5ecc0e0e4erxvtz2kvjec7m'
@@ -30,7 +31,9 @@ test('a mistyped ID is still taken, so Quackback can refuse it out loud', () => 
   assert.deepEqual(postIds('Quackback: post_typo'), ['post_typo'])
 })
 
-const issue = (extra = {}) => ({ number: 7, state: 'open', state_reason: null, body: `Quackback: ${A}`, ...extra })
+const issue = (extra = {}) => ({
+  number: 7, state: 'open', state_reason: null, author_association: 'OWNER', body: `Quackback: ${A}`, ...extra,
+})
 
 test('each issues event sets the status the spec asks for', () => {
   const cases = [
@@ -63,6 +66,68 @@ test('an ID added to a closed issue follows how it was closed', () => {
 
 test('other issue actions do nothing', () => {
   assert.deepEqual(plan({ action: 'labeled', issue: issue() }).ids, [])
+})
+
+// MARK: trusted text
+
+const C = 'post_01m5ths9h3fex9kjjqvt298xxv'
+const by = (author_association, body) => ({ author_association, body })
+
+test("an issue's IDs: its body if a trusted user opened it, then its trusted users' comments", () => {
+  const comments = [by('NONE', `Quackback: ${B}`), by('OWNER', `Quackback: ${C}`), by('COLLABORATOR', `Quackback: ${A}`)]
+  assert.deepEqual(issueIds({ body: `Quackback: ${A}`, author_association: 'MEMBER', comments }), [A, C])
+  assert.deepEqual(issueIds({ body: `Quackback: ${A}`, author_association: 'NONE', comments }), [C, A])
+  assert.deepEqual(issueIds({ body: `Quackback: ${A}`, author_association: 'CONTRIBUTOR' }), [])
+})
+
+test("closing or reopening a stranger's issue acts on trusted comments, never its body", () => {
+  const stranger = issue({ author_association: 'NONE', state: 'closed', state_reason: 'completed', body: `Quackback: ${B}` })
+  const comments = [by('OWNER', `Quackback: ${C}`), by('NONE', `Quackback: ${A}`)]
+  assert.deepEqual(plan({ action: 'closed', issue: stranger }, comments), { ids: [C], status: 'Complete' })
+  assert.deepEqual(plan({ action: 'reopened', issue: { ...stranger, state: 'open' } }, comments), { ids: [C], status: 'Planned' })
+  assert.deepEqual(plan({ action: 'closed', issue: issue({ state: 'closed', state_reason: 'completed' }) }, comments),
+    { ids: [A, C], status: 'Complete' })
+})
+
+test("opening or editing a stranger's issue does nothing", () => {
+  const stranger = issue({ author_association: 'NONE' })
+  assert.deepEqual(plan({ action: 'opened', issue: stranger }).ids, [])
+  assert.deepEqual(plan({ action: 'edited', issue: stranger, changes: { body: { from: '' } } }).ids, [])
+})
+
+const commentEvent = (action, comment, extra = {}) =>
+  ({ action, comment, issue: issue({ author_association: 'NONE', body: '' }), ...extra })
+
+test("the owner's comment on #172, a stranger's open issue, moves its request to Planned", () => {
+  assert.deepEqual(plan(commentEvent('created', by('OWNER', `Quackback: ${C}`))), { ids: [C], status: 'Planned' })
+})
+
+test('a trusted comment on a closed issue follows how it was closed', () => {
+  const closed = (state_reason) => ({ issue: issue({ state: 'closed', state_reason }) })
+  assert.deepEqual(plan(commentEvent('created', by('MEMBER', `Quackback: ${C}`), closed('completed'))),
+    { ids: [C], status: 'Complete' })
+  assert.deepEqual(plan(commentEvent('created', by('MEMBER', `Quackback: ${C}`), closed('not_planned'))),
+    { ids: [C], status: null })
+})
+
+test('an edited comment acts only on the IDs it added, and removing one does nothing', () => {
+  const edited = (from, body) => commentEvent('edited', by('OWNER', body), { changes: { body: { from } } })
+  assert.deepEqual(plan(edited(`Quackback: ${A}`, `Quackback: ${A}\nQuackback: ${C}`)).ids, [C])
+  assert.deepEqual(plan(edited(`Quackback: ${A}\nQuackback: ${C}`, `Quackback: ${A}`)).ids, [])
+})
+
+test("a stranger's comment, a comment on a PR, and a deleted comment do nothing", () => {
+  assert.deepEqual(plan(commentEvent('created', by('NONE', `Quackback: ${C}`))).ids, [])
+  assert.deepEqual(plan(commentEvent('created', by('CONTRIBUTOR', `Quackback: ${C}`))).ids, [])
+  const onPR = { issue: issue({ pull_request: { url: 'https://api.github.com/x' } }) }
+  assert.deepEqual(plan(commentEvent('created', by('OWNER', `Quackback: ${C}`), onPR)).ids, [])
+  assert.deepEqual(plan(commentEvent('deleted', by('OWNER', `Quackback: ${C}`))).ids, [])
+})
+
+test('ship reads one issue per line, comments attached, through the same rule', () => {
+  const lines = `${JSON.stringify({ body: `Quackback: ${B}`, author_association: 'NONE', comments: [by('OWNER', `Quackback: ${C}`)] })}\n\n` +
+    `${JSON.stringify({ body: `Quackback: ${A}`, author_association: 'OWNER', comments: [] })}\n`
+  assert.deepEqual(jsonLines(lines).flatMap(issueIds), [C, A])
 })
 
 test('nothing moves a post back from Shipped, and a post already there is not set again', () => {
@@ -153,9 +218,28 @@ test('--to appends new sections and keeps every Quackback: line at the end', () 
 
 test('a request any issue already names is a duplicate, and a mention in prose is not', () => {
   const issues = [
-    { url: 'https://github.com/x/y/issues/1', body: `See ${A} in passing` },
-    { url: 'https://github.com/x/y/issues/2', body: `Text\nQuackback: ${A}` },
+    { url: 'https://github.com/x/y/issues/1', author_association: 'OWNER', body: `See ${A} in passing` },
+    { url: 'https://github.com/x/y/issues/2', author_association: 'OWNER', body: `Text\nQuackback: ${A}` },
   ]
   assert.deepEqual(duplicates([A, B], issues), [{ id: A, url: 'https://github.com/x/y/issues/2' }])
   assert.deepEqual(duplicates([B], issues), [])
+})
+
+test("a trusted comment names a request for the duplicate check, and a stranger's text does not", () => {
+  const issues = [
+    { url: 'https://github.com/x/y/issues/3', author_association: 'NONE', body: `Quackback: ${A}`,
+      comments: [by('NONE', `Quackback: ${B}`)] },
+    { url: 'https://github.com/x/y/issues/172', author_association: 'NONE', body: '',
+      comments: [by('OWNER', `Quackback: ${C}`)] },
+  ]
+  assert.deepEqual(duplicates([A, B, C], issues), [{ id: C, url: 'https://github.com/x/y/issues/172' }])
+})
+
+test("--to edits a trusted user's issue, and comments on a stranger's", () => {
+  const mine = addition({ author_association: 'OWNER', body: `Mine.\nQuackback: ${A}` }, [post(B)])
+  assert.deepEqual(Object.keys(mine), ['body'])
+  assert.deepEqual(postIds(mine.body), [A, B])
+  const theirs = addition({ author_association: 'NONE', body: 'Please add sleep windows.' }, [post(C)])
+  assert.deepEqual(theirs, { comment: issueBody([post(C)]) })
+  assert.deepEqual(postIds(theirs.comment), [C])
 })
