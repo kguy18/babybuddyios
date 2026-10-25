@@ -236,12 +236,19 @@ jobs:
   # the three macOS jobs don't run at all.
   build-and-test:
     name: build-and-test
-    needs: [unit, ui, server, release-notes]
+    # `changes` is here because a failure there skips every macOS lane, and `skipped` passes:
+    # #197 went green with no tests run. It runs on every PR, docs-only ones included, so it
+    # has to succeed; only the lanes it gates may be skipped.
+    needs: [changes, unit, ui, server, release-notes]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Every lane passed
         run: |
+          if [ "${{ needs.changes.result }}" != success ]; then
+            echo "::error::changes did not pass (${{ needs.changes.result }})"
+            exit 1
+          fi
           for LANE in "unit=${{ needs.unit.result }}" \
                       "ui=${{ needs.ui.result }}" \
                       "server=${{ needs.server.result }}" \
