@@ -141,6 +141,13 @@ test('a single PR object works as well as a list, and the template placeholder i
   assert.equal(whatToTest(PR(4, 'No body at all', null)), 'No body at all')
 })
 
+test('HTML comments from the current template are not text, even across lines', () => {
+  const template = '## What to test\n\n<!-- Two to four bullets.\nTesters see these in\nTestFlight. -->\n\n-\n\n## UI tests\n'
+  assert.equal(whatToTest(PR(5, 'Only a title', template)), 'Only a title')
+  const filled = '## What to test\n\n<!-- Two to four bullets.\nTestFlight. -->\n\n- Tap Save.\n- The row appears.\n'
+  assert.equal(whatToTest(PR(6, 'Save a row', filled)), 'Save a row\n- Tap Save.\n- The row appears.')
+})
+
 test('internal PRs and PRs merged before `since` are left out', () => {
   const prs = [
     PR(1, 'Kept', BODY),

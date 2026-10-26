@@ -194,7 +194,7 @@ export async function waitForBuild(version, build, { minutes = 30, every = 30_00
 
 /// TestFlight's "What to Test" from `gh pr` JSON: each PR's title, then its `## What to test`
 /// section. Skips PRs labelled `internal` and, with `since`, those merged at or before it. The
-/// template's placeholder and its empty `-` bullet do not count as text.
+/// template's HTML comments, old `<...>` placeholders and empty `-` bullet do not count as text.
 // Apple stamps uploadedDate with a zone offset and GitHub stamps mergedAt in UTC, so they are
 // compared as instants, not strings.
 export function whatToTest(prs, since) {
@@ -205,7 +205,7 @@ export function whatToTest(prs, since) {
     if (pr.labels?.some((l) => l.name === 'internal')) continue
     if (!(Date.parse(pr.mergedAt) > cutoff)) continue
     const section = /^## What to test\s*\n([\s\S]*?)(?=^## |(?![\s\S]))/m.exec(pr.body ?? '')?.[1] ?? ''
-    const body = section.split('\n')
+    const body = section.replace(/<!--[\s\S]*?-->/g, '').split('\n')
       .filter((line) => line.trim() && line.trim() !== '-' && !/^<.*>$/.test(line.trim()))
       .join('\n')
     notes.push(body ? `${pr.title}\n${body}` : pr.title)
