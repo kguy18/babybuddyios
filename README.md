@@ -53,18 +53,21 @@ multiple children run through all of it.
 
 | | |
 |---|---|
-| ⏱️ **Timers from a widget** | Start a feeding, sleep, tummy-time or pumping timer from the App Home Screen — stopping it files the record. |
+| ⏱️ **Timers from a widget** | Start a feeding, sleep, tummy-time or pumping timer from the Home Screen. Stopping it files the record. |
 | ⚡ **One-tap Quick Log** | A widget that files a complete diaper change — wet, solid or both — or a feeding, with a customizable default. |
 | 🔴 **Live Activity** | A running timer ticks away on the Lock Screen and in the Dynamic Island. |
 | 🕐 **Status at a glance** | Home Screen, Lock Screen and StandBy widgets show the last feed, sleep and change, plus today's counts. |
 | ☁️ **Offline-first** | Every change saves instantly and syncs when your server is reachable. Waiting writes are listed and reversible. |
 | 🔀 **Conflict-aware sync** | Resolve competing edits with Keep Mine, Keep Server or field-by-field Merge. |
-| 📊 **Trends at a glance** | Daily sleep, feedings and wet-vs-solid diapers over 7, 14 or 30 days — charted from the local cache. |
+| 📊 **Trends at a glance** | Daily sleep, feedings, wet-vs-solid diapers, tummy time and pumping over 7, 14 or 30 days, plus a temperature curve with a mark at each dose. Charted from the local cache. |
+| 🤒 **Sick mode** | Record a fever and the app suggests sick mode. Home shows the newest temperature, a 24-hour chart of readings and doses, and a next-dose countdown for each medicine. Temperatures show in °F or °C, set per phone. |
+| 🔔 **Reminders and alerts** | Optional local notifications when the next medication dose is due, and when a timer runs too long. The timer alert opens straight to Stop. Both are off by default. |
+| ↩️ **Undo and backdated timers** | Every record you log shows Undo for five seconds. Start a timer earlier than now by picking a time or tapping −5, −15 or −30 min. |
 | 📋 **One merged timeline** | Search and filter every record type in one offline, day-grouped feed, then load older activity on demand. |
 | 👶 **Every child, one switch** | Swap between children and the dashboard, trends, timeline and widgets all follow. |
 | 📷 **Photos & notes** | Add profile photos and note images now; uploads finish when you reconnect. |
 | 🏷️ **Tags that match** | Reuse your server's color-coded tags or create one inline. |
-| 🔒 **Locked down** | Credentials stay in your Keychain, with an optional Face ID or Touch ID lock. |
+| 🔒 **Locked down** | Credentials stay in your Keychain, with an optional Face ID, Touch ID or passcode lock. |
 | 🎨 **Six app icons** | Swap the Home Screen icon under **Settings → Appearance → App Icon**. |
 
 ## Your baby's records stay with you
@@ -177,6 +180,12 @@ Swap `build` for `test` to run the test suite. The simulator also has a demo mod
 server at all — see [Docs/DEVELOPMENT.md](Docs/DEVELOPMENT.md).
 
 ---
+
+## Feedback and contributing
+
+Feature requests, votes, bug reports and help all go to the feedback site at
+[feedback.babybuddy.app](https://feedback.babybuddy.app). Code contributions are welcome as pull
+requests.
 
 ## Under the hood
 
