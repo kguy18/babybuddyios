@@ -33,6 +33,7 @@ The rest of the store listing (description, keywords, review information) lives 
 - Send Feedback. Settings has a new Feedback section. From Send Feedback you can request a feature, vote on other people's ideas, see what's planned and what's shipped, or chat with me for help, all without leaving the app. Sign in with your email and a 6-digit code, no password needed. This account is only for feedback and has nothing to do with your Baby Buddy server. You can sign out, or ask me to delete it, from the Feedback Account screen.
 - Running timers on the Quick Start widget. A tile whose timer is running shows a stopwatch and a green dot, whether you started it from the widget or in the app. Tapping a running tile opens that timer instead of starting a second one.
 - If you have more than one child, the Quick Start widget follows the child you've selected. Its tiles show only that child's timers, and the header shows their name. The Active timer widget does the same.
+- Choose your Today tiles. Settings ▸ Appearance ▸ Today tiles lets you pick which tiles show on Home and in what order: feedings, sleep, diapers, tummy time, pumping, doses, highest temperature and notes. Turn them all off to hide Today.
 
 #Fixed
 - Custom headers you paste from a website or a password manager now save. Copied text can carry invisible characters, and the app refused it with "can't contain a line break or control character". It now removes those characters for you.
@@ -44,6 +45,7 @@ The rest of the store listing (description, keywords, review information) lives 
 - new | Send Feedback | Request features, vote on ideas, and chat with me for help, right in Settings.
 - timer | Running timers on the widget | Quick Start tiles show a stopwatch and a dot. Tap one to open its timer.
 - widget | Widgets show the selected child | Quick Start and Active timer show only that child's timers.
+- new | Choose your Today tiles | Pick which tiles show on Home, and drag them into the order you want.
 #Fixed
 - Pasted custom headers save, even with hidden characters
 - Header errors name the header that needs fixing
