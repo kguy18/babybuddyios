@@ -152,6 +152,8 @@ struct DashboardView: View {
                         }
 
                         todaySection
+                        ActivityForecastCard(entities: allEntities, childID: selectedChildID, lastSync: sync.lastSyncDate)
+                            .id(selectedChildID)
                         if !latestEvents.isEmpty { latestSection }
                     }
                 }

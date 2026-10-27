@@ -89,6 +89,9 @@ enum DemoData {
         ], context)
 
         seedHistory(into: context)
+        if ProcessInfo.processInfo.environment["BB_SEED_FORECAST"] == "1" {
+            seedForecast(into: context)
+        }
 
         if ProcessInfo.processInfo.environment["BB_SEED_CONFLICT"] == "1" {
             seedConflict(into: context)
@@ -103,6 +106,24 @@ enum DemoData {
             seedSecondChild(into: context)
         }
         try? context.save()
+    }
+
+    /// A synthetic regular routine, isolated from the default sparse demo feedings.
+    private static func seedForecast(into context: ModelContext) {
+        let now = Date.now
+        let records = (try? context.fetch(FetchDescriptor<LocalEntity>())) ?? []
+        for entity in records where entity.childID == 1 && entity.kind == .feeding { context.delete(entity) }
+        for index in 0..<57 {
+            let start = now.addingTimeInterval(-Double(1 + index * 3) * 3600)
+            insert(.feeding, id: 1000 + index, [
+                "id": 1000 + index, "child": 1,
+                "start": APIDate.isoDateTime.string(from: start),
+                "end": APIDate.isoDateTime.string(from: start.addingTimeInterval(15 * 60)),
+                "type": "formula", "method": "bottle", "tags": [],
+            ], context)
+        }
+        ForecastPreferences.enabled = true
+        SharedDefaults.lastSyncDate = now
     }
 
     /// `BB_SEED_SECOND_CHILD=1`: a second child with no records of her own, so the Editor's Baby

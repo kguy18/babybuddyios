@@ -1,0 +1,431 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "Activity estimates": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activity estimates"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktivitätsschätzungen"
+          }
+        }
+      }
+    },
+    "An activity is in progress or waiting to be logged.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An activity is in progress or waiting to be logged."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine Aktivität läuft oder muss noch gespeichert werden."
+          }
+        }
+      }
+    },
+    "Based on logged routines, not your baby's current needs. Follow your baby's cues and your care plan; do not wait for an estimate to feed or check a diaper.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Based on logged routines, not your baby's current needs. Follow your baby's cues and your care plan; do not wait for an estimate to feed or check a diaper."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Schätzung beruht auf protokollierten Abläufen und kennt die aktuellen Bedürfnisse deines Babys nicht. Beachte seine Signale und euren Betreuungsplan. Warte zum Füttern oder Prüfen der Windel nicht auf eine Schätzung."
+          }
+        }
+      }
+    },
+    "Calculated": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calculated"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Berechnet"
+          }
+        }
+      }
+    },
+    "Check incomplete entries or sync conflicts.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check incomplete entries or sync conflicts."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prüfe unvollständige Einträge oder Synchronisierungskonflikte."
+          }
+        }
+      }
+    },
+    "Days": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Days"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tage"
+          }
+        }
+      }
+    },
+    "Diaper logging pattern": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diaper logging pattern"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muster der Windeleinträge"
+          }
+        }
+      }
+    },
+    "Displayed windows summarize past entries. They are not a prescribed schedule, a probability, or a prediction validated for medical use.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Displayed windows summarize past entries. They are not a prescribed schedule, a probability, or a prediction validated for medical use."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die angezeigten Zeiträume fassen frühere Einträge zusammen. Sie sind kein vorgegebener Zeitplan, keine Wahrscheinlichkeit und keine für medizinische Zwecke geprüfte Prognose."
+          }
+        }
+      }
+    },
+    "Estimate": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimate"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schätzung"
+          }
+        }
+      }
+    },
+    "Estimated window": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimated window"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geschätzter Zeitraum"
+          }
+        }
+      }
+    },
+    "Feeding intervals run from start to start. Nap intervals run from the end of one sleep to the start of a logged nap. Wake-up estimates use previous sleep durations when a sleep timer is running.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feeding intervals run from start to start. Nap intervals run from the end of one sleep to the start of a logged nap. Wake-up estimates use previous sleep durations when a sleep timer is running."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bei Mahlzeiten zählen die Abstände vom Beginn einer Mahlzeit bis zum Beginn der nächsten. Bei Schläfchen zählen sie vom Aufwachen bis zum nächsten als Schläfchen erfassten Schlafbeginn. Bei laufendem Schlaftimer werden frühere Schlafdauern für eine Schätzung des Aufwachens verwendet."
+          }
+        }
+      }
+    },
+    "How it works": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How it works"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "So funktioniert es"
+          }
+        }
+      }
+    },
+    "More similar entries across at least three days are needed.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More similar entries across at least three days are needed."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es werden mehr ähnliche Einträge an mindestens drei Tagen benötigt."
+          }
+        }
+      }
+    },
+    "Next feeding": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next feeding"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächste Mahlzeit"
+          }
+        }
+      }
+    },
+    "Next nap": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next nap"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächstes Schläfchen"
+          }
+        }
+      }
+    },
+    "Optional estimates on Home and the medium status widget. They use only the selected child's cached records, without a network request.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optional estimates on Home and the medium status widget. They use only the selected child's cached records, without a network request."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optionale Schätzungen auf der Startseite und im mittelgroßen Status-Widget. Verwendet werden nur lokal gespeicherte Einträge des ausgewählten Kindes, ohne Netzwerkanfrage."
+          }
+        }
+      }
+    },
+    "Possible wake-up": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Possible wake-up"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mögliches Aufwachen"
+          }
+        }
+      }
+    },
+    "Recent intervals vary too much for a useful estimate.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent intervals vary too much for a useful estimate."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die letzten Abstände schwanken zu stark für eine hilfreiche Schätzung."
+          }
+        }
+      }
+    },
+    "Refresh your records before using estimates.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh your records before using estimates."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktualisiere die Einträge, bevor du Schätzungen verwendest."
+          }
+        }
+      }
+    },
+    "Show activity estimates": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show activity estimates"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktivitätsschätzungen anzeigen"
+          }
+        }
+      }
+    },
+    "Similar intervals": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Similar intervals"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ähnliche Abstände"
+          }
+        }
+      }
+    },
+    "The usual window has passed. There is no current estimate.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The usual window has passed. There is no current estimate."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der bisher übliche Zeitraum ist vorbei. Es gibt keine aktuelle Schätzung."
+          }
+        }
+      }
+    },
+    "Uses the last 14 days and up to ten similar intervals near the same time of day. At least four intervals across three days are required. Sparse, irregular, incomplete or stale data produces no estimate.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uses the last 14 days and up to ten similar intervals near the same time of day. At least four intervals across three days are required. Sparse, irregular, incomplete or stale data produces no estimate."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verwendet die letzten 14 Tage und bis zu zehn ähnliche Abstände zu einer vergleichbaren Tageszeit. Erforderlich sind mindestens vier Abstände an drei Tagen. Bei zu wenigen, unregelmäßigen, unvollständigen oder veralteten Daten wird keine Schätzung angezeigt."
+          }
+        }
+      }
+    },
+    "Usual nap length": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usual nap length"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bisher übliche Schlafdauer"
+          }
+        }
+      }
+    },
+    "What's next": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What's next"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was kommt als Nächstes?"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

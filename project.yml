@@ -122,6 +122,8 @@ targets:
       - path: Sources/Networking
       - path: Sources/Auth/KeychainStore.swift
       - path: Sources/Shared
+      - path: Sources/Resources/Forecast.xcstrings
+        buildPhase: resources
       - path: Sources/Analytics
     configFiles:
       Debug: Config/BabyBuddy.xcconfig

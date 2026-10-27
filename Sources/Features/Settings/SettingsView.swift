@@ -106,6 +106,16 @@ struct SettingsView: View {
 
                     sectioned("Appearance") { appearanceCard }
 
+                    sectioned(forecastText("What's next")) {
+                        card {
+                            NavigationLink { ForecastSettingsView() } label: {
+                                SettingsRow(symbol: "clock.arrow.circlepath", tint: BBColor.brand,
+                                            title: forecastText("Activity estimates")) { disclosure }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
                     sectioned("Quick Log") {
                         quickFeedCard
                         Text("Defaults for the one-tap Feeding tile in the Quick Log widget.")

@@ -24,6 +24,7 @@ struct StatusEntry: TimelineEntry {
     let date: Date
     let status: ChildStatus
     var lastSync: Date? = SharedDefaults.lastSyncDate
+    var forecast: ForecastSnapshot? = nil
 }
 
 struct StatusProvider: TimelineProvider {
@@ -33,27 +34,42 @@ struct StatusProvider: TimelineProvider {
 
     func getSnapshot(in context: Context, completion: @escaping (StatusEntry) -> Void) {
         completion(context.isPreview ? placeholder(in: context)
-                                     : StatusEntry(date: .now, status: Self.currentStatus()))
+                                     : Self.currentEntry())
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<StatusEntry>) -> Void) {
         // Relative times refresh themselves via `Text(_, style: .relative)`; the counts are
         // computed here, so ask WidgetKit to refresh in ~30 min to keep them (and the midnight
         // rollover) current. The app also reloads timelines whenever it writes a record.
-        let entry = StatusEntry(date: .now, status: Self.currentStatus())
-        let next = Date.now.addingTimeInterval(30 * 60)
-        completion(Timeline(entries: [entry], policy: .after(next)))
+        let entry = Self.currentEntry()
+        guard entry.forecast != nil else {
+            completion(Timeline(entries: [entry], policy: .after(entry.date.addingTimeInterval(30 * 60))))
+            return
+        }
+        let next = entry.forecast!.expires(lastSync: entry.lastSync)
+        // An explicit entry removes the estimate even if WidgetKit delays the next provider run.
+        let expired = StatusEntry(date: next, status: entry.status, lastSync: entry.lastSync)
+        completion(Timeline(entries: [entry, expired], policy: .after(next)))
     }
 
     /// Status of the selected child from the shared store, or `.unavailable` if none/no store.
     static func currentStatus() -> ChildStatus {
+        currentEntry().status
+    }
+
+    static func currentEntry() -> StatusEntry {
+        let now = Date.now
         guard let container = try? ModelContainer(
             for: LocalStore.schema,
             configurations: ModelConfiguration(schema: LocalStore.schema, url: LocalStore.storeURL))
-        else { return .unavailable }
+        else { return StatusEntry(date: now, status: .unavailable) }
         let context = ModelContext(container)
         let entities = (try? context.fetch(FetchDescriptor<LocalEntity>())) ?? []
-        return ChildStatus.compute(from: entities, childID: SharedDefaults.selectedChildID)
+        let child = SharedDefaults.selectedChildID
+        let forecast = ForecastPreferences.enabled ? child.map {
+            ForecastCache.snapshot(entities, childID: $0, lastSync: SharedDefaults.lastSyncDate, now: now)
+        } : nil
+        return StatusEntry(date: now, status: ChildStatus.compute(from: entities, childID: child, now: now), forecast: forecast)
     }
 }
 
@@ -168,6 +184,10 @@ struct StatusWidgetView: View {
                     }
                 }
                 .frame(maxHeight: .infinity)   // tiles flex to fill the height below the header
+                if let estimate = entry.forecast?.ready.first {
+                    Text("\(forecastText("Estimate")): \(estimate.kind.title) · \(ForecastFormat.window(estimate.window))")
+                        .font(.caption2).foregroundStyle(.secondary).lineLimit(2)
+                }
                 freshnessStamp
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
