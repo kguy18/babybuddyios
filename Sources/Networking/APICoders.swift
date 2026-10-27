@@ -17,7 +17,7 @@ enum APICoders {
             let raw = try container.decode(String.self)
             if let date = APIDate.parse(raw) { return date }
             throw DecodingError.dataCorruptedError(
-                in: container, debugDescription: "Unrecognized date format: \(raw)")
+                in: container, debugDescription: String(localized: "Unrecognized date format: \(raw)"))
         }
         return d
     }()

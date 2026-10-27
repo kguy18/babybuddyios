@@ -22,7 +22,7 @@ struct LockView: View {
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
         // …and announces why the app's content just disappeared.
-        .onAppear { AccessibilityNotification.Announcement("Baby Buddy is locked").post() }
+        .onAppear { AccessibilityNotification.Announcement(String(localized: "Baby Buddy is locked")).post() }
         .task { await lock.unlock() }
     }
 }

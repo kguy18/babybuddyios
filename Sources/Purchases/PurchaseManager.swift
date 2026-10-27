@@ -86,9 +86,9 @@ final class PurchaseManager {
         /// How the override reads in the Settings row.
         var label: String {
             switch self {
-            case .store: return "Store"
-            case .on: return "Forced on"
-            case .off: return "Forced off"
+            case .store: return String(localized: "Store")
+            case .on: return String(localized: "Forced on")
+            case .off: return String(localized: "Forced off")
             }
         }
     }
@@ -452,7 +452,7 @@ final class PurchaseManager {
 
     /// Generic copy for a failure we can't say anything more useful about. Names neither a cause nor
     /// an operation, because ``handle(_:)`` is reached from a tip and a restore alike.
-    static let genericFailureMessage = "Something went wrong. Please try again."
+    static let genericFailureMessage = String(localized: "Something went wrong. Please try again.")
 
     /// The sentence shown to the customer when a tip or a restore fails — pure, so the whole mapping
     /// is unit-testable (the SDK flows that produce these errors need live StoreKit and aren't).
@@ -474,15 +474,15 @@ final class PurchaseManager {
         guard let code = error as? ErrorCode else { return genericFailureMessage }
         switch code {
         case .networkError, .offlineConnectionError, .productRequestTimedOut, .apiEndpointBlockedError:
-            return "Couldn't reach the App Store. Check your connection and try again."
+            return String(localized: "Couldn't reach the App Store. Check your connection and try again.")
         case .purchaseNotAllowedError, .insufficientPermissionsError:
-            return "Purchases aren't allowed on this device. Check Screen Time restrictions and try again."
+            return String(localized: "Purchases aren't allowed on this device. Check Screen Time restrictions and try again.")
         case .paymentPendingError:
-            return "Your tip needs approval before it completes. It'll be applied once that's done."
+            return String(localized: "Your tip needs approval before it completes. It'll be applied once that's done.")
         case .productNotAvailableForPurchaseError, .configurationError, .unsupportedError:
             // Deliberately the same sentence the supporter sheet shows when it has no amounts to
             // offer, so the two can never contradict each other.
-            return "Tips aren't available right now — please try again later."
+            return String(localized: "Tips aren't available right now — please try again later.")
         default:
             // Store outages, backend hiccups, receipt problems, and whatever a future SDK adds: the
             // customer can only retry, so don't name a cause we aren't sure of.

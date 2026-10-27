@@ -97,8 +97,7 @@ struct SignOutDialog: View {
     }
 
     private var pendingMessage: String {
-        let one = pendingCount == 1
-        return "\(pendingCount) change\(one ? "" : "s") \(one ? "hasn't" : "haven't") reached this server yet. Signing out deletes \(one ? "it" : "them")."
+        String(localized: "\(pendingCount) changes haven't reached this server yet. Signing out deletes them.")
     }
 
     /// The tinted glyph tile used across Settings, at the two sizes this dialog needs.

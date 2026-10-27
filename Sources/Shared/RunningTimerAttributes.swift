@@ -29,8 +29,8 @@ struct RunningTimerAttributes: ActivityAttributes {
 
         /// Header text: "Patrick · Sleep" when the child is known, else just the timer name.
         var title: String {
-            guard let childName, !childName.isEmpty else { return timerName }
-            return "\(childName) · \(timerName)"
+            guard let childName, !childName.isEmpty else { return EntityFormatting.timerName(timerName) }
+            return "\(childName) · \(EntityFormatting.timerName(timerName))"
         }
     }
 }
@@ -43,7 +43,7 @@ extension RunningTimerAttributes {
     static func from(timer: LocalEntity,
                      childName: String? = nil) -> (attributes: RunningTimerAttributes, state: ContentState)? {
         guard timer.kind == .timer else { return nil }
-        let name = (timer.payloadObject["name"] as? String) ?? "Timer"
+        let name = (timer.payloadObject["name"] as? String) ?? String(localized: "Timer")
         let state = ContentState(timerName: name,
                                  activityRaw: TimerActivity(timer: timer)?.rawValue,
                                  start: timer.timestamp,

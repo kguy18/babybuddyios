@@ -118,10 +118,10 @@ struct SendFeedbackView: View {
         BBCard(cornerRadius: BBRadius.card, padding: 0) {
             VStack(spacing: 0) {
                 actionRow(.board, symbol: "lightbulb", tint: BBColor.brand,
-                          subtitle: "Suggest an idea or vote on others")
+                          subtitle: String(localized: "Suggest an idea or vote on others"))
                 Rectangle().fill(BBColor.divider).frame(height: 0.5)
                 actionRow(.help, symbol: "bubble.left", tint: BBColor.info,
-                          subtitle: "Report a problem or ask a question")
+                          subtitle: String(localized: "Report a problem or ask a question"))
             }
             .padding(.horizontal, 15)
         }
@@ -135,7 +135,7 @@ struct SendFeedbackView: View {
                 if case .signedIn(let email) = account {
                     Rectangle().fill(BBColor.divider).frame(height: 0.5)
                     Button { showingAccount = true } label: {
-                        SettingsRow(symbol: "person", tint: BBColor.note, title: "Feedback Account",
+                        SettingsRow(symbol: "person", tint: BBColor.note, title: String(localized: "Feedback Account"),
                                     subtitle: email) { chevron }
                     }
                     .buttonStyle(.plain)
@@ -304,7 +304,7 @@ struct FeedbackAccountView: View {
                 }
                 .padding(.vertical, 12)
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel(email.map { "Signed in to feedback as \($0)" } ?? "Signed in to feedback")
+                .accessibilityLabel(email.map { String(localized: "Signed in to feedback as \($0)") } ?? String(localized: "Signed in to feedback"))
                 Rectangle().fill(BBColor.divider).frame(height: 0.5)
                 Button { confirmingSignOut = true } label: {
                     Text("Sign Out of Feedback")

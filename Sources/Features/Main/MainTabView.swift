@@ -95,7 +95,7 @@ struct MainTabView: View {
         // Announce the connectivity change so it isn't a silent, purely-visual banner.
         .onChange(of: sync.isOnline) { _, online in
             AccessibilityNotification.Announcement(
-                online ? "Back online" : "Offline. Changes will sync when reconnected.").post()
+                online ? String(localized: "Back online") : String(localized: "Offline. Changes will sync when reconnected.")).post()
         }
     }
 
@@ -216,6 +216,6 @@ struct ChildSwitcher: ToolbarContent {
         let first = p["first_name"] as? String ?? ""
         let last = p["last_name"] as? String ?? ""
         let name = [first, last].filter { !$0.isEmpty }.joined(separator: " ")
-        return name.isEmpty ? "Child" : name
+        return name.isEmpty ? String(localized: "Child") : name
     }
 }

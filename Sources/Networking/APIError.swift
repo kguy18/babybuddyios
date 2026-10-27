@@ -147,29 +147,29 @@ enum APIError: Error, Equatable {
 
     var userMessage: String {
         switch self {
-        case .offline(.dns): return "Couldn't find that server address."
+        case .offline(.dns): return String(localized: "Couldn't find that server address.")
         case .offline(.cannotConnect):
-            return "Couldn't reach the server. Check the address, and that you're on the same network as it."
+            return String(localized: "Couldn't reach the server. Check the address, and that you're on the same network as it.")
         case .offline(.tls):
-            return "The server's security certificate wasn't accepted. A self-signed certificate has to be trusted on this device first."
-        case .offline(.timeout): return "The server took too long to respond."
-        case .offline: return "No connection to the Baby Buddy server."
-        case .unauthorized: return "Your API token was rejected. Please sign in again."
-        case .forbidden: return "You don't have permission to do that."
-        case .notFound: return "That record no longer exists on the server."
-        case .conflict: return "This record was changed on the server."
-        case .server(let status): return "Server error (\(status)). Please try again later."
-        case .badRequest(_, let message, _): return message ?? "The server rejected the request."
+            return String(localized: "The server's security certificate wasn't accepted. A self-signed certificate has to be trusted on this device first.")
+        case .offline(.timeout): return String(localized: "The server took too long to respond.")
+        case .offline: return String(localized: "No connection to the Baby Buddy server.")
+        case .unauthorized: return String(localized: "Your API token was rejected. Please sign in again.")
+        case .forbidden: return String(localized: "You don't have permission to do that.")
+        case .notFound: return String(localized: "That record no longer exists on the server.")
+        case .conflict: return String(localized: "This record was changed on the server.")
+        case .server(let status): return String(localized: "Server error (\(status)). Please try again later.")
+        case .badRequest(_, let message, _): return message ?? String(localized: "The server rejected the request.")
         case .decoding(Analytics.ListShape.nonJSON.rawValue):
-            return "The server answered with a web page instead of the Baby Buddy API. If a login proxy such as Authentik or Authelia is in front of it, let /api/ and /media/ through."
-        case .decoding(let detail): return "Couldn't read the server response. \(detail)"
-        case .invalidURL: return "The server address is not valid."
+            return String(localized: "The server answered with a web page instead of the Baby Buddy API. If a login proxy such as Authentik or Authelia is in front of it, let /api/ and /media/ through.")
+        case .decoding(let detail): return String(localized: "Couldn't read the server response. \(detail)")
+        case .invalidURL: return String(localized: "The server address is not valid.")
         case .accessGate(.cloudflareAccess):
-            return "Cloudflare Access answered instead of Baby Buddy. Add a service token's headers under Advanced configuration."
+            return String(localized: "Cloudflare Access answered instead of Baby Buddy. Add a service token's headers under Advanced configuration.")
         case .accessGate(.authentik):
-            return "Authentik answered instead of Baby Buddy. In its proxy provider, add ^/api/.* and ^/media/.* to Unauthenticated Paths."
+            return String(localized: "Authentik answered instead of Baby Buddy. In its proxy provider, add ^/api/.* and ^/media/.* to Unauthenticated Paths.")
         case .accessGate(.authelia):
-            return "Authelia answered instead of Baby Buddy. Add an access control rule that bypasses ^/api/.* and ^/media/.* for this server."
+            return String(localized: "Authelia answered instead of Baby Buddy. Add an access control rule that bypasses ^/api/.* and ^/media/.* for this server.")
         case .accessGate(.unknown):
             return APIError.decoding(Analytics.ListShape.nonJSON.rawValue).userMessage
         }

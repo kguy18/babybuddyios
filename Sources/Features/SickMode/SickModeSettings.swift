@@ -9,13 +9,13 @@ struct FeverLineView: View {
 
     var body: some View {
         ChoiceList(
-            title: "Fever line", options: SickMode.feverLineChoices,
+            title: String(localized: "Fever line"), options: SickMode.feverLineChoices,
             selection: Binding(get: { feverLine }, set: { celsius in
                 feverLine = celsius
                 Task { await LocalAlerts.shared.reconcile() } // a check follows only a fever
             }),
             label: { unit.format(unit.convert($0, from: .celsius)) },
-            footer: "A reading at or over this line counts as a fever. It brings up the banner on Home and keeps temperature checks coming.")
+            footer: String(localized: "A reading at or over this line counts as a fever. It brings up the banner on Home and keeps temperature checks coming."))
     }
 }
 
@@ -23,11 +23,11 @@ struct FeverLineView: View {
 struct TemperatureChecksView: View {
     @AppStorage(SickMode.checkHoursKey, store: SharedDefaults.suite) private var hours = SickMode.defaultCheckHours
 
-    static func label(_ hours: Int) -> String { hours == 0 ? "Off" : "Every \(hours) hr" }
+    static func label(_ hours: Int) -> String { hours == 0 ? String(localized: "Off") : String(localized: "Every \(hours) hr") }
 
     var body: some View {
         ChoiceList(
-            title: "Temperature checks", options: SickMode.checkHourChoices,
+            title: String(localized: "Temperature checks"), options: SickMode.checkHourChoices,
             selection: Binding(get: { hours }, set: { new in
                 hours = new
                 // Like the notification switches: turning it on asks for permission.
@@ -37,7 +37,7 @@ struct TemperatureChecksView: View {
                 }
             }),
             label: Self.label,
-            footer: "While sick mode is on and the newest reading is over the fever line, a reminder comes this long after it.")
+            footer: String(localized: "While sick mode is on and the newest reading is over the fever line, a reminder comes this long after it."))
     }
 }
 
@@ -110,7 +110,7 @@ struct MedicineColorsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 8) {
-                    SectionHeader("Medicines")
+                    SectionHeader(String(localized: "Medicines"))
                     BBCard(cornerRadius: BBRadius.tile, padding: 0) {
                         VStack(spacing: 0) {
                             ForEach(medicines, id: \.self) { name in
@@ -164,14 +164,14 @@ struct MedicineColorsView: View {
             withAnimation(.snappy(duration: 0.2)) { expanded = expanded == name ? nil : name }
         } label: {
             SettingsRow(symbol: "pills.fill", tint: shown(name).color, title: name,
-                        subtitle: "\(color.name) · \(store.isOverridden(name) ? "this phone only" : "from your server")") {
+                        subtitle: String(localized: "\(color.name) · \(store.isOverridden(name) ? String(localized: "this phone only") : String(localized: "from your server"))")) {
                 Image(systemName: expanded == name ? "chevron.up" : "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.tertiary)
             }
         }
         .buttonStyle(.plain)
-        .accessibilityHint(expanded == name ? "Hides the colors" : "Shows the colors")
+        .accessibilityHint(expanded == name ? String(localized: "Hides the colors") : String(localized: "Shows the colors"))
     }
 
     private func swatches(_ name: String) -> some View {

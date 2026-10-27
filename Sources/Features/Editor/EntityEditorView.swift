@@ -98,8 +98,8 @@ struct EntityEditorView: View {
     private var isConverting: Bool { sourceTimer != nil }
 
     private var navTitle: String {
-        if isConverting { return "Convert to \(kind.displayName)" }
-        return "\(isEditing ? "Edit" : "New") \(kind.displayName)"
+        if isConverting { return String(localized: "Convert to \(kind.displayName)") }
+        return isEditing ? String(localized: "Edit \(kind.displayName)") : String(localized: "New \(kind.displayName)")
     }
 
     var body: some View {
@@ -130,7 +130,7 @@ struct EntityEditorView: View {
             }
             // `.alert`, not `confirmationDialog` — iOS 26 anchors the latter to its source as a
             // popover and drops the cancel action, leaving a destructive prompt with no way back.
-            .alert("Delete this \(kind.displayName.lowercased())?", isPresented: $confirmingDelete) {
+            .alert("Delete this \(kind.sentenceName)?", isPresented: $confirmingDelete) {
                 Button("Delete", role: .destructive, action: delete)
                 Button("Cancel", role: .cancel) {}
             }
@@ -160,8 +160,8 @@ struct EntityEditorView: View {
                             .foregroundStyle(.primary)
                             .fixedSize(horizontal: false, vertical: true)
                         Text(blockedMutation.isStaleTimer
-                             ? "Retry, discard, or create without the timer in Pending Changes"
-                             : "Fix it here and save, or retry or discard in Pending Changes")
+                             ? String(localized: "Retry, discard, or create without the timer in Pending Changes")
+                             : String(localized: "Fix it here and save, or retry or discard in Pending Changes"))
                             .font(.caption)
                             .foregroundStyle(BBColor.danger)
                     }
@@ -198,10 +198,10 @@ struct EntityEditorView: View {
     @ViewBuilder private var formSections: some View {
         syncErrorBanner
         babySection
-        sectioned("When") { whenCard }
+        sectioned(String(localized: "When")) { whenCard }
         sectioned(detailsTitle) { detailsCard }
-        sectioned("Tags") { tagsCard }
-        if showsNotes { sectioned("Notes") { notesCard } }
+        sectioned(String(localized: "Tags")) { tagsCard }
+        if showsNotes { sectioned(String(localized: "Notes")) { notesCard } }
         doseWarning
         overlapWarning
         validationNotice
@@ -255,12 +255,12 @@ struct EntityEditorView: View {
 
     private func shortName(_ k: EntityKind) -> String {
         switch k {
-        case .feeding: return "Feeding"
-        case .change: return "Diaper"
-        case .sleep: return "Sleep"
-        case .tummyTime: return "Tummy"
-        case .pumping: return "Pump"
-        case .note: return "Note"
+        case .feeding: return String(localized: "Feeding")
+        case .change: return String(localized: "Diaper")
+        case .sleep: return String(localized: "Sleep")
+        case .tummyTime: return String(localized: "Tummy")
+        case .pumping: return String(localized: "Pump")
+        case .note: return String(localized: "Note")
         default: return k.displayName
         }
     }
@@ -274,7 +274,7 @@ struct EntityEditorView: View {
 
     @ViewBuilder private var babySection: some View {
         if showsChildPicker {
-            sectioned("Baby") {
+            sectioned(String(localized: "Baby")) {
                 BBCard(cornerRadius: BBRadius.tile, padding: 0) { childRow }
             }
         }
@@ -284,7 +284,7 @@ struct EntityEditorView: View {
         let p = child.payloadObject
         let parts = [p["first_name"] as? String, p["last_name"] as? String]
             .compactMap { $0 }.filter { !$0.isEmpty }
-        return parts.isEmpty ? "Unnamed" : parts.joined(separator: " ")
+        return parts.isEmpty ? String(localized: "Unnamed") : parts.joined(separator: " ")
     }
 
     private var selectedChildName: String {
@@ -321,13 +321,13 @@ struct EntityEditorView: View {
             VStack(spacing: 0) {
                 switch kind {
                 case .feeding, .sleep, .tummyTime, .pumping:
-                    pickerRow("Start", selection: $start, components: [.date, .hourAndMinute])
+                    pickerRow(String(localized: "Start"), selection: $start, components: [.date, .hourAndMinute])
                     rowDivider
                     endRow
                 case .change, .note, .temperature, .medication:
-                    pickerRow("Time", selection: $time, components: [.date, .hourAndMinute])
+                    pickerRow(String(localized: "Time"), selection: $time, components: [.date, .hourAndMinute])
                 case .weight, .height, .headCircumference, .bmi:
-                    pickerRow("Date", selection: $date, components: .date)
+                    pickerRow(String(localized: "Date"), selection: $date, components: .date)
                 case .timer, .child:
                     EmptyView()
                 }
@@ -366,20 +366,20 @@ struct EntityEditorView: View {
 
     // MARK: Details card (type-specific)
 
-    private var detailsTitle: String { kind == .note ? "Note" : "Details" }
+    private var detailsTitle: String { kind == .note ? String(localized: "Note") : String(localized: "Details") }
 
     @ViewBuilder private var detailsCard: some View {
         switch kind {
         case .feeding: feedingDetails
         case .change: changeDetails
         case .sleep:
-            BBCard(cornerRadius: BBRadius.tile, padding: 0) { toggleRow("Nap", isOn: $nap) }
+            BBCard(cornerRadius: BBRadius.tile, padding: 0) { toggleRow(String(localized: "Nap"), isOn: $nap) }
         case .tummyTime:
             BBCard(cornerRadius: BBRadius.tile) {
                 TextField("Milestone", text: $milestone, axis: .vertical).lineLimit(1...3)
             }
         case .pumping:
-            BBCard(cornerRadius: BBRadius.tile) { fieldLabeled("Amount") { amountStepper } }
+            BBCard(cornerRadius: BBRadius.tile) { fieldLabeled(String(localized: "Amount")) { amountStepper } }
         case .note:
             BBCard(cornerRadius: BBRadius.tile) {
                 VStack(alignment: .leading, spacing: 12) {
@@ -396,7 +396,7 @@ struct EntityEditorView: View {
         case .temperature:
             BBCard(cornerRadius: BBRadius.tile) {
                 VStack(alignment: .leading, spacing: 12) {
-                    fieldLabeled("Temperature") { numericField(text: $value, unit: unit.symbol) }
+                    fieldLabeled(String(localized: "Temperature")) { numericField(text: $value, unit: unit.symbol) }
                     unitHint
                 }
             }
@@ -410,14 +410,14 @@ struct EntityEditorView: View {
     private var feedingDetails: some View {
         BBCard(cornerRadius: BBRadius.tile) {
             VStack(alignment: .leading, spacing: 16) {
-                fieldLabeled("Type") {
+                fieldLabeled(String(localized: "Type")) {
                     BBSegmentedControl(selection: $feedingType,
                                        options: FeedingType.allCases) { $0.shortLabel }
                 }
-                fieldLabeled("Method") {
+                fieldLabeled(String(localized: "Method")) {
                     menuField(options: FeedingMethod.allCases, selection: $feedingMethod) { $0.label }
                 }
-                fieldLabeled("Amount") { amountStepper }
+                fieldLabeled(String(localized: "Amount")) { amountStepper }
             }
         }
     }
@@ -425,9 +425,9 @@ struct EntityEditorView: View {
     private var changeDetails: some View {
         BBCard(cornerRadius: BBRadius.tile, padding: 0) {
             VStack(spacing: 0) {
-                toggleRow("Wet", isOn: $wet)
+                toggleRow(String(localized: "Wet"), isOn: $wet)
                 rowDivider
-                toggleRow("Solid", isOn: $solid)
+                toggleRow(String(localized: "Solid"), isOn: $solid)
                 rowDivider
                 colorRow
             }
@@ -451,7 +451,9 @@ struct EntityEditorView: View {
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(BBColor.warningAccent)
                         }
-                    Text("\(value.trimmingCharacters(in: .whitespaces)) looks like \(other.name). In \(unit.name) that's \(TemperatureUnit.decimal(converted))°\(fever ? ", over your fever line." : ".")")
+                    Text(fever
+                         ? String(localized: "\(value.trimmingCharacters(in: .whitespaces)) looks like \(other.name). In \(unit.name) that's \(TemperatureUnit.decimal(converted))°, over your fever line.")
+                         : String(localized: "\(value.trimmingCharacters(in: .whitespaces)) looks like \(other.name). In \(unit.name) that's \(TemperatureUnit.decimal(converted))°."))
                         .font(.system(size: 14))
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
@@ -474,20 +476,20 @@ struct EntityEditorView: View {
     private var medicationDetails: some View {
         BBCard(cornerRadius: BBRadius.tile) {
             VStack(alignment: .leading, spacing: 16) {
-                fieldLabeled("Name") { plainField("Name", text: $medName) }
-                fieldLabeled("Dosage") {
+                fieldLabeled(String(localized: "Name")) { plainField(String(localized: "Name"), text: $medName) }
+                fieldLabeled(String(localized: "Dosage")) {
                     HStack(spacing: 10) {
                         numericField(text: $dosage, unit: nil)
-                        plainField("Unit", text: $dosageUnit).frame(width: 92)
+                        plainField(String(localized: "Unit"), text: $dosageUnit).frame(width: 92)
                     }
                 }
-                fieldLabeled("Next dose after") {
+                fieldLabeled(String(localized: "Next dose after")) {
                     menuField(options: [.none] + MedicationReminderPolicy.choices.map(DoseInterval.preset) + [.custom],
                               selection: $doseInterval) { $0.label }
                     if doseInterval == .custom {
                         HStack(spacing: 10) {
-                            numericField(text: $customDoseHours, unit: "h")
-                            numericField(text: $customDoseMinutes, unit: "m")
+                            numericField(text: $customDoseHours, unit: String(localized: "h"))
+                            numericField(text: $customDoseMinutes, unit: String(localized: "m"))
                         }
                     }
                 }
@@ -515,13 +517,13 @@ struct EntityEditorView: View {
             Text("Color").font(.body)
             Spacer()
             Menu {
-                Button { color = nil } label: { menuLabel("None", checked: color == nil) }
+                Button { color = nil } label: { menuLabel(String(localized: "None"), checked: color == nil) }
                 ForEach(DiaperColor.allCases, id: \.self) { c in
                     Button { color = c } label: { menuLabel(c.label, checked: color == c) }
                 }
             } label: {
                 HStack(spacing: 4) {
-                    Text(color?.label ?? "None")
+                    Text(color?.label ?? String(localized: "None"))
                     Image(systemName: "chevron.up.chevron.down").font(.caption2)
                 }
                 .foregroundStyle(BBColor.brandAccent)
@@ -702,7 +704,7 @@ struct EntityEditorView: View {
     /// wrong yet, the entry just isn't something the server will take.
     @ViewBuilder private var validationNotice: some View {
         if let problem {
-            warningNotice(problem.message, accessibilityLabel: "Can\u{2019}t save yet. \(problem.message)")
+            warningNotice(problem.message, accessibilityLabel: String(localized: "Can\u{2019}t save yet. \(problem.message)"))
         }
     }
 
@@ -713,8 +715,8 @@ struct EntityEditorView: View {
            let wait = MedicationReminderPolicy.doseNotYetOK(named: medName, childID: childID, in: medications) {
             let given = wait.dose.timestamp.formatted(date: .omitted, time: .shortened)
             let next = wait.next.formatted(date: .omitted, time: .shortened)
-            let message = "\(medName.trimmingCharacters(in: .whitespaces)) was last given at \(given). Next dose OK at \(next)."
-            warningNotice(message, accessibilityLabel: "Warning. \(message)")
+            let message = String(localized: "\(medName.trimmingCharacters(in: .whitespaces)) was last given at \(given). Next dose OK at \(next).")
+            warningNotice(message, accessibilityLabel: String(localized: "Warning. \(message)"))
         }
     }
 
@@ -723,8 +725,8 @@ struct EntityEditorView: View {
     /// the other entry afterwards.
     @ViewBuilder private var overlapWarning: some View {
         if let other = overlappingRecord, let period = ActivityDraft.period(of: other) {
-            let message = "Overlaps the \(period.formatted(.interval.hour().minute())) \(kind.displayName.lowercased()). Baby Buddy won\u{2019}t accept both."
-            warningNotice(message, accessibilityLabel: "Warning. \(message)")
+            let message = String(localized: "Overlaps the \(period.formatted(.interval.hour().minute())) \(kind.sentenceName). Baby Buddy won\u{2019}t accept both.")
+            warningNotice(message, accessibilityLabel: String(localized: "Warning. \(message)"))
         }
     }
 
@@ -762,11 +764,11 @@ struct EntityEditorView: View {
 
     private var measurementLabel: String {
         switch kind {
-        case .weight: return "Weight"
-        case .height: return "Height"
-        case .headCircumference: return "Head circumference"
-        case .bmi: return "BMI"
-        default: return "Value"
+        case .weight: return String(localized: "Weight")
+        case .height: return String(localized: "Height")
+        case .headCircumference: return String(localized: "Head circumference")
+        case .bmi: return String(localized: "BMI")
+        default: return String(localized: "Value")
         }
     }
 
@@ -789,7 +791,7 @@ struct EntityEditorView: View {
             .clipShape(RoundedRectangle(cornerRadius: BBRadius.control, style: .continuous))
         }
         PhotosPicker(selection: $photoItem, matching: .images) {
-            Label(hasNoteImage ? "Change Photo" : "Add Photo", systemImage: "photo")
+            Label(hasNoteImage ? String(localized: "Change Photo") : String(localized: "Add Photo"), systemImage: "photo")
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(BBColor.brandAccent)
         }
@@ -989,9 +991,9 @@ private enum DoseInterval: Hashable {
 
     var label: String {
         switch self {
-        case .none: return "None"
+        case .none: return String(localized: "None")
         case .preset(let seconds): return EntityFormatting.formatInterval(seconds)
-        case .custom: return "Custom"
+        case .custom: return String(localized: "Custom")
         }
     }
 }
@@ -1001,10 +1003,12 @@ private enum DoseInterval: Hashable {
 private extension FeedingType {
     var shortLabel: String {
         switch self {
-        case .breastMilk: return "Breast"
-        case .formula: return "Formula"
-        case .fortifiedBreastMilk: return "Fortified"
-        case .solidFood: return "Solid"
+        case .breastMilk: return String(localized: "Breast")
+        case .formula: return String(localized: "feeding.type.formula.short", defaultValue: "Formula",
+                                     comment: "Short formula label in the four-segment feeding picker")
+        case .fortifiedBreastMilk: return String(localized: "Fortified")
+        case .solidFood: return String(localized: "feeding.type.solid.short", defaultValue: "Solid",
+                                       comment: "Solid food, not a diaper containing stool")
         }
     }
 }

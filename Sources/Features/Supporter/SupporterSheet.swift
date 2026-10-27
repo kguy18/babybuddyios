@@ -186,8 +186,8 @@ struct SupporterSheet: View {
     /// whereas a configured build whose tips didn't load may well work on the next try.
     private var unavailableNotice: some View {
         Text(purchases.isConfigured
-             ? "Tips aren't available right now — please try again later."
-             : "Purchases aren't available in this build.")
+             ? String(localized: "Tips aren't available right now — please try again later.")
+             : String(localized: "Purchases aren't available in this build."))
             .font(.footnote)
             .foregroundStyle(.secondary)
             .padding(.top, 20)
@@ -206,7 +206,7 @@ struct SupporterSheet: View {
 
     private var quietButton: some View {
         Button { dismiss() } label: {
-            Text(purchases.isSupporter ? "Done" : "Maybe later")
+            Text(purchases.isSupporter ? String(localized: "Done") : String(localized: "Maybe later"))
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity)
@@ -227,9 +227,9 @@ struct SupporterSheet: View {
             .disabled(!purchases.isConfigured || purchases.isLoading)
 
             HStack(spacing: 6) {
-                Link("Privacy Policy", destination: SupporterLinks.privacyPolicy)
+                Link(String(localized: "Privacy Policy"), destination: SupporterLinks.privacyPolicy)
                 Text("•").foregroundStyle(.tertiary)
-                Link("Terms of Service", destination: SupporterLinks.termsOfService)
+                Link(String(localized: "Terms of Service"), destination: SupporterLinks.termsOfService)
             }
             .font(.footnote)
             .tint(BBColor.brandAccent)
@@ -255,17 +255,17 @@ struct SupporterCopy {
     let askTitle: String
     let askBody: String
 
-    static let thankYouTitle = "You're a Supporter ❤️"
-    static let thankYouBody = "Thank you for chipping in — it keeps Baby Buddy Companion free for everyone."
+    static let thankYouTitle = String(localized: "You're a Supporter ❤️")
+    static let thankYouBody = String(localized: "Thank you for chipping in — it keeps Baby Buddy Companion free for everyone.")
 
     init(variant: SupporterCopyVariant) {
         switch variant {
         case .standard:
-            askTitle = "Support Baby Buddy Companion"
-            askBody = "The whole app is free, and stays that way. A one-time tip supports development — thank you either way."
+            askTitle = String(localized: "Support Baby Buddy Companion")
+            askBody = String(localized: "The whole app is free, and stays that way. A one-time tip supports development — thank you either way.")
         case .warm:
-            askTitle = "Keep Baby Buddy Companion going"
-            askBody = "Every feature is free, for everyone, and always will be. If the app has earned a place in your day, a one-time tip helps it keep growing."
+            askTitle = String(localized: "Keep Baby Buddy Companion going")
+            askBody = String(localized: "Every feature is free, for everyone, and always will be. If the app has earned a place in your day, a one-time tip helps it keep growing.")
         }
     }
 }
@@ -329,9 +329,9 @@ private extension TipTier {
     /// What this amount is called on its tile.
     var label: String {
         switch self {
-        case .small: return "Kind"
-        case .medium: return "Generous"
-        case .large: return "Amazing"
+        case .small: return String(localized: "Kind")
+        case .medium: return String(localized: "Generous")
+        case .large: return String(localized: "Amazing")
         }
     }
 

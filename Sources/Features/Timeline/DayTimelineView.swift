@@ -95,7 +95,7 @@ struct DayTimelineView: View {
             if events.isEmpty { emptyState }
         }
         .overlay(alignment: .bottomTrailing) {
-            FloatingAddButton(accessibilityLabelText: "Add \(kind.displayName)") {
+            FloatingAddButton(accessibilityLabelText: String(localized: "Add \(kind.displayName)")) {
                 adding = true
             }
             .padding(.trailing, 20)
@@ -105,16 +105,16 @@ struct DayTimelineView: View {
 
     private var title: String {
         let when = Calendar.current.isDateInToday(day)
-            ? "Today"
+            ? String(localized: "Today")
             : day.formatted(.dateTime.month(.abbreviated).day())
-        return "\(kind.displayName) · \(when)"
+        return String(localized: "\(kind.displayName) · \(when)")
     }
 
     private var emptyState: some View {
         ContentUnavailableView(
             "No \(kind.displayName)",
             systemImage: kind.systemImage,
-            description: Text("No \(kind.displayName.lowercased()) logged for this day."))
+            description: Text("No \(kind.sentenceName) logged for this day."))
     }
 
     // MARK: Mutations

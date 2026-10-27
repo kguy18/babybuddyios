@@ -98,8 +98,8 @@ struct InsightsView: View {
         let series = aggregator.sleepHoursByDay(chartEntities, childID: selectedChildID, period: period)
         let total = series.reduce(0) { $0 + $1.hours }
         let hasData = total > 0
-        return ChartCard(title: "Sleep", icon: .sleep,
-                         summary: hasData ? "Avg \(oneDecimal(total / Double(series.count)))h / day" : nil) {
+        return ChartCard(title: String(localized: "Sleep"), icon: .sleep,
+                         summary: hasData ? String(localized: "Avg \(oneDecimal(total / Double(series.count)))h / day") : nil) {
             if hasData {
                 Chart(series) { day in
                     BarMark(
@@ -108,13 +108,13 @@ struct InsightsView: View {
                     .foregroundStyle(BBColor.sleep)
                     .cornerRadius(3)
                     .accessibilityLabel(dayLabel(day.day))
-                    .accessibilityValue("\(oneDecimal(day.hours)) hours")
+                    .accessibilityValue(EntityFormatting.spokenDuration(day.hours * 3600))
                 }
                 .chartYAxisLabel("Hours")
                 .modifier(DayAxis(period: period))
                 .frame(height: chartHeight)
             } else {
-                emptyChart("No sleep logged")
+                emptyChart(String(localized: "No sleep logged"))
             }
         }
     }
@@ -126,8 +126,8 @@ struct InsightsView: View {
         let totalCount = series.reduce(0) { $0 + $1.count }
         let hasData = totalCount > 0
         let hasAmounts = series.contains { $0.totalAmount > 0 }
-        return ChartCard(title: "Feedings", icon: .feeding,
-                         summary: hasData ? "Avg \(oneDecimal(Double(totalCount) / Double(series.count))) / day" : nil) {
+        return ChartCard(title: String(localized: "Feedings"), icon: .feeding,
+                         summary: hasData ? String(localized: "Avg \(oneDecimal(Double(totalCount) / Double(series.count))) / day") : nil) {
             if hasData {
                 VStack(alignment: .leading, spacing: 14) {
                     Chart(series) { day in
@@ -161,7 +161,7 @@ struct InsightsView: View {
                     }
                 }
             } else {
-                emptyChart("No feedings logged")
+                emptyChart(String(localized: "No feedings logged"))
             }
         }
     }
@@ -182,11 +182,11 @@ struct InsightsView: View {
         let totalSolid = series.reduce(0) { $0 + $1.solid }
         let hasData = totalWet + totalSolid > 0
         let points = series.flatMap {
-            [DiaperPoint(day: $0.day, kind: "Wet", count: $0.wet),
-             DiaperPoint(day: $0.day, kind: "Solid", count: $0.solid)]
+            [DiaperPoint(day: $0.day, kind: String(localized: "Wet"), count: $0.wet),
+             DiaperPoint(day: $0.day, kind: String(localized: "Solid"), count: $0.solid)]
         }
-        return ChartCard(title: "Diapers", icon: .change,
-                         summary: hasData ? "\(totalWet) wet · \(totalSolid) solid" : nil) {
+        return ChartCard(title: String(localized: "Diapers"), icon: .change,
+                         summary: hasData ? String(localized: "\(totalWet) wet · \(totalSolid) solid") : nil) {
             if hasData {
                 Chart(points) { point in
                     BarMark(
@@ -195,15 +195,17 @@ struct InsightsView: View {
                     .foregroundStyle(by: .value("Type", point.kind))
                     .cornerRadius(3)
                     .accessibilityLabel(dayLabel(point.day))
-                    .accessibilityValue("\(point.count) \(point.kind.lowercased())")
+                    .accessibilityValue(point.kind == String(localized: "Wet")
+                        ? String(localized: "\(point.count) wet changes")
+                        : String(localized: "\(point.count) solid changes"))
                 }
-                .chartForegroundStyleScale(["Wet": BBColor.info, "Solid": BBColor.change])
+                .chartForegroundStyleScale([String(localized: "Wet"): BBColor.info, String(localized: "Solid"): BBColor.change])
                 .chartYAxis { AxisMarks(values: .automatic(desiredCount: 4)) }
                 .modifier(DayAxis(period: period))
                 .chartLegend(position: .bottom, spacing: 8)
                 .frame(height: chartHeight)
             } else {
-                emptyChart("No diaper changes logged")
+                emptyChart(String(localized: "No diaper changes logged"))
             }
         }
     }
@@ -214,8 +216,8 @@ struct InsightsView: View {
         let series = aggregator.tummyTimeMinutesByDay(chartEntities, childID: selectedChildID, period: period)
         let total = series.reduce(0) { $0 + $1.minutes }
         let hasData = total > 0
-        return ChartCard(title: "Tummy Time", icon: .tummyTime,
-                         summary: hasData ? "Avg \(Int(total / Double(series.count))) min / day" : nil) {
+        return ChartCard(title: String(localized: "Tummy Time"), icon: .tummyTime,
+                         summary: hasData ? String(localized: "Avg \(Int(total / Double(series.count))) min / day") : nil) {
             if hasData {
                 Chart(series) { day in
                     BarMark(
@@ -230,7 +232,7 @@ struct InsightsView: View {
                 .modifier(DayAxis(period: period))
                 .frame(height: chartHeight)
             } else {
-                emptyChart("No tummy time logged")
+                emptyChart(String(localized: "No tummy time logged"))
             }
         }
     }
@@ -242,8 +244,8 @@ struct InsightsView: View {
         let totalCount = series.reduce(0) { $0 + $1.count }
         let totalAmount = series.reduce(0) { $0 + $1.totalAmount }
         let hasData = totalCount > 0
-        return ChartCard(title: "Pumping", icon: .pumping,
-                         summary: hasData ? "Avg \(Int(totalAmount / Double(series.count))) ml / day" : nil) {
+        return ChartCard(title: String(localized: "Pumping"), icon: .pumping,
+                         summary: hasData ? String(localized: "Avg \(Int(totalAmount / Double(series.count))) ml / day") : nil) {
             if hasData {
                 VStack(alignment: .leading, spacing: 14) {
                     Chart(series) { day in
@@ -276,7 +278,7 @@ struct InsightsView: View {
                     .frame(height: chartHeight * 0.8)
                 }
             } else {
-                emptyChart("No pumping logged")
+                emptyChart(String(localized: "No pumping logged"))
             }
         }
     }
@@ -293,10 +295,10 @@ struct InsightsView: View {
                                                period: period, unit: unit, now: now)
         let doses = aggregator.doses(chartEntities, childID: selectedChildID, period: period, now: now)
         let peak = readings.max { $0.value < $1.value }
-        return ChartCard(title: "Temperature", icon: .temperature,
-                         summary: peak.map { "Peak \(unit.format($0.value))" }) {
+        return ChartCard(title: String(localized: "Temperature"), icon: .temperature,
+                         summary: peak.map { String(localized: "Peak \(unit.format($0.value))") }) {
             if readings.isEmpty {
-                emptyChart("No temperatures logged")
+                emptyChart(String(localized: "No temperatures logged"))
             } else {
                 VStack(alignment: .leading, spacing: 14) {
                     Chart {
@@ -350,7 +352,7 @@ struct InsightsView: View {
                         HStack(spacing: 7) {
                             Circle().fill(colors.color(tally.id).color).frame(width: 8, height: 8)
                             Text(tally.name).font(.caption.weight(.medium))
-                            Text("\(tally.count) dose\(tally.count == 1 ? "" : "s")")
+                            Text("\(tally.count) doses")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                         .accessibilityElement(children: .combine)
@@ -393,7 +395,7 @@ struct InsightsView: View {
 
     private func doseName(_ dose: LocalEntity) -> String {
         let name = (dose.payloadObject["name"] as? String ?? "").trimmingCharacters(in: .whitespaces)
-        return name.isEmpty ? "Medication" : name
+        return name.isEmpty ? String(localized: "Medication") : name
     }
 
     /// "5 mL, Jun 14 at 3:30 PM". A dose marker sits on no axis of its own, so it reads its time out.
@@ -407,7 +409,7 @@ struct InsightsView: View {
     private let chartHeight: CGFloat = 168
 
     private func oneDecimal(_ value: Double) -> String {
-        value == value.rounded() ? String(Int(value)) : String(format: "%.1f", value)
+        value == value.rounded() ? String(Int(value)) : value.formatted(.number.precision(.fractionLength(1)).grouping(.never))
     }
 
     private func dayLabel(_ day: Date) -> String {
@@ -416,7 +418,7 @@ struct InsightsView: View {
 
     /// "Jun 14 at 3:30 PM", for a mark that sits at a time rather than on a day.
     private func momentLabel(_ date: Date) -> String {
-        "\(dayLabel(date)) at \(date.formatted(date: .omitted, time: .shortened))"
+        String(localized: "\(dayLabel(date)) at \(date.formatted(date: .omitted, time: .shortened))")
     }
 
     private func emptyChart(_ message: String) -> some View {

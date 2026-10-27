@@ -1,0 +1,40 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "NSFaceIDUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Baby Buddy uses Face ID to keep your baby's data private."
+          }
+        },
+        "de-DE": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Baby Buddy verwendet Face ID, um die Daten deines Babys zu schützen."
+          }
+        }
+      }
+    },
+    "NSCameraUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Baby Buddy uses the camera to scan the login QR code from your server's Add a Device page."
+          }
+        },
+        "de-DE": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Baby Buddy verwendet die Kamera, um den Anmelde-QR-Code auf der Seite „Gerät hinzufügen“ deines Servers zu scannen."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

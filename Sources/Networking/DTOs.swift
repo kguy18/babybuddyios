@@ -26,7 +26,14 @@ enum FeedingType: String, Codable, CaseIterable, Identifiable {
     case fortifiedBreastMilk = "fortified breast milk"
     case solidFood = "solid food"
     var id: String { rawValue }
-    var label: String { rawValue.capitalized }
+    var label: String {
+        switch self {
+        case .breastMilk: return String(localized: "Breast Milk")
+        case .formula: return String(localized: "Formula")
+        case .fortifiedBreastMilk: return String(localized: "Fortified Breast Milk")
+        case .solidFood: return String(localized: "Solid Food")
+        }
+    }
 }
 
 enum FeedingMethod: String, Codable, CaseIterable, Identifiable {
@@ -37,13 +44,29 @@ enum FeedingMethod: String, Codable, CaseIterable, Identifiable {
     case parentFed = "parent fed"
     case selfFed = "self fed"
     var id: String { rawValue }
-    var label: String { rawValue.capitalized }
+    var label: String {
+        switch self {
+        case .bottle: return String(localized: "Bottle")
+        case .leftBreast: return String(localized: "Left Breast")
+        case .rightBreast: return String(localized: "Right Breast")
+        case .bothBreasts: return String(localized: "Both Breasts")
+        case .parentFed: return String(localized: "Parent Fed")
+        case .selfFed: return String(localized: "Self Fed")
+        }
+    }
 }
 
 enum DiaperColor: String, Codable, CaseIterable, Identifiable {
     case black, brown, green, yellow
     var id: String { rawValue }
-    var label: String { rawValue.capitalized }
+    var label: String {
+        switch self {
+        case .black: return String(localized: "Black")
+        case .brown: return String(localized: "Brown")
+        case .green: return String(localized: "Green")
+        case .yellow: return String(localized: "Yellow")
+        }
+    }
 }
 
 // MARK: - Resources

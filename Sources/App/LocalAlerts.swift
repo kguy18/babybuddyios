@@ -64,14 +64,20 @@ enum ForgottenTimerPolicy {
                         threshold: TimeInterval? = nil) -> Request {
         let activity = TimerActivity(timer: timer)
         let limit = threshold ?? self.threshold(for: activity)
-        let name = activity?.timerName ?? (timer.payloadObject["name"] as? String) ?? "Timer"
-        let owner = childName.map { "\($0)'s " } ?? ""
+        let name = activity?.displayName ?? (timer.payloadObject["name"] as? String).map(EntityFormatting.timerName) ?? String(localized: "Timer")
+        let sentenceName = activity?.convertKind.sentenceName ?? name.lowercased()
+        let duration = EntityFormatting.formatInterval(limit)
+        let body: String
+        if let childName {
+            body = String(localized: "\(childName)'s \(sentenceName) timer has been running for \(duration). Tap to stop it.")
+        } else {
+            body = String(localized: "\(sentenceName) timer has been running for \(duration). Tap to stop it.")
+        }
         return Request(
             id: identifier(for: timer),
             fireDate: timer.timestamp.addingTimeInterval(limit),
-            title: "\(name) timer still running",
-            body: "\(owner)\(name.lowercased()) timer has been running for "
-                + "\(EntityFormatting.formatInterval(limit)). Tap to stop it.",
+            title: String(localized: "\(name) timer still running"),
+            body: body,
             url: "babybuddy://timer/\(timer.localID.uuidString)")
     }
 
@@ -161,14 +167,20 @@ enum MedicationReminderPolicy {
     /// The "next dose OK" notification for a dose, or `nil` if it has no interval.
     static func request(for dose: LocalEntity, childName: String?) -> ForgottenTimerPolicy.Request? {
         guard let fire = nextDose(after: dose) else { return nil }
-        let name = dose.payloadObject["name"] as? String ?? "Medication"
-        let owner = childName.map { "\($0)'s" } ?? "the"
+        let name = dose.payloadObject["name"] as? String ?? String(localized: "Medication")
+        let duration = EntityFormatting.formatInterval(fire.timeIntervalSince(dose.timestamp))
+        let time = dose.timestamp.formatted(date: .omitted, time: .shortened)
+        let body: String
+        if let childName {
+            body = String(localized: "\(duration) since \(childName)'s last dose at \(time).")
+        } else {
+            body = String(localized: "\(duration) since the last dose at \(time).")
+        }
         return ForgottenTimerPolicy.Request(
             id: identifier(for: dose),
             fireDate: fire,
-            title: "\(name): next dose OK",
-            body: "\(EntityFormatting.formatInterval(fire.timeIntervalSince(dose.timestamp))) since \(owner) "
-                + "last dose at \(dose.timestamp.formatted(date: .omitted, time: .shortened)).",
+            title: String(localized: "\(name): next dose OK"),
+            body: body,
             url: "babybuddy://dose/\(dose.localID.uuidString)")
     }
 }
@@ -181,12 +193,17 @@ enum TemperatureCheckPolicy {
     /// `value` is the reading as the phone shows it, "100.8°F".
     static func request(for reading: LocalEntity, value: String, childName: String?,
                         hours: Int) -> ForgottenTimerPolicy.Request {
-        let owner = childName.map { "\($0)'s" } ?? "the"
+        let body: String
+        if let childName {
+            body = String(localized: "It's been \(hours) hr since \(childName)'s last reading (\(value)).")
+        } else {
+            body = String(localized: "It's been \(hours) hr since the last reading (\(value)).")
+        }
         return ForgottenTimerPolicy.Request(
             id: identifier(for: reading),
             fireDate: reading.timestamp.addingTimeInterval(Double(hours) * 3600),
-            title: "Temperature check",
-            body: "It's been \(hours) hr since \(owner) last reading (\(value)).",
+            title: String(localized: "Temperature check"),
+            body: body,
             url: "babybuddy://home")
     }
 }

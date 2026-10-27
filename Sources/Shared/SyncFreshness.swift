@@ -16,16 +16,16 @@ enum SyncFreshness {
 
     /// "Updated 4m ago" / "Updated now" / "Not synced yet".
     static func label(lastSync: Date?, now: Date) -> String {
-        guard let lastSync else { return "Not synced yet" }
+        guard let lastSync else { return String(localized: "Not synced yet") }
         let age = ChildStatus.compactAge(from: lastSync, to: now)
-        return age == "now" ? "Updated just now" : "Updated \(age) ago"
+        return now.timeIntervalSince(lastSync) < 60 ? String(localized: "Updated just now") : String(localized: "Updated \(age) ago")
     }
 
     static func thresholdLabel(_ minutes: Int) -> String {
         switch minutes {
-        case 0: return "Off"
-        case ..<60: return "\(minutes) min"
-        default: return minutes % 60 == 0 ? "\(minutes / 60) h" : "\(minutes / 60) h \(minutes % 60) min"
+        case 0: return String(localized: "Off")
+        case ..<60: return String(localized: "\(minutes) min")
+        default: return minutes % 60 == 0 ? String(localized: "\(minutes / 60) h") : String(localized: "\(minutes / 60) h \(minutes % 60) min")
         }
     }
 }

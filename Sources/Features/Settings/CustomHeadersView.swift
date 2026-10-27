@@ -36,8 +36,8 @@ struct HeaderRow: Identifiable, Equatable {
     }
 
     private static let presets: [String: Preset] = [
-        "cf-access-client-id": Preset(label: "Client ID", placeholder: "Ends in .access", secret: false),
-        "cf-access-client-secret": Preset(label: "Client Secret", placeholder: "Paste the secret", secret: true),
+        "cf-access-client-id": Preset(label: String(localized: "Client ID"), placeholder: String(localized: "Ends in .access"), secret: false),
+        "cf-access-client-secret": Preset(label: String(localized: "Client Secret"), placeholder: String(localized: "Paste the secret"), secret: true),
     ]
 }
 
@@ -46,7 +46,7 @@ struct HeaderRow: Identifiable, Equatable {
 /// these are long secrets copied from somewhere else.
 struct CustomHeaderFields: View {
     @Binding var rows: [HeaderRow]
-    var addTitle = "Add header"
+    var addTitle = String(localized: "Add header")
 
     /// Return moves through the fields in order (Client ID, then Client Secret) and closes the
     /// keyboard after the last one.
@@ -182,7 +182,7 @@ struct CustomHeaderFields: View {
         .buttonStyle(.plain)
     }
 
-    static let footnote = "Sent with every request to your server, never to another address."
+    static let footnote = String(localized: "Sent with every request to your server, never to another address.")
 }
 
 /// Sign-in's Advanced configuration. After a gate that headers can get through answered, it shows
@@ -221,10 +221,10 @@ struct AdvancedConfigurationSheet: View {
                         if !ready { fixBox(gate) }
                     }
                     VStack(alignment: .leading, spacing: 8) {
-                        SectionHeader(gate == .cloudflareAccess ? "Service token" : "Custom headers")
+                        SectionHeader(gate == .cloudflareAccess ? String(localized: "Service token") : String(localized: "Custom headers"))
                             .padding(.horizontal, 4)
                         BBCard(cornerRadius: BBRadius.tile, padding: 0) {
-                            CustomHeaderFields(rows: $draft, addTitle: draft.isEmpty ? "Add header" : "Add another header")
+                            CustomHeaderFields(rows: $draft, addTitle: draft.isEmpty ? String(localized: "Add header") : String(localized: "Add another header"))
                         }
                     }
                 }
@@ -256,7 +256,7 @@ struct AdvancedConfigurationSheet: View {
                 onSave(draft, gate != nil)
                 dismiss()
             } label: {
-                Label(gate == nil ? "Save" : "Save and try again",
+                Label(gate == nil ? String(localized: "Save") : String(localized: "Save and try again"),
                       systemImage: gate == nil ? "checkmark" : "arrow.clockwise")
             }
             .buttonStyle(.bbPrimary)
@@ -276,7 +276,7 @@ struct AdvancedConfigurationSheet: View {
 
     private func fixBox(_ gate: AccessGate) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label(gate == .cloudflareAccess ? "Get through with a service token" : "If it checks a header",
+            Label(gate == .cloudflareAccess ? String(localized: "Get through with a service token") : String(localized: "If it checks a header"),
                   systemImage: "wrench.and.screwdriver.fill")
                 .font(.headline)
                 .foregroundStyle(BBColor.brandAccent)
@@ -312,12 +312,12 @@ struct AdvancedConfigurationSheet: View {
         switch gate {
         case .cloudflareAccess:
             return [
-                "In Cloudflare Zero Trust, create a **service token**. Copy the Client ID and Client Secret. The secret is shown only once.",
-                "In the Access application for **\(host)**, add a policy with the **Service Auth** action for that token.",
-                "Paste the Client ID and Client Secret below.",
+                String(localized: "In Cloudflare Zero Trust, create a **service token**. Copy the Client ID and Client Secret. The secret is shown only once."),
+                String(localized: "In the Access application for **\(host)**, add a policy with the **Service Auth** action for that token."),
+                String(localized: "Paste the Client ID and Client Secret below."),
             ]
         default:
-            return ["Add the headers it checks below. If it's a login proxy such as Authentik or Authelia, let /api/ and /media/ through it instead."]
+            return [String(localized: "Add the headers it checks below. If it's a login proxy such as Authentik or Authelia, let /api/ and /media/ through it instead.")]
         }
     }
 }
@@ -338,30 +338,30 @@ struct SignInTrace: View {
     }
 
     static func hops(for gate: AccessGate, host: String, ready: Bool) -> [Hop] {
-        let app = Hop(symbol: "iphone", title: "This app",
-                      detail: ready ? (gate == .cloudflareAccess ? "Sends the service token" : "Sends the custom headers")
-                                    : "Asked for the Baby Buddy API",
+        let app = Hop(symbol: "iphone", title: String(localized: "This app"),
+                      detail: ready ? (gate == .cloudflareAccess ? String(localized: "Sends the service token") : String(localized: "Sends the custom headers"))
+                                    : String(localized: "Asked for the Baby Buddy API"),
                       kind: .plain)
-        let gateName = gate == .cloudflareAccess ? "Cloudflare Access" : "The gate in front of \(host)"
+        let gateName = gate == .cloudflareAccess ? "Cloudflare Access" : String(localized: "The gate in front of \(host)")
         if ready {
             return [app,
                     Hop(symbol: "shield.lefthalf.filled", title: gateName,
-                        detail: gate == .cloudflareAccess ? "Checks the token and lets the app through"
-                                                          : "Checks the headers and lets the app through",
+                        detail: gate == .cloudflareAccess ? String(localized: "Checks the token and lets the app through")
+                                                          : String(localized: "Checks the headers and lets the app through"),
                         kind: .gate),
                     Hop(symbol: "server.rack", title: "Baby Buddy", detail: host, kind: .arrived)]
         }
         if gate == .cloudflareAccess {
             return [app,
-                    Hop(symbol: "server.rack", title: host, detail: "Sent the app to Cloudflare", kind: .plain),
-                    Hop(symbol: "cloud", title: "Cloudflare Access", detail: "Its sign-in page", kind: .stopped)]
+                    Hop(symbol: "server.rack", title: host, detail: String(localized: "Sent the app to Cloudflare"), kind: .plain),
+                    Hop(symbol: "cloud", title: "Cloudflare Access", detail: String(localized: "Its sign-in page"), kind: .stopped)]
         }
         return [app, Hop(symbol: "shield.lefthalf.filled", title: gateName,
-                         detail: "Answered with a web page, not the API", kind: .stopped)]
+                         detail: String(localized: "Answered with a web page, not the API"), kind: .stopped)]
     }
 
     var body: some View {
-        let title = ready ? "On the next try" : "Where sign-in stopped"
+        let title = ready ? String(localized: "On the next try") : String(localized: "Where sign-in stopped")
         let tint = ready ? BBColor.successAccent : BBColor.warningAccent
         VStack(alignment: .leading, spacing: 6) {
             Text(title.uppercased())

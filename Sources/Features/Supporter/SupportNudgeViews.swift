@@ -86,7 +86,7 @@ struct SupportGentleAskCard: View {
                 .buttonStyle(.bbPrimary)
                 .padding(.top, 20)
 
-            QuietNudgeButton(title: "Maybe later", action: onDismiss)
+            QuietNudgeButton(title: String(localized: "Maybe later"), action: onDismiss)
 
             // The line that makes the whole thing fair: the ask is opt-out, and says so.
             Text("Reminders can be turned off in Settings.")
@@ -153,7 +153,7 @@ struct SupportMilestoneSheet: View {
                 .buttonStyle(.bbPrimary)
                 .padding(.top, 20)
 
-            QuietNudgeButton(title: "Not now", action: onDismiss)
+            QuietNudgeButton(title: String(localized: "Not now"), action: onDismiss)
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
@@ -171,11 +171,11 @@ struct SupportMilestoneSheet: View {
                 .padding(.top, 18)
 
             HStack(spacing: 8) {
-                PerkChip(title: "Themes", color: BBColor.tummy)
+                PerkChip(title: String(localized: "Themes"), color: BBColor.tummy)
                 // `primary`, not `brand`: the latter is the one fixed token in the palette, and an
                 // undimmed dot beside the adaptive one would be the only thing on the sheet ignoring
                 // dark mode.
-                PerkChip(title: "Alt app icons", color: BBColor.primary)
+                PerkChip(title: String(localized: "Alt app icons"), color: BBColor.primary)
             }
             .padding(.top, 12)
         }
@@ -361,21 +361,21 @@ private struct QuietNudgeButton: View {
 
 // MARK: - Previews
 
-#Preview("Gentle ask") {
+#Preview(String(localized: "Gentle ask")) {
     ZStack {
         BBColor.surface.ignoresSafeArea()
         SupportGentleAskCard(onSupport: {}, onDismiss: {})
     }
 }
 
-#Preview("Milestone") {
+#Preview(String(localized: "Milestone")) {
     Color.clear
         .sheet(isPresented: .constant(true)) {
             SupportMilestoneSheet(count: 500, onSupport: {}, onDismiss: {})
         }
 }
 
-#Preview("Banner") {
+#Preview(String(localized: "Banner")) {
     ZStack {
         BBColor.surface.ignoresSafeArea()
         SupportBanner(onSupport: {}, onDismiss: {}).padding()

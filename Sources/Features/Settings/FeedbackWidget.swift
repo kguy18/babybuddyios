@@ -19,9 +19,9 @@ enum FeedbackWidget: String, Identifiable {
 
     var title: String {
         switch self {
-        case .board: "Request a Feature"
-        case .help: "Get Help"
-        case .roadmap: "Roadmap and Updates"
+        case .board: String(localized: "Request a Feature")
+        case .help: String(localized: "Get Help")
+        case .roadmap: String(localized: "Roadmap and Updates")
         }
     }
 
@@ -217,7 +217,7 @@ struct FeedbackSheet: View {
                         Button {
                             UIPasteboard.general.string = SupportContact.diagnostics
                             Analytics.feedbackAppDetailsCopied()
-                            UndoToastCenter.shared.confirm("App details copied")
+                            UndoToastCenter.shared.confirm(String(localized: "App details copied"))
                         } label: {
                             Label("Copy App Details", systemImage: "doc.on.doc")
                         }

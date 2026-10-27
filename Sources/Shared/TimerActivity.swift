@@ -85,6 +85,15 @@ enum TimerActivity: String, AppEnum, CaseIterable {
         }
     }
 
+    var displayName: String {
+        switch self {
+        case .feeding: return String(localized: "Feeding")
+        case .sleep: return String(localized: "Sleep")
+        case .tummyTime: return String(localized: "Tummy time")
+        case .pumping: return String(localized: "Pumping")
+        }
+    }
+
     var systemImage: String { convertKind.systemImage }
 
     /// Whether the activity can be logged from just child/start/end, so the Active Timer

@@ -6,26 +6,26 @@ import UIKit
 /// "Contact Support" row (and any future entry point) share one recipient, subject, and body.
 enum SupportContact {
     static let recipient = "hello@babybuddy.app"
-    static let subject = "Baby Buddy Support"
+    static let subject = String(localized: "Baby Buddy Support")
 
     /// The device/app details we offer to attach so we can reproduce issues. Kept human-readable
     /// (not JSON) so the customer can see exactly what they're sending and edit or delete it.
     static var diagnostics: String {
-        """
+        String(localized: """
         \(Self.diagnosticsHeader)
         Device: \(deviceModel)
         System: \(systemVersion)
         App: Baby Buddy \(appVersion)
-        """
+        """)
     }
 
     /// Marker line the diagnostics block starts with, so the intent is obvious in the composer.
-    static let diagnosticsHeader = "— Diagnostics (helps us investigate; delete if you prefer) —"
+    static let diagnosticsHeader = String(localized: "— Diagnostics (helps us investigate; delete if you prefer) —")
 
     /// The seeded email body. When `includeDiagnostics` is true the block is appended below a
     /// blank space the customer types their message into.
     static func body(includeDiagnostics: Bool) -> String {
-        let intro = "Hi Baby Buddy team,\n\n\n"
+        let intro = String(localized: "Hi Baby Buddy team,\n\n\n")
         return includeDiagnostics ? intro + diagnostics + "\n" : intro
     }
 
@@ -76,14 +76,14 @@ enum SupportContact {
     /// Users ▸ Remove from portal in Quackback's admin. Quackback 0.14.1 has no self-service deletion
     /// (kguydev/feedback-stack#18), and its messenger is reachable only through internal server
     /// functions, so the request goes by Mail rather than the support chat.
-    static let deletionSubject = "Delete my feedback account"
+    static let deletionSubject = String(localized: "Delete my feedback account")
 
     /// The request and the app version, nothing else from the device. The feedback account's
     /// email goes in too: the person may write from a different address.
     static func deletionBody(feedbackEmail: String?) -> String {
-        var lines = ["Please delete my feedback account. (Sent from Baby Buddy Companion's Delete Feedback Account button.)", ""]
-        if let feedbackEmail { lines.append("Feedback account: \(feedbackEmail)") }
-        lines.append("App: Baby Buddy \(appVersion)")
+        var lines = [String(localized: "Please delete my feedback account. (Sent from Baby Buddy Companion's Delete Feedback Account button.)"), ""]
+        if let feedbackEmail { lines.append(String(localized: "Feedback account: \(feedbackEmail)")) }
+        lines.append(String(localized: "App: Baby Buddy \(appVersion)"))
         return lines.joined(separator: "\n")
     }
 }

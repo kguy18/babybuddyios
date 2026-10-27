@@ -71,7 +71,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     masthead
 
-                    sectioned("Support the app") {
+                    sectioned(String(localized: "Support the app")) {
                         supporterCard
                         Text("Everything in the app is free. Supporting is optional and helps fund development.")
                             .font(.caption)
@@ -80,9 +80,9 @@ struct SettingsView: View {
                             .padding(.top, 2)
                     }
 
-                    sectioned("Server") { serverCard }
+                    sectioned(String(localized: "Server")) { serverCard }
 
-                    sectioned("Security") {
+                    sectioned(String(localized: "Security")) {
                         securityCard
                         if !lock.biometryAvailable {
                             Text("Set up Face ID, Touch ID, or a device passcode to enable app lock.")
@@ -93,9 +93,9 @@ struct SettingsView: View {
                         }
                     }
 
-                    sectioned("Sick mode") { sickModeCard }
+                    sectioned(String(localized: "Sick mode")) { sickModeCard }
 
-                    sectioned("Notifications") {
+                    sectioned(String(localized: "Notifications")) {
                         notificationsCard
                         Text("Each phone schedules its own medication reminders from synced doses, so pull to refresh before giving a dose in case someone else just logged one.")
                             .font(.caption)
@@ -104,9 +104,9 @@ struct SettingsView: View {
                             .padding(.top, 2)
                     }
 
-                    sectioned("Appearance") { appearanceCard }
+                    sectioned(String(localized: "Appearance")) { appearanceCard }
 
-                    sectioned("Quick Log") {
+                    sectioned(String(localized: "Quick Log")) {
                         quickFeedCard
                         Text("Defaults for the one-tap Feeding tile in the Quick Log widget.")
                             .font(.caption)
@@ -115,10 +115,10 @@ struct SettingsView: View {
                             .padding(.top, 2)
                     }
 
-                    sectioned("Feedback") { feedbackCard }
+                    sectioned(String(localized: "Feedback")) { feedbackCard }
 
                     #if DEBUG
-                    sectioned("Developer") { developerCard }
+                    sectioned(String(localized: "Developer")) { developerCard }
                     #endif
 
                     signOutCard.padding(.top, 4)
@@ -143,7 +143,7 @@ struct SettingsView: View {
             .sheet(isPresented: $showingAcknowledgements) { AcknowledgementsView() }
             .sheet(isPresented: $showingWhatsNew) {
                 if let note = whatsNewNote {
-                    WhatsNewView(note: note, source: .settings, dismissTitle: "Done")
+                    WhatsNewView(note: note, source: .settings, dismissTitle: String(localized: "Done"))
                 }
             }
             .sheet(isPresented: $showingPending) { PendingChangesView() }
@@ -252,7 +252,7 @@ struct SettingsView: View {
 
             Button { Task { await sync.sync() } } label: {
                 SettingsRow(symbol: "arrow.triangle.2.circlepath", tint: BBColor.info,
-                            title: "Sync now") { syncTrailing }
+                            title: String(localized: "Sync now")) { syncTrailing }
             }
             .buttonStyle(.plain)
             .disabled(sync.status == .syncing)
@@ -266,7 +266,7 @@ struct SettingsView: View {
             conflictRow
             rowDivider
             SettingsRow(symbol: "clock.arrow.circlepath", tint: BBColor.warning,
-                        title: "Stale after") {
+                        title: String(localized: "Stale after")) {
                 Menu {
                     Picker("Stale after", selection: $stalenessThresholdMinutes) {
                         ForEach(SyncFreshness.thresholdOptions, id: \.self) {
@@ -280,7 +280,7 @@ struct SettingsView: View {
 
     private func serverRow(_ config: ServerConfig) -> some View {
         SettingsRow(symbol: "cloud", tint: BBColor.brand,
-                    glyphColor: BBColor.brandAccent, title: "Server") {
+                    glyphColor: BBColor.brandAccent, title: String(localized: "Server")) {
             HStack(spacing: 6) {
                 Circle().fill(BBColor.success).frame(width: 7, height: 7)
                 Text(config.baseURL.host() ?? config.baseURL.absoluteString)
@@ -293,9 +293,9 @@ struct SettingsView: View {
     private func headersRow(_ config: ServerConfig) -> some View {
         NavigationLink { CustomHeadersView() } label: {
             SettingsRow(symbol: "list.bullet.rectangle", tint: BBColor.brand,
-                        glyphColor: BBColor.brandAccent, title: "Custom headers") {
+                        glyphColor: BBColor.brandAccent, title: String(localized: "Custom headers")) {
                 HStack(spacing: 4) {
-                    Text(config.headers.isEmpty ? "None" : config.headers.map(\.name).joined(separator: ", "))
+                    Text(config.headers.isEmpty ? String(localized: "None") : config.headers.map(\.name).joined(separator: ", "))
                         .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                     disclosure
                 }
@@ -316,7 +316,7 @@ struct SettingsView: View {
     /// Pending writes open the queue when any exist; otherwise the row reads "All synced".
     @ViewBuilder private var pendingRow: some View {
         if pendingCount == 0 {
-            SettingsRow(symbol: "checkmark.icloud", tint: BBColor.success, title: "Pending changes") {
+            SettingsRow(symbol: "checkmark.icloud", tint: BBColor.success, title: String(localized: "Pending changes")) {
                 Text("All synced")
                     .font(.subheadline.weight(.medium)).foregroundStyle(BBColor.success)
             }
@@ -324,9 +324,9 @@ struct SettingsView: View {
             let tint = hasBlocked ? BBColor.danger : BBColor.warning
             Button { showingPending = true } label: {
                 SettingsRow(symbol: hasBlocked ? "exclamationmark.icloud" : "icloud.and.arrow.up",
-                            tint: tint, title: "Pending changes") {
+                            tint: tint, title: String(localized: "Pending changes")) {
                     HStack(spacing: 4) {
-                        Text(hasBlocked ? "\(pendingCount) need attention" : "\(pendingCount) queued")
+                        Text(hasBlocked ? String(localized: "\(pendingCount) need attention") : String(localized: "\(pendingCount) queued"))
                             .font(.subheadline.weight(.medium)).foregroundStyle(tint)
                         Image(systemName: "chevron.right")
                             .font(.system(size: 13, weight: .semibold)).foregroundStyle(.tertiary)
@@ -359,14 +359,14 @@ struct SettingsView: View {
     /// Conflicts surface the resolution inbox when any exist; otherwise the row reads "All clear".
     @ViewBuilder private var conflictRow: some View {
         if conflicts.isEmpty {
-            SettingsRow(symbol: "arrow.triangle.merge", tint: BBColor.restart, title: "Conflicts") {
+            SettingsRow(symbol: "arrow.triangle.merge", tint: BBColor.restart, title: String(localized: "Conflicts")) {
                 Text("All clear").font(.subheadline).foregroundStyle(.secondary)
             }
         } else {
             NavigationLink {
                 ConflictInboxView()
             } label: {
-                SettingsRow(symbol: "arrow.triangle.merge", tint: BBColor.restart, title: "Conflicts") {
+                SettingsRow(symbol: "arrow.triangle.merge", tint: BBColor.restart, title: String(localized: "Conflicts")) {
                     HStack(spacing: 4) {
                         Text("\(conflicts.count) to resolve")
                             .font(.subheadline.weight(.medium)).foregroundStyle(BBColor.restart)
@@ -383,7 +383,7 @@ struct SettingsView: View {
 
     private var securityCard: some View {
         card {
-            SettingsRow(symbol: "faceid", tint: BBColor.sleep, title: "Require Face ID") {
+            SettingsRow(symbol: "faceid", tint: BBColor.sleep, title: String(localized: "Require Face ID")) {
                 Toggle("Require Face ID", isOn: Binding(
                     get: { lock.isEnabled },
                     set: { newValue in
@@ -406,8 +406,8 @@ struct SettingsView: View {
         return card {
             sickModeRow
             rowDivider
-            SettingsRow(symbol: "thermometer.medium", tint: BBColor.brand, title: "Temperature unit",
-                        subtitle: storedUnit == nil ? "Set from your region" : nil) {
+            SettingsRow(symbol: "thermometer.medium", tint: BBColor.brand, title: String(localized: "Temperature unit"),
+                        subtitle: storedUnit == nil ? String(localized: "Set from your region") : nil) {
                 // Only a real change is stored, so tapping the region's own unit keeps "from your region".
                 BBSegmentedControl(selection: Binding(get: { unit }, set: { if $0 != unit { storedUnit = $0 } }),
                                    options: TemperatureUnit.allCases) { $0.symbol }
@@ -415,7 +415,7 @@ struct SettingsView: View {
             }
             rowDivider
             NavigationLink { FeverLineView() } label: {
-                SettingsRow(symbol: "thermometer.medium", tint: BBColor.brand, title: "Fever line") {
+                SettingsRow(symbol: "thermometer.medium", tint: BBColor.brand, title: String(localized: "Fever line")) {
                     HStack(spacing: 4) {
                         Text(unit.format(unit.convert(feverLineCelsius, from: .celsius)))
                             .font(.subheadline).foregroundStyle(.secondary)
@@ -425,15 +425,15 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
             rowDivider
-            SettingsRow(symbol: "scope", tint: BBColor.brand, title: "Suggest after a fever",
-                        subtitle: "Shows the banner on Home") {
+            SettingsRow(symbol: "scope", tint: BBColor.brand, title: String(localized: "Suggest after a fever"),
+                        subtitle: String(localized: "Shows the banner on Home")) {
                 Toggle("Suggest after a fever", isOn: $suggestsSickMode)
                     .labelsHidden()
                     .tint(BBColor.primary)
             }
             rowDivider
             NavigationLink { TemperatureChecksView() } label: {
-                SettingsRow(symbol: "stopwatch", tint: BBColor.brand, title: "Temperature checks") {
+                SettingsRow(symbol: "stopwatch", tint: BBColor.brand, title: String(localized: "Temperature checks")) {
                     HStack(spacing: 4) {
                         Text(TemperatureChecksView.label(checkHours))
                             .font(.subheadline).foregroundStyle(.secondary)
@@ -444,7 +444,7 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             rowDivider
             NavigationLink { MedicineColorsView() } label: {
-                SettingsRow(symbol: "pills.fill", tint: MedicineColor.purple.color, title: "Medicine colors") {
+                SettingsRow(symbol: "pills.fill", tint: MedicineColor.purple.color, title: String(localized: "Medicine colors")) {
                     HStack(spacing: 6) {
                         HStack(spacing: 3) {
                             ForEach(medicineColors.assigned.prefix(6), id: \.self) { name in
@@ -463,14 +463,14 @@ struct SettingsView: View {
     private var sickModeRow: some View {
         let child = currentChild?.serverID
         let startedAt = child.flatMap { sickMode[$0].startedAt }
-        return SettingsRow(symbol: "thermometer.medium", tint: BBColor.danger, title: "Sick mode",
-                           subtitle: startedAt.map { "On · day \(SickMode.day(since: $0, now: .now))" } ?? "Off") {
+        return SettingsRow(symbol: "thermometer.medium", tint: BBColor.danger, title: String(localized: "Sick mode"),
+                           subtitle: startedAt.map { String(localized: "On · day \(SickMode.day(since: $0, now: .now))") } ?? String(localized: "Off")) {
             if let child {
                 if startedAt == nil {
-                    smallButton("Start", tinted: true) { sickMode.turnOn(child, at: .now, source: .settings) }
+                    smallButton(String(localized: "Start"), tinted: true) { sickMode.turnOn(child, at: .now, source: .settings) }
                         .accessibilityLabel("Start sick mode")
                 } else {
-                    smallButton("End", tinted: false) { sickMode.turnOff(child, source: .settings, in: context) }
+                    smallButton(String(localized: "End"), tinted: false) { sickMode.turnOff(child, source: .settings, in: context) }
                         .accessibilityLabel("End sick mode")
                 }
             }
@@ -498,7 +498,7 @@ struct SettingsView: View {
     /// currently-running timer.
     private var notificationsCard: some View {
         card {
-            SettingsRow(symbol: "clock.badge", tint: BBColor.info, title: "Live Activity") {
+            SettingsRow(symbol: "clock.badge", tint: BBColor.info, title: String(localized: "Live Activity")) {
                 Toggle("Live Activity", isOn: Binding(
                     get: { liveActivitiesEnabled },
                     set: { newValue in
@@ -517,9 +517,9 @@ struct SettingsView: View {
             NavigationLink {
                 TimerAlertsView()
             } label: {
-                SettingsRow(symbol: "bell.badge", tint: BBColor.restart, title: "Forgotten timer alerts") {
+                SettingsRow(symbol: "bell.badge", tint: BBColor.restart, title: String(localized: "Forgotten timer alerts")) {
                     HStack(spacing: 4) {
-                        Text(timerAlertsEnabled ? "On" : "Off")
+                        Text(timerAlertsEnabled ? String(localized: "On") : String(localized: "Off"))
                             .font(.subheadline).foregroundStyle(.secondary)
                         disclosure
                     }
@@ -529,8 +529,8 @@ struct SettingsView: View {
 
             rowDivider
 
-            SettingsRow(symbol: "pills.fill", tint: BBColor.activity(.medication), title: "Medication reminders") {
-                Self.alertToggle("Medication reminders", $doseRemindersEnabled, setting: "medicationReminders")
+            SettingsRow(symbol: "pills.fill", tint: BBColor.activity(.medication), title: String(localized: "Medication reminders")) {
+                Self.alertToggle(String(localized: "Medication reminders"), $doseRemindersEnabled, setting: "medicationReminders")
             }
         }
     }
@@ -562,7 +562,7 @@ struct SettingsView: View {
             NavigationLink {
                 TodayTilesView()
             } label: {
-                SettingsRow(symbol: "square.grid.2x2.fill", tint: BBColor.brand, title: "Today tiles") {
+                SettingsRow(symbol: "square.grid.2x2.fill", tint: BBColor.brand, title: String(localized: "Today tiles")) {
                     HStack(spacing: 4) {
                         Text("\(TodayTiles.decode(todayTilesRaw).count) on")
                             .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
@@ -576,7 +576,7 @@ struct SettingsView: View {
                 NavigationLink {
                     AppIconPickerView()
                 } label: {
-                    SettingsRow(symbol: "paintbrush.fill", tint: BBColor.tummy, title: "App Icon") {
+                    SettingsRow(symbol: "paintbrush.fill", tint: BBColor.tummy, title: String(localized: "App Icon")) {
                         HStack(spacing: 4) {
                             Text(icons.selected.displayName)
                                 .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
@@ -597,7 +597,7 @@ struct SettingsView: View {
     /// Baby Buddy API, so all choices are offered.
     private var quickFeedCard: some View {
         card {
-            SettingsRow(symbol: "drop.fill", tint: BBColor.feeding, title: "Feeding type") {
+            SettingsRow(symbol: "drop.fill", tint: BBColor.feeding, title: String(localized: "Feeding type")) {
                 Menu {
                     Picker("Feeding type", selection: $quickFeedType) {
                         ForEach(FeedingType.allCases) { Text($0.label).tag($0) }
@@ -605,7 +605,7 @@ struct SettingsView: View {
                 } label: { menuValue(quickFeedType.label) }
             }
             rowDivider
-            SettingsRow(symbol: "fork.knife", tint: BBColor.feeding, title: "Feeding method") {
+            SettingsRow(symbol: "fork.knife", tint: BBColor.feeding, title: String(localized: "Feeding method")) {
                 Menu {
                     Picker("Feeding method", selection: $quickFeedMethod) {
                         ForEach(FeedingMethod.allCases) { Text($0.label).tag($0) }
@@ -613,7 +613,7 @@ struct SettingsView: View {
                 } label: { menuValue(quickFeedMethod.label) }
             }
             rowDivider
-            SettingsRow(symbol: "arrow.uturn.backward", tint: BBColor.brand, title: "Undo after logging") {
+            SettingsRow(symbol: "arrow.uturn.backward", tint: BBColor.brand, title: String(localized: "Undo after logging")) {
                 Toggle("Undo after logging", isOn: Binding(
                     get: { undoToastEnabled },
                     set: { newValue in
@@ -652,7 +652,7 @@ struct SettingsView: View {
                 showingSupporter = true
             } label: {
                 SettingsRow(symbol: "heart.fill", tint: BBColor.brand,
-                            glyphColor: BBColor.brandAccent, title: "Baby Buddy App Supporter") {
+                            glyphColor: BBColor.brandAccent, title: String(localized: "Baby Buddy App Supporter")) {
                     supporterStatus
                 }
             }
@@ -664,7 +664,7 @@ struct SettingsView: View {
                 rowDivider
 
                 Button { showingWhatsNew = true } label: {
-                    SettingsRow(symbol: "sparkles", tint: BBColor.brand, title: "What's New") {
+                    SettingsRow(symbol: "sparkles", tint: BBColor.brand, title: String(localized: "What's New")) {
                         HStack(spacing: 4) {
                             Text(note.version)
                                 .font(.subheadline)
@@ -690,7 +690,7 @@ struct SettingsView: View {
     @ViewBuilder private var supportRemindersRow: some View {
         if !purchases.isSupporter, hasSeenNudge {
             rowDivider
-            SettingsRow(symbol: "sparkles", tint: BBColor.pumping, title: "Support reminders") {
+            SettingsRow(symbol: "sparkles", tint: BBColor.pumping, title: String(localized: "Support reminders")) {
                 Toggle("Support reminders", isOn: Binding(
                     get: { supportRemindersEnabled },
                     set: { newValue in
@@ -735,7 +735,7 @@ struct SettingsView: View {
     /// puts them back to a fresh install.
     private var developerCard: some View {
         card {
-            SettingsRow(symbol: "wand.and.stars", tint: BBColor.warning, title: "Supporter mode") {
+            SettingsRow(symbol: "wand.and.stars", tint: BBColor.warning, title: String(localized: "Supporter mode")) {
                 Menu {
                     Picker("Supporter mode", selection: Binding(
                         get: { purchases.debugSupporterOverride },
@@ -750,7 +750,7 @@ struct SettingsView: View {
             rowDivider
 
             Button { SupportNudgeStore.shared.debugArm() } label: {
-                SettingsRow(symbol: "bell.badge", tint: BBColor.pumping, title: "Arm support nudge") {
+                SettingsRow(symbol: "bell.badge", tint: BBColor.pumping, title: String(localized: "Arm support nudge")) {
                     Text("Go to Home").font(.subheadline).foregroundStyle(.secondary)
                 }
             }
@@ -760,7 +760,7 @@ struct SettingsView: View {
 
             Button { SupportNudgeStore.shared.debugReset() } label: {
                 SettingsRow(symbol: "arrow.counterclockwise", tint: BBColor.restart,
-                            title: "Reset support nudges") {
+                            title: String(localized: "Reset support nudges")) {
                     Text("Fresh install").font(.subheadline).foregroundStyle(.secondary)
                 }
             }
@@ -775,7 +775,7 @@ struct SettingsView: View {
     private var feedbackCard: some View {
         card {
             NavigationLink { SendFeedbackView() } label: {
-                SettingsRow(symbol: "bubble.left", tint: BBColor.brand, title: "Send Feedback") {
+                SettingsRow(symbol: "bubble.left", tint: BBColor.brand, title: String(localized: "Send Feedback")) {
                     disclosure
                 }
             }
@@ -785,7 +785,7 @@ struct SettingsView: View {
 
             Link(destination: Self.sourceCodeURL) {
                 SettingsRow(symbol: "GitHubMark", symbolIsAsset: true, tint: BBColor.note,
-                            glyphColor: .primary, title: "Source Code on GitHub") {
+                            glyphColor: .primary, title: String(localized: "Source Code on GitHub")) {
                     Image(systemName: "arrow.up.right")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.tertiary)
@@ -796,7 +796,7 @@ struct SettingsView: View {
             rowDivider
 
             Link(destination: Self.reviewURL) {
-                SettingsRow(symbol: "star", tint: BBColor.warning, title: "Rate on the App Store") {
+                SettingsRow(symbol: "star", tint: BBColor.warning, title: String(localized: "Rate on the App Store")) {
                     disclosure
                 }
             }
@@ -830,7 +830,7 @@ struct SettingsView: View {
     // MARK: Sign out
 
     private var serverHost: String {
-        session.config.map { $0.baseURL.host() ?? $0.baseURL.absoluteString } ?? "this server"
+        session.config.map { $0.baseURL.host() ?? $0.baseURL.absoluteString } ?? String(localized: "this server")
     }
 
     /// Present and dismiss without the cover's slide-up transition — ``SignOutDialog`` animates
@@ -935,7 +935,7 @@ struct SettingsView: View {
               let raw = child.payloadObject["birth_date"] as? String,
               let birth = APIDate.parse(raw) else { return nil }
         let born = birth.formatted(.dateTime.month(.abbreviated).day())
-        return "Born \(born) · \(ageString(birth))"
+        return String(localized: "Born \(born) · \(ageString(birth))")
     }
 
     private func firstName(_ entity: LocalEntity) -> String {
@@ -943,7 +943,7 @@ struct SettingsView: View {
         let first = (p["first_name"] as? String) ?? ""
         let last = (p["last_name"] as? String) ?? ""
         if !first.isEmpty { return first }
-        return last.isEmpty ? "Child" : last
+        return last.isEmpty ? String(localized: "Child") : last
     }
 
     private func fullName(_ entity: LocalEntity) -> String {
@@ -951,7 +951,7 @@ struct SettingsView: View {
         let first = (p["first_name"] as? String) ?? ""
         let last = (p["last_name"] as? String) ?? ""
         let name = [first, last].filter { !$0.isEmpty }.joined(separator: " ")
-        return name.isEmpty ? "Child" : name
+        return name.isEmpty ? String(localized: "Child") : name
     }
 
     /// A friendly age: years for ≥2y, otherwise months, then weeks, then days.
@@ -960,13 +960,13 @@ struct SettingsView: View {
         let now = Date()
         let comps = cal.dateComponents([.year, .month], from: birth, to: now)
         let years = comps.year ?? 0
-        if years >= 2 { return "\(years) years" }
+        if years >= 2 { return String(localized: "\(years) years") }
         let months = years * 12 + (comps.month ?? 0)
-        if months >= 1 { return months == 1 ? "1 month" : "\(months) months" }
+        if months >= 1 { return String(localized: "\(months) months") }
         let days = cal.dateComponents([.day], from: birth, to: now).day ?? 0
         let weeks = days / 7
-        if weeks >= 1 { return weeks == 1 ? "1 week" : "\(weeks) weeks" }
-        return days <= 1 ? "Newborn" : "\(days) days"
+        if weeks >= 1 { return String(localized: "\(weeks) weeks") }
+        return days <= 1 ? String(localized: "Newborn") : String(localized: "\(days) days")
     }
 }
 

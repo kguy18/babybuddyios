@@ -77,10 +77,10 @@ struct SickHomeView<Timers: View>: View {
     private func endPrompt(readings: [SickMode.Reading], now: Date) -> some View {
         var facts: [String] = []
         if let newest = readings.first {
-            facts.append("Last reading \(unit.format(newest.value)) \(SickMode.when(newest.time, at: true, now: now)).")
+            facts.append(String(localized: "Last reading \(unit.format(newest.value)) \(SickMode.when(newest.time, at: true, now: now))."))
         }
         if let dose = doses.first {
-            facts.append("Last dose \(SickMode.when(dose.timestamp, at: true, now: now)).")
+            facts.append(String(localized: "Last dose \(SickMode.when(dose.timestamp, at: true, now: now))."))
         }
         return BBCard {
             VStack(alignment: .leading, spacing: 12) {
@@ -118,7 +118,7 @@ struct SickHomeView<Timers: View>: View {
         .onAppear { sickMode.countEndPrompt(childID) }
     }
 
-    static var endCaption: String { "Every reading and dose stays in Baby Buddy. Home goes back to its usual layout." }
+    static var endCaption: String { String(localized: "Every reading and dose stays in Baby Buddy. Home goes back to its usual layout.") }
 
     // MARK: Sick card
 
@@ -170,11 +170,10 @@ struct SickHomeView<Timers: View>: View {
         var parts = [SickMode.when(newest.time, now: now)]
         if clear {
             if let under = SickMode.underSince(readings, line: line) {
-                parts.append("under \(TemperatureUnit.decimal(line))° since \(SickMode.when(under.time, now: now))")
+                parts.append(String(localized: "under \(TemperatureUnit.decimal(line))° since \(SickMode.when(under.time, now: now))"))
             }
         } else if let trend = SickMode.trend(readings), trend.change != 0 {
-            parts.append("\(trend.change < 0 ? "down" : "up") \(TemperatureUnit.decimal(abs(trend.change)))° "
-                         + "since \(SickMode.when(trend.since.time, now: now))")
+            parts.append(String(localized: "\(trend.change < 0 ? String(localized: "down") : String(localized: "up")) \(TemperatureUnit.decimal(abs(trend.change)))° since \(SickMode.when(trend.since.time, now: now))"))
         }
         return parts.joined(separator: " · ")
     }
@@ -184,9 +183,9 @@ struct SickHomeView<Timers: View>: View {
     private func medicineSection(_ medicines: [SickMode.Medicine], clear: Bool, now: Date) -> some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .firstTextBaseline) {
-                SectionHeader("Medicine")
+                SectionHeader(String(localized: "Medicine"))
                 if !clear {
-                    Text(remindersOn ? "Reminders on" : "Reminders off")
+                    Text(remindersOn ? String(localized: "Reminders on") : String(localized: "Reminders off"))
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -236,7 +235,7 @@ struct SickHomeView<Timers: View>: View {
                 switch medicine.phase {
                 case .okNow:
                     Button { onLogDose(medicine.dose) } label: {
-                        Text(["Log \(medicine.name.lowercased())", EntityFormatting.dosage(medicine.dose)]
+                        Text([String(localized: "Log \(medicine.name.lowercased())"), EntityFormatting.dosage(medicine.dose)]
                             .compactMap { $0 }.joined(separator: " · "))
                     }
                     // Dark on tint: `success` brightens in dark mode, where white stops reading.
@@ -254,7 +253,7 @@ struct SickHomeView<Timers: View>: View {
                     EmptyView()
                 }
                 Text([Self.doseCount(medicine.recentDoses),
-                      okSince.map { "OK since \(SickMode.when($0, now: now))" }].compactMap { $0 }.joined(separator: " · "))
+                      okSince.map { String(localized: "OK since \(SickMode.when($0, now: now))") }].compactMap { $0 }.joined(separator: " · "))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -270,13 +269,13 @@ struct SickHomeView<Timers: View>: View {
     private func details(_ medicine: SickMode.Medicine, now: Date) -> String {
         let interval = (medicine.dose.payloadObject["next_dose_interval"] as? String).flatMap(APIDuration.parse)
         return [EntityFormatting.dosage(medicine.dose),
-                "last \(SickMode.when(medicine.dose.timestamp, now: now))",
-                interval.flatMap { $0 > 0 ? "every \(SickMode.duration($0))" : nil }]
+                String(localized: "last \(SickMode.when(medicine.dose.timestamp, now: now))"),
+                interval.flatMap { $0 > 0 ? String(localized: "every \(SickMode.duration($0))") : nil }]
             .compactMap { $0 }.joined(separator: " · ")
     }
 
     private static func doseCount(_ count: Int) -> String {
-        "\(count) dose\(count == 1 ? "" : "s") in the last 24 hours"
+        String(localized: "\(count) doses in the last 24 hours")
     }
 
     /// Once clear, a medicine is only a reminder of when it was last given.
@@ -303,13 +302,13 @@ struct SickHomeView<Timers: View>: View {
         let fluids = today.filter { $0.kind == .feeding }
             .compactMap { $0.payloadObject["amount"] as? Double }.reduce(0, +)
         return VStack(alignment: .leading, spacing: 9) {
-            SectionHeader("Today")
+            SectionHeader(String(localized: "Today"))
             LazyVGrid(columns: columns, spacing: 9) {
-                tile(.temperature, "Highest", SickMode.highestText(today, unit: unit))
-                tile(.medication, "Doses", "\(today.filter { $0.kind == .medication }.count)")
-                tile(.change, "Wet diapers",
+                tile(.temperature, String(localized: "Highest"), SickMode.highestText(today, unit: unit))
+                tile(.medication, String(localized: "Doses"), "\(today.filter { $0.kind == .medication }.count)")
+                tile(.change, String(localized: "Wet diapers"),
                      "\(today.filter { $0.kind == .change && $0.payloadObject["wet"] as? Bool == true }.count)")
-                tile(.feeding, "Fluids", fluids > 0 ? EntityFormatting.formatAmount(fluids) : "—")
+                tile(.feeding, String(localized: "Fluids"), fluids > 0 ? EntityFormatting.formatAmount(fluids) : "—")
             }
         }
     }
@@ -342,7 +341,7 @@ struct SickHomeView<Timers: View>: View {
         if !rows.isEmpty {
             VStack(alignment: .leading, spacing: 9) {
                 HStack(alignment: .firstTextBaseline) {
-                    SectionHeader("Timeline")
+                    SectionHeader(String(localized: "Timeline"))
                     Button("See all", action: onSeeAll)
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(BBColor.brandAccent)
@@ -379,13 +378,13 @@ struct SickHomeView<Timers: View>: View {
             let color = colors.color(medicine.name).color
             switch medicine.phase {
             case .waiting(let next, _):
-                due.append(Item(id: "due-\(medicine.dose.localID)", time: next, title: "\(medicine.name) OK",
-                                detail: "in \(SickMode.duration(next.timeIntervalSince(now)))"
+                due.append(Item(id: "due-\(medicine.dose.localID)", time: next, title: String(localized: "\(medicine.name) OK"),
+                                detail: String(localized: "in \(SickMode.duration(next.timeIntervalSince(now)))")
                                     + (remindersOn ? " · reminder set" : ""),
                                 color: color, mark: .due))
             case .okNow(let since) where calendar.isDate(since, inSameDayAs: now):
-                past.append(Item(id: "ok-\(medicine.dose.localID)", time: since, title: "\(medicine.name) OK",
-                                 detail: "Not given yet", color: color, mark: .okay))
+                past.append(Item(id: "ok-\(medicine.dose.localID)", time: since, title: String(localized: "\(medicine.name) OK"),
+                                 detail: String(localized: "Not given yet"), color: color, mark: .okay))
             default:
                 break
             }
@@ -393,8 +392,8 @@ struct SickHomeView<Timers: View>: View {
         if checkHours > 0, let newest = readings.first, SickMode.isFever(newest.value, line: line) {
             let check = newest.time.addingTimeInterval(Double(checkHours) * 3600)
             if check > now {
-                due.append(Item(id: "check", time: check, title: "Temperature check",
-                                detail: "Reminder · every \(checkHours) hr while fever",
+                due.append(Item(id: "check", time: check, title: String(localized: "Temperature check"),
+                                detail: String(localized: "Reminder · every \(checkHours) hr while fever"),
                                 color: BBColor.brand, mark: .due))
             }
         }
@@ -411,7 +410,7 @@ struct SickHomeView<Timers: View>: View {
         switch entity.kind {
         case .medication:
             let name = (entity.payloadObject["name"] as? String ?? "").trimmingCharacters(in: .whitespaces)
-            return Item(id: id, time: entity.timestamp, title: name.isEmpty ? "Medication" : name,
+            return Item(id: id, time: entity.timestamp, title: name.isEmpty ? String(localized: "Medication") : name,
                         value: EntityFormatting.dosage(entity), color: colors.color(name).color,
                         mark: .done, entity: entity)
         case .temperature:
@@ -620,7 +619,6 @@ struct SickTemperatureChart: View {
     /// "Temperature over the last 24 hours, peaking at 102.8°F at 3:30 AM. Latest 100.8°F."
     private var summary: String {
         guard let peak = readings.max(by: { $0.value < $1.value }), let latest = readings.last else { return "" }
-        return "Temperature over the last 24 hours, peaking at \(unit.format(peak.value)) "
-            + "\(SickMode.when(peak.time, at: true, now: now)). Latest \(unit.format(latest.value))."
+        return String(localized: "Temperature over the last 24 hours, peaking at \(unit.format(peak.value)) \(SickMode.when(peak.time, at: true, now: now)). Latest \(unit.format(latest.value)).")
     }
 }

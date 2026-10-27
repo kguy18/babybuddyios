@@ -48,12 +48,12 @@ enum AppIconOption: String, CaseIterable, Identifiable, Sendable {
     /// How the option reads under its preview.
     var displayName: String {
         switch self {
-        case .centerPeek: return "Center Peek"
-        case .happyLowPeek: return "Happy Low Peek"
-        case .lowPeek: return "Low Peek"
-        case .peekWave: return "Peek Wave"
-        case .sidePeekLeft: return "Side Peek Left"
-        case .sidePeekRight: return "Side Peek Right"
+        case .centerPeek: return String(localized: "Center Peek")
+        case .happyLowPeek: return String(localized: "Happy Low Peek")
+        case .lowPeek: return String(localized: "Low Peek")
+        case .peekWave: return String(localized: "Peek Wave")
+        case .sidePeekLeft: return String(localized: "Side Peek Left")
+        case .sidePeekRight: return String(localized: "Side Peek Right")
         }
     }
 
@@ -117,7 +117,7 @@ final class AppIconManager {
             // Snap the selection back to whatever the system actually has, so a failed change can
             // never leave the grid showing a checkmark on an icon that isn't on the home screen.
             selected = .matching(alternateIconName: UIApplication.shared.alternateIconName)
-            errorMessage = "Couldn't change the app icon. Please try again."
+            errorMessage = String(localized: "Couldn't change the app icon. Please try again.")
         }
     }
 }

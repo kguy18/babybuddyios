@@ -15,21 +15,21 @@ enum EntityFormatting {
         switch entity.kind {
         case .feeding:
             var parts: [String] = []
-            if let t = p["type"] as? String { parts.append(t.capitalized) }
-            if let m = p["method"] as? String { parts.append(m.capitalized) }
+            if let t = p["type"] as? String { parts.append(FeedingType(rawValue: t)?.label ?? t) }
+            if let m = p["method"] as? String { parts.append(FeedingMethod(rawValue: m)?.label ?? m) }
             if let d = duration(entity) { parts.append(d) }
             if let a = p["amount"] as? Double { parts.append(formatAmount(a)) }
             return parts.joined(separator: " · ")
         case .change:
             var flags: [String] = []
-            if p["wet"] as? Bool == true { flags.append("Wet") }
-            if p["solid"] as? Bool == true { flags.append("Solid") }
-            if let color = p["color"] as? String, !color.isEmpty { flags.append(color.capitalized) }
-            return flags.isEmpty ? "Dry" : flags.joined(separator: ", ")
+            if p["wet"] as? Bool == true { flags.append(String(localized: "Wet")) }
+            if p["solid"] as? Bool == true { flags.append(String(localized: "Solid")) }
+            if let color = p["color"] as? String, !color.isEmpty { flags.append(DiaperColor(rawValue: color)?.label ?? color) }
+            return flags.isEmpty ? String(localized: "Dry") : flags.joined(separator: ", ")
         case .sleep:
             var parts: [String] = []
             if let d = duration(entity) { parts.append(d) }
-            if p["nap"] as? Bool == true { parts.append("Nap") }
+            if p["nap"] as? Bool == true { parts.append(String(localized: "Nap")) }
             return parts.joined(separator: " · ")
         case .tummyTime:
             var parts: [String] = []
@@ -44,7 +44,7 @@ enum EntityFormatting {
         case .note:
             return p["note"] as? String
         case .timer:
-            return p["name"] as? String
+            return (p["name"] as? String).map(timerName)
         case .weight:
             return (p["weight"] as? Double).map { "\(trim($0))" }
         case .height:
@@ -77,28 +77,33 @@ enum EntityFormatting {
         parts.append(entity.timestamp.formatted(date: .omitted, time: .shortened))
         switch entity.syncState {
         case .pendingCreate, .pendingUpdate, .pendingDelete:
-            parts.append(blocked ? "sync needs attention" : "waiting to sync")
-        case .conflicted: parts.append("sync conflict")
+            parts.append(blocked ? String(localized: "sync needs attention") : String(localized: "waiting to sync"))
+        case .conflicted: parts.append(String(localized: "sync conflict"))
         case .synced: break
         }
         let names = tags(entity)
-        if !names.isEmpty { parts.append("tags: \(names.joined(separator: ", "))") }
+        if !names.isEmpty { parts.append(String(localized: "tags: \(names.joined(separator: ", "))")) }
         return parts.joined(separator: ", ")
+    }
+
+    /// Translate built-in names at display time. Custom names and persisted payloads stay intact.
+    static func timerName(_ name: String) -> String {
+        TimerActivity(timerName: name)?.displayName ?? name
     }
 
     // MARK: Helpers
 
-    static func formatAmount(_ value: Double) -> String { "\(trim(value)) ml" }
+    static func formatAmount(_ value: Double) -> String { String(localized: "\(trim(value)) ml") }
 
     /// A dose's amount and unit, "5 mL", or `nil` when it has no dosage.
     static func dosage(_ entity: LocalEntity) -> String? {
         let p = entity.payloadObject
         guard let dose = p["dosage"] as? Double else { return nil }
-        return "\(trim(dose)) \(p["dosage_unit"] as? String ?? "")".trimmingCharacters(in: .whitespaces)
+        return String(localized: "\(trim(dose)) \(p["dosage_unit"] as? String ?? "")").trimmingCharacters(in: .whitespaces)
     }
 
     private static func trim(_ value: Double) -> String {
-        value == value.rounded() ? String(Int(value)) : String(format: "%.1f", value)
+        value == value.rounded() ? String(Int(value)) : value.formatted(.number.precision(.fractionLength(1)).grouping(.never))
     }
 
     /// Prefer a start/end derived duration (via the entity's parsed-date cache); fall back to
@@ -127,8 +132,8 @@ enum EntityFormatting {
     static func formatInterval(_ seconds: TimeInterval) -> String {
         let total = Int(seconds)
         let h = total / 3600, m = (total % 3600) / 60
-        if h > 0 { return m > 0 ? "\(h)h \(m)m" : "\(h)h" }
-        if m > 0 { return "\(m)m" }
-        return "\(total)s"
+        if h > 0 { return m > 0 ? String(localized: "\(h)h \(m)m") : String(localized: "\(h)h") }
+        if m > 0 { return String(localized: "\(m)m") }
+        return String(localized: "\(total)s")
     }
 }

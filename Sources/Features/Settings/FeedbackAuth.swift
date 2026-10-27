@@ -72,11 +72,11 @@ enum FeedbackAuth {
 
         var message: String {
             switch self {
-            case .wrongCode: "That code didn't work. Check the latest email, or send a new code."
-            case .wrongPassword: "That email and password don't match."
-            case .rateLimited: "Too many tries. Wait a few minutes, then try again."
-            case .unreachable: "Can't reach the feedback server."
-            case .other: "Something went wrong. Try again in a moment."
+            case .wrongCode: String(localized: "That code didn't work. Check the latest email, or send a new code.")
+            case .wrongPassword: String(localized: "That email and password don't match.")
+            case .rateLimited: String(localized: "Too many tries. Wait a few minutes, then try again.")
+            case .unreachable: String(localized: "Can't reach the feedback server.")
+            case .other: String(localized: "Something went wrong. Try again in a moment.")
             }
         }
     }

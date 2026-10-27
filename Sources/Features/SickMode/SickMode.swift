@@ -154,7 +154,7 @@ enum SickMode {
                     key($0) == key(dose) && $0.timestamp <= now && now.timeIntervalSince($0.timestamp) < 86_400
                 }
                 let name = (dose.payloadObject["name"] as? String ?? "").trimmingCharacters(in: .whitespaces)
-                return Medicine(dose: dose, name: name.isEmpty ? "Medication" : name, phase: phase,
+                return Medicine(dose: dose, name: name.isEmpty ? String(localized: "Medication") : name, phase: phase,
                                 recentDoses: recent.count)
             }
             .sorted { order($0) < order($1) }
@@ -173,18 +173,18 @@ enum SickMode {
     /// "4:40 PM" today, "yesterday 4:40 PM", else "Mon 4:40 PM". `at` reads "yesterday at 4:40 PM".
     static func when(_ date: Date, at: Bool = false, now: Date = .now) -> String {
         let calendar = Calendar.current
-        let time = (at ? "at " : "") + date.formatted(date: .omitted, time: .shortened)
+        let time = (at ? String(localized: "at ") : "") + date.formatted(date: .omitted, time: .shortened)
         if calendar.isDate(date, inSameDayAs: now) { return time }
         let yesterday = calendar.date(byAdding: .day, value: -1, to: now).map { calendar.isDate(date, inSameDayAs: $0) }
-        return "\(yesterday == true ? "yesterday" : date.formatted(.dateTime.weekday(.abbreviated))) \(time)"
+        return String(localized: "\(yesterday == true ? String(localized: "yesterday") : date.formatted(.dateTime.weekday(.abbreviated))) \(time)")
     }
 
     /// "1 hr 10 min", "6 hr" or "25 min", rounded up to the minute as a countdown reads.
     static func duration(_ seconds: TimeInterval) -> String {
         let minutes = max(1, Int((seconds / 60).rounded(.up)))
         let hours = minutes / 60, rest = minutes % 60
-        if hours == 0 { return "\(rest) min" }
-        return rest == 0 ? "\(hours) hr" : "\(hours) hr \(rest) min"
+        if hours == 0 { return String(localized: "\(rest) min") }
+        return rest == 0 ? String(localized: "\(hours) hr") : String(localized: "\(hours) hr \(rest) min")
     }
 }
 
@@ -266,7 +266,7 @@ extension SickModeStore {
         newest.fetchLimit = 1
         end(child, newestReading: (try? context.fetch(newest))?.first?.localID)
         Analytics.sickModeEnded(source: source)
-        UndoToastCenter.shared.show("Sick mode ended") {
+        UndoToastCenter.shared.show(String(localized: "Sick mode ended")) {
             self.resume(child, at: startedAt)
             Analytics.sickModeEndUndone()
         }

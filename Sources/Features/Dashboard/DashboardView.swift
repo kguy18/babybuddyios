@@ -497,8 +497,8 @@ struct DashboardView: View {
                 // timer's frozen duration.
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(timer.stoppedAt.map {
-                    "\(timerTitle(timer)) after \(EntityFormatting.spokenDuration($0.timeIntervalSince(timer.timestamp))), started \(started)"
-                } ?? "\(timerTitle(timer)), started \(started)")
+                    String(localized: "\(timerTitle(timer)) after \(EntityFormatting.spokenDuration($0.timeIntervalSince(timer.timestamp))), started \(started)")
+                } ?? String(localized: "\(timerTitle(timer)), started \(started)"))
                 if timer.stoppedAt == nil {
                     Button { beginStop(timer) } label: {
                         Label("Stop", systemImage: "stop.fill")
@@ -536,11 +536,11 @@ struct DashboardView: View {
 
     /// Title shown above the timer. Uses the timer's name when set.
     private func timerTitle(_ timer: LocalEntity) -> String {
-        let state = timer.stoppedAt == nil ? "running" : "stopped"
+        let state = timer.stoppedAt == nil ? String(localized: "running") : String(localized: "stopped")
         if let name = timer.payloadObject["name"] as? String, !name.isEmpty {
-            return "\(name) \(state)"
+            return String(localized: "\(EntityFormatting.timerName(name)) \(state)")
         }
-        return "Timer \(state)"
+        return String(localized: "Timer \(state)")
     }
 
     // MARK: Today
@@ -551,7 +551,7 @@ struct DashboardView: View {
         if !kinds.isEmpty {
             let today = childEntities.filter { Calendar.current.isDateInToday($0.timestamp) }
             VStack(alignment: .leading, spacing: 9) {
-                SectionHeader("Today")
+                SectionHeader(String(localized: "Today"))
                 LazyVGrid(columns: columns, spacing: 9) {
                     ForEach(kinds) { kind in
                         metricLink(kind) {
@@ -584,7 +584,7 @@ struct DashboardView: View {
             let waiting = doses.filter { $0.next > now }
             if !waiting.isEmpty {
                 VStack(alignment: .leading, spacing: 9) {
-                    SectionHeader("Next dose")
+                    SectionHeader(String(localized: "Next dose"))
                     VStack(spacing: 9) {
                         ForEach(waiting, id: \.dose.localID) { wait in
                             Button { editing = wait.dose } label: {
@@ -599,7 +599,7 @@ struct DashboardView: View {
     }
 
     private func nextDoseRow(_ dose: LocalEntity, next: Date, now: Date) -> some View {
-        let name = dose.payloadObject["name"] as? String ?? "Medication"
+        let name = dose.payloadObject["name"] as? String ?? String(localized: "Medication")
         let time = next.formatted(date: .omitted, time: .shortened)
         return BBCard(cornerRadius: BBRadius.row, padding: 13) {
             HStack(spacing: 12) {
@@ -621,7 +621,7 @@ struct DashboardView: View {
 
     private var latestSection: some View {
         VStack(alignment: .leading, spacing: 9) {
-            SectionHeader("Latest")
+            SectionHeader(String(localized: "Latest"))
             VStack(spacing: 9) {
                 ForEach(latestEvents) { entity in
                     Button { router.showTimelineKind = entity.kind } label: { EventRow(entity: entity) }
@@ -744,9 +744,9 @@ struct DashboardView: View {
         let p = entity.payloadObject
         let first = p["first_name"] as? String ?? ""
         let last = p["last_name"] as? String ?? ""
-        if firstOnly { return first.isEmpty ? (last.isEmpty ? "Child" : last) : first }
+        if firstOnly { return first.isEmpty ? (last.isEmpty ? String(localized: "Child") : last) : first }
         let name = [first, last].filter { !$0.isEmpty }.joined(separator: " ")
-        return name.isEmpty ? "Child" : name
+        return name.isEmpty ? String(localized: "Child") : name
     }
 
     private func lastEvent(of kind: EntityKind) -> LocalEntity? {
@@ -777,9 +777,9 @@ struct DashboardView: View {
 /// quick-add stack and grid captions).
 private func quickAddLabel(_ kind: EntityKind) -> String {
     switch kind {
-    case .change: return "Diaper"
-    case .tummyTime: return "Tummy time"
-    case .headCircumference: return "Head"
+    case .change: return String(localized: "Diaper")
+    case .tummyTime: return String(localized: "Tummy time")
+    case .headCircumference: return String(localized: "Head")
     default: return kind.displayName
     }
 }
@@ -811,7 +811,7 @@ private struct QuickAddMenu: View {
             }
             VStack(alignment: .trailing, spacing: 12) {
                 if isOpen {
-                    actionRow(label: "Start timer", kind: .timer) { onStartTimer() }
+                    actionRow(label: String(localized: "Start timer"), kind: .timer) { onStartTimer() }
                     ForEach(quickKinds) { kind in
                         actionRow(label: quickAddLabel(kind), kind: kind) { onLog(kind) }
                     }
@@ -827,7 +827,7 @@ private struct QuickAddMenu: View {
 
     private var fab: some View {
         FloatingAddButton(rotated: isOpen,
-                          accessibilityLabelText: isOpen ? "Close" : "Add") {
+                          accessibilityLabelText: isOpen ? String(localized: "Close") : String(localized: "Add")) {
             withAnimation(spring) { isOpen.toggle() }
         }
     }
@@ -854,7 +854,7 @@ private struct QuickAddMenu: View {
             onMore()
         } label: {
             HStack(spacing: 10) {
-                pill("More…")
+                pill(String(localized: "More…"))
                 tile(fill: BBColor.note) {
                     Image(systemName: "ellipsis").font(.system(size: 18, weight: .semibold))
                 }
@@ -907,8 +907,8 @@ private struct AllActivitiesSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    section("Log", logKinds)
-                    section("Measure", measureKinds)
+                    section(String(localized: "Log"), logKinds)
+                    section(String(localized: "Measure"), measureKinds)
                     if showsSickMode { sickModeRow }
                 }
                 .padding()

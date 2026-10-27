@@ -108,7 +108,7 @@ struct TimelineView: View {
                 ToolbarItem(placement: .topBarTrailing) { filterButton }
             }
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always),
-                        prompt: "Search notes, tags, type…")
+                        prompt: String(localized: "Search notes, tags, type…"))
             .onChange(of: searchText) { _, newValue in handleSearchChange(newValue) }
             .refreshable { await sync.sync() }
             .onAppear(perform: autoLoadOlderIfRequested)
@@ -308,8 +308,8 @@ struct TimelineView: View {
 
     private func dayLabel(_ day: Date) -> String {
         let cal = Calendar.current
-        if cal.isDateInToday(day) { return "Today" }
-        if cal.isDateInYesterday(day) { return "Yesterday" }
+        if cal.isDateInToday(day) { return String(localized: "Today") }
+        if cal.isDateInYesterday(day) { return String(localized: "Yesterday") }
         return day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
     }
 
@@ -318,17 +318,17 @@ struct TimelineView: View {
         var parts: [String] = []
 
         let feeds = events.filter { $0.kind == .feeding }.count
-        if feeds > 0 { parts.append("\(feeds) feed\(feeds == 1 ? "" : "s")") }
+        if feeds > 0 { parts.append(String(localized: "\(feeds) feeds")) }
 
         let sleep = totalDuration(events, kind: .sleep)
-        if sleep > 0 { parts.append("\(EntityFormatting.formatInterval(sleep)) sleep") }
+        if sleep > 0 { parts.append(String(localized: "\(EntityFormatting.formatInterval(sleep)) sleep")) }
 
         let diapers = events.filter { $0.kind == .change }.count
-        if diapers > 0 { parts.append("\(diapers) diaper\(diapers == 1 ? "" : "s")") }
+        if diapers > 0 { parts.append(String(localized: "\(diapers) diapers")) }
 
         if parts.isEmpty {
             let n = events.count
-            return "\(n) event\(n == 1 ? "" : "s")"
+            return String(localized: "\(n) events")
         }
         return parts.joined(separator: " · ")
     }
@@ -519,8 +519,8 @@ private struct TimelineFiltersView: View {
                     }
                 }
                 Section("Date Range") {
-                    dateBound(label: "From", date: $dateFrom, default: defaultFrom)
-                    dateBound(label: "To", date: $dateTo, default: Calendar.current.startOfDay(for: .now))
+                    dateBound(label: String(localized: "From"), date: $dateFrom, default: defaultFrom)
+                    dateBound(label: String(localized: "To"), date: $dateTo, default: Calendar.current.startOfDay(for: .now))
                 }
                 if hasActiveFilters {
                     Section {

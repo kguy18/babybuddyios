@@ -28,7 +28,7 @@ struct StartTimerSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    SectionHeader("Activity")
+                    SectionHeader(String(localized: "Activity"))
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(activities) { kind in
                             ActivityPickTile(kind: kind, isSelected: selected == kind) {
@@ -72,7 +72,7 @@ struct StartTimerSheet: View {
                     HStack {
                         Text("Starts").font(.subheadline).foregroundStyle(.secondary)
                         Spacer()
-                        DatePicker("Starts", selection: Binding(
+                        DatePicker(String(localized: "Starts"), selection: Binding(
                             get: { startDate() },
                             set: { customStart = min($0, .now); minutesBack = nil }
                         ), in: ...Date.now, displayedComponents: [.date, .hourAndMinute])
@@ -81,7 +81,7 @@ struct StartTimerSheet: View {
                             .tint(BBColor.brandAccent)
                     }
                     BBSegmentedControl(selection: $minutesBack, options: [0, 5, 15, 30]) { minutes in
-                        minutes == 0 ? "Now" : "−\(minutes ?? 0) min"
+                        minutes == 0 ? String(localized: "Now") : "−\(minutes ?? 0) min"
                     }
                 }
                 .padding(.horizontal, 15).padding(.vertical, 11)
@@ -112,8 +112,8 @@ struct StartTimerSheet: View {
     }
 
     private var startTitle: String {
-        if let selected { return "Start \(selected.displayName.lowercased()) timer" }
-        return "Start timer"
+        if let selected { return String(localized: "Start \(selected.sentenceName) timer") }
+        return String(localized: "Start timer")
     }
 
     /// The primary button adopts the chosen activity's color (dark-on-tint label for contrast in

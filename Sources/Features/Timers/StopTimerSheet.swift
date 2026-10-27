@@ -37,7 +37,7 @@ struct StopTimerSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     summaryCard
-                    SectionHeader("Log as")
+                    SectionHeader(String(localized: "Log as"))
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(activities) { kind in
                             ActivityPickTile(kind: kind, isSelected: selected == kind) {
@@ -70,7 +70,7 @@ struct StopTimerSheet: View {
                     Text(headline).font(.headline)
                     HStack(spacing: 6) {
                         Text("Started").font(.caption).foregroundStyle(.secondary)
-                        DatePicker("Started", selection: Binding(get: { timer.timestamp }, set: setStartTime),
+                        DatePicker(String(localized: "Started"), selection: Binding(get: { timer.timestamp }, set: setStartTime),
                                    displayedComponents: .hourAndMinute)
                             .labelsHidden()
                             .datePickerStyle(.compact)
@@ -108,7 +108,7 @@ struct StopTimerSheet: View {
     private var headline: String {
         if let selected { return selected.displayName }
         if let name = timer.payloadObject["name"] as? String, !name.isEmpty { return name }
-        return "Timer"
+        return String(localized: "Timer")
     }
 
     // MARK: Actions
@@ -142,10 +142,10 @@ struct StopTimerSheet: View {
     }
 
     private var logTitle: String {
-        guard let selected else { return "Choose a type to log" }
+        guard let selected else { return String(localized: "Choose a type to log") }
         // Feeding/pumping need type/method/amount, so logging them continues to a detail form.
         let needsDetails = TimerActivity(convertKind: selected)?.isInstantLoggable == false
-        return "Log \(selected.displayName.lowercased())\(needsDetails ? "…" : "")"
+        return String(localized: "Log \(selected.sentenceName)\(needsDetails ? "…" : "")")
     }
 
     /// The log button adopts the chosen activity's color (dark-on-tint label for both modes);

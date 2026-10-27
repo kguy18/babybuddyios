@@ -165,7 +165,7 @@ final class SyncEngine {
             // the same payload. Parking it puts the reason in Pending Changes with a Retry for the
             // case that does fix it — the server itself changing.
             guard let lookup = entity.detailLookup else {
-                upload.fail("This child's record on the server is missing something the photo upload needs. Refresh, then tap Retry.",
+                upload.fail(String(localized: "This child's record on the server is missing something the photo upload needs. Refresh, then tap Retry."),
                             blocked: true)
                 run.blockedNew += 1
                 continue

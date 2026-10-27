@@ -63,11 +63,11 @@ extension ChildStatus {
     static let sample = ChildStatus(
         hasChild: true, childName: "Ada",
         feeding: KindStatus(kind: .feeding, last: .now.addingTimeInterval(-2 * 3600),
-                            detail: "Formula · Bottle · 20m", todayCount: 4),
+                            detail: String(localized: "Formula · Bottle · 20m"), todayCount: 4),
         sleep: KindStatus(kind: .sleep, last: .now.addingTimeInterval(-45 * 60),
-                          detail: "1h 10m · Nap", todayCount: 3),
+                          detail: String(localized: "1h 10m · Nap"), todayCount: 3),
         change: KindStatus(kind: .change, last: .now.addingTimeInterval(-35 * 60),
-                           detail: "Wet", todayCount: 6),
+                           detail: String(localized: "Wet"), todayCount: 6),
         runningTimer: nil)
 }
 
@@ -120,7 +120,7 @@ struct StatusWidgetView: View {
     @ViewBuilder private var smallHeader: some View {
         if let timer = status.runningTimer {
             HStack(spacing: 5) {
-                Text(timer.name).font(.system(size: 13, weight: .semibold))
+                Text(EntityFormatting.timerName(timer.name)).font(.system(size: 13, weight: .semibold))
                     .lineLimit(1).minimumScaleFactor(0.7)
                 Spacer(minLength: 2)
                 Text(timer.start, style: .timer)
@@ -188,7 +188,7 @@ struct StatusWidgetView: View {
                     .font(.system(size: 15, weight: .semibold))
                     .lineLimit(1).minimumScaleFactor(0.7)
                 Spacer(minLength: 6)
-                Text(timer.name)
+                Text(EntityFormatting.timerName(timer.name))
                     .font(.system(size: 15, weight: .semibold)).foregroundStyle(.secondary)
                     .lineLimit(1)
                 Text(timer.start, style: .timer)
@@ -242,9 +242,9 @@ struct StatusWidgetView: View {
     /// Short tile caption per kind ("Feeding", "Sleep", "Diaper").
     private func tileLabel(_ kind: EntityKind) -> String {
         switch kind {
-        case .feeding: return "Feeding"
-        case .sleep: return "Sleep"
-        case .change: return "Diaper"
+        case .feeding: return String(localized: "Feeding")
+        case .sleep: return String(localized: "Sleep")
+        case .change: return String(localized: "Diaper")
         default: return kind.displayName
         }
     }

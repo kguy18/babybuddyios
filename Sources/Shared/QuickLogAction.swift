@@ -22,10 +22,10 @@ enum QuickLogAction: String, AppEnum, CaseIterable {
     /// Short label for the widget tile.
     var title: String {
         switch self {
-        case .wetDiaper: return "Wet"
-        case .solidDiaper: return "Solid"
-        case .wetAndSolidDiaper: return "Wet + Solid"
-        case .quickFeed: return "Feeding"
+        case .wetDiaper: return String(localized: "Wet")
+        case .solidDiaper: return String(localized: "Solid")
+        case .wetAndSolidDiaper: return String(localized: "Wet + Solid")
+        case .quickFeed: return String(localized: "Feeding")
         }
     }
 
