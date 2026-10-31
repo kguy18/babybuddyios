@@ -227,6 +227,67 @@ jobs:
             -clonedSourcePackagesDirPath build/SourcePackages \
             -retry-tests-on-failure -test-iterations 2
 
+  # The iPhone Duo lane, on GitHub's preview `xcode-27` image (Xcode 27.1 by default, with an
+  # iPhone Duo simulator on iOS 27.1). A preview image can queue, so `build-and-test` does not
+  # need this job and the ruleset does not require it: a red run here is a signal, not a block.
+  #
+  # Unit tests only for now. The UI tests are off on the Duo until UITestCase learns its rail:
+  # there the tabs aren't tab-bar buttons, so most UI tests can't find them (#217).
+  duo:
+    name: duo
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+      - uses: ./.github/actions/ios-setup
+      # Clone the image's iPhone Duo (device type and runtime) into a device of our own name.
+      - name: Pick an iPhone Duo simulator
+        id: sim
+        run: |
+          UDID=$(python3 -c '
+          import json, subprocess, sys
+          NAME = "BabyBuddy UI Tests Duo"
+          devs = json.loads(subprocess.check_output(
+              ["xcrun", "simctl", "list", "devices", "available", "--json"]))["devices"]
+          for rt, ds in sorted(devs.items(), reverse=True):
+              if "iOS-27" not in rt: continue
+              for d in ds:
+                  if d["name"] == NAME:
+                      print(d["udid"]); sys.exit()
+          for rt, ds in sorted(devs.items(), reverse=True):
+              if "iOS-27" not in rt: continue
+              for d in ds:
+                  if d["name"].startswith("iPhone Duo"):
+                      print(subprocess.check_output(
+                          ["xcrun", "simctl", "create", NAME, d["deviceTypeIdentifier"], rt],
+                          text=True).strip())
+                      sys.exit()
+          sys.exit("no iPhone Duo simulator on an iOS 27 runtime")
+          ')
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          xcrun simctl list devices | grep "$UDID"
+      - name: Build and test
+        id: unit
+        run: |
+          xcodebuild -project BabyBuddy.xcodeproj -scheme BabyBuddy \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -clonedSourcePackagesDirPath build/SourcePackages \
+            -resultBundlePath build/Tests.xcresult \
+            test CODE_SIGNING_ALLOWED=NO -quiet
+      - name: Upload the result bundle
+        if: ${{ !cancelled() && steps.unit.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Duo.xcresult
+          path: build/Tests.xcresult
+          retention-days: 7
+
   # The ruleset on main requires a check called `build-and-test`, which used to be the single macOS
   # job. Rather than teach the ruleset four shard names — which would strand it again the next time
   # the split changes — that name lives on here as an aggregator over the lanes. It is the only
