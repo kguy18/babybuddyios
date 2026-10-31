@@ -48,9 +48,9 @@ struct FoldSplitView<Side: View, Main: View>: View {
     /// The fold, from the system's reserved regions. Inactive ones count too: the fold is only
     /// reserved in the book pose, but nothing is drawn across it laid flat either.
     private static func fold(in geo: GeometryProxy) -> CGRect? {
-        // ReservedRegion is in the iOS 27.1 SDK. CI builds with Xcode 26, which lacks it, so
-        // those builds fall back to a centred fold.
-        #if compiler(>=6.4.2)
+        // ReservedRegion is in the iOS 27.1 SDK (Xcode 27.1, Swift 6.4) and later. Xcode 26 lacks
+        // it, so builds made with it fall back to a centred fold.
+        #if compiler(>=6.4)
         if #available(iOS 27.1, *) {
             return geo.reservedRegions(kind: .division, options: .includeInactive)
                 .first { $0.frame.height > $0.frame.width }?.frame
