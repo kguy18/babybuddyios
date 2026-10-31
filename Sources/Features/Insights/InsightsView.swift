@@ -31,7 +31,7 @@ struct InsightsView: View {
         _selectedChildID = selectedChildID
         let child = selectedChildID.wrappedValue
         let kinds = [EntityKind.sleep, .feeding, .change, .tummyTime, .pumping,
-                     .temperature, .medication].map(\.rawValue)
+                     .temperature, .medication, .weight, .height, .headCircumference].map(\.rawValue)
         let pendingDelete = SyncState.pendingDelete.rawValue
         let predicate = #Predicate<LocalEntity> { entity in
             entity.childID == child && kinds.contains(entity.kindRaw)
@@ -58,6 +58,8 @@ struct InsightsView: View {
                     tummyTimeCard
                     pumpingCard
                     temperatureCard
+                    GrowthChartsView(entities: chartEntities, childID: selectedChildID, birthDate: growthBirthDate)
+                        .id(selectedChildID)
                 }
                 .padding(.horizontal)
                 .padding(.top, 8)
@@ -400,6 +402,12 @@ struct InsightsView: View {
     private func doseValue(_ dose: LocalEntity) -> String {
         [EntityFormatting.dosage(dose), momentLabel(dose.timestamp)]
             .compactMap { $0 }.joined(separator: ", ")
+    }
+
+    private var growthBirthDate: Date? {
+        guard let raw = children.first(where: { $0.serverID == selectedChildID })?
+            .payloadObject["birth_date"] as? String else { return nil }
+        return GrowthDate.parse(raw)
     }
 
     // MARK: Helpers

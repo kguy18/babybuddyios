@@ -55,6 +55,9 @@ enum LocalStore {
         try? FileManager.default.removeItem(at: ImageUploadStore.directory)
         // A server-assigned child id points at nothing once the records are gone.
         SharedDefaults.selectedChildID = nil
+        // Growth references include a child's documented due date. Clear them on sign-out or
+        // server changes too, so an unrelated child with the same API id cannot inherit them.
+        GrowthProfileStore.clear()
     }
 
     // MARK: Upsert (pull side)

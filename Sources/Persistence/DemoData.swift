@@ -90,6 +90,10 @@ enum DemoData {
 
         seedHistory(into: context)
 
+        if ProcessInfo.processInfo.environment["BB_SEED_GROWTH"] == "1" {
+            seedGrowth(into: context)
+        }
+
         if ProcessInfo.processInfo.environment["BB_SEED_CONFLICT"] == "1" {
             seedConflict(into: context)
         }
@@ -103,6 +107,21 @@ enum DemoData {
             seedSecondChild(into: context)
         }
         try? context.save()
+    }
+
+    /// Synthetic sparse measurements for the Growth Charts UI tests, without a live server.
+    private static func seedGrowth(into context: ModelContext) {
+        let calendar = Calendar.current
+        let now = Date.now
+        for (id, offset, value) in [(501, -100, 4.2), (502, -45, 4.8), (503, -1, 5.3)] {
+            let date = calendar.date(byAdding: .day, value: offset, to: now)!
+            insert(.weight, id: id, ["id": id, "child": 1, "date": GrowthDate.string(date),
+                                     "weight": value, "tags": []], context)
+        }
+        insert(.height, id: 510, ["id": 510, "child": 1, "date": GrowthDate.string(now),
+                                  "height": 62.0, "tags": []], context)
+        insert(.headCircumference, id: 520, ["id": 520, "child": 1, "date": GrowthDate.string(now),
+                                            "head_circumference": 41.0, "tags": []], context)
     }
 
     /// `BB_SEED_SECOND_CHILD=1`: a second child with no records of her own, so the Editor's Baby

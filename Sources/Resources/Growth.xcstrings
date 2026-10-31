@@ -1,0 +1,788 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "1 year": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 year"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 Jahr"
+          }
+        }
+      }
+    },
+    "30 days": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30 days"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30 Tage"
+          }
+        }
+      }
+    },
+    "90 days": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "90 days"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "90 Tage"
+          }
+        }
+      }
+    },
+    "All": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle"
+          }
+        }
+      }
+    },
+    "Boys": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Boys"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jungen"
+          }
+        }
+      }
+    },
+    "Choose a reference": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a reference"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Referenz auswählen"
+          }
+        }
+      }
+    },
+    "Choose the units used for existing records on your server. Only the display changes; saved values stay the same.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose the units used for existing records on your server. Only the display changes; saved values stay the same."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle die Einheiten der vorhandenen Einträge auf deinem Server. Nur die Anzeige wird umgerechnet; gespeicherte Werte bleiben gleich."
+          }
+        }
+      }
+    },
+    "Corrected age uses the documented due date instead of birth date. Curves stay hidden before that date or when required information is missing.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Corrected age uses the documented due date instead of birth date. Curves stay hidden before that date or when required information is missing."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für das korrigierte Alter wird der dokumentierte Geburtstermin statt des Geburtsdatums verwendet. Vor diesem Termin oder bei fehlenden Pflichtangaben bleiben die Kurven ausgeblendet."
+          }
+        }
+      }
+    },
+    "Date": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datum"
+          }
+        }
+      }
+    },
+    "Expected due date": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expected due date"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Errechneter Geburtstermin"
+          }
+        }
+      }
+    },
+    "Girls": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Girls"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mädchen"
+          }
+        }
+      }
+    },
+    "Growth": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Growth"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wachstum"
+          }
+        }
+      }
+    },
+    "Growth settings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Growth settings"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wachstumseinstellungen"
+          }
+        }
+      }
+    },
+    "Growth time period": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Growth time period"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeitraum für Wachstum"
+          }
+        }
+      }
+    },
+    "Head circumference": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Head circumference"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopfumfang"
+          }
+        }
+      }
+    },
+    "I have checked the stored units": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I have checked the stored units"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ich habe die gespeicherten Einheiten geprüft"
+          }
+        }
+      }
+    },
+    "Length / height": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Length / height"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Körperlänge / Größe"
+          }
+        }
+      }
+    },
+    "Length measurement method confirmed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Length measurement method confirmed"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Messmethode für Körperlänge / Größe bestätigt"
+          }
+        }
+      }
+    },
+    "Length references are hidden until the measurement method is confirmed.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Length references are hidden until the measurement method is confirmed."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Längenreferenzen bleiben ausgeblendet, bis die Messmethode bestätigt ist."
+          }
+        }
+      }
+    },
+    "Lines connect recorded measurements. Days without measurements are not zero. WHO curves show P3, P15, P50, P85 and P97 for ages 0–1856 days.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lines connect recorded measurements. Days without measurements are not zero. WHO curves show P3, P15, P50, P85 and P97 for ages 0–1856 days."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Linien verbinden erfasste Messwerte. Tage ohne Messung entsprechen nicht null. WHO-Kurven zeigen P3, P15, P50, P85 und P97 für ein Alter von 0–1856 Tagen."
+          }
+        }
+      }
+    },
+    "No measurements in this period": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No measurements in this period"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Messwerte in diesem Zeitraum"
+          }
+        }
+      }
+    },
+    "Optional WHO comparison": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optional WHO comparison"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optionaler WHO-Vergleich"
+          }
+        }
+      }
+    },
+    "Recorded measurements": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recorded measurements"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erfasste Messwerte"
+          }
+        }
+      }
+    },
+    "Recorded value": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recorded value"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gespeicherter Wert"
+          }
+        }
+      }
+    },
+    "Reference age: chronological age": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reference age: chronological age"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Referenzalter: Alter seit der Geburt"
+          }
+        }
+      }
+    },
+    "Reference age: corrected age from documented due date": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reference age: corrected age from documented due date"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Referenzalter: korrigiertes Alter ab dokumentiertem Geburtstermin"
+          }
+        }
+      }
+    },
+    "Reference curves describe a population. They do not diagnose a condition or replace an individual assessment.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reference curves describe a population. They do not diagnose a condition or replace an individual assessment."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Referenzkurven beschreiben eine Bevölkerungsgruppe. Sie stellen keine Diagnose und ersetzen keine individuelle Beurteilung."
+          }
+        }
+      }
+    },
+    "Show WHO reference curves": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show WHO reference curves"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHO-Referenzkurven anzeigen"
+          }
+        }
+      }
+    },
+    "Show weight in": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show weight in"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gewicht anzeigen in"
+          }
+        }
+      }
+    },
+    "Source: WHO Child Growth Standards. Reference curves are for context, not a diagnosis.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source: WHO Child Growth Standards. Reference curves are for context, not a diagnosis."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quelle: WHO-Wachstumsstandards. Referenzkurven dienen der Einordnung und stellen keine Diagnose."
+          }
+        }
+      }
+    },
+    "Stored length unit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stored length unit"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einheit gespeicherter Längen"
+          }
+        }
+      }
+    },
+    "Stored weight unit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stored weight unit"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einheit gespeicherter Gewichte"
+          }
+        }
+      }
+    },
+    "The API does not provide reference sex or gestational age. Choose the appropriate reference and age basis with your care team. Nothing is inferred.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The API does not provide reference sex or gestational age. Choose the appropriate reference and age basis with your care team. Nothing is inferred."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die API liefert weder das Referenzgeschlecht noch die Schwangerschaftsdauer. Stimme die passende Referenz und Altersgrundlage mit deinem Behandlungsteam ab. Es werden keine Angaben geschätzt."
+          }
+        }
+      }
+    },
+    "This due date comes from a medical record": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This due date comes from a medical record"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Termin stammt aus einer medizinischen Unterlage"
+          }
+        }
+      }
+    },
+    "Try All, or add a measurement from Home.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try All, or add a measurement from Home."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle „Alle“ oder füge auf der Startseite eine Messung hinzu."
+          }
+        }
+      }
+    },
+    "Units": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Units"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einheiten"
+          }
+        }
+      }
+    },
+    "Use a documented due date for corrected age": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use a documented due date for corrected age"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Korrigiertes Alter anhand des dokumentierten Geburtstermins verwenden"
+          }
+        }
+      }
+    },
+    "Use chronological age": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use chronological age"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alter seit der Geburt verwenden"
+          }
+        }
+      }
+    },
+    "Values are shown as recorded. Confirm the stored units in Growth settings to show kg, g and cm.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Values are shown as recorded. Confirm the stored units in Growth settings to show kg, g and cm."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Werte werden wie gespeichert angezeigt. Bestätige die Einheiten in den Wachstumseinstellungen, um kg, g und cm anzuzeigen."
+          }
+        }
+      }
+    },
+    "View measurements": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View measurements"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Messwerte ansehen"
+          }
+        }
+      }
+    },
+    "WHO Child Growth Standards": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHO Child Growth Standards"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHO-Wachstumsstandards"
+          }
+        }
+      }
+    },
+    "WHO curves need confirmed units, a reference and a valid age basis. Check Growth settings.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHO curves need confirmed units, a reference and a valid age basis. Check Growth settings."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHO-Kurven benötigen bestätigte Einheiten, eine Referenz und eine gültige Altersgrundlage. Prüfe die Wachstumseinstellungen."
+          }
+        }
+      }
+    },
+    "WHO length references use recumbent length through day 730 and standing height from day 731. Enable length references only when recorded measurements follow that method.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHO length references use recumbent length through day 730 and standing height from day 731. Enable length references only when recorded measurements follow that method."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHO-Längenreferenzen verwenden bis Tag 730 die im Liegen gemessene Länge und ab Tag 731 die im Stehen gemessene Größe. Aktiviere diese Referenzen nur, wenn die Einträge so gemessen wurden."
+          }
+        }
+      }
+    },
+    "WHO reference": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHO reference"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHO-Referenz"
+          }
+        }
+      }
+    },
+    "WHO reference percentiles: 3, 15, 50, 85 and 97": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHO reference percentiles: 3, 15, 50, 85 and 97"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHO-Referenzperzentile: 3, 15, 50, 85 und 97"
+          }
+        }
+      }
+    },
+    "Weight": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weight"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gewicht"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
