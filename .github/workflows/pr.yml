@@ -154,8 +154,7 @@ jobs:
       # One shard failing shouldn't hide the results of the other three.
       fail-fast: false
       matrix:
-        # The duo job reuses this list through the anchor.
-        include: &ui-shards
+        include:
           - shard: logging
             classes: LoggingTests SickModeTests TodayTilesTests
           - shard: timers
@@ -232,18 +231,14 @@ jobs:
   # iPhone Duo simulator on iOS 27.1). A preview image can queue, so `build-and-test` does not
   # need this job and the ruleset does not require it: a red run here is a signal, not a block.
   #
-  # Sharded like `ui`: the whole UI suite in one job ran past 85 minutes on this image (#217).
-  # The `logging` shard also runs the unit tests.
+  # Unit tests only for now. The UI tests are off on the Duo until UITestCase learns its rail:
+  # there the tabs aren't tab-bar buttons, so most UI tests can't find them (#217).
   duo:
-    name: duo (${{ matrix.shard }})
+    name: duo
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: xcode-27
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        include: *ui-shards
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Toolchain
@@ -251,8 +246,7 @@ jobs:
           xcodebuild -version
           swift --version
       - uses: ./.github/actions/ios-setup
-      # Clone the image's iPhone Duo (device type and runtime) into a device of our own name, so
-      # scripts/ui-test.sh finds it through UI_TEST_DEVICE and erases only that one.
+      # Clone the image's iPhone Duo (device type and runtime) into a device of our own name.
       - name: Pick an iPhone Duo simulator
         id: sim
         run: |
@@ -280,36 +274,18 @@ jobs:
           xcrun simctl list devices | grep "$UDID"
       - name: Build and test
         id: unit
-        if: matrix.shard == 'logging'
         run: |
           xcodebuild -project BabyBuddy.xcodeproj -scheme BabyBuddy \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -clonedSourcePackagesDirPath build/SourcePackages \
             -resultBundlePath build/Tests.xcresult \
             test CODE_SIGNING_ALLOWED=NO -quiet
-      - name: UI tests
-        id: ui
-        # A step cap below the job's, so a slow run fails this step and the bundle still uploads.
-        timeout-minutes: 45
-        env:
-          UI_TEST_DEVICE: BabyBuddy UI Tests Duo
-        run: |
-          ONLY=""
-          for CLASS in ${{ matrix.classes }}; do
-            ONLY="$ONLY -only-testing:BabyBuddyUITests/$CLASS"
-          done
-          scripts/ui-test.sh \
-            -clonedSourcePackagesDirPath build/SourcePackages \
-            -retry-tests-on-failure -test-iterations 2 \
-            $ONLY
-      - name: Upload the result bundles
-        if: ${{ !cancelled() && (steps.unit.outcome == 'failure' || steps.ui.outcome == 'failure') }}
+      - name: Upload the result bundle
+        if: ${{ !cancelled() && steps.unit.outcome == 'failure' }}
         uses: actions/upload-artifact@v4
         with:
-          name: Duo-${{ matrix.shard }}.xcresult
-          path: |
-            build/Tests.xcresult
-            build/UITests.xcresult
+          name: Duo.xcresult
+          path: build/Tests.xcresult
           retention-days: 7
 
   # The ruleset on main requires a check called `build-and-test`, which used to be the single macOS
