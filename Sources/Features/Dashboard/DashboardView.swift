@@ -122,22 +122,6 @@ struct DashboardView: View {
             .navigationDestination(for: EntityKind.self) { kind in
                 DayTimelineView(kind: kind, childID: selectedChildID)
             }
-            // The "+" is a toolbar item so iPhone Duo's rail puts it in the prominent-action slot
-            // at the top. The quick-add stack drops down from it.
-            .toolbar {
-                if !children.isEmpty {
-                    ToolbarItem(placement: .primaryAction) { addButton }
-                }
-            }
-            .overlay {
-                if !children.isEmpty {
-                    QuickAddMenu(
-                        isOpen: $quickAddOpen,
-                        onStartTimer: { startingTimer = true },
-                        onLog: { addKind = $0 },
-                        onMore: { showAllActivities = true })
-                }
-            }
             .sheet(item: $addKind) { kind in
                 EntityEditorView(kind: kind, childID: selectedChildID)
             }
@@ -216,9 +200,9 @@ struct DashboardView: View {
                     description: Text("Add a child in Baby Buddy to get started.")) }
             }
             // Above the quick-add stack and the empty state: while the gentle ask is up it is the
-            // only thing on screen that should be reachable, so the toolbar "+" is disabled under it.
+            // only thing on screen that should be reachable.
             .overlay {
-                if gentleAskShowing {
+                if inlineNudge == .gentleAsk, !nudgesSilenced {
                     SupportGentleAskCard(
                         onSupport: { acceptNudge(.gentle) },
                         onDismiss: { dismissNudge(.gentle) })
@@ -285,10 +269,22 @@ struct DashboardView: View {
             }
             .padding(.horizontal)
             .padding(.top, 8)
-            .padding(.bottom, 24)
+            // Leave room so the last row can scroll clear of the floating add button.
+            .padding(.bottom, 88)
         }
-        // On this pane rather than the whole screen, so on the open display it stays off the fold.
-        .overlay(alignment: .bottom) { UndoToastView().padding(.bottom, 12) }
+        // On this pane rather than the whole screen, so on the open display they stay off the fold.
+        .overlay(alignment: .bottom) {
+            UndoToastView().padding(.bottom, 84) // clear of the floating add button
+        }
+        .overlay {
+            if !children.isEmpty {
+                QuickAddMenu(
+                    isOpen: $quickAddOpen,
+                    onStartTimer: { startingTimer = true },
+                    onLog: { addKind = $0 },
+                    onMore: { showAllActivities = true })
+            }
+        }
     }
 
     /// Left of the fold on the open display: today's timeline, or in sick mode the running timers
@@ -307,24 +303,7 @@ struct DashboardView: View {
         }
     }
 
-    /// The "+" that opens the quick-add stack, and closes it as "×".
-    private var addButton: some View {
-        Button {
-            withAnimation(QuickAddMenu.spring) { quickAddOpen.toggle() }
-        } label: {
-            Image(systemName: quickAddOpen ? "xmark" : "plus")
-                .font(.body.weight(.semibold))
-                .contentTransition(.symbolEffect(.replace))
-        }
-        .buttonStyle(.borderedProminent)
-        .tint(BBColor.brand)
-        .accessibilityLabel(quickAddOpen ? "Close" : "Add")
-        .disabled(gentleAskShowing)
-    }
-
     // MARK: Support nudge
-
-    private var gentleAskShowing: Bool { inlineNudge == .gentleAsk && !nudgesSilenced }
 
     /// Whether the ask has been settled since the surface went up — by tipping from another entry
     /// point, or by switching the reminders off.
@@ -837,23 +816,23 @@ private func quickAddLabel(_ kind: EntityKind) -> String {
 
 // MARK: - Quick-add menu
 
-/// The quick-action stack under the toolbar "+". Opening it dims the screen and drops a column of
-/// labeled actions from the top trailing corner: Start timer (hero) plus the most-logged record
-/// types, over a "More…" row that opens the full activity list.
+/// The floating "+" action and its quick-action stack. Tapping the button dims the screen and
+/// fans up a column of labeled actions — Start timer (hero) plus the most-logged record types —
+/// over a "More…" row that opens the full activity list. The "+" morphs into an "×" while open.
 private struct QuickAddMenu: View {
     @Binding var isOpen: Bool
     var onStartTimer: () -> Void
     var onLog: (EntityKind) -> Void
     var onMore: () -> Void
 
-    static let spring = Animation.spring(response: 0.32, dampingFraction: 0.82)
     /// The everyday record types surfaced directly in the stack; the rest live behind "More…".
     private let quickKinds: [EntityKind] = [.feeding, .change, .sleep, .tummyTime]
+    private let spring = Animation.spring(response: 0.32, dampingFraction: 0.82)
     private let tileSize: CGFloat = 46
     private var tileShape: RoundedRectangle { RoundedRectangle(cornerRadius: 46 * 0.29, style: .continuous) }
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
+        ZStack(alignment: .bottomTrailing) {
             if isOpen {
                 Color.black.opacity(0.42)
                     .ignoresSafeArea()
@@ -868,11 +847,19 @@ private struct QuickAddMenu: View {
                     }
                     moreRow
                 }
+                fab
             }
             .padding(.trailing, 20)
-            .padding(.top, 8)
+            .padding(.bottom, 16)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+    }
+
+    private var fab: some View {
+        FloatingAddButton(rotated: isOpen,
+                          accessibilityLabelText: isOpen ? "Close" : "Add") {
+            withAnimation(spring) { isOpen.toggle() }
+        }
     }
 
     /// A labeled quick action: a tinted glyph tile beside a pill label. Closes the menu, then
@@ -928,7 +915,7 @@ private struct QuickAddMenu: View {
             .shadow(color: .black.opacity(0.12), radius: 5, y: 2)
     }
 
-    private func close() { withAnimation(Self.spring) { isOpen = false } }
+    private func close() { withAnimation(spring) { isOpen = false } }
 }
 
 // MARK: - All activities sheet
