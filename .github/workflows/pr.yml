@@ -154,7 +154,8 @@ jobs:
       # One shard failing shouldn't hide the results of the other three.
       fail-fast: false
       matrix:
-        include:
+        # The duo job reuses this list through the anchor.
+        include: &ui-shards
           - shard: logging
             classes: LoggingTests SickModeTests TodayTilesTests
           - shard: timers
@@ -230,12 +231,19 @@ jobs:
   # The iPhone Duo lane, on GitHub's preview `xcode-27` image (Xcode 27.1 by default, with an
   # iPhone Duo simulator on iOS 27.1). A preview image can queue, so `build-and-test` does not
   # need this job and the ruleset does not require it: a red run here is a signal, not a block.
+  #
+  # Sharded like `ui`: the whole UI suite in one job ran past 85 minutes on this image (#217).
+  # The `logging` shard also runs the unit tests.
   duo:
-    name: duo
+    name: duo (${{ matrix.shard }})
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: xcode-27
-    timeout-minutes: 90
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include: *ui-shards
     steps:
       - uses: actions/checkout@v4
       - name: Toolchain
@@ -272,6 +280,7 @@ jobs:
           xcrun simctl list devices | grep "$UDID"
       - name: Build and test
         id: unit
+        if: matrix.shard == 'logging'
         run: |
           xcodebuild -project BabyBuddy.xcodeproj -scheme BabyBuddy \
             -destination "id=${{ steps.sim.outputs.udid }}" \
@@ -280,17 +289,24 @@ jobs:
             test CODE_SIGNING_ALLOWED=NO -quiet
       - name: UI tests
         id: ui
+        # A step cap below the job's, so a slow run fails this step and the bundle still uploads.
+        timeout-minutes: 45
         env:
           UI_TEST_DEVICE: BabyBuddy UI Tests Duo
         run: |
+          ONLY=""
+          for CLASS in ${{ matrix.classes }}; do
+            ONLY="$ONLY -only-testing:BabyBuddyUITests/$CLASS"
+          done
           scripts/ui-test.sh \
             -clonedSourcePackagesDirPath build/SourcePackages \
-            -retry-tests-on-failure -test-iterations 2
+            -retry-tests-on-failure -test-iterations 2 \
+            $ONLY
       - name: Upload the result bundles
         if: ${{ !cancelled() && (steps.unit.outcome == 'failure' || steps.ui.outcome == 'failure') }}
         uses: actions/upload-artifact@v4
         with:
-          name: Duo.xcresult
+          name: Duo-${{ matrix.shard }}.xcresult
           path: |
             build/Tests.xcresult
             build/UITests.xcresult
