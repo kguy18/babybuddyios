@@ -1,5 +1,11 @@
 import SwiftUI
 
+/// Which part of sick-mode Home to draw. A phone draws all of it in one column. iPhone Duo's open
+/// display splits it at the fold: the running timers and the sick timeline go left (`side`), the
+/// rest stays right (`main`), so the right pane isn't crowded by a timer, the sick card and the
+/// medicines at once.
+enum SickHomePart { case all, main, side }
+
 /// Home while sick mode is on (boards j4 and j7): the sick card with the day's temperatures, a card
 /// per medicine dosed since it started, today's diapers and fluids, and a timeline of what's done
 /// and what's due. It replaces the normal Home below the header; running timers still show above
@@ -12,6 +18,7 @@ struct SickHomeView<Timers: View>: View {
     let unit: TemperatureUnit
     /// The fever line, in `unit`.
     let line: Double
+    var part: SickHomePart = .all
     @ViewBuilder let timers: Timers
     var onLogTemperature: () -> Void
     var onLogDose: (LocalEntity) -> Void
@@ -59,15 +66,17 @@ struct SickHomeView<Timers: View>: View {
         let medicines = SickMode.medicines(doses, since: startedAt, now: now)
         let clear = SickMode.isClear(readings: readings, doses: doses, startedAt: startedAt, line: line, now: now)
         VStack(spacing: 18) {
-            if SickMode.showsEndPrompt(clear: clear, state: sickMode[childID], now: now) {
+            if part != .side, SickMode.showsEndPrompt(clear: clear, state: sickMode[childID], now: now) {
                 endPrompt(readings: readings, now: now)
             }
-            timers
-            sickCard(readings: readings, clear: clear, now: now)
-            medicineSection(medicines, clear: clear, now: now)
-            todaySection(now: now)
-            timelineSection(readings: readings, medicines: medicines, now: now)
-            endButton
+            if part != .main { timers }
+            if part != .side {
+                sickCard(readings: readings, clear: clear, now: now)
+                medicineSection(medicines, clear: clear, now: now)
+                todaySection(now: now)
+            }
+            if part != .main { timelineSection(readings: readings, medicines: medicines, now: now) }
+            if part != .side { endButton }
         }
     }
 

@@ -112,61 +112,22 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack(path: $navPath) {
-            ScrollView {
-                VStack(spacing: 18) {
-                    header
-
-                    if let startedAt = sickModeStart {
-                        sickHome(startedAt: startedAt)
-                    } else {
-                        if suggestsSickMode, let reading = SickMode.bannerReading(
-                            SickMode.readings(childEntities, unit: unit), state: sickMode[selectedChildID],
-                            line: feverLine) {
-                            FeverBanner(
-                                reading: reading, unit: unit,
-                                onStart: { sickMode.turnOn(selectedChildID, at: reading.time, source: .banner) },
-                                onDismiss: {
-                                    sickMode.dismissBanner(selectedChildID, reading: reading.entity.localID)
-                                    Analytics.sickModeBannerDismissed()
-                                })
-                            // `task(id:)` rather than onAppear: a newer reading can replace this one
-                            // while the banner stays on screen.
-                            .task(id: reading.entity.localID) {
-                                sickMode.countBanner(selectedChildID, reading: reading.entity.localID)
-                            }
-                        }
-
-                        if activeTimers.isEmpty {
-                            startTimerCard
-                        } else {
-                            timerHeroes
-                        }
-
-                        let doses = waitingDoses
-                        if !doses.isEmpty { nextDoseSection(doses) }
-
-                        if inlineNudge == .banner, !nudgesSilenced {
-                            SupportBanner(
-                                onSupport: { acceptNudge(.banner) },
-                                onDismiss: { dismissNudge(.banner) })
-                        }
-
-                        todaySection
-                        if !latestEvents.isEmpty { latestSection }
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.top, 8)
-                // Leave room so the last row can scroll clear of the floating add button.
-                .padding(.bottom, 88)
+            FoldSplitView {
+                sidePane
+            } main: { split in
+                mainPane(split: split)
             }
             .background(BBColor.surface)
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: EntityKind.self) { kind in
                 DayTimelineView(kind: kind, childID: selectedChildID)
             }
-            .overlay(alignment: .bottom) {
-                UndoToastView().padding(.bottom, 84) // clear of the floating add button
+            // The "+" is a toolbar item so iPhone Duo's rail puts it in the prominent-action slot
+            // at the top. The quick-add stack drops down from it.
+            .toolbar {
+                if !children.isEmpty {
+                    ToolbarItem(placement: .primaryAction) { addButton }
+                }
             }
             .overlay {
                 if !children.isEmpty {
@@ -255,9 +216,9 @@ struct DashboardView: View {
                     description: Text("Add a child in Baby Buddy to get started.")) }
             }
             // Above the quick-add stack and the empty state: while the gentle ask is up it is the
-            // only thing on screen that should be reachable.
+            // only thing on screen that should be reachable, so the toolbar "+" is disabled under it.
             .overlay {
-                if inlineNudge == .gentleAsk, !nudgesSilenced {
+                if gentleAskShowing {
                     SupportGentleAskCard(
                         onSupport: { acceptNudge(.gentle) },
                         onDismiss: { dismissNudge(.gentle) })
@@ -274,7 +235,96 @@ struct DashboardView: View {
         }
     }
 
+    // MARK: Panes
+
+    /// Home as a phone draws it. On iPhone Duo's open display it is the pane right of the fold,
+    /// and in sick mode its running timers move to the side pane.
+    private func mainPane(split: Bool) -> some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                header
+
+                if let startedAt = sickModeStart {
+                    sickHome(startedAt: startedAt, part: split ? .main : .all)
+                } else {
+                    if suggestsSickMode, let reading = SickMode.bannerReading(
+                        SickMode.readings(childEntities, unit: unit), state: sickMode[selectedChildID],
+                        line: feverLine) {
+                        FeverBanner(
+                            reading: reading, unit: unit,
+                            onStart: { sickMode.turnOn(selectedChildID, at: reading.time, source: .banner) },
+                            onDismiss: {
+                                sickMode.dismissBanner(selectedChildID, reading: reading.entity.localID)
+                                Analytics.sickModeBannerDismissed()
+                            })
+                        // `task(id:)` rather than onAppear: a newer reading can replace this one
+                        // while the banner stays on screen.
+                        .task(id: reading.entity.localID) {
+                            sickMode.countBanner(selectedChildID, reading: reading.entity.localID)
+                        }
+                    }
+
+                    if activeTimers.isEmpty {
+                        startTimerCard
+                    } else {
+                        timerHeroes
+                    }
+
+                    let doses = waitingDoses
+                    if !doses.isEmpty { nextDoseSection(doses) }
+
+                    if inlineNudge == .banner, !nudgesSilenced {
+                        SupportBanner(
+                            onSupport: { acceptNudge(.banner) },
+                            onDismiss: { dismissNudge(.banner) })
+                    }
+
+                    todaySection
+                    if !latestEvents.isEmpty { latestSection }
+                }
+            }
+            .padding(.horizontal)
+            .padding(.top, 8)
+            .padding(.bottom, 24)
+        }
+        // On this pane rather than the whole screen, so on the open display it stays off the fold.
+        .overlay(alignment: .bottom) { UndoToastView().padding(.bottom, 12) }
+    }
+
+    /// Left of the fold on the open display: today's timeline, or in sick mode the running timers
+    /// above the sick timeline. Edits open from Home's own sheet, so folding the phone with one
+    /// open, which takes this pane away, doesn't close it.
+    @ViewBuilder private var sidePane: some View {
+        if let startedAt = sickModeStart {
+            ScrollView {
+                sickHome(startedAt: startedAt, part: .side)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                    .padding(.bottom, 24)
+            }
+        } else {
+            DayTimelineView(kind: nil, childID: selectedChildID, onEdit: { editing = $0 })
+        }
+    }
+
+    /// The "+" that opens the quick-add stack, and closes it as "×".
+    private var addButton: some View {
+        Button {
+            withAnimation(QuickAddMenu.spring) { quickAddOpen.toggle() }
+        } label: {
+            Image(systemName: quickAddOpen ? "xmark" : "plus")
+                .font(.body.weight(.semibold))
+                .contentTransition(.symbolEffect(.replace))
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(BBColor.brand)
+        .accessibilityLabel(quickAddOpen ? "Close" : "Add")
+        .disabled(gentleAskShowing)
+    }
+
     // MARK: Support nudge
+
+    private var gentleAskShowing: Bool { inlineNudge == .gentleAsk && !nudgesSilenced }
 
     /// Whether the ask has been settled since the surface went up — by tipping from another entry
     /// point, or by switching the reminders off.
@@ -443,9 +493,10 @@ struct DashboardView: View {
     private var feverLine: Double { unit.convert(feverLineCelsius, from: .celsius) }
 
     /// Home while sick mode is on for this child: the sick layout, with running timers above it.
-    private func sickHome(startedAt: Date) -> some View {
+    private func sickHome(startedAt: Date, part: SickHomePart) -> some View {
         SickHomeView(
             childID: selectedChildID, startedAt: startedAt, entities: childEntities, unit: unit, line: feverLine,
+            part: part,
             timers: { if !activeTimers.isEmpty { timerHeroes } },
             onLogTemperature: { sickModeLog = SickModeLog(kind: .temperature) },
             onLogDose: { sickModeLog = SickModeLog(kind: .medication, template: $0) },
@@ -786,23 +837,23 @@ private func quickAddLabel(_ kind: EntityKind) -> String {
 
 // MARK: - Quick-add menu
 
-/// The floating "+" action and its quick-action stack. Tapping the button dims the screen and
-/// fans up a column of labeled actions — Start timer (hero) plus the most-logged record types —
-/// over a "More…" row that opens the full activity list. The "+" morphs into an "×" while open.
+/// The quick-action stack under the toolbar "+". Opening it dims the screen and drops a column of
+/// labeled actions from the top trailing corner: Start timer (hero) plus the most-logged record
+/// types, over a "More…" row that opens the full activity list.
 private struct QuickAddMenu: View {
     @Binding var isOpen: Bool
     var onStartTimer: () -> Void
     var onLog: (EntityKind) -> Void
     var onMore: () -> Void
 
+    static let spring = Animation.spring(response: 0.32, dampingFraction: 0.82)
     /// The everyday record types surfaced directly in the stack; the rest live behind "More…".
     private let quickKinds: [EntityKind] = [.feeding, .change, .sleep, .tummyTime]
-    private let spring = Animation.spring(response: 0.32, dampingFraction: 0.82)
     private let tileSize: CGFloat = 46
     private var tileShape: RoundedRectangle { RoundedRectangle(cornerRadius: 46 * 0.29, style: .continuous) }
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
+        ZStack(alignment: .topTrailing) {
             if isOpen {
                 Color.black.opacity(0.42)
                     .ignoresSafeArea()
@@ -817,19 +868,11 @@ private struct QuickAddMenu: View {
                     }
                     moreRow
                 }
-                fab
             }
             .padding(.trailing, 20)
-            .padding(.bottom, 16)
+            .padding(.top, 8)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-    }
-
-    private var fab: some View {
-        FloatingAddButton(rotated: isOpen,
-                          accessibilityLabelText: isOpen ? "Close" : "Add") {
-            withAnimation(spring) { isOpen.toggle() }
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
     }
 
     /// A labeled quick action: a tinted glyph tile beside a pill label. Closes the menu, then
@@ -885,7 +928,7 @@ private struct QuickAddMenu: View {
             .shadow(color: .black.opacity(0.12), radius: 5, y: 2)
     }
 
-    private func close() { withAnimation(spring) { isOpen = false } }
+    private func close() { withAnimation(Self.spring) { isOpen = false } }
 }
 
 // MARK: - All activities sheet

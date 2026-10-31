@@ -135,11 +135,12 @@ final class LoggingTests: UITestCase {
         XCTAssertFalse(app.buttons["Start timer instead"].exists)
     }
 
-    /// The "+" stack (#26). Update this when #78 makes its rows log in one tap.
+    /// The "+" stack (#26), dropping from the toolbar "+" that iPhone Duo puts in its rail (#215).
+    /// Update this when #78 makes its rows log in one tap.
     func testQuickAddMenu() {
         launch()
-        tap(app.buttons["Add"])
-        expect(app.buttons["Close"])
+        tap(app.navigationBars.buttons["Add"])
+        expect(app.navigationBars.buttons["Close"])
         for row in ["Start timer", "Feeding", "Diaper", "Sleep", "Tummy time"] {
             XCTAssertTrue(app.buttons[row].exists, "No quick-add row \(row)")
         }
