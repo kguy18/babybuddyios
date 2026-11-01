@@ -55,8 +55,9 @@ final class FoldTests: UITestCase {
         expect(app.navigationBars["Stop Timer"])
         let resume = expect(app.buttons["Resume timer"])
         let restart = app.buttons["Restart from now"]
-        XCTAssertGreaterThan(resume.frame.minX, app.buttons["Feeding"].frame.minX + 50,
-                             "The choices should sit right of the tiles")
+        // The summary, not a tile: below a half-height sheet the grid hasn't drawn its tiles.
+        XCTAssertGreaterThan(resume.frame.minX, element(labeled: "Stopped after ").frame.maxX - 1,
+                             "The choices should sit right of the summary")
         XCTAssertGreaterThan(restart.frame.minY, resume.frame.maxY - 1, "The choices should stack")
         XCTAssertGreaterThan(app.buttons["Discard timer"].frame.minY, restart.frame.maxY - 1)
         tap(restart)

@@ -183,6 +183,9 @@ class UITestCase: XCTestCase {
         tap(app.buttons["Add"])
         tap(app.buttons.labeled("More…"))
         expect(app.navigationBars["Add Activity"])
+        // On iPhone Duo's short front display the sheet opens at half height, and the grid hasn't
+        // drawn the tiles below it yet. A swipe up on the grid draws them.
+        if !app.buttons[kind].waitForExistence(timeout: 2) { app.buttons["Feeding"].swipeUp() }
         tap(app.buttons[kind])
     }
 
