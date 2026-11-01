@@ -931,7 +931,9 @@ private struct AllActivitiesSheet: View {
 
     private let logKinds: [EntityKind] = [.feeding, .change, .sleep, .tummyTime, .pumping, .note]
     private let measureKinds: [EntityKind] = [.weight, .height, .headCircumference, .temperature, .bmi, .medication]
-    private let columns = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
+    /// A wide sheet, on iPhone Duo's open display, fits each group on one row of six.
+    @State private var wide = false
+    private var columns: [GridItem] { Array(repeating: GridItem(.flexible()), count: wide ? 6 : 3) }
 
     var body: some View {
         NavigationStack {
@@ -943,6 +945,7 @@ private struct AllActivitiesSheet: View {
                 }
                 .padding()
             }
+            .trackingWide($wide)
             .background(BBColor.surface)
             .navigationTitle("Add Activity")
             .navigationBarTitleDisplayMode(.inline)

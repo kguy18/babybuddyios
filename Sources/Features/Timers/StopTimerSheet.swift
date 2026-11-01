@@ -18,6 +18,7 @@ struct StopTimerSheet: View {
     let onDiscard: () -> Void
 
     @State private var selected: EntityKind?
+    @State private var wide = false
 
     /// The convertible activities — same set as the Start Timer grid.
     private let activities: [EntityKind] = [.feeding, .sleep, .tummyTime, .pumping]
@@ -35,27 +36,40 @@ struct StopTimerSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    summaryCard
-                    SectionHeader("Log as")
-                    LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(activities) { kind in
-                            ActivityPickTile(kind: kind, isSelected: selected == kind) {
-                                selected = (selected == kind) ? nil : kind
+                // On iPhone Duo's open display: what happened left, what to do with it right.
+                HStack(alignment: .top, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 18) {
+                        summaryCard
+                        SectionHeader("Log as")
+                        LazyVGrid(columns: columns, spacing: 12) {
+                            ForEach(activities) { kind in
+                                ActivityPickTile(kind: kind, isSelected: selected == kind) {
+                                    selected = (selected == kind) ? nil : kind
+                                }
                             }
                         }
                     }
+                    if wide { actions.frame(maxWidth: .infinity) }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
             }
+            .trackingWide($wide)
             .background(BBColor.surface)
             .navigationTitle("Stop Timer")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
             }
-            .safeAreaInset(edge: .bottom) { actions }
+            .safeAreaInset(edge: .bottom) {
+                if !wide {
+                    actions
+                        .padding(.horizontal, 16)
+                        .padding(.top, 10)
+                        .padding(.bottom, 6)
+                        .background(BBColor.surface)
+                }
+            }
         }
         .presentationDetents([.medium, .large])
     }
@@ -113,21 +127,24 @@ struct StopTimerSheet: View {
 
     // MARK: Actions
 
+    /// Log, then the quieter choices: in a row under it on a phone, and one above the other in the
+    /// right column of a wide sheet, with Discard last.
     private var actions: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: wide ? 14 : 8) {
             Button { if let selected { onLog(selected) } } label: { Text(logTitle) }
                 .buttonStyle(logStyle)
                 .disabled(selected == nil)
                 .opacity(selected == nil ? 0.5 : 1)
 
-            HStack {
+            let layout = wide ? AnyLayout(VStackLayout(spacing: 14)) : AnyLayout(HStackLayout())
+            layout {
                 Button("Resume timer") { onResume() }
                     .foregroundStyle(BBColor.brandAccent)
-                Spacer()
+                if !wide { Spacer() }
                 // Started by mistake: it runs on from now instead of the original start.
                 Button("Restart from now") { setStart(.now); onResume() }
                     .foregroundStyle(BBColor.brandAccent)
-                Spacer()
+                if !wide { Spacer() }
                 Button("Discard timer", role: .destructive) { onDiscard() }
                     .foregroundStyle(BBColor.danger)
             }
@@ -135,10 +152,6 @@ struct StopTimerSheet: View {
             .lineLimit(1).minimumScaleFactor(0.8)
             .padding(.vertical, 4)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 6)
-        .background(BBColor.surface)
     }
 
     private var logTitle: String {

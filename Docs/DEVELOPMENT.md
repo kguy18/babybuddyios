@@ -76,6 +76,7 @@ Pass these via `SIMCTL_CHILD_<NAME>` environment variables to `xcrun simctl laun
 | `BB_SCANNER_PREVIEW=1` | Open the QR scanner over a black backdrop, without the camera |
 | `BB_LOAD_OLDER=<n>` | Auto-page the timeline back `n` history chunks on launch (with `BB_DEMO`) |
 | `BB_LOCK=1` | Force the Face ID lock on |
+| `BB_FOLD=1` | Lay out Home, the Timeline and the sheets as on iPhone Duo's open display, however narrow the screen. XCUITest can't unfold a Duo, so this is how UI tests reach those layouts |
 | `BB_WHATSNEW_UPGRADE=1` | Launch as an update from a release older than the What's New card, so the card presents (with `BB_DEMO`) |
 | `BB_NUDGE=gentle\|milestone\|banner` | Force a support-nudge surface on the Dashboard |
 | `BB_TIMER_ALERT_SECONDS=<n>` | Turn forgotten-timer alerts on and fire them `n` seconds after a timer starts, whatever Settings says |

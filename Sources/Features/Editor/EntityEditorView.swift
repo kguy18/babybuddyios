@@ -24,6 +24,10 @@ struct EntityEditorView: View {
     let template: LocalEntity?
     /// Where a new record's `Activity.logged` says it came from.
     let source: Analytics.ActivitySource
+    /// Set when the editor is a pane rather than a sheet: the Timeline's right pane on iPhone Duo's
+    /// open display. It then has no navigation stack or Cancel of its own; Save, Repeat and Delete
+    /// go in the Timeline's toolbar, and finishing calls this instead of dismissing.
+    let onClose: (() -> Void)?
 
     /// The record kind. Mirrored into state so the top activity selector can swap it while
     /// creating; locked to the passed-in value when editing or converting.
@@ -36,12 +40,14 @@ struct EntityEditorView: View {
     private var children: [LocalEntity]
 
     init(kind: EntityKind, childID: Int, entity: LocalEntity? = nil, sourceTimer: LocalEntity? = nil,
-         template: LocalEntity? = nil, source: Analytics.ActivitySource = .editor) {
+         template: LocalEntity? = nil, source: Analytics.ActivitySource = .editor,
+         onClose: (() -> Void)? = nil) {
         self.childID = childID
         self.entity = entity
         self.sourceTimer = sourceTimer
         self.template = template
         self.source = source
+        self.onClose = onClose
         _kind = State(initialValue: kind)
         _selectedChildID = State(initialValue: childID)
     }
@@ -90,6 +96,7 @@ struct EntityEditorView: View {
     @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "medication" }) private var medications: [LocalEntity]
 
     @State private var confirmingDelete = false
+    @State private var wide = false
     /// The queued write for this record that the server refused, if any. Drives the sync banner.
     @State private var blockedMutation: PendingMutation?
     @State private var showingPending = false
@@ -103,42 +110,71 @@ struct EntityEditorView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    if kind == .timer || kind == .child {
-                        Text("Not editable here.").foregroundStyle(.secondary)
-                    } else {
-                        editorContent
+        if onClose != nil {
+            form.toolbar { paneToolbar }
+        } else {
+            NavigationStack {
+                form.toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { dismiss() }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save", action: save).disabled(!isValid).tint(BBColor.brandAccent)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 28)
             }
-            .background(BBColor.surface)
-            .scrollDismissesKeyboard(.interactively)
-            .navigationTitle(navTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+        }
+    }
+
+    /// The pane's actions, symbols only so iPhone Duo's rail can hold them, Save first.
+    @ToolbarContentBuilder private var paneToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
+            Button("Save", systemImage: "checkmark", action: save).disabled(!isValid)
+            if let entity {
+                Button("Repeat", systemImage: "arrow.clockwise") {
+                    LocalRepository(context: context).repeatEvent(entity)
+                    Task { await sync.sync() }
+                    close()
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save", action: save).disabled(!isValid).tint(BBColor.brandAccent)
+            }
+            Button("Delete", systemImage: "trash", role: .destructive) { confirmingDelete = true }
+                .tint(BBColor.danger)
+        }
+    }
+
+    /// Ends the editor: dismisses the sheet, or tells the pane's owner.
+    private func close() {
+        if let onClose { onClose() } else { dismiss() }
+    }
+
+    private var form: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                if kind == .timer || kind == .child {
+                    Text("Not editable here.").foregroundStyle(.secondary)
+                } else {
+                    editorContent
                 }
             }
-            // `.alert`, not `confirmationDialog` — iOS 26 anchors the latter to its source as a
-            // popover and drops the cancel action, leaving a destructive prompt with no way back.
-            .alert("Delete this \(kind.displayName.lowercased())?", isPresented: $confirmingDelete) {
-                Button("Delete", role: .destructive, action: delete)
-                Button("Cancel", role: .cancel) {}
-            }
-            .onAppear(perform: populate)
-            .onAppear(perform: loadBlockedMutation)
-            .sheet(isPresented: $showingPending) {
-                PendingChangesView(highlight: blockedMutation?.localID)
-            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 28)
+        }
+        .trackingWide($wide)
+        .background(BBColor.surface)
+        .scrollDismissesKeyboard(.interactively)
+        .navigationTitle(navTitle)
+        .navigationBarTitleDisplayMode(.inline)
+        // `.alert`, not `confirmationDialog` — iOS 26 anchors the latter to its source as a
+        // popover and drops the cancel action, leaving a destructive prompt with no way back.
+        .alert("Delete this \(kind.displayName.lowercased())?", isPresented: $confirmingDelete) {
+            Button("Delete", role: .destructive, action: delete)
+            Button("Cancel", role: .cancel) {}
+        }
+        .onAppear(perform: populate)
+        .onAppear(perform: loadBlockedMutation)
+        .sheet(isPresented: $showingPending) {
+            PendingChangesView(highlight: blockedMutation?.localID)
         }
     }
 
@@ -194,18 +230,22 @@ struct EntityEditorView: View {
         formSections
     }
 
-    /// The editable form (everything below the activity selector).
+    /// The editable form (everything below the activity selector). A wide sheet, on iPhone Duo's
+    /// open display, puts the time and details left and the rest right, so nothing scrolls.
     @ViewBuilder private var formSections: some View {
         syncErrorBanner
-        babySection
-        sectioned("When") { whenCard }
-        sectioned(detailsTitle) { detailsCard }
-        sectioned("Tags") { tagsCard }
-        if showsNotes { sectioned("Notes") { notesCard } }
-        doseWarning
-        overlapWarning
-        validationNotice
-        actionButtons.padding(.top, 4)
+        SheetColumns(wide: wide) {
+            babySection
+            sectioned("When") { whenCard }
+            sectioned(detailsTitle) { detailsCard }
+        } trailing: {
+            sectioned("Tags") { tagsCard }
+            if showsNotes { sectioned("Notes") { notesCard } }
+            doseWarning
+            overlapWarning
+            validationNotice
+            actionButtons.padding(.top, 4)
+        }
     }
 
     // MARK: Layout helpers
@@ -888,7 +928,7 @@ struct EntityEditorView: View {
         Task { await sync.sync() }
         // Converting a source timer ends the Live Activity for that timer; a plain log is a no-op.
         Task { await liveActivity.reconcile() }
-        dismiss()
+        close()
     }
 
     /// Begin timing this activity instead of logging a finished record. Creates an open-ended
@@ -904,7 +944,7 @@ struct EntityEditorView: View {
         Analytics.timerStarted(activity: activity.rawValue, source: .app)
         Task { await sync.sync() }
         Task { await liveActivity.reconcile() } // start the Live Activity for the new timer
-        dismiss()
+        close()
     }
 
     private func delete() {
@@ -913,7 +953,7 @@ struct EntityEditorView: View {
         Task { await sync.sync() }
         // Deleting a running timer ends its Live Activity; harmless for other kinds.
         Task { await liveActivity.reconcile() }
-        dismiss()
+        close()
     }
 
     private func buildPayload() -> [String: Any] {

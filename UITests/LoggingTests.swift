@@ -23,7 +23,7 @@ final class LoggingTests: UITestCase {
         XCTAssertEqual(diapers.label, before)
 
         // Timeline: repeat the seeded tagged feeding, then undo it — over the list's own rows.
-        tap(app.tabBars.buttons["Timeline"])
+        tap(tab("Timeline"))
         let tagged = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label BEGINSWITH 'Feeding, ' AND label CONTAINS 'tags: hungry, night'"))
         expect(tagged.firstMatch).swipeRight()
@@ -78,7 +78,7 @@ final class LoggingTests: UITestCase {
         XCTAssertNotEqual(diapers.label, before)
         let queued = "label BEGINSWITH 'Diaper Change, Wet, Solid' AND label CONTAINS 'waiting to sync'"
         expect(elements(queued).firstMatch)
-        tap(app.tabBars.buttons["Timeline"])
+        tap(tab("Timeline"))
         expect(elements(queued).firstMatch)
     }
 
@@ -101,7 +101,7 @@ final class LoggingTests: UITestCase {
 
         tap(bar.buttons["Save"])
         expectGone(bar)
-        tap(app.tabBars.buttons["Timeline"])
+        tap(tab("Timeline"))
         expect(elements("label BEGINSWITH 'Feeding, ' AND label CONTAINS 'tags: hungry, newtag'").firstMatch)
     }
 
@@ -173,9 +173,9 @@ final class LoggingTests: UITestCase {
 
         let waiting = element(labeled: "Tylenol, next dose OK at")
         expect(waiting)
-        tap(app.tabBars.buttons["Timeline"])
+        tap(tab("Timeline"))
         expect(elements("label BEGINSWITH 'Medication, Tylenol' AND label CONTAINS 'next dose OK at'").firstMatch)
-        tap(app.tabBars.buttons["Home"])
+        tap(tab("Home"))
 
         openEditor("Medication")
         bar = expect(app.navigationBars["New Medication"])

@@ -55,7 +55,7 @@ final class NotificationTests: UITestCase {
         expectGone(app.staticTexts["ALERT AFTER"])
 
         // Back in Settings the row reads the switch's state — and on again, without leaving.
-        tap(app.navigationBars.buttons.firstMatch)
+        back(from: "Forgotten timer alerts")
         expect(app.buttons.labeled("Forgotten timer alerts, Off"))
 
         // A second visit shows the picks, not the values from before the first: the screen used
@@ -67,7 +67,7 @@ final class NotificationTests: UITestCase {
         expect(app.buttons["24h"])
         alerts.tap()
         expectValue(alerts, "0")
-        tap(app.navigationBars.buttons.firstMatch)
+        back(from: "Forgotten timer alerts")
         expect(app.buttons.labeled("Forgotten timer alerts, Off"))
 
         // The medication switch is its own, and doesn't bring the threshold rows with it.

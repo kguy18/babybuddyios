@@ -52,9 +52,32 @@ class UITestCase: XCTestCase {
         if demo, app.staticTexts["Connect to your self-hosted server"].waitForExistence(timeout: 3) {
             app.terminate()
             app.launch()
-            XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 60),
+            XCTAssertTrue(tab("Home").waitForExistence(timeout: 60),
                           "The app came up signed out even after a relaunch")
         }
+    }
+
+    // MARK: iPhone Duo's rail
+
+    /// Whether the tabs and the main screen's bar buttons sit in iPhone Duo's trailing rail rather
+    /// than a tab bar and navigation bars. Its displays are wide for their height (466 × 678 pt in
+    /// front, 951 × 669 pt open); every other iPhone is less than half as wide as it is tall.
+    /// Sheets keep a navigation bar of their own either way.
+    var hasRail: Bool {
+        let frame = app.frame
+        return frame.width > frame.height * 0.6
+    }
+
+    /// A tab's button: in the tab bar, or in iPhone Duo's rail.
+    func tab(_ name: String) -> XCUIElement {
+        (hasRail ? app.toolbars : app.tabBars).buttons[name]
+    }
+
+    /// Goes back from the pushed screen titled `title`: the first button in its navigation bar, or
+    /// on iPhone Duo the rail's back button, which has no label.
+    func back(from title: String, file: StaticString = #filePath, line: UInt = #line) {
+        let bar = expect(app.navigationBars[title], file: file, line: line)
+        tap(hasRail ? app.toolbars.buttons["BackButton"] : bar.buttons.firstMatch, file: file, line: line)
     }
 
     /// Waits for the element (a navigation title, a row, a button) and fails with its query when it
