@@ -111,9 +111,16 @@ release notes can be written from the milestone:
 - Tap tabs with `tab("Home")` and go back with `back(from: "<title>")`, never through
   `app.tabBars` or a navigation bar's buttons: on iPhone Duo the tabs and the main screen's bar
   buttons sit in a trailing rail (`UITestCase.hasRail`). Sheets keep their own navigation bar there.
-  XCUITest can't unfold a Duo, so the open display's layouts are tested with `BB_FOLD=1`, which
-  forces them on any simulator (`FoldTests`). A test that leaves the app calls
-  `skipIfAppCantBeLeft()` first: the Duo simulator ignores the Home button.
+  A test that leaves the app calls `skipIfAppCantBeLeft()` first: the Duo simulator ignores the
+  Home button.
+- XCUITest can't unfold a Duo. `scripts/ui-test.sh --duo-open` unfolds one with duoctl
+  (`scripts/duoctl`, pinned to one upstream commit), fails unless the inner screen took over, and
+  runs `FoldTests` and `SmokeTests` there; CI runs it as `duo (open)`. `FoldTests` skip on any other
+  display unless the runner sets `TEST_RUNNER_BB_FOLD=1`, which forces the open layouts on any
+  simulator through `BB_FOLD`. duoctl drives private simulator interfaces: it is a stopgap until
+  Apple ships a supported way to fold the simulator, and a new Xcode can break it. The Duo
+  simulator is heavy on this Mac, so run one class or test locally
+  (`scripts/ui-test.sh --duo-open -only-testing:BabyBuddyUITests/FoldTests`) and leave the lane to CI.
 - The keyboard covers the tab bar, so a tab tap with it up lands on a key: type `\n` first. An
   active search also hides the Timeline toolbar until its "Close" button ends it.
 - Notifications and Live Activities live outside the app, in SpringBoard: `UITestCase` has

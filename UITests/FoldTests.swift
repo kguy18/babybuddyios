@@ -1,13 +1,27 @@
 import XCTest
 
-/// iPhone Duo's open display (#215). XCUITest can't unfold a Duo, so `BB_FOLD=1` lays out the screens
-/// and sheets as the open display does on whatever simulator runs these. On a phone the panes are
-/// cramped: these check where things go and that they still work, not how they look.
+/// iPhone Duo's open display (#215). XCUITest can't unfold a Duo: `scripts/ui-test.sh --duo-open`
+/// unfolds one with duoctl first, and these run on the real open display there. Anywhere else they
+/// skip, unless the test runner has `BB_FOLD=1` (`TEST_RUNNER_BB_FOLD=1 scripts/ui-test.sh ...`),
+/// which lays out the screens and sheets as the open display does on whatever simulator runs them.
+/// On a phone those panes are cramped: there these check where things go and that they still work,
+/// not how they look.
 final class FoldTests: UITestCase {
+    /// The launch environment that reaches the open display's layouts: nothing extra on an open
+    /// iPhone Duo (951 pt wide, against 466 folded and at most 440 on other iPhones), `BB_FOLD`
+    /// when the runner asks for it, and a skip otherwise.
+    private func openDisplay() throws -> [String: String] {
+        if springboard.frame.width >= 900 { return [:] }
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["BB_FOLD"] == "1",
+                          "Needs iPhone Duo's open display (scripts/ui-test.sh --duo-open) or TEST_RUNNER_BB_FOLD=1")
+        return ["BB_FOLD": "1"]
+    }
+
     /// The tapped record opens right of the list, ready to edit, with Save, Repeat and Delete in the
     /// toolbar. Each of them closes the pane again.
-    func testTimelineOpensARecordBesideTheList() {
-        launch(["BB_START_TAB": "timeline", "BB_FOLD": "1", "BB_TOAST_SECONDS": "30"])
+    func testTimelineOpensARecordBesideTheList() throws {
+        let fold = try openDisplay()
+        launch(fold.merging(["BB_START_TAB": "timeline", "BB_TOAST_SECONDS": "30"]) { $1 })
         let empty = app.staticTexts["No activity open"]
         let rows = elements("label BEGINSWITH 'Feeding, ' AND label CONTAINS 'tags: hungry, night'")
         expect(empty)
@@ -16,6 +30,13 @@ final class FoldTests: UITestCase {
         tap(row)
         let editorSave = expect(app.buttons["Save Feeding"])
         XCTAssertGreaterThan(editorSave.frame.minX, row.frame.maxX - 1, "The editor should open right of the list")
+        if fold.isEmpty {
+            // On the real open display the fold is the display's middle: the list ends before it
+            // and the editor starts after it.
+            let middle = springboard.frame.midX
+            XCTAssertLessThanOrEqual(row.frame.maxX, middle, "The list should end left of the fold")
+            XCTAssertGreaterThanOrEqual(editorSave.frame.minX, middle, "The editor should start right of the fold")
+        }
         expect(row, matching: NSPredicate { _, _ in row.isSelected }, timeout: 5, describedAs: "to read as selected")
         tap(app.buttons["Save"])
         expect(empty)
@@ -34,8 +55,8 @@ final class FoldTests: UITestCase {
     }
 
     /// Each sheet takes two columns, or for Add Activity one row of six per group.
-    func testSheetsUseTwoColumns() {
-        launch(["BB_FOLD": "1"])
+    func testSheetsUseTwoColumns() throws {
+        launch(try openDisplay())
 
         tap(app.buttons["Add"])
         tap(app.buttons.labeled("More…"))
