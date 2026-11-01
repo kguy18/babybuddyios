@@ -34,6 +34,18 @@ final class LocalizationTests: XCTestCase {
         }
     }
 
+    func testDayTimelinePaneEmptyStateUsesTheSelectedLanguage() throws {
+        let german = try bundle("de-DE")
+        let english = try bundle("en")
+        for (key, translation) in [
+            ("Nothing logged today", "Heute noch keine Einträge"),
+            ("What you log today shows here.", "Hier erscheinen deine heutigen Einträge.")
+        ] {
+            XCTAssertEqual(german.localizedString(forKey: key, value: nil, table: nil), translation)
+            XCTAssertEqual(english.localizedString(forKey: key, value: nil, table: nil), key)
+        }
+    }
+
     func testGermanPlaceholdersCanChangeOrder() throws {
         let german = try bundle("de-DE")
         let duration = "4 Std.", childName = "Ada", time = "12:30"

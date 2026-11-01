@@ -112,70 +112,15 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack(path: $navPath) {
-            ScrollView {
-                VStack(spacing: 18) {
-                    header
-
-                    if let startedAt = sickModeStart {
-                        sickHome(startedAt: startedAt)
-                    } else {
-                        if suggestsSickMode, let reading = SickMode.bannerReading(
-                            SickMode.readings(childEntities, unit: unit), state: sickMode[selectedChildID],
-                            line: feverLine) {
-                            FeverBanner(
-                                reading: reading, unit: unit,
-                                onStart: { sickMode.turnOn(selectedChildID, at: reading.time, source: .banner) },
-                                onDismiss: {
-                                    sickMode.dismissBanner(selectedChildID, reading: reading.entity.localID)
-                                    Analytics.sickModeBannerDismissed()
-                                })
-                            // `task(id:)` rather than onAppear: a newer reading can replace this one
-                            // while the banner stays on screen.
-                            .task(id: reading.entity.localID) {
-                                sickMode.countBanner(selectedChildID, reading: reading.entity.localID)
-                            }
-                        }
-
-                        if activeTimers.isEmpty {
-                            startTimerCard
-                        } else {
-                            timerHeroes
-                        }
-
-                        let doses = waitingDoses
-                        if !doses.isEmpty { nextDoseSection(doses) }
-
-                        if inlineNudge == .banner, !nudgesSilenced {
-                            SupportBanner(
-                                onSupport: { acceptNudge(.banner) },
-                                onDismiss: { dismissNudge(.banner) })
-                        }
-
-                        todaySection
-                        if !latestEvents.isEmpty { latestSection }
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.top, 8)
-                // Leave room so the last row can scroll clear of the floating add button.
-                .padding(.bottom, 88)
+            FoldSplitView {
+                sidePane
+            } main: { split in
+                mainPane(split: split)
             }
             .background(BBColor.surface)
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: EntityKind.self) { kind in
                 DayTimelineView(kind: kind, childID: selectedChildID)
-            }
-            .overlay(alignment: .bottom) {
-                UndoToastView().padding(.bottom, 84) // clear of the floating add button
-            }
-            .overlay {
-                if !children.isEmpty {
-                    QuickAddMenu(
-                        isOpen: $quickAddOpen,
-                        onStartTimer: { startingTimer = true },
-                        onLog: { addKind = $0 },
-                        onMore: { showAllActivities = true })
-                }
             }
             .sheet(item: $addKind) { kind in
                 EntityEditorView(kind: kind, childID: selectedChildID)
@@ -271,6 +216,90 @@ struct DashboardView: View {
             .onChange(of: nudgesSilenced) { _, silenced in
                 if silenced { withdrawNudges() }
             }
+        }
+    }
+
+    // MARK: Panes
+
+    /// Home as a phone draws it. On iPhone Duo's open display it is the pane right of the fold,
+    /// and in sick mode its running timers move to the side pane.
+    private func mainPane(split: Bool) -> some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                header
+
+                if let startedAt = sickModeStart {
+                    sickHome(startedAt: startedAt, part: split ? .main : .all)
+                } else {
+                    if suggestsSickMode, let reading = SickMode.bannerReading(
+                        SickMode.readings(childEntities, unit: unit), state: sickMode[selectedChildID],
+                        line: feverLine) {
+                        FeverBanner(
+                            reading: reading, unit: unit,
+                            onStart: { sickMode.turnOn(selectedChildID, at: reading.time, source: .banner) },
+                            onDismiss: {
+                                sickMode.dismissBanner(selectedChildID, reading: reading.entity.localID)
+                                Analytics.sickModeBannerDismissed()
+                            })
+                        // `task(id:)` rather than onAppear: a newer reading can replace this one
+                        // while the banner stays on screen.
+                        .task(id: reading.entity.localID) {
+                            sickMode.countBanner(selectedChildID, reading: reading.entity.localID)
+                        }
+                    }
+
+                    if activeTimers.isEmpty {
+                        startTimerCard
+                    } else {
+                        timerHeroes
+                    }
+
+                    let doses = waitingDoses
+                    if !doses.isEmpty { nextDoseSection(doses) }
+
+                    if inlineNudge == .banner, !nudgesSilenced {
+                        SupportBanner(
+                            onSupport: { acceptNudge(.banner) },
+                            onDismiss: { dismissNudge(.banner) })
+                    }
+
+                    todaySection
+                    if !latestEvents.isEmpty { latestSection }
+                }
+            }
+            .padding(.horizontal)
+            .padding(.top, 8)
+            // Leave room so the last row can scroll clear of the floating add button.
+            .padding(.bottom, 88)
+        }
+        // On this pane rather than the whole screen, so on the open display they stay off the fold.
+        .overlay(alignment: .bottom) {
+            UndoToastView().padding(.bottom, 84) // clear of the floating add button
+        }
+        .overlay {
+            if !children.isEmpty {
+                QuickAddMenu(
+                    isOpen: $quickAddOpen,
+                    onStartTimer: { startingTimer = true },
+                    onLog: { addKind = $0 },
+                    onMore: { showAllActivities = true })
+            }
+        }
+    }
+
+    /// Left of the fold on the open display: today's timeline, or in sick mode the running timers
+    /// above the sick timeline. Edits open from Home's own sheet, so folding the phone with one
+    /// open, which takes this pane away, doesn't close it.
+    @ViewBuilder private var sidePane: some View {
+        if let startedAt = sickModeStart {
+            ScrollView {
+                sickHome(startedAt: startedAt, part: .side)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                    .padding(.bottom, 24)
+            }
+        } else {
+            DayTimelineView(kind: nil, childID: selectedChildID, onEdit: { editing = $0 })
         }
     }
 
@@ -443,9 +472,10 @@ struct DashboardView: View {
     private var feverLine: Double { unit.convert(feverLineCelsius, from: .celsius) }
 
     /// Home while sick mode is on for this child: the sick layout, with running timers above it.
-    private func sickHome(startedAt: Date) -> some View {
+    private func sickHome(startedAt: Date, part: SickHomePart) -> some View {
         SickHomeView(
             childID: selectedChildID, startedAt: startedAt, entities: childEntities, unit: unit, line: feverLine,
+            part: part,
             timers: { if !activeTimers.isEmpty { timerHeroes } },
             onLogTemperature: { sickModeLog = SickModeLog(kind: .temperature) },
             onLogDose: { sickModeLog = SickModeLog(kind: .medication, template: $0) },

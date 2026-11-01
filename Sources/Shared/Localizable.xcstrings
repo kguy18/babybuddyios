@@ -7917,6 +7917,23 @@
         }
       }
     },
+    "Nothing logged today": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing logged today"
+          }
+        },
+        "de-DE": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heute noch keine Einträge"
+          }
+        }
+      }
+    },
     "Notifications": {
       "extractionState": "manual",
       "localizations": {
@@ -12894,6 +12911,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nasse Windeln"
+          }
+        }
+      }
+    },
+    "What you log today shows here.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What you log today shows here."
+          }
+        },
+        "de-DE": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hier erscheinen deine heutigen Einträge."
           }
         }
       }

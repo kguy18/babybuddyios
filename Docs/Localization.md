@@ -52,6 +52,8 @@ not establish an iOS build or a passing XCTest run.
 
 - Choose German in iOS and open onboarding, Home, Timeline, Trends and Settings. Check narrow
   screens, larger text sizes and VoiceOver for truncation or untranslated client text.
+- On an open iPhone Duo, check the Today timeline pane and its empty state. Fold the device,
+  then open a Today tile and its add button; both layouts should keep their German labels.
 - Add and edit a feeding with both breast and bottle methods, a diaper change, sleep and
   pumping. Enter a decimal comma and verify the saved amount. Check that solid food reads
   “Beikost” and a diaper containing stool reads “Stuhlgang”.
