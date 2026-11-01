@@ -1,21 +1,33 @@
 #!/usr/bin/env bash
 # duoctl (https://github.com/skarol/duoctl, MIT) folds and unfolds the iPhone Duo simulator, which
 # simctl and XCUITest can't. This wrapper is the one place its version is set: it fetches the
-# script and its helper source at a fixed commit into ~/.cache, so an upstream change can't alter
-# CI. On first use duoctl compiles the helper with Xcode's clang; it makes no network calls.
+# script and its helper source at a fixed commit into ~/.cache, checks both against the hashes
+# below, so an upstream change can't alter CI. On first use duoctl compiles the helper with Xcode's
+# clang; duoctl itself makes no network calls.
 #
 #   scripts/duoctl [-d <udid>] state | open | close | screenshot <path> | ...
 #
 # It drives private simulator interfaces, verified on Xcode 27.1 and 27.2. It is a stopgap until
 # Apple ships a supported way to fold the simulator.
+#
+# To upgrade, change REV and both hashes together (`shasum -a 256` of the two files at that commit).
 set -euo pipefail
 REV=c6ff3e961a9858fb061907448e702d7d1617dc4a  # Release 0.2.1
+SHA256="2cac62ae4de41403e94ed879d086e8e2bce4a0722fdef2b70ee51361be0368db  duoctl
+be2c6dc803d8488d338fdc8e7930b8a2dfe0d8e25685139b5069a4ca7c1bd6c9  duoctl-helper.m"
+
 DIR="${XDG_CACHE_HOME:-$HOME/.cache}/babybuddy-duoctl/$REV"
-if [ ! -f "$DIR/duoctl" ]; then
+if [ ! -f "$DIR/verified" ]; then
+  rm -rf "$DIR"
   mkdir -p "$DIR"
-  for FILE in duoctl-helper.m duoctl; do
-    curl -fsSL "https://raw.githubusercontent.com/skarol/duoctl/$REV/skills/duoctl/scripts/$FILE" -o "$DIR/$FILE.part"
-    mv "$DIR/$FILE.part" "$DIR/$FILE"
+  for FILE in duoctl duoctl-helper.m; do
+    curl -fsSL "https://raw.githubusercontent.com/skarol/duoctl/$REV/skills/duoctl/scripts/$FILE" -o "$DIR/$FILE"
   done
+  if ! (cd "$DIR" && echo "$SHA256" | shasum -a 256 -c --quiet); then
+    rm -rf "$DIR"
+    echo "::error::duoctl at $REV doesn't match the hashes in scripts/duoctl" >&2
+    exit 1
+  fi
+  touch "$DIR/verified"
 fi
 exec python3 "$DIR/duoctl" "$@"
