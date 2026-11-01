@@ -76,6 +76,19 @@ class UITestCase: XCTestCase {
         try XCTSkipIf(hasRail, "iPhone Duo's simulator ignores the Home button")
     }
 
+    /// Brings back the navigation bar of the sheet titled `title` when it has scrolled away. On
+    /// iPhone Duo (iOS 27.1) a sheet's bar scrolls off with the field the keyboard scrolled to, and
+    /// comes back once the sheet is scrolled to the top: a slow drag down, held before release so
+    /// it can't fling the sheet closed.
+    func revealSheetBar(_ title: String) {
+        let bar = expect(app.navigationBars[title])
+        guard hasRail, !bar.buttons.firstMatch.waitForExistence(timeout: 2) else { return }
+        let window = app.windows.firstMatch
+        window.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.3))
+            .press(forDuration: 0.1, thenDragTo: window.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.6)),
+                   withVelocity: .slow, thenHoldForDuration: 0.3)
+    }
+
     /// A button in the toolbar of the sheet titled `title`. On iPhone Duo a sheet keeps Cancel,
     /// Close and Save in its navigation bar but puts its other actions in a rail of its own.
     func sheetButton(_ name: String, in title: String) -> XCUIElement {

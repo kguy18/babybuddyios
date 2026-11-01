@@ -155,14 +155,7 @@ final class DialogTests: UITestCase {
         expectGone(app.staticTexts["Stopped here"])
         XCTAssertTrue(retry.isEnabled)
 
-        // On iPhone Duo (iOS 27.1) the sheet's navigation bar scrolls away with the fields the
-        // keyboard scrolled to, and comes back once the form is scrolled to the top again.
-        if !app.buttons["Cancel"].waitForExistence(timeout: 2) {
-            let card = element(labeled: "On the next try")
-            card.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
-                .press(forDuration: 0.1, thenDragTo: card.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8)),
-                       withVelocity: .slow, thenHoldForDuration: 0.3)
-        }
+        revealSheetBar("Advanced configuration")
         tap(app.buttons["Cancel"])
         expectGone(app.navigationBars["Advanced configuration"])
         XCTAssertFalse(app.buttons.labeled("Advanced configuration ·").exists, "Cancel kept the edits")

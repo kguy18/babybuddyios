@@ -99,6 +99,7 @@ final class LoggingTests: UITestCase {
         tags.typeText("\n") // Return creates it, like the row
         expect(app.buttons["Remove tag newtag"])
 
+        revealSheetBar("New Feeding")
         tap(bar.buttons["Save"])
         expectGone(bar)
         tap(tab("Timeline"))
