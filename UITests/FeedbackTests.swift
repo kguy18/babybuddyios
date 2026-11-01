@@ -190,10 +190,14 @@ extension UITestCase {
         app.textFields["Code"].typeText("123456")
     }
 
-    /// Send Feedback ▸ Feedback Account, from its row. The row waits on WebKit's cookie store,
-    /// which took from 8 to over 40 seconds after launch in a full local run.
+    /// How long the Feedback Account row can take to show. It waits on WebKit's cookie store, which
+    /// took from 8 to over 40 seconds after launch in a full local run, and over a minute on a cold
+    /// iPhone Duo simulator in CI.
+    var cookieStoreTimeout: TimeInterval { 120 }
+
+    /// Send Feedback ▸ Feedback Account, from its row.
     func openFeedbackAccount() {
-        tap(app.buttons.labeled("Feedback Account"), timeout: 60)
+        tap(app.buttons.labeled("Feedback Account"), timeout: cookieStoreTimeout)
         expect(app.navigationBars["Feedback Account"])
     }
 }

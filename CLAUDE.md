@@ -73,12 +73,13 @@ release notes can be written from the milestone:
 - Both run unsigned on purpose: without the App Group the store and the keychain fall back to
   app-only locations, which is all the app itself needs. Only Home Screen widgets need signing.
 - Docs-only PRs (`*.md`, `Docs/`) skip the macOS job. Any other path builds.
-- The `duo` job runs the unit tests and the UI tests on an iPhone Duo simulator (iOS 27.1) on
-  GitHub's preview `xcode-27` image, in seven shards of whole classes under its 30-minute cap, and
-  prints the Xcode and Swift versions it used. It isn't required and `build-and-test` doesn't wait
-  for it, because a preview image can queue for a long time; it starts once `build-and-test` is
-  done, so it never holds a runner a required lane needs. A new UI test class goes in a shard of
-  both `ui` and `duo`; the `changes` job fails until it does.
+- The `duo` jobs run the unit tests and the UI tests on an iPhone Duo simulator (iOS 27.1) on
+  GitHub's preview `xcode-27` image, and print the Xcode and Swift versions they used.
+  `duo (build)` builds the UI tests once and seven shards of whole classes run that build
+  (`UI_TEST_XCTESTRUN` in `scripts/ui-test.sh`), each under the 30-minute cap. They aren't required
+  and `build-and-test` doesn't wait for them, because a preview image can queue for a long time;
+  they start once `build-and-test` is done, so they never hold a runner a required lane needs. A
+  new UI test class goes in a shard of both `ui` and `duo`; the `changes` job fails until it does.
 - `release-notes` runs on every PR, docs-only ones included: `node scripts/release.mjs validate`
   checks that each version in `Docs/release-notes.md` has a non-empty `appstore` and `whatsnew`
   block and that the store text fits App Store Connect's 4,000 characters. It reports through

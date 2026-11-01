@@ -74,12 +74,19 @@ set +e
 # App Group entitlement, which is all an in-app UI test touches.
 # Time allowances so a hung test fails itself rather than the run: a demo test takes ~30 s, and a
 # server one ~2 min (it signs in, then waits on the app's own sync).
-xcodebuild -project BabyBuddy.xcodeproj -scheme BabyBuddyUITests -destination "id=$UDID" \
+# UI_TEST_XCTESTRUN runs tests already built with `build-for-testing` instead of building them, as
+# CI's iPhone Duo shards do with the one build they share.
+if [ -n "${UI_TEST_XCTESTRUN:-}" ]; then
+  BUILD=(-xctestrun "$UI_TEST_XCTESTRUN" test-without-building)
+else
+  BUILD=(-project BabyBuddy.xcodeproj -scheme BabyBuddyUITests test)
+fi
+xcodebuild "${BUILD[@]}" -destination "id=$UDID" \
   -resultBundlePath "$RESULT" \
   -test-timeouts-enabled YES \
   -default-test-execution-time-allowance 240 \
   -maximum-test-execution-time-allowance 300 \
-  test CODE_SIGNING_ALLOWED=NO -quiet "${LANE[@]}" "$@"
+  CODE_SIGNING_ALLOWED=NO -quiet "${LANE[@]}" "$@"
 STATUS=$?
 set -e
 

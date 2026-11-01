@@ -9,7 +9,7 @@ final class FeedbackAccountTests: UITestCase {
     func testFeedbackAccountScreen() {
         launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in"])
         openSendFeedback()
-        expect(app.buttons.labeled("Feedback Account"))
+        expect(app.buttons.labeled("Feedback Account"), timeout: cookieStoreTimeout)
         XCTAssertFalse(app.buttons["Sign Out of Feedback"].exists, "Sign Out lives on the account screen")
         XCTAssertFalse(app.buttons["Delete Feedback Account"].exists)
 
@@ -19,7 +19,7 @@ final class FeedbackAccountTests: UITestCase {
         XCTAssertTrue(app.buttons["Delete Feedback Account"].exists)
         XCTAssertTrue(app.staticTexts["Your Baby Buddy data isn't affected. This account is only for posting, voting and chatting with me."].exists)
 
-        tap(app.navigationBars["Feedback Account"].buttons.firstMatch)
+        back(from: "Feedback Account")
         expect(app.navigationBars["Send Feedback"])
     }
 
