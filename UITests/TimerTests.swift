@@ -9,6 +9,9 @@ final class TimerTests: UITestCase {
         tap(app.buttons["Stop"])
         expect(app.navigationBars["Stop Timer"])
 
+        // Full height first: on iPhone Duo's short front display the half-height sheet's buttons
+        // cover the tiles, and a tap on Feeding lands on "Log tummy time".
+        expandSheet()
         tap(app.buttons["Feeding"])
         tap(app.buttons["Log feeding…"])
 

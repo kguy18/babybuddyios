@@ -207,7 +207,11 @@ final class LoggingTests: UITestCase {
         // Day cells are the only labels ending in a day number while the calendar is up, and the
         // 15th of next month is in the future whatever today is.
         tap(app.buttons.matching(NSPredicate(format: "label ENDSWITH ' 15'")).firstMatch)
-        tap(dateButton) // close the calendar, so the notice underneath can be read
+        // Close the calendar, so the notice underneath can be read, and wait for it to go: on
+        // iPhone Duo a Cancel tapped while it was still closing only finished closing it.
+        let calendar = app.buttons["PopoverDismissRegion"]
+        tap(calendar)
+        expectGone(calendar)
 
         expect(element(labeled: "Can\u{2019}t save yet. That time is in the future"))
         XCTAssertFalse(bar.buttons["Save"].isEnabled, "A future change mustn't be sendable")

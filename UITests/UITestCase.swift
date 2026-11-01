@@ -189,6 +189,15 @@ class UITestCase: XCTestCase {
         tap(app.buttons[kind])
     }
 
+    /// Drags the open sheet's grabber to the top, for a sheet that opens at half height. A swipe on
+    /// its content scrolls the content instead.
+    func expandSheet() {
+        let grabber = expect(app.buttons["Sheet Grabber"])
+        grabber.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.05)))
+        expectValue(grabber, "Expanded")
+    }
+
     /// Settings ▸ Feedback ▸ Send Feedback.
     func openSendFeedback() {
         tap(app.buttons.labeled("Send Feedback"))
@@ -221,10 +230,16 @@ class UITestCase: XCTestCase {
     /// is dropped rather than queued, and no amount of extra patience turns a press that never
     /// landed into a backgrounded app. Raising the single wait to 30 seconds on a hosted runner
     /// wasn't enough on its own, which is what pointed at the press rather than the waiting.
+    ///
+    /// Suspended counts as away too: on iPhone Duo the app can go straight from the foreground to
+    /// suspended, and a wait for `.runningBackground` alone never sees it.
     func pressHome(file: StaticString = #filePath, line: UInt = #line) {
+        let app = self.app
+        let away = NSPredicate { _, _ in [.runningBackground, .runningBackgroundSuspended].contains(app.state) }
         for _ in 1...3 {
             XCUIDevice.shared.press(.home)
-            if app.wait(for: .runningBackground, timeout: 10) { return }
+            let left = XCTNSPredicateExpectation(predicate: away, object: nil)
+            if XCTWaiter().wait(for: [left], timeout: 10) == .completed { return }
         }
         XCTFail("The app stayed in the foreground", file: file, line: line)
     }
