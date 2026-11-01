@@ -2,7 +2,7 @@ import XCTest
 
 final class GermanLocalizationTests: UITestCase {
     func testGermanOnboarding() {
-        launch(demo: false, language: "de-DE", locale: "de_DE")
+        launch(demo: false, language: "de", locale: "de_DE")
         expect(app.staticTexts["Mit deinem eigenen Server verbinden"])
         expect(app.buttons["QR-Code scannen"])
         expect(app.textFields["URL oder IP-Adresse deines Servers"])
@@ -10,7 +10,7 @@ final class GermanLocalizationTests: UITestCase {
     }
 
     func testGermanEditorAndNavigation() {
-        launch(["BB_OPEN": "feeding"], language: "de-DE", locale: "de_DE")
+        launch(["BB_OPEN": "feeding"], language: "de", locale: "de_DE")
         expect(app.navigationBars["Mahlzeit hinzufügen"])
         expect(app.staticTexts["Methode"])
         expect(app.buttons["Speichern"])
@@ -22,7 +22,7 @@ final class GermanLocalizationTests: UITestCase {
     }
 
     func testGermanDayTimelineCanStillOpenItsActivityEditor() {
-        launch(language: "de-DE", locale: "de_DE")
+        launch(language: "de", locale: "de_DE")
         tap(app.descendants(matching: .any)["today-feeding"])
         expect(app.navigationBars["Mahlzeit · Heute"])
         tap(app.buttons.labeled("Mahlzeit hinzufügen"))

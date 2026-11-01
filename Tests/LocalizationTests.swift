@@ -8,12 +8,12 @@ final class LocalizationTests: XCTestCase {
     }
 
     func testGermanResourcesAreBundledAndSelectedBySystemPreferences() throws {
-        XCTAssertTrue(Bundle.main.localizations.contains("de-DE"))
+        XCTAssertTrue(Bundle.main.localizations.contains("de"))
         XCTAssertEqual(Bundle.preferredLocalizations(from: Bundle.main.localizations,
-                                                     forPreferences: ["de-DE", "en"]).first, "de-DE")
+                                                     forPreferences: ["de-DE", "en"]).first, "de")
         XCTAssertEqual(Bundle.preferredLocalizations(from: Bundle.main.localizations,
-                                                     forPreferences: ["de"]).first, "de-DE")
-        let german = try bundle("de-DE")
+                                                     forPreferences: ["de-AT"]).first, "de")
+        let german = try bundle("de")
         XCTAssertEqual(String(localized: "Settings", bundle: german), "Einstellungen")
         XCTAssertEqual(String(localized: "Bottle", bundle: german), "Flasche")
         XCTAssertEqual(String(localized: "feeding.type.solid.short", defaultValue: "Solid", bundle: german),
@@ -23,7 +23,7 @@ final class LocalizationTests: XCTestCase {
     }
 
     func testGermanAndEnglishPluralForms() throws {
-        let german = try bundle("de-DE")
+        let german = try bundle("de")
         let english = try bundle("en")
         for (count, de, en) in [(0, "0 Felder", "0 fields"), (1, "1 Feld", "1 field"),
                                (2, "2 Felder", "2 fields")] {
@@ -35,7 +35,7 @@ final class LocalizationTests: XCTestCase {
     }
 
     func testDayTimelinePaneEmptyStateUsesTheSelectedLanguage() throws {
-        let german = try bundle("de-DE")
+        let german = try bundle("de")
         let english = try bundle("en")
         for (key, translation) in [
             ("Nothing logged today", "Heute noch keine Einträge"),
@@ -47,7 +47,7 @@ final class LocalizationTests: XCTestCase {
     }
 
     func testGermanPlaceholdersCanChangeOrder() throws {
-        let german = try bundle("de-DE")
+        let german = try bundle("de")
         let duration = "4 Std.", childName = "Ada", time = "12:30"
         XCTAssertEqual(String(localized: "\(duration) since \(childName)'s last dose at \(time).",
                               bundle: german, locale: Locale(identifier: "de_DE")),
@@ -57,12 +57,12 @@ final class LocalizationTests: XCTestCase {
     func testEnglishFallbackAndMissingTranslations() throws {
         XCTAssertEqual(Bundle.main.developmentLocalization, "en")
         XCTAssertEqual(String(localized: "Settings", bundle: try bundle("en")), "Settings")
-        XCTAssertEqual(String(localized: "Untranslated test message", bundle: try bundle("de-DE")),
+        XCTAssertEqual(String(localized: "Untranslated test message", bundle: try bundle("de")),
                        "Untranslated test message")
     }
 
     func testPermissionPromptsAreLocalized() throws {
-        let german = try bundle("de-DE")
+        let german = try bundle("de")
         let message = german.localizedString(forKey: "NSCameraUsageDescription", value: nil, table: "InfoPlist")
         XCTAssertTrue(message.contains("Anmelde-QR-Code"))
     }
