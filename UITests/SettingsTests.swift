@@ -84,7 +84,7 @@ final class SettingsTests: UITestCase {
         tap(app.buttons.labeled("Get Help"))
         let sheet = expect(app.navigationBars["Get Help"])
         expect(app.webViews.staticTexts["Stub widget: chat"])
-        tap(sheet.buttons["Copy App Details"])
+        tap(sheetButton("Copy App Details", in: "Get Help"))
         expect(app.staticTexts["App details copied"])
         XCTAssertFalse(app.buttons["Undo"].exists, "A confirmation has nothing to undo")
         tap(sheet.buttons["Close"])

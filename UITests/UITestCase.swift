@@ -62,10 +62,24 @@ class UITestCase: XCTestCase {
     /// Whether the tabs and the main screen's bar buttons sit in iPhone Duo's trailing rail rather
     /// than a tab bar and navigation bars. Its displays are wide for their height (466 × 678 pt in
     /// front, 951 × 669 pt open); every other iPhone is less than half as wide as it is tall.
-    /// Sheets keep a navigation bar of their own either way.
+    /// Sheets keep a navigation bar for Cancel, Close and Save. Read from SpringBoard, so it
+    /// answers before the app has launched.
     var hasRail: Bool {
-        let frame = app.frame
+        let frame = springboard.frame
         return frame.width > frame.height * 0.6
+    }
+
+    /// Skips a test that leaves the app, on iPhone Duo. Its simulator ignores the Home button and
+    /// reports the app in the foreground whatever is on screen (Xcode 27.1 and 27.2), so neither
+    /// leaving nor coming back can be done or checked there.
+    func skipIfAppCantBeLeft() throws {
+        try XCTSkipIf(hasRail, "iPhone Duo's simulator ignores the Home button")
+    }
+
+    /// A button in the toolbar of the sheet titled `title`. On iPhone Duo a sheet keeps Cancel,
+    /// Close and Save in its navigation bar but puts its other actions in a rail of its own.
+    func sheetButton(_ name: String, in title: String) -> XCUIElement {
+        hasRail ? app.toolbars.buttons[name] : app.navigationBars[title].buttons[name]
     }
 
     /// A tab's button: in the tab bar, or in iPhone Duo's rail.
@@ -231,15 +245,11 @@ class UITestCase: XCTestCase {
     /// landed into a backgrounded app. Raising the single wait to 30 seconds on a hosted runner
     /// wasn't enough on its own, which is what pointed at the press rather than the waiting.
     ///
-    /// Suspended counts as away too: on iPhone Duo the app can go straight from the foreground to
-    /// suspended, and a wait for `.runningBackground` alone never sees it.
+    /// Not on iPhone Duo: see ``skipIfAppCantBeLeft()``.
     func pressHome(file: StaticString = #filePath, line: UInt = #line) {
-        let app = self.app
-        let away = NSPredicate { _, _ in [.runningBackground, .runningBackgroundSuspended].contains(app.state) }
         for _ in 1...3 {
             XCUIDevice.shared.press(.home)
-            let left = XCTNSPredicateExpectation(predicate: away, object: nil)
-            if XCTWaiter().wait(for: [left], timeout: 10) == .completed { return }
+            if app.wait(for: .runningBackground, timeout: 10) { return }
         }
         XCTFail("The app stayed in the foreground", file: file, line: line)
     }

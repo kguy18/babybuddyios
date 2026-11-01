@@ -92,10 +92,11 @@ total, passed, failed, skipped = s["totalTestCount"], s["passedTests"], s["faile
 print(f"UI tests: {passed} passed, {failed} failed, {skipped} skipped (of {total})")
 for t in s.get("testFailures", []):
     print("  FAIL {}: {}".format(t.get("testName"), t.get("failureText")))
-# A skip is how the server lane reports an unreachable server: green, but with coverage missing, so
-# it has to be visible on the run rather than buried in this line.
+# A skip is how the server lane reports an unreachable server, and how a test that leaves the app
+# sits out on iPhone Duo: green, but with coverage missing, so it has to be visible on the run
+# rather than buried in this line.
 if skipped:
-    print(f"::warning::{skipped} UI tests skipped — demo server unreachable or not configured?")
+    print(f"::warning::{skipped} UI tests skipped: the demo server unreachable or not configured, or tests that leave the app on iPhone Duo")
 if total == 0:
     print("::error::zero UI tests ran — check the -only-testing filter"); sys.exit(1)
 ' || exit 1

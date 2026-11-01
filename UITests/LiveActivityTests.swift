@@ -8,6 +8,11 @@ import XCTest
 /// `LiveActivityIntent` that runs in the app. SpringBoard exposes the banner as
 /// `activity-content-view`, with the header, the elapsed time and Stop inside it.
 final class LiveActivityTests: UITestCase {
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        try skipIfAppCantBeLeft()
+    }
+
     /// Regression: #41 / #53 — Stop on the banner has to both file the record and take the banner
     /// away. An earlier build left it on screen for a timer that no longer existed.
     func testStopFromLiveActivityLogsAndEndsIt() {

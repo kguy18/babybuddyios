@@ -74,7 +74,7 @@ release notes can be written from the milestone:
   app-only locations, which is all the app itself needs. Only Home Screen widgets need signing.
 - Docs-only PRs (`*.md`, `Docs/`) skip the macOS job. Any other path builds.
 - The `duo` job runs the unit tests and the UI tests on an iPhone Duo simulator (iOS 27.1) on
-  GitHub's preview `xcode-27` image, in six shards of whole classes under its 30-minute cap, and
+  GitHub's preview `xcode-27` image, in seven shards of whole classes under its 30-minute cap, and
   prints the Xcode and Swift versions it used. It isn't required and `build-and-test` doesn't wait
   for it, because a preview image can queue for a long time; it starts once `build-and-test` is
   done, so it never holds a runner a required lane needs. A new UI test class goes in a shard of
@@ -111,7 +111,8 @@ release notes can be written from the milestone:
   `app.tabBars` or a navigation bar's buttons: on iPhone Duo the tabs and the main screen's bar
   buttons sit in a trailing rail (`UITestCase.hasRail`). Sheets keep their own navigation bar there.
   XCUITest can't unfold a Duo, so the open display's layouts are tested with `BB_FOLD=1`, which
-  forces them on any simulator (`FoldTests`).
+  forces them on any simulator (`FoldTests`). A test that leaves the app calls
+  `skipIfAppCantBeLeft()` first: the Duo simulator ignores the Home button.
 - The keyboard covers the tab bar, so a tab tap with it up lands on a key: type `\n` first. An
   active search also hides the Timeline toolbar until its "Close" button ends it.
 - Notifications and Live Activities live outside the app, in SpringBoard: `UITestCase` has

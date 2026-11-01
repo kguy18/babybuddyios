@@ -80,7 +80,8 @@ final class NotificationTests: UITestCase {
     /// Regression: #116 — a tapped alert routed into the app off the main actor, and the app
     /// crashed on its way back from the background. Fixed in #118. The tap shows the timer without
     /// stopping it: only Stop stops a timer (#146).
-    func testForgottenTimerAlertTapShowsTheRunningTimer() {
+    func testForgottenTimerAlertTapShowsTheRunningTimer() throws {
+        try skipIfAppCantBeLeft()
         launch(["BB_TIMER_ALERT_SECONDS": "25"])
         allowNotificationsIfAsked() // the hook turns the alerts on, so the reset install asks
 
@@ -106,7 +107,8 @@ final class NotificationTests: UITestCase {
     }
 
     /// A tapped medication reminder logs the next dose, pre-filled from the last one (#118).
-    func testMedicationReminderTapOpensPrefilledDose() {
+    func testMedicationReminderTapOpensPrefilledDose() throws {
+        try skipIfAppCantBeLeft()
         launch(["BB_DOSE_ALERT_SECONDS": "25"])
         allowNotificationsIfAsked()
 

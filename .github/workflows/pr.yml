@@ -168,7 +168,7 @@ jobs:
           - shard: timeline
             classes: TimelineTests DialogTests SyncTests ReassignChildTests
           - shard: settings
-            classes: NotificationTests SettingsTests FeedbackTests DashboardTests
+            classes: NotificationTests SettingsTests FeedbackTests FeedbackAccountTests DashboardTests
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/ios-setup
@@ -239,9 +239,11 @@ jobs:
   #
   # The UI tests run on the Duo's front display, where the tabs and the main screen's bar buttons
   # sit in a trailing rail (`UITestCase.hasRail`). XCUITest can't unfold it, so FoldTests reach
-  # the open display's layouts through `BB_FOLD` instead. Six shards, because the whole suite in
-  # one job ran past 85 minutes; the unit tests ride along with the shortest one. The lane waits
-  # for `build-and-test` so its six jobs don't hold the macOS runners the required lanes need.
+  # the open display's layouts through `BB_FOLD` instead. Tests that leave the app skip there: the
+  # Duo simulator ignores the Home button. Seven shards, because a shard of 14 tests ran 13
+  # minutes after a 7-minute build, and the whole suite in one job ran past 85; the unit tests
+  # ride along with the timeline shard. The lane waits for `build-and-test` so its jobs don't
+  # hold the macOS runners the required lanes need.
   duo:
     name: duo (${{ matrix.shard }})
     needs: [changes, build-and-test]
@@ -254,8 +256,10 @@ jobs:
         include:
           - shard: feedback
             classes: FeedbackTests
+          - shard: account
+            classes: FeedbackAccountTests TodayTilesTests
           - shard: logging
-            classes: LoggingTests TodayTilesTests
+            classes: LoggingTests
           - shard: settings
             classes: SettingsTests NotificationTests DashboardTests
           - shard: dialogs
