@@ -29,4 +29,14 @@ final class ActivityForecastUITests: UITestCase {
         launch()
         XCTAssertFalse(app.staticTexts["What's next"].exists)
     }
+
+    func testEstimateRemainsOnHomeAfterOpeningTheDayTimeline() {
+        launch(["BB_SEED_FORECAST": "1"])
+        expect(app.staticTexts["What's next"])
+        tap(app.descendants(matching: .any)["today-feeding"])
+        let timeline = expect(app.navigationBars["Feeding · Today"])
+        tap(timeline.buttons.firstMatch)
+        expect(app.staticTexts["What's next"])
+        expect(app.staticTexts["Similar intervals"].firstMatch)
+    }
 }
