@@ -151,5 +151,8 @@ if skipped:
     print(f"::warning::{skipped} UI tests skipped: the demo server unreachable or not configured, tests that leave the app on iPhone Duo, or FoldTests off the open display")
 if total == 0:
     print("::error::zero UI tests ran — check the -only-testing filter"); sys.exit(1)
-' || exit 1
+# On the open display nothing should skip: a skip there means a test misread the display.
+if skipped and sys.argv[1]:
+    print("::error::UI tests skipped on the open display"); sys.exit(1)
+' "$DUO_OPEN" || exit 1
 exit $STATUS
