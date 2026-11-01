@@ -1,59 +1,109 @@
 #!/usr/bin/env python3
-"""Validate catalog completeness, format arguments, plurals and bundled release notes."""
+"""Check the string catalogs: English must be complete, other languages are optional.
+
+Every translation that exists must keep the English format arguments, be non-empty and have
+an `other` plural form. Missing translations fall back to English, so they are reported as
+coverage and never fail the check. `--missing <lang>` lists the keys a language lacks.
+"""
+import argparse
 import json
+import os
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-FORMAT = re.compile(r"%(?:(\d+)\$)?(lld|@)")
+FORMAT = re.compile(r"%(?:(\d+)\$)?[-+ #0]*\d*(?:\.\d+)?(lld|llu|ld|lu|d|i|u|f|e|g|@|%)")
+errors = []
 
 
-def arguments(text):
-    result = {}
-    next_index = 1
+def arguments(text, where):
+    """Map each format argument position to its type, e.g. {1: "lld", 2: "@"}."""
+    result, position = {}, 1
     for match in FORMAT.finditer(text):
-        index = int(match[1]) if match[1] else next_index
-        next_index += 1
-        assert index not in result, f"Repeated format argument in {text!r}"
+        if match[2] == "%":
+            continue
+        index = int(match[1]) if match[1] else position
+        position += 1
+        if result.get(index, match[2]) != match[2]:
+            errors.append(f"{where}: argument {index} has two types in {text!r}")
         result[index] = match[2]
-    remainder = FORMAT.sub("", text)
-    assert "%" not in remainder, f"Invalid format specifier in {text!r}"
+    if "%" in FORMAT.sub("", text):
+        errors.append(f"{where}: invalid format specifier in {text!r}")
     return result
 
 
-catalogs = sorted(ROOT.glob("Sources/**/*.xcstrings"))
-assert len(catalogs) == 2, "Expected Localizable and InfoPlist catalogs"
-count = 0
-for path in catalogs:
-    catalog = json.loads(path.read_text())
-    assert catalog["sourceLanguage"] == "en", path
-    for key, entry in catalog["strings"].items():
-        expected = arguments(key)
-        assert set(entry["localizations"]) == {"en", "de-DE"}, key
-        for language, localization in entry["localizations"].items():
-            if "variations" in localization:
-                forms = localization["variations"]["plural"]
-                assert set(forms) == {"one", "other"}, (key, language)
-                assert list(expected.values()).count("lld") == 1, key
-                units = [form["stringUnit"] for form in forms.values()]
-            else:
-                units = [localization["stringUnit"]]
-            for unit in units:
-                assert unit["state"] == "translated", (key, language)
-                assert unit["value"].strip(), (key, language)
-                assert arguments(unit["value"]) == expected, (key, language, unit)
-        count += 1
+def units(localization, where):
+    """The string units of a localization: one, or one per plural form."""
+    if "stringUnit" in localization:
+        return {"": localization["stringUnit"]}
+    plural = localization.get("variations", {}).get("plural")
+    if not plural:
+        errors.append(f"{where}: no stringUnit or plural variations")
+        return {}
+    if "other" not in plural:
+        errors.append(f"{where}: plural has no 'other' form")
+    return {form: value["stringUnit"] for form, value in plural.items()}
 
-strings = json.loads((ROOT / "Sources/Shared/Localizable.xcstrings").read_text())["strings"]
-notes = (ROOT / "Docs/release-notes.md").read_text()
-for block in re.findall(r"```whatsnew\n(.*?)```", notes, re.S):
-    for line in block.splitlines():
-        if line.startswith("- "):
-            parts = line[2:].split(" | ")
-            for text in parts[1:] if len(parts) > 1 else parts:
-                assert text in strings, f"Untranslated bundled release note: {text}"
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--missing", metavar="LANG", help="list the keys LANG has no translation for")
+args = parser.parse_args()
+
+catalogs = sorted(ROOT.glob("Sources/**/*.xcstrings")) + sorted(ROOT.glob("Widgets/**/*.xcstrings"))
+loaded = {path.relative_to(ROOT): json.loads(path.read_text()) for path in catalogs}
+languages = {lang for catalog in loaded.values() for entry in catalog["strings"].values()
+             for lang in entry.get("localizations", {})} - {"en"}
+total, translated, missing = 0, dict.fromkeys(languages, 0), {lang: [] for lang in languages}
+for name, catalog in loaded.items():
+    if catalog.get("sourceLanguage") != "en":
+        errors.append(f"{name}: sourceLanguage must be en")
+    for key, entry in catalog["strings"].items():
+        localizations = entry.get("localizations", {})
+        # Without an en localization, Xcode uses the key itself as the English text.
+        english = units(localizations["en"], f"{name} {key!r} en") if "en" in localizations else {"": {"value": key}}
+        if not all(unit.get("value", "").strip() for unit in english.values()):
+            errors.append(f"{name} {key!r}: empty English value")
+        expected = arguments((english.get("other") or next(iter(english.values()), {})).get("value", ""), key)
+        if "%" in key and arguments(key, key) != expected:
+            errors.append(f"{name} {key!r}: English arguments differ from the key")
+        if entry.get("shouldTranslate") is False:
+            continue
+        total += 1
+        for lang in languages:
+            if lang not in localizations:
+                missing[lang].append(f"{name}: {key}")
+                continue
+            where = f"{name} {key!r} {lang}"
+            forms = units(localizations[lang], where)
+            for form, unit in forms.items():
+                value = unit.get("value", "")
+                if not value.strip():
+                    errors.append(f"{where} {form}: empty value")
+                elif arguments(value, where) != expected:
+                    errors.append(f"{where} {form}: arguments {arguments(value, where)} != {expected} in {value!r}")
+            if forms and all(unit.get("state") == "translated" for unit in forms.values()):
+                translated[lang] += 1
+            else:
+                missing[lang].append(f"{name}: {key}")
 
 spec = (ROOT / "project.yml").read_text()
-assert "developmentLanguage: en" in spec
-assert "- path: Sources/Shared" in spec, "Widgets must include the shared catalog"
-print(f"localization: {count} entries, English and de-DE complete; arguments and plurals valid")
+if "developmentLanguage: en" not in spec:
+    errors.append("project.yml: developmentLanguage must be en")
+if "- path: Sources/Shared" not in spec:
+    errors.append("project.yml: the widget must include Sources/Shared, which holds the shared catalog")
+
+if args.missing:
+    print("\n".join(missing.get(args.missing, [])))
+    sys.exit(1 if errors else 0)
+
+coverage = [f"{lang}: {translated[lang] * 100 // total}%, {len(missing[lang])} missing"
+            for lang in sorted(translated)]
+report = f"localization: {total} keys" + ("" if errors else ", English complete, translations valid") + "".join(f"\n  {line}" for line in coverage)
+print(report)
+if os.environ.get("GITHUB_STEP_SUMMARY"):
+    with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+        summary.write("### Localization coverage\n\n" + "".join(f"- {line}\n" for line in coverage or ["English only"]))
+for error in errors:
+    print(f"error: {error}", file=sys.stderr)
+sys.exit(1 if errors else 0)

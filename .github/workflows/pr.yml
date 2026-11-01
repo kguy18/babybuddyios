@@ -337,7 +337,7 @@ jobs:
         run: node --test scripts/*.test.mjs
       - name: Every release has valid notes
         run: node scripts/release.mjs validate
-      - name: Localization catalogs are complete
+      - name: Localization catalogs are valid (English complete, other languages optional)
         run: python3 scripts/check-localization.py
 
   attribution:
