@@ -4,7 +4,7 @@ final class GermanLocalizationTests: UITestCase {
     func testGermanOnboarding() {
         launch(demo: false, language: "de", locale: "de_DE")
         expect(app.staticTexts["Mit deinem eigenen Server verbinden"])
-        expect(app.buttons["QR-Code scannen"])
+        expect(app.buttons.labeled("QR-Code scannen"))
         expect(app.textFields["URL oder IP-Adresse deines Servers"])
         expect(app.secureTextFields["API-Token einfügen"])
     }
@@ -15,10 +15,14 @@ final class GermanLocalizationTests: UITestCase {
         expect(app.staticTexts["Methode"])
         expect(app.buttons["Speichern"])
         tap(app.buttons["Abbrechen"])
-        for title in ["Verlauf", "Statistiken", "Einstellungen", "Übersicht"] {
+        tap(app.buttons["Hinzufügen"])
+        expect(app.buttons["Timer starten"])
+        tap(app.buttons["Schließen"])
+        // Coming back to Home would reopen the BB_OPEN editor, so the test ends on another tab.
+        for title in ["Verlauf", "Statistiken", "Einstellungen"] {
             tap(app.tabBars.buttons[title])
         }
-        expect(app.buttons.labeled("Timer starten"))
+        expect(app.tabBars.buttons["Übersicht"])
     }
 
     func testGermanDayTimelineCanStillOpenItsActivityEditor() {
