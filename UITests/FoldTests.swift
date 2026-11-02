@@ -33,6 +33,22 @@ final class FoldTests: UITestCase {
         XCTAssertEqual(rows.count, 1, "Delete should remove the repeated feeding")
     }
 
+    /// The support nudge comes up at the bottom of the pane right of the fold rather than as a card
+    /// centred across it, and still takes no for an answer.
+    func testSupportNudgeSitsRightOfTheFold() {
+        launch(["BB_NUDGE": "gentle", "BB_FOLD": "1"])
+        let support = expect(app.buttons["Become a Supporter"])
+        let later = expect(app.buttons["Maybe later"])
+        let window = app.windows.firstMatch.frame
+        // Right of the middle: with no fold reported, as on a phone, the fold is the middle 40 pt.
+        XCTAssertGreaterThan(support.frame.minX, window.midX, "The nudge should sit right of the fold")
+        XCTAssertGreaterThan(later.frame.minX, window.midX, "The nudge should sit right of the fold")
+        // The bottom quarter: a centred card on the open display ends well above it.
+        XCTAssertGreaterThan(later.frame.maxY, window.minY + window.height * 0.75, "The nudge should sit at the bottom")
+        tap(later)
+        expectGone(later)
+    }
+
     /// Each sheet takes two columns, or for Add Activity one row of six per group.
     func testSheetsUseTwoColumns() {
         launch(["BB_FOLD": "1"])
