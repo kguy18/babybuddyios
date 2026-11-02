@@ -2,6 +2,20 @@ import XCTest
 
 /// Home's day summary and where it leads.
 final class DashboardTests: UITestCase {
+    func testLatestExplainsSessionEndWhileTimelineRetainsItsStartTime() {
+        launch()
+        // On an open display, Home also contains start-based rows in its Today pane.
+        let sleep = expect(elements("label BEGINSWITH 'Sleep, ' AND label CONTAINS 'Woke'").firstMatch)
+        expect(elements("label BEGINSWITH 'Feeding, ' AND label CONTAINS 'Feeding finished'").firstMatch)
+        tap(sleep)
+        expect(app.navigationBars["Timeline"])
+        let rows = elements("label BEGINSWITH 'Sleep, '")
+        XCTAssertGreaterThan(rows.count, 0)
+        for row in rows.allElementsBoundByIndex {
+            XCTAssertFalse(row.label.contains("Woke"), "Timeline rows retain their original start-time meaning")
+        }
+    }
+
     /// A TODAY tile opens that kind's day (#24), whose own "+" logs into it (#40) — and the status
     /// widget's tile link lands on the same screen (#45).
     func testTodayTileDrillDown() {

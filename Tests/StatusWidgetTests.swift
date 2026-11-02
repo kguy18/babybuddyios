@@ -114,3 +114,70 @@ final class StatusWidgetTests: XCTestCase {
         XCTAssertEqual(status.sleep.todayCount, 0)
     }
 }
+
+@MainActor
+final class CompletedActivityStatusTests: XCTestCase {
+    private func entity(_ kind: EntityKind, child: Int = 1, start: Date, end: Date? = nil) -> LocalEntity {
+        var payload: [String: Any] = ["child": child, kind.timeField: APIDate.isoDateTime.string(from: start)]
+        if let end { payload["end"] = APIDate.isoDateTime.string(from: end) }
+        return LocalEntity(kind: kind, serverID: nil, childID: child, timestamp: start,
+                           payload: try! JSONSerialization.data(withJSONObject: payload), syncState: .synced)
+    }
+
+    func testSleepUsesWakeTimeAndFeedingUsesFinishTime() {
+        let now = Date(), start = now.addingTimeInterval(-5400), end = now.addingTimeInterval(-1800)
+        let sleep = entity(.sleep, start: start, end: end), feed = entity(.feeding, start: start, end: end)
+        let payload = sleep.payload
+        let result = ChildStatus.compute(from: [sleep, feed], childID: 1, now: now)
+        XCTAssertEqual(result.sleep.last!.timeIntervalSince1970, end.timeIntervalSince1970, accuracy: 1)
+        XCTAssertEqual(result.feeding.last!.timeIntervalSince1970, end.timeIntervalSince1970, accuracy: 1)
+        XCTAssertEqual(result.sleep.timing?.basis, .woke)
+        XCTAssertEqual(result.feeding.timing?.basis, .feedEnded)
+        XCTAssertEqual(sleep.timestamp, start)
+        XCTAssertEqual(sleep.payload, payload)
+    }
+
+    func testLatestEndWinsEvenIfAnotherSessionStartedLater() {
+        let now = Date()
+        let long = entity(.sleep, start: now.addingTimeInterval(-7200), end: now.addingTimeInterval(-600))
+        let short = entity(.sleep, start: now.addingTimeInterval(-3600), end: now.addingTimeInterval(-1800))
+        XCTAssertEqual(ChildStatus.compute(from: [long, short], childID: 1, now: now).sleep.last!,
+                       long.startEndDates.end!)
+    }
+
+    func testOvernightSessionKeepsItsOriginalDayCountAndChildScope() {
+        let today = Calendar.current.startOfDay(for: Date()).addingTimeInterval(1800)
+        let start = today.addingTimeInterval(-7200), end = today.addingTimeInterval(-600)
+        let mine = entity(.sleep, start: start, end: end)
+        let other = entity(.sleep, child: 2, start: today.addingTimeInterval(-120), end: today)
+        let result = ChildStatus.compute(from: [mine, other], childID: 1, now: today)
+        XCTAssertEqual(result.sleep.last!, mine.startEndDates.end!)
+        XCTAssertEqual(result.sleep.todayCount, 0)
+    }
+
+    func testRunningSleepReplacesAwakeStatusAndStoppedDraftRemainsExplicit() {
+        let now = Date(), earlier = now.addingTimeInterval(-7200)
+        let sleep = entity(.sleep, start: earlier, end: earlier.addingTimeInterval(1800))
+        let timer = entity(.timer, start: now.addingTimeInterval(-1200))
+        timer.timerActivityRaw = EntityKind.sleep.rawValue
+        var result = ChildStatus.compute(from: [sleep, timer], childID: 1, now: now)
+        XCTAssertEqual(result.sleep.timing?.basis, .sleeping)
+        XCTAssertEqual(result.sleep.last!, timer.timestamp)
+        timer.stoppedAt = now.addingTimeInterval(-30)
+        timer.syncState = .pendingDelete
+        result = ChildStatus.compute(from: [sleep, timer], childID: 1, now: now)
+        XCTAssertEqual(result.sleep.timing?.basis, .sleepStopped)
+        XCTAssertEqual(result.sleep.last!, timer.stoppedAt!)
+        XCTAssertEqual(result.sleep.todayCount, 1)
+    }
+
+    func testInvalidEndAndDeletedRecordsDoNotClaimTheChildWoke() {
+        let now = Date(), start = now.addingTimeInterval(-600)
+        let invalid = entity(.sleep, start: start, end: start.addingTimeInterval(-30))
+        let deleted = entity(.sleep, start: start, end: now)
+        deleted.syncState = .pendingDelete
+        let result = ChildStatus.compute(from: [invalid, deleted], childID: 1, now: now)
+        XCTAssertEqual(result.sleep.timing?.basis, .sleepStarted)
+        XCTAssertEqual(result.sleep.last!, invalid.timestamp)
+    }
+}

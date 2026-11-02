@@ -780,7 +780,12 @@ struct DashboardView: View {
     }
 
     private func lastEvent(of kind: EntityKind) -> LocalEntity? {
-        childEntities.first { $0.kind == kind }
+        if kind == .feeding || kind == .sleep {
+            let now = Date.now
+            return childEntities.filter { $0.kind == kind }
+                .max { $0.activityRecency(now: now).date < $1.activityRecency(now: now).date }
+        }
+        return childEntities.first { $0.kind == kind }
     }
 
     private var latestEvents: [LocalEntity] {

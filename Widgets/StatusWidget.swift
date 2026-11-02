@@ -63,9 +63,11 @@ extension ChildStatus {
     static let sample = ChildStatus(
         hasChild: true, childName: "Ada",
         feeding: KindStatus(kind: .feeding, last: .now.addingTimeInterval(-2 * 3600),
-                            detail: "Formula · Bottle · 20m", todayCount: 4),
+                            detail: "Formula · Bottle · 20m", todayCount: 4,
+                            timing: ActivityRecency(date: .now.addingTimeInterval(-2 * 3600), basis: .feedEnded)),
         sleep: KindStatus(kind: .sleep, last: .now.addingTimeInterval(-45 * 60),
-                          detail: "1h 10m · Nap", todayCount: 3),
+                          detail: "1h 10m · Nap", todayCount: 3,
+                          timing: ActivityRecency(date: .now.addingTimeInterval(-45 * 60), basis: .woke)),
         change: KindStatus(kind: .change, last: .now.addingTimeInterval(-35 * 60),
                            detail: "Wet", todayCount: 6),
         runningTimer: nil)
@@ -140,7 +142,7 @@ struct StatusWidgetView: View {
         HStack(spacing: 8) {
             glyph(s, side: 24, icon: 12)
             VStack(alignment: .leading, spacing: 1) {
-                Text(s.shortLabel).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                Text(s.shortLabel).font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.65)
                 relative(s).font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
                     .lineLimit(1).minimumScaleFactor(0.7)
             }
@@ -213,9 +215,11 @@ struct StatusWidgetView: View {
                 .frame(width: 32, height: 32)
                 .background(tint, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             Spacer(minLength: 6)
-            Text(tileLabel(s.kind))
-                .font(.system(size: 12, weight: .semibold)).foregroundStyle(tint).lineLimit(1)
-            Text(lastAge(s))
+            Text(s.timing?.widgetLabel ?? tileLabel(s.kind))
+                .font(.system(size: 12, weight: .semibold)).foregroundStyle(tint).lineLimit(1).minimumScaleFactor(0.65)
+            Group {
+                if s.timing?.isRunning == true { relative(s) } else { Text(lastAge(s)) }
+            }
                 .font(.system(size: 18, weight: .semibold)).foregroundStyle(.primary)
                 .lineLimit(1).minimumScaleFactor(0.6)
             Text("\(s.todayCount) today")
@@ -267,7 +271,11 @@ struct StatusWidgetView: View {
     /// The kind's relative "last" time, self-updating via `Text(_, style: .relative)`, or "—".
     @ViewBuilder private func relative(_ s: KindStatus) -> some View {
         if let last = s.last {
-            Text(last, style: .relative)
+            if s.timing?.isRunning == true {
+                Text(last, style: .timer).frame(width: 62, alignment: .leading)
+            } else {
+                Text(last, style: .relative)
+            }
         } else {
             Text("—")
         }
@@ -291,7 +299,7 @@ struct StatusWidgetView: View {
         let recent = mostRecent
         return Label {
             if let recent, let last = recent.last {
-                Text("\(recent.shortLabel) ") + Text(last, style: .relative)
+                Text("\(recent.shortLabel) ") + Text(last, style: recent.timing?.isRunning == true ? .timer : .relative)
             } else {
                 Text("No activity yet")
             }
@@ -307,8 +315,9 @@ struct StatusWidgetView: View {
             VStack(spacing: 1) {
                 Image(systemName: EntityKind.feeding.systemImage)
                     .font(.system(size: 13, weight: .semibold))
+                Text(feeding.shortLabel).font(.system(size: 8)).lineLimit(1).minimumScaleFactor(0.6)
                 if let last = feeding.last {
-                    Text(last, style: .relative)
+                    Text(last, style: feeding.timing?.isRunning == true ? .timer : .relative)
                         .font(.system(size: 10, weight: .medium))
                         .monospacedDigit()
                         .minimumScaleFactor(0.5).lineLimit(1)
@@ -329,8 +338,10 @@ struct StatusWidgetView: View {
                         .font(.system(size: 11, weight: .semibold))
                         .widgetAccentable()
                         .frame(width: 14)
+                    Text(kind.shortLabel).font(.system(size: 9)).lineLimit(1).minimumScaleFactor(0.6)
                     if let last = kind.last {
-                        Text(last, style: .relative).font(.system(size: 12)).monospacedDigit()
+                        Text(last, style: kind.timing?.isRunning == true ? .timer : .relative)
+                            .font(.system(size: 12)).monospacedDigit().frame(width: 62, alignment: .leading)
                     } else {
                         Text("—").font(.system(size: 12))
                     }
