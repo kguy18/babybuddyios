@@ -54,6 +54,41 @@ final class LocalizationTests: XCTestCase {
                        "Ada: Seit der letzten Gabe um 12:30 sind 4 Std. vergangen.")
     }
 
+    func testBrazilianPortugueseResourcesAreBundledAndSelectedBySystemPreferences() throws {
+        XCTAssertTrue(Bundle.main.localizations.contains("pt-BR"))
+        XCTAssertEqual(Bundle.preferredLocalizations(from: Bundle.main.localizations,
+                                                     forPreferences: ["pt-BR", "en"]).first, "pt-BR")
+        let portuguese = try bundle("pt-BR")
+        XCTAssertEqual(String(localized: "Settings", bundle: portuguese), "Ajustes")
+        XCTAssertEqual(String(localized: "Bottle", bundle: portuguese), "Mamadeira")
+        XCTAssertEqual(String(localized: "feeding.type.solid.short", defaultValue: "Solid", bundle: portuguese),
+                       "Sólidos")
+        XCTAssertEqual(String(localized: "Wet + Solid", bundle: portuguese), "Xixi + cocô")
+        XCTAssertEqual(String(localized: "Active timer", bundle: portuguese), "Cronômetro ativo")
+    }
+
+    func testBrazilianPortuguesePluralForms() throws {
+        let portuguese = try bundle("pt-BR")
+        for (count, pt) in [(1, "1 campo"), (2, "2 campos")] {
+            XCTAssertEqual(String(localized: "\(count) fields", bundle: portuguese,
+                                  locale: Locale(identifier: "pt_BR")), pt)
+        }
+    }
+
+    func testBrazilianPortuguesePlaceholdersCanChangeOrder() throws {
+        let portuguese = try bundle("pt-BR")
+        let duration = "4 h", childName = "Ada", time = "12:30"
+        XCTAssertEqual(String(localized: "\(duration) since \(childName)'s last dose at \(time).",
+                              bundle: portuguese, locale: Locale(identifier: "pt_BR")),
+                       "Ada: 4 h desde a última dose, às 12:30.")
+    }
+
+    func testBrazilianPortuguesePermissionPromptsAreLocalized() throws {
+        let portuguese = try bundle("pt-BR")
+        let message = portuguese.localizedString(forKey: "NSCameraUsageDescription", value: nil, table: "InfoPlist")
+        XCTAssertTrue(message.contains("QR code de login"))
+    }
+
     func testEnglishFallbackAndMissingTranslations() throws {
         XCTAssertEqual(Bundle.main.developmentLocalization, "en")
         XCTAssertEqual(String(localized: "Settings", bundle: try bundle("en")), "Settings")
