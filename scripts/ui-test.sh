@@ -74,12 +74,19 @@ set +e
 # App Group entitlement, which is all an in-app UI test touches.
 # Time allowances so a hung test fails itself rather than the run: a demo test takes ~30 s, and a
 # server one ~2 min (it signs in, then waits on the app's own sync).
-xcodebuild -project BabyBuddy.xcodeproj -scheme BabyBuddyUITests -destination "id=$UDID" \
+# UI_TEST_XCTESTRUN runs tests already built with `build-for-testing` instead of building them, as
+# CI's iPhone Duo shards do with the one build they share.
+if [ -n "${UI_TEST_XCTESTRUN:-}" ]; then
+  BUILD=(-xctestrun "$UI_TEST_XCTESTRUN" test-without-building)
+else
+  BUILD=(-project BabyBuddy.xcodeproj -scheme BabyBuddyUITests test)
+fi
+xcodebuild "${BUILD[@]}" -destination "id=$UDID" \
   -resultBundlePath "$RESULT" \
   -test-timeouts-enabled YES \
   -default-test-execution-time-allowance 240 \
   -maximum-test-execution-time-allowance 300 \
-  test CODE_SIGNING_ALLOWED=NO -quiet "${LANE[@]}" "$@"
+  CODE_SIGNING_ALLOWED=NO -quiet "${LANE[@]}" "$@"
 STATUS=$?
 set -e
 
@@ -92,10 +99,11 @@ total, passed, failed, skipped = s["totalTestCount"], s["passedTests"], s["faile
 print(f"UI tests: {passed} passed, {failed} failed, {skipped} skipped (of {total})")
 for t in s.get("testFailures", []):
     print("  FAIL {}: {}".format(t.get("testName"), t.get("failureText")))
-# A skip is how the server lane reports an unreachable server: green, but with coverage missing, so
-# it has to be visible on the run rather than buried in this line.
+# A skip is how the server lane reports an unreachable server, and how a test that leaves the app
+# sits out on iPhone Duo: green, but with coverage missing, so it has to be visible on the run
+# rather than buried in this line.
 if skipped:
-    print(f"::warning::{skipped} UI tests skipped — demo server unreachable or not configured?")
+    print(f"::warning::{skipped} UI tests skipped: the demo server unreachable or not configured, or tests that leave the app on iPhone Duo")
 if total == 0:
     print("::error::zero UI tests ran — check the -only-testing filter"); sys.exit(1)
 ' || exit 1

@@ -29,7 +29,7 @@ final class ServerTests: ServerTestCase {
         syncAndSearch(for: marker)
         expect(element(labeled: "Note, \(marker)"))
 
-        tap(app.tabBars.buttons["Settings"])
+        tap(tab("Settings"))
         tap(app.buttons["Sign out"])
         tap(app.alerts.labeled("Sign out of ").buttons["Sign out"])
         expect(app.staticTexts["Connect to your self-hosted server"])
@@ -108,7 +108,7 @@ final class ServerTests: ServerTestCase {
         let end = try XCTUnwrap((logged?["end"] as? String).flatMap(Date.fromAPI))
         XCTAssertLessThan(end.timeIntervalSince(stopTapped), 10, "The sleep should end at Stop, not at Log")
 
-        tap(app.tabBars.buttons["Settings"])
+        tap(tab("Settings"))
         expect(app.staticTexts["All clear"])
     }
 
@@ -175,7 +175,7 @@ final class ServerTests: ServerTestCase {
         tap(app.buttons["Sleep"])
         tap(app.buttons["Log sleep"])
 
-        tap(app.tabBars.buttons["Settings"])
+        tap(tab("Settings"))
         tap(app.buttons.labeled("Pending changes"), timeout: 40)
         expect(app.navigationBars["Pending Changes"])
         expect(app.buttons["Create without timer"], timeout: 40)
@@ -213,7 +213,7 @@ final class ServerTests: ServerTestCase {
         replaceText(app.textFields.withValue(marker), with: "\(marker) from this device")
         tap(app.navigationBars["Edit Feeding"].buttons["Save"])
 
-        tap(app.tabBars.buttons["Settings"])
+        tap(tab("Settings"))
         tap(app.buttons.labeled("Conflicts"), timeout: 40) // the row is only a button while one waits
         expect(app.navigationBars["Conflicts"])
         tap(app.buttons.labeled("Feeding"))
@@ -254,7 +254,7 @@ final class ServerTests: ServerTestCase {
         expect(elements("label BEGINSWITH 'Sleep, ' AND label CONTAINS 'sync needs attention'").firstMatch,
                timeout: 40)
 
-        tap(app.tabBars.buttons["Settings"])
+        tap(tab("Settings"))
         tap(app.buttons.labeled("Pending changes"))
         expect(app.navigationBars["Pending Changes"])
         let reason = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'intersects'")).firstMatch

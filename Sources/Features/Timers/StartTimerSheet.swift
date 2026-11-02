@@ -18,6 +18,7 @@ struct StartTimerSheet: View {
     /// Minutes before the Start tap (0 = now); `nil` once a start is picked, which `customStart` holds.
     @State private var minutesBack: Int? = 0
     @State private var customStart = Date.now
+    @State private var wide = false
 
     /// The convertible activities a timer can become — same set as the dashboard's convert menu.
     private let activities: [EntityKind] = [.feeding, .sleep, .tummyTime, .pumping]
@@ -27,7 +28,8 @@ struct StartTimerSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+                // On iPhone Duo's open display: the activities left, the details and Start right.
+                SheetColumns(wide: wide) {
                     SectionHeader(String(localized: "Activity"))
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(activities) { kind in
@@ -36,20 +38,31 @@ struct StartTimerSheet: View {
                             }
                         }
                     }
+                } trailing: {
                     detailsCard
                     Text("The timer counts up from its start until you stop it.")
                         .font(.caption).foregroundStyle(.secondary)
+                    if wide { startButtons }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
             }
+            .trackingWide($wide)
             .background(BBColor.surface)
             .navigationTitle("Start Timer")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
-            .safeAreaInset(edge: .bottom) { startBar }
+            .safeAreaInset(edge: .bottom) {
+                if !wide {
+                    startButtons
+                        .padding(.horizontal, 16)
+                        .padding(.top, 10)
+                        .padding(.bottom, 6)
+                        .background(BBColor.surface)
+                }
+            }
         }
     }
 
@@ -91,7 +104,7 @@ struct StartTimerSheet: View {
 
     // MARK: Start actions
 
-    private var startBar: some View {
+    private var startButtons: some View {
         VStack(spacing: 6) {
             Button { start(kind: selected) } label: { Text(startTitle) }
                 .buttonStyle(startStyle)
@@ -105,10 +118,6 @@ struct StartTimerSheet: View {
                     .padding(.vertical, 4)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 6)
-        .background(BBColor.surface)
     }
 
     private var startTitle: String {

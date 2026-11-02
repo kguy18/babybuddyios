@@ -7492,6 +7492,23 @@
         }
       }
     },
+    "No activity open": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No activity open"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Aktivität geöffnet"
+          }
+        }
+      }
+    },
     "No activity yet": {
       "extractionState": "manual",
       "localizations": {
@@ -11262,6 +11279,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tippe auf eine Zeile, um eine gefilterte Ansicht im Verlauf zu öffnen."
+          }
+        }
+      }
+    },
+    "Tap an activity on the left to edit it here.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap an activity on the left to edit it here."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tippe links auf eine Aktivität, um sie hier zu bearbeiten."
           }
         }
       }
