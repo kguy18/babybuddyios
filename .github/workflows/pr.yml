@@ -36,24 +36,30 @@ jobs:
             echo "code=false" >> "$GITHUB_OUTPUT"; echo "docs-only PR: skipping the macOS build"
           fi
       # Sharding the UI suite means a class nobody assigned to a shard simply never runs, and a
-      # green tick is exactly what that looks like. This is the guard: the shards have to name
-      # every test class in UITests/, and only classes that exist.
+      # green tick is exactly what that looks like. This is the guard: each sharded job (ui, duo)
+      # has to name every test class in UITests/, and only classes that exist.
       - name: Every UI test class belongs to a shard
         run: |
           python3 - <<'PY'
           import pathlib, re, sys
           workflow = pathlib.Path(".github/workflows/pr.yml").read_text()
-          sharded = {c for line in re.findall(r"^\s*classes:\s*(.+)$", workflow, re.M)
-                       for c in line.split()}
           # One class per file, named after it (UITestCase is the base class, and has no tests).
           onDisk = {p.stem for p in pathlib.Path("UITests").glob("*.swift")
                     if "func test" in p.read_text()}
-          for what, names in (("never run", onDisk - sharded), ("do not exist", sharded - onDisk)):
-              if names:
-                  print(f"::error::UI test classes that {what}: {', '.join(sorted(names))}")
-          if sharded != onDisk:
-              sys.exit(1)
-          print(f"{len(onDisk)} UI test classes, all sharded")
+          failed = False
+          # Split the file at each job (two-space indent) and check the jobs that list classes.
+          for job in re.split(r"^  (?=[a-z-]+:$)", workflow, flags=re.M)[1:]:
+              sharded = {c for line in re.findall(r"^\s*classes:\s*(.+)$", job, re.M) for c in line.split()}
+              if not sharded:
+                  continue
+              name = job.split(":", 1)[0]
+              for what, names in (("never run", onDisk - sharded), ("do not exist", sharded - onDisk)):
+                  if names:
+                      failed = True
+                      print(f"::error::{name}: UI test classes that {what}: {', '.join(sorted(names))}")
+              if sharded == onDisk:
+                  print(f"{name}: {len(onDisk)} UI test classes, all sharded")
+          sys.exit(1 if failed else 0)
           PY
 
   # The three macOS lanes below used to be one job that ran them in sequence, which took ~53
@@ -158,11 +164,11 @@ jobs:
           - shard: logging
             classes: LoggingTests SickModeTests TodayTilesTests
           - shard: timers
-            classes: LiveActivityTests SmokeTests TimerTests
+            classes: LiveActivityTests SmokeTests TimerTests FoldTests
           - shard: timeline
             classes: TimelineTests DialogTests SyncTests ReassignChildTests
           - shard: settings
-            classes: NotificationTests SettingsTests DashboardTests
+            classes: NotificationTests SettingsTests FeedbackTests FeedbackAccountTests DashboardTests
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/ios-setup
@@ -229,14 +235,21 @@ jobs:
 
   # The iPhone Duo lane, on GitHub's preview `xcode-27` image (Xcode 27.1 by default, with an
   # iPhone Duo simulator on iOS 27.1). A preview image can queue, so `build-and-test` does not
-  # need this job and the ruleset does not require it: a red run here is a signal, not a block.
+  # need these jobs and the ruleset does not require them: a red run here is a signal, not a block.
+  # They wait for `build-and-test` so they don't hold the macOS runners the required lanes need.
   #
-  # Unit tests only for now. The UI tests are off on the Duo until UITestCase learns its rail:
-  # there the tabs aren't tab-bar buttons, so most UI tests can't find them (#217).
-  duo:
-    name: duo
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
+  # The UI tests run on the Duo's front display, where the tabs and the main screen's bar buttons
+  # sit in a trailing rail (`UITestCase.hasRail`). XCUITest can't unfold it, so FoldTests reach
+  # the open display's layouts through `BB_FOLD` instead. Tests that leave the app skip there: the
+  # Duo simulator ignores the Home button.
+  #
+  # Building takes this image about 12 minutes, so `duo (build)` builds the UI tests once and the
+  # seven shards run that build. With a build each, the shards ran 28 minutes against the 30-minute
+  # cap, and the whole suite in one job ran past 85.
+  duo-unit:
+    name: duo (unit)
+    needs: [changes, build-and-test]
+    if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
     runs-on: xcode-27
     timeout-minutes: 30
     steps:
@@ -246,7 +259,8 @@ jobs:
           xcodebuild -version
           swift --version
       - uses: ./.github/actions/ios-setup
-      # Clone the image's iPhone Duo (device type and runtime) into a device of our own name.
+      # Clone the image's iPhone Duo (device type and runtime) into a device of our own name, which
+      # scripts/ui-test.sh then erases and boots in place of its iPhone 17 Pro.
       - name: Pick an iPhone Duo simulator
         id: sim
         run: |
@@ -272,7 +286,7 @@ jobs:
           ')
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
           xcrun simctl list devices | grep "$UDID"
-      - name: Build and test
+      - name: Unit tests
         id: unit
         run: |
           xcodebuild -project BabyBuddy.xcodeproj -scheme BabyBuddy \
@@ -284,8 +298,115 @@ jobs:
         if: ${{ !cancelled() && steps.unit.outcome == 'failure' }}
         uses: actions/upload-artifact@v4
         with:
-          name: Duo.xcresult
+          name: Duo-unit.xcresult
           path: build/Tests.xcresult
+          retention-days: 7
+
+  duo-build:
+    name: duo (build)
+    needs: [changes, build-and-test]
+    if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+      - uses: ./.github/actions/ios-setup
+      - name: Build the UI tests
+        run: |
+          xcodebuild -project BabyBuddy.xcodeproj -scheme BabyBuddyUITests \
+            -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath build/DerivedData \
+            -clonedSourcePackagesDirPath build/SourcePackages \
+            build-for-testing CODE_SIGNING_ALLOWED=NO -quiet
+          tar -C build/DerivedData/Build -czf build/duo-products.tgz Products
+          ls -lh build/duo-products.tgz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: duo-products
+          path: build/duo-products.tgz
+          retention-days: 1
+
+  duo:
+    name: duo (${{ matrix.shard }})
+    needs: [changes, duo-build]
+    if: ${{ !cancelled() && needs.duo-build.result == 'success' }}
+    runs-on: xcode-27
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: feedback
+            classes: FeedbackTests
+          - shard: account
+            classes: FeedbackAccountTests TodayTilesTests
+          - shard: logging
+            classes: LoggingTests
+          - shard: settings
+            classes: SettingsTests NotificationTests DashboardTests
+          - shard: dialogs
+            classes: DialogTests SyncTests ReassignChildTests
+          - shard: timers
+            classes: TimerTests LiveActivityTests SmokeTests
+          - shard: timeline
+            classes: TimelineTests SickModeTests FoldTests
+    steps:
+      - uses: actions/checkout@v4
+      # Clone the image's iPhone Duo (device type and runtime) into a device of our own name, which
+      # scripts/ui-test.sh then erases and boots in place of its iPhone 17 Pro.
+      - name: Pick an iPhone Duo simulator
+        id: sim
+        run: |
+          UDID=$(python3 -c '
+          import json, subprocess, sys
+          NAME = "BabyBuddy UI Tests Duo"
+          devs = json.loads(subprocess.check_output(
+              ["xcrun", "simctl", "list", "devices", "available", "--json"]))["devices"]
+          for rt, ds in sorted(devs.items(), reverse=True):
+              if "iOS-27" not in rt: continue
+              for d in ds:
+                  if d["name"] == NAME:
+                      print(d["udid"]); sys.exit()
+          for rt, ds in sorted(devs.items(), reverse=True):
+              if "iOS-27" not in rt: continue
+              for d in ds:
+                  if d["name"].startswith("iPhone Duo"):
+                      print(subprocess.check_output(
+                          ["xcrun", "simctl", "create", NAME, d["deviceTypeIdentifier"], rt],
+                          text=True).strip())
+                      sys.exit()
+          sys.exit("no iPhone Duo simulator on an iOS 27 runtime")
+          ')
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          xcrun simctl list devices | grep "$UDID"
+      - uses: actions/download-artifact@v4
+        with:
+          name: duo-products
+          path: build
+      # One retry per test, as in the ui lane.
+      - name: UI tests
+        id: ui
+        env:
+          UI_TEST_DEVICE: BabyBuddy UI Tests Duo
+        run: |
+          mkdir -p build/DerivedData/Build
+          tar -C build/DerivedData/Build -xzf build/duo-products.tgz
+          export UI_TEST_XCTESTRUN=$(ls build/DerivedData/Build/Products/*.xctestrun | head -1)
+          ONLY=""
+          for CLASS in ${{ matrix.classes }}; do
+            ONLY="$ONLY -only-testing:BabyBuddyUITests/$CLASS"
+          done
+          scripts/ui-test.sh -retry-tests-on-failure -test-iterations 2 $ONLY
+      - name: Upload the result bundle
+        if: ${{ !cancelled() && steps.ui.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Duo-${{ matrix.shard }}.xcresult
+          path: build/UITests.xcresult
           retention-days: 7
 
   # The ruleset on main requires a check called `build-and-test`, which used to be the single macOS

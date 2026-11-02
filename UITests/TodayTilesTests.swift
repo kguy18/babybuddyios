@@ -12,15 +12,15 @@ final class TodayTilesTests: UITestCase {
         expect(tile("tummyTime"))
         XCTAssertFalse(tile("pumping").exists)
 
-        tap(app.tabBars.buttons["Settings"])
+        tap(tab("Settings"))
         tap(app.buttons.labeled("Today tiles, 4 on"))
-        let bar = expect(app.navigationBars["Today Tiles"])
+        expect(app.navigationBars["Today Tiles"])
         toggle(app.switches["Pumping"], to: "1")
         toggle(app.switches["Tummy time"], to: "0")
-        tap(bar.buttons.firstMatch) // back
+        back(from: "Today Tiles")
         expect(app.buttons.labeled("Today tiles, 4 on"))
 
-        tap(app.tabBars.buttons["Home"])
+        tap(tab("Home"))
         XCTAssertTrue(expect(tile("pumping")).label.hasPrefix("Pumping, "))
         XCTAssertFalse(tile("tummyTime").exists)
         expect(tile("feeding"))
@@ -30,13 +30,13 @@ final class TodayTilesTests: UITestCase {
     func testNoTilesHidesToday() {
         launch(["BB_START_TAB": "settings"])
         tap(app.buttons.labeled("Today tiles, 4 on"))
-        let bar = expect(app.navigationBars["Today Tiles"])
+        expect(app.navigationBars["Today Tiles"])
         for name in ["Feedings", "Sleep", "Diapers", "Tummy time"] {
             toggle(app.switches[name], to: "0")
         }
-        tap(bar.buttons.firstMatch)
+        back(from: "Today Tiles")
         expect(app.buttons.labeled("Today tiles, 0 on"))
-        tap(app.tabBars.buttons["Home"])
+        tap(tab("Home"))
         expect(app.staticTexts["LATEST"])
         XCTAssertFalse(app.staticTexts["TODAY"].exists)
         XCTAssertFalse(tile("feeding").exists)
