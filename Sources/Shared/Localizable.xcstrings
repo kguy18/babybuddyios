@@ -47,7 +47,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ %@° seit %@"
+            "value": "seit %3$@ um %2$@° %1$@"
           }
         }
       }
@@ -13442,6 +13442,23 @@
         }
       }
     },
+    "down": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "down"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "gesunken"
+          }
+        }
+      }
+    },
     "every %@": {
       "extractionState": "manual",
       "localizations": {
@@ -13506,6 +13523,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Beikost"
+          }
+        }
+      }
+    },
+    "from your server": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "from your server"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "von deinem Server"
           }
         }
       }
@@ -13833,6 +13867,23 @@
         }
       }
     },
+    "this phone only": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "this phone only"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "nur auf diesem Gerät"
+          }
+        }
+      }
+    },
     "this server": {
       "extractionState": "manual",
       "localizations": {
@@ -13952,6 +14003,23 @@
         }
       }
     },
+    "up": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "up"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "gestiegen"
+          }
+        }
+      }
+    },
     "waiting to sync": {
       "extractionState": "manual",
       "localizations": {
@@ -13982,6 +14050,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gewicht"
+          }
+        }
+      }
+    },
+    "yesterday": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "yesterday"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "gestern"
           }
         }
       }
