@@ -89,6 +89,15 @@ final class LocalizationTests: XCTestCase {
         XCTAssertTrue(message.contains("QR code de login"))
     }
 
+    func testSickModeFragmentsAreTranslated() throws {
+        let german = try bundle("de"), portuguese = try bundle("pt-BR")
+        for (key, de, pt) in [("yesterday", "gestern", "ontem"), ("up", "gestiegen", "subiu"),
+                              ("this phone only", "nur auf diesem Gerät", "só neste celular")] {
+            XCTAssertEqual(german.localizedString(forKey: key, value: nil, table: nil), de)
+            XCTAssertEqual(portuguese.localizedString(forKey: key, value: nil, table: nil), pt)
+        }
+    }
+
     func testEnglishFallbackAndMissingTranslations() throws {
         XCTAssertEqual(Bundle.main.developmentLocalization, "en")
         XCTAssertEqual(String(localized: "Settings", bundle: try bundle("en")), "Settings")
