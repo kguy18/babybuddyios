@@ -21,7 +21,7 @@ if [ ! -f "$DIR/verified" ]; then
   rm -rf "$DIR"
   mkdir -p "$DIR"
   for FILE in duoctl duoctl-helper.m; do
-    curl -fsSL "https://raw.githubusercontent.com/skarol/duoctl/$REV/skills/duoctl/scripts/$FILE" -o "$DIR/$FILE"
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 "https://raw.githubusercontent.com/skarol/duoctl/$REV/skills/duoctl/scripts/$FILE" -o "$DIR/$FILE"
   done
   if ! (cd "$DIR" && echo "$SHA256" | shasum -a 256 -c --quiet); then
     rm -rf "$DIR"

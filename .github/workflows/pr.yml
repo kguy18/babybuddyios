@@ -425,6 +425,12 @@ jobs:
         with:
           name: duo-products
           path: build
+      # scripts/duoctl downloads duoctl once per pinned revision; keep it so a DNS hiccup on the
+      # runner can't fail the lane.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/babybuddy-duoctl
+          key: duoctl-${{ hashFiles('scripts/duoctl') }}
       - name: UI tests on the open display
         id: ui
         run: |
