@@ -58,6 +58,22 @@ final class FoldTests: UITestCase {
         XCTAssertEqual(rows.count, 1, "Delete should remove the repeated feeding")
     }
 
+    /// The support nudge comes up at the bottom of the pane right of the fold rather than as a card
+    /// centred across it, and still takes no for an answer.
+    func testSupportNudgeSitsRightOfTheFold() {
+        launch(["BB_NUDGE": "gentle", "BB_FOLD": "1"])
+        let support = expect(app.buttons["Become a Supporter"])
+        let later = expect(app.buttons["Maybe later"])
+        let window = app.windows.firstMatch.frame
+        // Right of the middle: with no fold reported, as on a phone, the fold is the middle 40 pt.
+        XCTAssertGreaterThan(support.frame.minX, window.midX, "The nudge should sit right of the fold")
+        XCTAssertGreaterThan(later.frame.minX, window.midX, "The nudge should sit right of the fold")
+        // The bottom quarter: a centred card on the open display ends well above it.
+        XCTAssertGreaterThan(later.frame.maxY, window.minY + window.height * 0.75, "The nudge should sit at the bottom")
+        tap(later)
+        expectGone(later)
+    }
+
     /// Each sheet takes two columns, or for Add Activity one row of six per group.
     func testSheetsUseTwoColumns() throws {
         try launchOpen()
@@ -80,9 +96,17 @@ final class FoldTests: UITestCase {
         expect(app.navigationBars["Stop Timer"])
         let resume = expect(app.buttons["Resume timer"])
         let restart = app.buttons["Restart from now"]
-        // The summary, not a tile: below a half-height sheet the grid hasn't drawn its tiles.
         XCTAssertGreaterThan(resume.frame.minX, element(labeled: "Stopped after ").frame.maxX - 1,
                              "The choices should sit right of the summary")
+        // The summary fits its narrow column: in #219 its name wrapped to two lines and "Started"
+        // to a letter per line.
+        let started = app.staticTexts["Started"]
+        XCTAssertGreaterThan(started.frame.width, started.frame.height, "\"Started\" should fit on one line")
+        XCTAssertLessThan(app.staticTexts["stop-timer-activity"].frame.height, 30,
+                          "The activity's name should fit on one line")
+        // The sheet opens tall enough to show the tiles: at half height they were cut off.
+        let tile = expect(app.buttons["Feeding"])
+        XCTAssertTrue(app.windows.firstMatch.frame.contains(tile.frame), "The first tile should be on screen")
         XCTAssertGreaterThan(restart.frame.minY, resume.frame.maxY - 1, "The choices should stack")
         XCTAssertGreaterThan(app.buttons["Discard timer"].frame.minY, restart.frame.maxY - 1)
         tap(restart)

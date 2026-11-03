@@ -933,6 +933,9 @@ private struct AllActivitiesSheet: View {
     private let measureKinds: [EntityKind] = [.weight, .height, .headCircumference, .temperature, .bmi, .medication]
     /// A wide sheet, on iPhone Duo's open display, fits each group on one row of six.
     @State private var wide = false
+    /// Half height on a phone. The open display is short for its width, and a wide sheet opens
+    /// full height there so the sick mode row isn't cut off.
+    @State private var detent: PresentationDetent = .medium
     private var columns: [GridItem] { Array(repeating: GridItem(.flexible()), count: wide ? 6 : 3) }
 
     var body: some View {
@@ -946,6 +949,7 @@ private struct AllActivitiesSheet: View {
                 .padding()
             }
             .trackingWide($wide)
+            .onChange(of: wide) { if wide { detent = .large } }
             .background(BBColor.surface)
             .navigationTitle("Add Activity")
             .navigationBarTitleDisplayMode(.inline)
@@ -953,7 +957,7 @@ private struct AllActivitiesSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.medium, .large], selection: $detent)
     }
 
     /// Board j2: starting sick mode by hand, for when there's no fever reading to offer it.
