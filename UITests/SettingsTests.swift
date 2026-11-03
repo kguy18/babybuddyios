@@ -8,6 +8,10 @@ final class SettingsTests: UITestCase {
         tap(app.buttons.labeled("Baby Buddy App Supporter"))
         expect(app.staticTexts["Purchases aren't available in this build."])
         XCTAssertFalse(app.buttons.labeled("Tip").exists)
+        // Centred in the sheet, not in the room iPhone Duo's front display leaves beside its rail.
+        let grabber = expect(app.buttons["Sheet Grabber"])
+        XCTAssertEqual(app.buttons["Maybe later"].frame.midX, grabber.frame.midX, accuracy: 2,
+                       "The sheet's content should be centred in the sheet")
         tap(app.buttons["Maybe later"])
         expectGone(app.staticTexts["Purchases aren't available in this build."])
 
