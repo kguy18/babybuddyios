@@ -17,15 +17,15 @@ enum ActivityProblem: Equatable {
     /// Inline, user-facing explanation of the block.
     var message: String {
         switch self {
-        case .amountRequired:        return "Enter how much was pumped — Baby Buddy needs an amount."
-        case .valueRequired:         return "Enter a value."
-        case .notANumber:            return "That isn't a number Baby Buddy can read. Use digits, like 90 or 4.5."
-        case .noteRequired:          return "Write something for this note."
-        case .medicationNameRequired: return "Enter the medication name."
-        case .startAfterEnd:         return "The start time is after the end time."
-        case .over24Hours:           return "Baby Buddy won't accept more than 24 hours between start and end."
-        case .futureTimestamp:       return "That time is in the future — Baby Buddy only accepts times up to now."
-        case .futureDate:            return "That date is in the future — Baby Buddy only accepts dates up to today."
+        case .amountRequired:        return String(localized: "Enter how much was pumped — Baby Buddy needs an amount.")
+        case .valueRequired:         return String(localized: "Enter a value.")
+        case .notANumber:            return String(localized: "That isn't a number Baby Buddy can read. Use digits, like 90 or 4.5.")
+        case .noteRequired:          return String(localized: "Write something for this note.")
+        case .medicationNameRequired: return String(localized: "Enter the medication name.")
+        case .startAfterEnd:         return String(localized: "The start time is after the end time.")
+        case .over24Hours:           return String(localized: "Baby Buddy won't accept more than 24 hours between start and end.")
+        case .futureTimestamp:       return String(localized: "That time is in the future — Baby Buddy only accepts times up to now.")
+        case .futureDate:            return String(localized: "That date is in the future — Baby Buddy only accepts dates up to today.")
         }
     }
 }

@@ -15,7 +15,7 @@ final class GrowthChartsTests: UITestCase {
         reveal(settings)
         tap(settings)
         toggle(app.switches["growth-units-confirmed"], to: "1")
-        tap(app.navigationBars["Growth settings"].buttons.firstMatch)
+        back(from: "Growth settings")
 
         let weight = app.buttons["growth-details-weight"]
         reveal(weight)
@@ -23,14 +23,14 @@ final class GrowthChartsTests: UITestCase {
         expect(app.navigationBars["Weight"])
         expect(app.staticTexts["5.3 kg"])
         expect(app.staticTexts["4.8 kg"])
-        tap(app.navigationBars["Weight"].buttons.firstMatch)
+        back(from: "Weight")
 
         let height = app.buttons["growth-details-height"]
         reveal(height)
         tap(height)
         expect(app.navigationBars["Length / height"])
         expect(app.staticTexts["62 cm"])
-        tap(app.navigationBars["Length / height"].buttons.firstMatch)
+        back(from: "Length / height")
 
         let head = app.buttons["growth-details-headCircumference"]
         reveal(head)
@@ -46,7 +46,7 @@ final class GrowthChartsTests: UITestCase {
         tap(weight)
         expect(app.navigationBars["Weight"])
         expect(app.staticTexts["Recorded measurements"])
-        tap(app.navigationBars["Weight"].buttons.firstMatch)
+        back(from: "Weight")
         let height = app.buttons["growth-details-height"]
         reveal(height)
         tap(height)
@@ -67,10 +67,7 @@ final class GrowthChartsTests: UITestCase {
     }
 
     func testFeatureUsesGermanSystemLanguage() {
-        launch(["BB_START_TAB": "trends", "BB_SEED_GROWTH": "1"])
-        app.terminate()
-        app.launchArguments = ["-AppleLanguages", "(de)", "-AppleLocale", "de_DE"]
-        app.launch()
+        launch(["BB_START_TAB": "trends", "BB_SEED_GROWTH": "1"], language: "de", locale: "de_DE")
         let settings = app.buttons["growth-settings"]
         reveal(settings)
         expect(app.staticTexts["Wachstum"])

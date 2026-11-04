@@ -15,7 +15,7 @@ final class SyncTests: UITestCase {
         expect(elements("label BEGINSWITH 'Feeding, ' AND label CONTAINS 'tags: hungry, night'").firstMatch)
         XCTAssertFalse(sleep.exists, "A queued delete hides its record")
 
-        tap(app.tabBars.buttons["Settings"])
+        tap(tab("Settings"))
         tap(app.buttons.labeled("Pending changes"))
         let sheet = expect(app.navigationBars["Pending Changes"])
 
@@ -39,7 +39,7 @@ final class SyncTests: UITestCase {
 
         tap(sheet.buttons["Done"])
         expectGone(sheet)
-        tap(app.tabBars.buttons["Timeline"])
+        tap(tab("Timeline"))
         expect(sleep)
     }
 
@@ -70,7 +70,7 @@ final class SyncTests: UITestCase {
         tap(app.buttons["Save merged feeding"])
 
         expect(app.staticTexts["No Conflicts"])
-        tap(app.navigationBars["Conflicts"].buttons.firstMatch) // back
+        back(from: "Conflicts")
         expect(app.staticTexts["All clear"])
     }
 }

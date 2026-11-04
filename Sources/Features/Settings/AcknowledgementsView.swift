@@ -40,9 +40,7 @@ struct AcknowledgementsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Based on Baby Buddy")
                     .font(.system(size: 16, weight: .semibold))
-                Text("Baby Buddy for iOS is an unofficial client for the open-source Baby Buddy "
-                     + "baby-tracking server, and is not affiliated with that project. "
-                     + "Thanks to its maintainers and contributors.")
+                Text("Baby Buddy for iOS is an unofficial client for the open-source Baby Buddy baby-tracking server, and is not affiliated with that project. Thanks to its maintainers and contributors.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -111,7 +109,7 @@ private struct Acknowledgement: Identifiable {
     /// The activity/measurement glyphs are outlines extracted from Baby Buddy's Fontello icon
     /// font, which bundles three icon sets — all under the SIL Open Font License 1.1.
     static let icons = Acknowledgement(
-        title: "App icons — Font Awesome, MFG Labs & Entypo",
+        title: String(localized: "App icons — Font Awesome, MFG Labs & Entypo"),
         license: "SIL Open Font License 1.1",
         text: """
         The activity and measurement glyphs are extracted from the Baby Buddy \

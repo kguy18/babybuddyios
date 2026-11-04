@@ -79,7 +79,7 @@ final class DialogTests: UITestCase {
         openSignOut()
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.12, dy: 0.96)).tap()
         expectGone(signOutCard)
-        XCTAssertTrue(app.tabBars.buttons["Settings"].isSelected)
+        XCTAssertTrue(tab("Settings").isSelected)
 
         openSignOut()
         tap(signOutCard.buttons["Sign out"])
@@ -155,6 +155,7 @@ final class DialogTests: UITestCase {
         expectGone(app.staticTexts["Stopped here"])
         XCTAssertTrue(retry.isEnabled)
 
+        revealSheetBar("Advanced configuration")
         tap(app.buttons["Cancel"])
         expectGone(app.navigationBars["Advanced configuration"])
         XCTAssertFalse(app.buttons.labeled("Advanced configuration ·").exists, "Cancel kept the edits")
@@ -171,7 +172,7 @@ final class DialogTests: UITestCase {
         replaceText(app.secureTextFields["Header value"], with: "x")
         tap(app.buttons["Save"])
         expect(element(labeled: "The app sets Cookie itself"))
-        tap(app.navigationBars.buttons["Settings"])
+        back(from: "Custom headers")
         expect(element(labeled: "Custom headers"))
         XCTAssertTrue(app.staticTexts["None"].exists, "a failed edit saved the headers")
     }

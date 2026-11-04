@@ -22,6 +22,8 @@ struct TimelineView: View {
     private var blockedIDs: Set<UUID> { Set(blockedMutations.map(\.localID)) }
     @State private var kindFilter: EntityKind?
     @State private var editing: LocalEntity?
+    /// The record open in the right pane on iPhone Duo's open display.
+    @State private var selected: LocalEntity?
     @State private var didAutoLoadHistory = false
     @State private var searchText = ""
     @State private var dateFrom: Date?
@@ -56,61 +58,35 @@ struct TimelineView: View {
         let items = timelineItems
         let tagColors = self.tagColors
         NavigationStack {
-            List {
-                ForEach(items) { item in
-                    switch item {
-                    case .header(let day, let summary):
-                        dayHeader(day, summary: summary)
-                            .listRowInsets(EdgeInsets())
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                    case .event(let entity, let connectsDown):
-                        TimelineRailRow(entity: entity, connectsDown: connectsDown, tagColors: tagColors,
-                                        blocked: blockedIDs.contains(entity.localID))
-                            .listRowInsets(EdgeInsets())
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .contentShape(Rectangle())
-                            .onTapGesture { editing = entity }
-                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                                Button { repeatEvent(entity) } label: {
-                                    Label("Repeat", systemImage: "arrow.clockwise")
-                                }
-                                .tint(BBColor.repeatAction)
-                            }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) { delete(entity) } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                                .tint(BBColor.danger)
-                                Button { editing = entity } label: {
-                                    Label("Edit", systemImage: "pencil")
-                                }
-                                .tint(BBColor.primary)
-                            }
+            // On iPhone Duo's open display the list goes left of the fold and the tapped record
+            // opens right of it, ready to edit. Everywhere else the list is the whole screen.
+            FoldSplitView {
+                list(items, tagColors: tagColors, split: true)
+                    .safeAreaInset(edge: .top, spacing: 0) { paneHeader }
+            } main: { split in
+                Group {
+                    if split { detailPane } else { list(items, tagColors: tagColors, split: false) }
+                }
+                .toolbar {
+                    if !split { ToolbarItem(placement: .topBarTrailing) { filterButton } }
+                }
+                // Folding the phone with a record open carries it into the phone's editor sheet.
+                .onChange(of: split) { _, split in
+                    if !split, let selected {
+                        editing = selected
+                        self.selected = nil
                     }
                 }
-                if showHistoryFooter(items) {
-                    historyFooter
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                }
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
             .background(BBColor.surface)
-            .overlay(alignment: .bottom) { UndoToastView().padding(.bottom, 12) }
             .navigationTitle("Timeline")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ChildSwitcher(children: children, selectedChildID: $selectedChildID)
-                ToolbarItem(placement: .topBarTrailing) { filterButton }
             }
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always),
-                        prompt: "Search notes, tags, type…")
+                        prompt: String(localized: "Search notes, tags, type…"))
             .onChange(of: searchText) { _, newValue in handleSearchChange(newValue) }
-            .refreshable { await sync.sync() }
             .onAppear(perform: autoLoadOlderIfRequested)
             .onAppear { applyRequestedKind(router.showTimelineKind) }
             .onChange(of: router.showTimelineKind) { _, kind in applyRequestedKind(kind) }
@@ -120,9 +96,93 @@ struct TimelineView: View {
             .sheet(isPresented: $showingFilters) {
                 TimelineFiltersView(kindFilter: $kindFilter, dateFrom: $dateFrom, dateTo: $dateTo)
             }
-            .overlay {
-                if items.isEmpty { emptyState }
+        }
+    }
+
+    /// The day-grouped rows. `split` is the open display's left pane, where a tap opens the record
+    /// in the right pane instead of a sheet, and the open record's row is highlighted.
+    private func list(_ items: [TimelineItem], tagColors: [String: String], split: Bool) -> some View {
+        List {
+            ForEach(items) { item in
+                switch item {
+                case .header(let day, let summary):
+                    dayHeader(day, summary: summary)
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                case .event(let entity, let connectsDown):
+                    let isOpen = split && selected?.localID == entity.localID
+                    TimelineRailRow(entity: entity, connectsDown: connectsDown, tagColors: tagColors,
+                                    blocked: blockedIDs.contains(entity.localID))
+                        .accessibilityAddTraits(isOpen ? .isSelected : [])
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(isOpen ? BBColor.brandTint : Color.clear)
+                        .contentShape(Rectangle())
+                        .onTapGesture { open(entity, split: split) }
+                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                            Button { repeatEvent(entity) } label: {
+                                Label("Repeat", systemImage: "arrow.clockwise")
+                            }
+                            .tint(BBColor.repeatAction)
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) { delete(entity) } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            .tint(BBColor.danger)
+                            Button { open(entity, split: split) } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            .tint(BBColor.primary)
+                        }
+                }
             }
+            if showHistoryFooter(items) {
+                historyFooter
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(BBColor.surface)
+        .overlay(alignment: .bottom) { UndoToastView().padding(.bottom, 12) }
+        .refreshable { await sync.sync() }
+        .overlay {
+            if items.isEmpty { emptyState }
+        }
+    }
+
+    private func open(_ entity: LocalEntity, split: Bool) {
+        if split { selected = entity } else { editing = entity }
+    }
+
+    /// The left pane's own title bar, with the filter button: on iPhone Duo only the right pane's
+    /// actions go in the rail.
+    private var paneHeader: some View {
+        HStack {
+            Text("Timeline").font(.title3.weight(.bold))
+                .accessibilityAddTraits(.isHeader)
+            Spacer()
+            filterButton.font(.title3)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 8)
+        .background(BBColor.surface)
+    }
+
+    /// Right of the fold: the open record's editor, or a prompt to pick one. A record that has
+    /// gone, deleted here or by a sync, closes its editor.
+    @ViewBuilder private var detailPane: some View {
+        if let selected, events.contains(where: { $0.localID == selected.localID }) {
+            EntityEditorView(kind: selected.kind, childID: selectedChildID, entity: selected,
+                             onClose: { self.selected = nil })
+                .id(selected.localID)
+        } else {
+            ContentUnavailableView("No activity open", systemImage: "list.bullet",
+                                   description: Text("Tap an activity on the left to edit it here."))
         }
     }
 
@@ -308,8 +368,8 @@ struct TimelineView: View {
 
     private func dayLabel(_ day: Date) -> String {
         let cal = Calendar.current
-        if cal.isDateInToday(day) { return "Today" }
-        if cal.isDateInYesterday(day) { return "Yesterday" }
+        if cal.isDateInToday(day) { return String(localized: "Today") }
+        if cal.isDateInYesterday(day) { return String(localized: "Yesterday") }
         return day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
     }
 
@@ -318,17 +378,17 @@ struct TimelineView: View {
         var parts: [String] = []
 
         let feeds = events.filter { $0.kind == .feeding }.count
-        if feeds > 0 { parts.append("\(feeds) feed\(feeds == 1 ? "" : "s")") }
+        if feeds > 0 { parts.append(String(localized: "\(feeds) feeds")) }
 
         let sleep = totalDuration(events, kind: .sleep)
-        if sleep > 0 { parts.append("\(EntityFormatting.formatInterval(sleep)) sleep") }
+        if sleep > 0 { parts.append(String(localized: "\(EntityFormatting.formatInterval(sleep)) sleep")) }
 
         let diapers = events.filter { $0.kind == .change }.count
-        if diapers > 0 { parts.append("\(diapers) diaper\(diapers == 1 ? "" : "s")") }
+        if diapers > 0 { parts.append(String(localized: "\(diapers) diapers")) }
 
         if parts.isEmpty {
             let n = events.count
-            return "\(n) event\(n == 1 ? "" : "s")"
+            return String(localized: "\(n) events")
         }
         return parts.joined(separator: " · ")
     }
@@ -347,6 +407,7 @@ struct TimelineView: View {
     // MARK: Mutations
 
     private func delete(_ entity: LocalEntity) {
+        if selected?.localID == entity.localID { selected = nil }
         LocalRepository(context: context).delete(entity)
         Task { await sync.sync() }
     }
@@ -519,8 +580,8 @@ private struct TimelineFiltersView: View {
                     }
                 }
                 Section("Date Range") {
-                    dateBound(label: "From", date: $dateFrom, default: defaultFrom)
-                    dateBound(label: "To", date: $dateTo, default: Calendar.current.startOfDay(for: .now))
+                    dateBound(label: String(localized: "From"), date: $dateFrom, default: defaultFrom)
+                    dateBound(label: String(localized: "To"), date: $dateTo, default: Calendar.current.startOfDay(for: .now))
                 }
                 if hasActiveFilters {
                     Section {

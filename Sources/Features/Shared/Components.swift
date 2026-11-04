@@ -19,12 +19,12 @@ struct SyncStateBadge: View {
                 }
                 Image(systemName: "arrow.triangle.2.circlepath").foregroundStyle(BBColor.restart)
             }
-            .help(blocked ? "Sync needs attention" : "Waiting to sync")
-            .accessibilityLabel(blocked ? "Sync needs attention" : "Waiting to sync")
+            .help(blocked ? String(localized: "Sync needs attention") : String(localized: "Waiting to sync"))
+            .accessibilityLabel(blocked ? String(localized: "Sync needs attention") : String(localized: "Waiting to sync"))
         case .conflicted:
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(BBColor.danger)
-                .help("Sync conflict — tap to resolve")
+                .help(String(localized: "Sync conflict — tap to resolve"))
                 .accessibilityLabel("Sync conflict")
         }
     }

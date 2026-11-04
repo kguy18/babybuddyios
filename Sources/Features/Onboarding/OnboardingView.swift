@@ -88,7 +88,7 @@ struct OnboardingView: View {
             }
         }) { request in
             AdvancedConfigurationSheet(rows: headerRows, gate: request.gate,
-                                       host: normalizedHost ?? "your server") { rows, retry in
+                                       host: normalizedHost ?? String(localized: "your server")) { rows, retry in
                 headerRows = rows
                 retryAfterAdvanced = retry
             }
@@ -198,7 +198,7 @@ struct OnboardingView: View {
     private var manualCard: some View {
         BBCard(cornerRadius: BBRadius.tile, padding: 0) {
             VStack(spacing: 0) {
-                fieldRow(label: "Server URL") {
+                fieldRow(label: String(localized: "Server URL")) {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 15))
                         .foregroundStyle(!hasError && urlLooksValid ? BBColor.success : Color.secondary)
@@ -213,7 +213,7 @@ struct OnboardingView: View {
                         .onSubmit { focusedField = .token }
                 }
                 Rectangle().fill(BBColor.divider).frame(height: 1)
-                fieldRow(label: "API token") {
+                fieldRow(label: String(localized: "API token")) {
                     Image(systemName: "key.fill")
                         .font(.system(size: 15))
                         .foregroundStyle(.secondary)
@@ -285,10 +285,7 @@ struct OnboardingView: View {
             Image(systemName: "checkmark.shield.fill")
                 .font(.system(size: 14))
                 .foregroundStyle(BBColor.success)
-            (Text("http://").monospaced()
-                + Text(" is upgraded to ")
-                + Text("https://").monospaced()
-                + Text(" automatically"))
+            Text("`http://` is upgraded to `https://` automatically")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -334,7 +331,7 @@ struct OnboardingView: View {
                 Text("Couldn't connect")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(BBColor.danger)
-                Text(session.lastError ?? "Check the URL, or that the server is online.")
+                Text(session.lastError ?? String(localized: "Check the URL, or that the server is online."))
                     .font(.caption)
                     .foregroundStyle(BBColor.danger.opacity(0.85))
             }
@@ -420,7 +417,7 @@ struct OnboardingView: View {
     /// the URL and token, so any custom headers already entered go with it.
     private func handleScan(_ raw: String) {
         guard let credentials = DeviceLoginQR.parse(raw) else {
-            session.lastError = "That QR code isn't a Baby Buddy login code. Open User → Add a Device on your server to show it."
+            session.lastError = String(localized: "That QR code isn't a Baby Buddy login code. Open User → Add a Device on your server to show it.")
             return
         }
         serverURL = credentials.serverURL

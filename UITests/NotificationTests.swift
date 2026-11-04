@@ -55,7 +55,7 @@ final class NotificationTests: UITestCase {
         expectGone(app.staticTexts["ALERT AFTER"])
 
         // Back in Settings the row reads the switch's state — and on again, without leaving.
-        tap(app.navigationBars.buttons.firstMatch)
+        back(from: "Forgotten timer alerts")
         expect(app.buttons.labeled("Forgotten timer alerts, Off"))
 
         // A second visit shows the picks, not the values from before the first: the screen used
@@ -67,7 +67,7 @@ final class NotificationTests: UITestCase {
         expect(app.buttons["24h"])
         alerts.tap()
         expectValue(alerts, "0")
-        tap(app.navigationBars.buttons.firstMatch)
+        back(from: "Forgotten timer alerts")
         expect(app.buttons.labeled("Forgotten timer alerts, Off"))
 
         // The medication switch is its own, and doesn't bring the threshold rows with it.
@@ -80,7 +80,8 @@ final class NotificationTests: UITestCase {
     /// Regression: #116 — a tapped alert routed into the app off the main actor, and the app
     /// crashed on its way back from the background. Fixed in #118. The tap shows the timer without
     /// stopping it: only Stop stops a timer (#146).
-    func testForgottenTimerAlertTapShowsTheRunningTimer() {
+    func testForgottenTimerAlertTapShowsTheRunningTimer() throws {
+        try skipIfAppCantBeLeft()
         launch(["BB_TIMER_ALERT_SECONDS": "25"])
         allowNotificationsIfAsked() // the hook turns the alerts on, so the reset install asks
 
@@ -106,7 +107,8 @@ final class NotificationTests: UITestCase {
     }
 
     /// A tapped medication reminder logs the next dose, pre-filled from the last one (#118).
-    func testMedicationReminderTapOpensPrefilledDose() {
+    func testMedicationReminderTapOpensPrefilledDose() throws {
+        try skipIfAppCantBeLeft()
         launch(["BB_DOSE_ALERT_SECONDS": "25"])
         allowNotificationsIfAsked()
 
