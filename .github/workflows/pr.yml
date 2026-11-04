@@ -168,7 +168,7 @@ jobs:
           - shard: timeline
             classes: TimelineTests DialogTests SyncTests ReassignChildTests
           - shard: settings
-            classes: NotificationTests SettingsTests FeedbackTests FeedbackAccountTests DashboardTests GermanLocalizationTests
+            classes: NotificationTests SettingsTests FeedbackTests FeedbackAccountTests DashboardTests GermanLocalizationTests GrowthChartsTests
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/ios-setup
@@ -347,7 +347,7 @@ jobs:
           - shard: logging
             classes: LoggingTests
           - shard: settings
-            classes: SettingsTests NotificationTests DashboardTests GermanLocalizationTests
+            classes: SettingsTests NotificationTests DashboardTests GermanLocalizationTests GrowthChartsTests
           - shard: dialogs
             classes: DialogTests SyncTests ReassignChildTests
           - shard: timers

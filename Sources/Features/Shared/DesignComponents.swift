@@ -224,6 +224,7 @@ struct BBSegmentedControl<Value: Hashable>: View {
     @Binding var selection: Value
     let options: [Value]
     let label: (Value) -> String
+    var spokenLabel: ((Value) -> String)? = nil
 
     var body: some View {
         HStack(spacing: 0) {
@@ -250,7 +251,7 @@ struct BBSegmentedControl<Value: Hashable>: View {
                     // Expose each segment as a selectable button — a bare Text + onTapGesture is
                     // invisible to VoiceOver as a control.
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(label(option))
+                    .accessibilityLabel(spokenLabel?(option) ?? label(option))
                     .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
                     .accessibilityAction { withAnimation(.snappy(duration: 0.18)) { selection = option } }
             }
