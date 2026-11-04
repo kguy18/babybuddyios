@@ -239,9 +239,9 @@ jobs:
   # They wait for `build-and-test` so they don't hold the macOS runners the required lanes need.
   #
   # The UI tests run on the Duo's front display, where the tabs and the main screen's bar buttons
-  # sit in a trailing rail (`UITestCase.hasRail`). XCUITest can't unfold it, so FoldTests reach
-  # the open display's layouts through `BB_FOLD` instead. Tests that leave the app skip there: the
-  # Duo simulator ignores the Home button.
+  # sit in a trailing rail (`UITestCase.hasRail`). XCUITest can't unfold it, so FoldTests skip
+  # there and run in `duo (open)`, which unfolds it with duoctl. Tests that leave the app skip on
+  # the Duo: its simulator ignores the Home button.
   #
   # Building takes this image about 12 minutes, so `duo (build)` builds the UI tests once and the
   # seven shards run that build. With a build each, the shards ran 28 minutes against the 30-minute
@@ -407,6 +407,46 @@ jobs:
         with:
           name: Duo-${{ matrix.shard }}.xcresult
           path: build/UITests.xcresult
+          retention-days: 7
+
+  # The Duo's open display, the only place FoldTests run: `scripts/ui-test.sh --duo-open` unfolds
+  # the simulator with duoctl (pinned in scripts/duoctl), fails unless the inner screen took over,
+  # then runs FoldTests and SmokeTests there without BB_FOLD. duoctl drives private simulator
+  # interfaces, so a new Xcode on this image can break this job without a change of ours.
+  duo-open:
+    name: duo (open)
+    needs: [changes, duo-build]
+    if: ${{ !cancelled() && needs.duo-build.result == 'success' }}
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: duo-products
+          path: build
+      # scripts/duoctl downloads duoctl once per pinned revision; keep it so a DNS hiccup on the
+      # runner can't fail the lane.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/babybuddy-duoctl
+          key: duoctl-${{ hashFiles('scripts/duoctl') }}
+      - name: UI tests on the open display
+        id: ui
+        run: |
+          mkdir -p build/DerivedData/Build
+          tar -C build/DerivedData/Build -xzf build/duo-products.tgz
+          export UI_TEST_XCTESTRUN=$(ls build/DerivedData/Build/Products/*.xctestrun | head -1)
+          scripts/ui-test.sh --duo-open -retry-tests-on-failure -test-iterations 2
+      - name: Upload the result bundle and a screenshot
+        if: ${{ !cancelled() && steps.ui.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Duo-open
+          path: |
+            build/UITests-duo-open.xcresult
+            build/duo-open.png
+          if-no-files-found: ignore
           retention-days: 7
 
   # The ruleset on main requires a check called `build-and-test`, which used to be the single macOS

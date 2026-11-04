@@ -54,6 +54,20 @@ final class LocalizationTests: XCTestCase {
                        "Ada: Seit der letzten Gabe um 12:30 sind 4 Std. vergangen.")
     }
 
+    func testSickModeFragmentsAndTrendAreGerman() throws {
+        let german = try bundle("de")
+        for (key, translated) in [("yesterday", "gestern"), ("up", "gestiegen"),
+                                  ("down", "gesunken"), ("this phone only", "nur auf diesem Gerät"),
+                                  ("from your server", "von deinem Server")] {
+            XCTAssertEqual(german.localizedString(forKey: key, value: nil, table: nil), translated)
+        }
+        let when = "gestern 13:50", delta = "0,5"
+        for direction in ["gestiegen", "gesunken"] {
+            XCTAssertEqual(String(localized: "\(direction) \(delta)° since \(when)", bundle: german),
+                           "seit gestern 13:50 um 0,5° \(direction)")
+        }
+    }
+
     func testBrazilianPortugueseResourcesAreBundledAndSelectedBySystemPreferences() throws {
         XCTAssertTrue(Bundle.main.localizations.contains("pt-BR"))
         XCTAssertEqual(Bundle.preferredLocalizations(from: Bundle.main.localizations,
