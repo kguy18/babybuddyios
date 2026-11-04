@@ -10032,7 +10032,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Novo registro: %@"
+            "value": "Adicionar %@"
           }
         }
       }
