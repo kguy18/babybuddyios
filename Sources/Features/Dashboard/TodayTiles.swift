@@ -26,12 +26,12 @@ enum TodayTiles {
 
     static func label(_ kind: EntityKind) -> String {
         switch kind {
-        case .feeding: return "Feedings"
-        case .change: return "Diapers"
-        case .tummyTime: return "Tummy time"
-        case .note: return "Notes"
-        case .medication: return "Doses"
-        case .temperature: return "Highest temp"
+        case .feeding: return String(localized: "Feedings")
+        case .change: return String(localized: "Diapers")
+        case .tummyTime: return String(localized: "Tummy time")
+        case .note: return String(localized: "Notes")
+        case .medication: return String(localized: "Doses")
+        case .temperature: return String(localized: "Highest temp")
         default: return kind.displayName
         }
     }

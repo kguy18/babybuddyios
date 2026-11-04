@@ -32,11 +32,12 @@ class UITestCase: XCTestCase {
     ///
     /// The feedback sheet points at a port nothing listens on unless a test says otherwise, so no
     /// UI test reaches the live feedback server; `BB_FEEDBACK_STUB` stands in for it.
-    func launch(_ environment: [String: String] = [:], demo: Bool = true) {
+    func launch(_ environment: [String: String] = [:], demo: Bool = true,
+                language: String = "en", locale: String = "en_US") {
         var env = ["BB_UITEST": "1", "BB_FEEDBACK": "https://127.0.0.1:2"]
         if demo { env["BB_DEMO"] = "1" }
         app.launchEnvironment = env.merging(environment) { $1 }
-        app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"] // queries match English
+        app.launchArguments = ["-AppleLanguages", "(\(language))", "-AppleLocale", locale]
         app.launch()
         // `launch()` returns while the generated launch screen — which has no text on it — is still
         // up, and the first launch of a run creates the store, wipes it and reseeds before the
@@ -49,12 +50,64 @@ class UITestCase: XCTestCase {
         // passed. It only ever hits the first launch of a run, and only on a simulator the app has
         // run on before, which is why an erased one never shows it. Replacing that instance costs
         // one relaunch.
-        if demo, app.staticTexts["Connect to your self-hosted server"].waitForExistence(timeout: 3) {
+        let onboardingTitle = language.hasPrefix("de")
+            ? "Mit deinem eigenen Server verbinden" : "Connect to your self-hosted server"
+        if demo, app.staticTexts[onboardingTitle].waitForExistence(timeout: 3) {
             app.terminate()
             app.launch()
-            XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 60),
+            XCTAssertTrue(tab("Home").waitForExistence(timeout: 60),
                           "The app came up signed out even after a relaunch")
         }
+    }
+
+    // MARK: iPhone Duo's rail
+
+    /// Whether the tabs and the main screen's bar buttons sit in iPhone Duo's trailing rail rather
+    /// than a tab bar and navigation bars. Its displays are wide for their height (466 × 678 pt in
+    /// front, 951 × 669 pt open); every other iPhone is less than half as wide as it is tall.
+    /// Sheets keep a navigation bar for Cancel, Close and Save. Read from SpringBoard, so it
+    /// answers before the app has launched.
+    var hasRail: Bool {
+        let frame = springboard.frame
+        return frame.width > frame.height * 0.6
+    }
+
+    /// Skips a test that leaves the app, on iPhone Duo. Its simulator ignores the Home button and
+    /// reports the app in the foreground whatever is on screen (Xcode 27.1 and 27.2), so neither
+    /// leaving nor coming back can be done or checked there.
+    func skipIfAppCantBeLeft() throws {
+        try XCTSkipIf(hasRail, "iPhone Duo's simulator ignores the Home button")
+    }
+
+    /// Brings back the navigation bar of the sheet titled `title` when it has scrolled away. On
+    /// iPhone Duo (iOS 27.1) a sheet's bar scrolls off with the field the keyboard scrolled to, and
+    /// comes back once the sheet is scrolled to the top: a slow drag down, held before release so
+    /// it can't fling the sheet closed.
+    func revealSheetBar(_ title: String) {
+        let bar = expect(app.navigationBars[title])
+        guard hasRail, !bar.buttons.firstMatch.waitForExistence(timeout: 2) else { return }
+        let window = app.windows.firstMatch
+        window.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.3))
+            .press(forDuration: 0.1, thenDragTo: window.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.6)),
+                   withVelocity: .slow, thenHoldForDuration: 0.3)
+    }
+
+    /// A button in the toolbar of the sheet titled `title`. On iPhone Duo a sheet keeps Cancel,
+    /// Close and Save in its navigation bar but puts its other actions in a rail of its own.
+    func sheetButton(_ name: String, in title: String) -> XCUIElement {
+        hasRail ? app.toolbars.buttons[name] : app.navigationBars[title].buttons[name]
+    }
+
+    /// A tab's button: in the tab bar, or in iPhone Duo's rail.
+    func tab(_ name: String) -> XCUIElement {
+        (hasRail ? app.toolbars : app.tabBars).buttons[name]
+    }
+
+    /// Goes back from the pushed screen titled `title`: the first button in its navigation bar, or
+    /// on iPhone Duo the rail's back button, which has no label.
+    func back(from title: String, file: StaticString = #filePath, line: UInt = #line) {
+        let bar = expect(app.navigationBars[title], file: file, line: line)
+        tap(hasRail ? app.toolbars.buttons["BackButton"] : bar.buttons.firstMatch, file: file, line: line)
     }
 
     /// Waits for the element (a navigation title, a row, a button) and fails with its query when it
@@ -160,7 +213,19 @@ class UITestCase: XCTestCase {
         tap(app.buttons["Add"])
         tap(app.buttons.labeled("More…"))
         expect(app.navigationBars["Add Activity"])
+        // On iPhone Duo's short front display the sheet opens at half height, and the grid hasn't
+        // drawn the tiles below it yet. A swipe up on the grid draws them.
+        if !app.buttons[kind].waitForExistence(timeout: 2) { app.buttons["Feeding"].swipeUp() }
         tap(app.buttons[kind])
+    }
+
+    /// Drags the open sheet's grabber to the top, for a sheet that opens at half height. A swipe on
+    /// its content scrolls the content instead.
+    func expandSheet() {
+        let grabber = expect(app.buttons["Sheet Grabber"])
+        grabber.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.05)))
+        expectValue(grabber, "Expanded")
     }
 
     /// Settings ▸ Feedback ▸ Send Feedback.
@@ -195,6 +260,8 @@ class UITestCase: XCTestCase {
     /// is dropped rather than queued, and no amount of extra patience turns a press that never
     /// landed into a backgrounded app. Raising the single wait to 30 seconds on a hosted runner
     /// wasn't enough on its own, which is what pointed at the press rather than the waiting.
+    ///
+    /// Not on iPhone Duo: see ``skipIfAppCantBeLeft()``.
     func pressHome(file: StaticString = #filePath, line: UInt = #line) {
         for _ in 1...3 {
             XCUIDevice.shared.press(.home)

@@ -84,13 +84,13 @@ class ServerTestCase: UITestCase {
         token.typeText(api.token)
         tap(app.buttons["Connect"])
         // The first pull brings the server's history down before the tabs appear.
-        expect(app.tabBars.buttons["Home"], timeout: 60)
+        expect(tab("Home"), timeout: 60)
     }
 
     /// Pull to refresh on the Timeline, then find a record by its marker. The app syncs on its own
     /// schedule; this is the deliberate "fetch now" a customer would do.
     func syncAndSearch(for marker: String) {
-        tap(app.tabBars.buttons["Timeline"])
+        tap(tab("Timeline"))
         app.swipeDown()
         let search = app.searchFields.firstMatch
         tap(search)

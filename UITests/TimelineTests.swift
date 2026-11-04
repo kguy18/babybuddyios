@@ -71,11 +71,10 @@ final class TimelineTests: UITestCase {
         search.typeText("garden\n") // the keyboard would cover the tab bar
         expect(note)
 
-        tap(app.tabBars.buttons["Home"])
+        tap(tab("Home"))
         tap(expect(element(labeled: "Feedings, ")))
-        let day = expect(app.navigationBars["Feeding · Today"])
-        tap(day.buttons.firstMatch) // back
-        tap(app.tabBars.buttons["Timeline"])
+        back(from: "Feeding · Today")
+        tap(tab("Timeline"))
 
         XCTAssertEqual(search.value as? String, "garden", "The search should survive the trip")
         expect(note)

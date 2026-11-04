@@ -35,6 +35,22 @@ scripts/ui-test.sh --server
 Use a token for a user of your own, on a server whose data you don't mind test records appearing in
 and disappearing from; the tests clean up after themselves but they do write.
 
+A third lane runs on iPhone Duo's open display, which XCUITest can't reach by itself. It needs Xcode
+27.1 or later with the iPhone Duo simulator. The script clones that simulator as "BabyBuddy UI Tests
+Duo", unfolds it with [duoctl](https://github.com/skarol/duoctl) and stops unless the inner screen
+took over. With no `-only-testing` it runs `FoldTests` and `SmokeTests`; on a failure it saves the
+open display to `build/duo-open.png`:
+
+```bash
+scripts/ui-test.sh --duo-open -only-testing:BabyBuddyUITests/FoldTests
+```
+
+`scripts/duoctl` fetches duoctl at the commit it names into `~/.cache/babybuddy-duoctl` and runs it;
+change that commit to update it. duoctl uses private simulator interfaces, so treat it as a stopgap
+until Apple ships a supported way to fold the simulator. `FoldTests` skip on any other display. To
+run them on another simulator, force the open layouts with `TEST_RUNNER_BB_FOLD=1 scripts/ui-test.sh
+-only-testing:BabyBuddyUITests/FoldTests`.
+
 `Sources/Info.plist`, `Sources/BabyBuddy.entitlements` and `Widgets/BabyBuddyWidgets.entitlements`
 are all generated from `project.yml`. Edit the YAML and re-run `xcodegen generate`; hand edits to
 the generated files are overwritten.
@@ -76,6 +92,7 @@ Pass these via `SIMCTL_CHILD_<NAME>` environment variables to `xcrun simctl laun
 | `BB_SCANNER_PREVIEW=1` | Open the QR scanner over a black backdrop, without the camera |
 | `BB_LOAD_OLDER=<n>` | Auto-page the timeline back `n` history chunks on launch (with `BB_DEMO`) |
 | `BB_LOCK=1` | Force the Face ID lock on |
+| `BB_FOLD=1` | Lay out Home, the Timeline and the sheets as on iPhone Duo's open display, however narrow the screen. `FoldTests` pass it when the test runner has `BB_FOLD=1`, to run off the open display |
 | `BB_WHATSNEW_UPGRADE=1` | Launch as an update from a release older than the What's New card, so the card presents (with `BB_DEMO`) |
 | `BB_NUDGE=gentle\|milestone\|banner` | Force a support-nudge surface on the Dashboard |
 | `BB_TIMER_ALERT_SECONDS=<n>` | Turn forgotten-timer alerts on and fire them `n` seconds after a timer starts, whatever Settings says |

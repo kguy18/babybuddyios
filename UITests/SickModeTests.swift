@@ -4,7 +4,7 @@ import XCTest
 /// it with Undo, medicine colors, and a phone in °C. `BB_SEED_SICK=1` seeds a feverish child with
 /// sick mode on; starting it over a fever asks for notification permission, for the temperature check.
 final class SickModeTests: UITestCase {
-    private var homeTab: XCUIElement { app.tabBars.buttons["Home"] }
+    private var homeTab: XCUIElement { tab("Home") }
 
     /// Home ▸ "+" ▸ More… ▸ Temperature, `value` typed and saved.
     private func logTemperature(_ value: String) {
@@ -90,7 +90,7 @@ final class SickModeTests: UITestCase {
         tap(app.navigationBars["Add Activity"].buttons["Cancel"])
 
         // Settings ▸ Sick mode ends it, and starts it again.
-        tap(app.tabBars.buttons["Settings"])
+        tap(tab("Settings"))
         tap(app.buttons["End sick mode"])
         tap(app.buttons["Start sick mode"])
         expect(app.buttons["End sick mode"])

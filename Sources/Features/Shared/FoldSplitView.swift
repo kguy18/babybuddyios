@@ -20,7 +20,54 @@ enum FoldLayout {
         let start = fold.map { max($0.minX, 0) } ?? (width - assumedFold) / 2
         let end = fold.map { min($0.maxX, width) } ?? start + assumedFold
         let panes = Panes(side: start, fold: end - start, main: width - end)
-        return min(panes.side, panes.main) >= minPane ? panes : nil
+        return (forced || min(panes.side, panes.main) >= minPane) ? panes : nil
+    }
+
+    /// `BB_FOLD=1` (DEBUG) lays out every screen and sheet as the open display does, however narrow
+    /// the window, so UI tests reach those layouts on any simulator: XCUITest can't unfold an
+    /// iPhone Duo.
+    static let forced: Bool = {
+        #if DEBUG
+        ProcessInfo.processInfo.environment["BB_FOLD"] == "1"
+        #else
+        false
+        #endif
+    }()
+
+    /// The narrowest sheet that takes two columns. The open display centres a sheet 653 pt wide,
+    /// across the fold, so a sheet can't split at the fold the way a screen does. A phone's sheet
+    /// is at most 440 pt wide and the front display's 382 pt, and both keep one column.
+    static let wideSheet: CGFloat = 600
+
+    static func isWide(_ width: CGFloat) -> Bool { forced || width >= wideSheet }
+}
+
+extension View {
+    /// Writes whether this view is at least ``FoldLayout/wideSheet`` wide to `wide`, as it changes.
+    func trackingWide(_ wide: Binding<Bool>) -> some View {
+        onGeometryChange(for: Bool.self) { FoldLayout.isWide($0.size.width) } action: { wide.wrappedValue = $0 }
+    }
+}
+
+/// A sheet's content in two columns side by side when `wide`, and one above the other otherwise,
+/// in the order given. The columns keep their views across the change, so folding the phone with
+/// the sheet open keeps what's typed in it.
+struct SheetColumns<Leading: View, Trailing: View>: View {
+    let wide: Bool
+    var spacing: CGFloat = 18
+    @ViewBuilder var leading: () -> Leading
+    @ViewBuilder var trailing: () -> Trailing
+
+    var body: some View {
+        let layout = wide
+            ? AnyLayout(HStackLayout(alignment: .top, spacing: 14))
+            : AnyLayout(VStackLayout(alignment: .leading, spacing: spacing))
+        layout {
+            VStack(alignment: .leading, spacing: spacing, content: leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: spacing, content: trailing)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 

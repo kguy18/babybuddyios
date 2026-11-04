@@ -7,7 +7,8 @@ import SwiftUI
 
 // MARK: - A · Gentle ask
 
-/// The one-time centered card, over a scrim.
+/// The one-time centered card, over a scrim. On iPhone Duo's open display it sits at the bottom of
+/// the pane right of the fold.
 ///
 /// A card rather than a sheet on purpose: this is the app pausing once to say something, and a
 /// sheet's drag indicator would invite a swipe that means neither yes nor no. Saying no is explicit
@@ -34,19 +35,32 @@ struct SupportGentleAskCard: View {
                 .accessibilityHidden(true)
                 .transition(.opacity)
 
-            // At accessibility text sizes the card is taller than the screen. `minHeight` keeps it
-            // centered while it fits and lets it scroll once it doesn't — without this the body copy
-            // is silently truncated mid-sentence, which is the one thing a card of copy can't afford.
-            GeometryReader { proxy in
-                ScrollView {
-                    peekingCard
-                        .padding(.horizontal, 28)
-                        .padding(.vertical, 24)
-                        .frame(minHeight: proxy.size.height, alignment: .center)
+            // On iPhone Duo's open display a centred card would span the fold, so it sits at the
+            // bottom of the pane right of the fold instead, over Home.
+            FoldSplitView { Color.clear } main: { split in
+                if split {
+                    scrolling(alignment: .bottom, horizontalPadding: 16)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                } else {
+                    scrolling(alignment: .center, horizontalPadding: 28)
+                        .transition(.scale(scale: 0.96).combined(with: .opacity))
                 }
-                .scrollBounceBehavior(.basedOnSize)
             }
-            .transition(.scale(scale: 0.96).combined(with: .opacity))
+        }
+    }
+
+    /// At accessibility text sizes the card is taller than the screen. `minHeight` keeps it in
+    /// place while it fits and lets it scroll once it doesn't — without this the body copy is
+    /// silently truncated mid-sentence, which is the one thing a card of copy can't afford.
+    private func scrolling(alignment: Alignment, horizontalPadding: CGFloat) -> some View {
+        GeometryReader { proxy in
+            ScrollView {
+                peekingCard
+                    .padding(.horizontal, horizontalPadding)
+                    .padding(.vertical, 24)
+                    .frame(minHeight: proxy.size.height, alignment: alignment)
+            }
+            .scrollBounceBehavior(.basedOnSize)
         }
     }
 
@@ -86,7 +100,7 @@ struct SupportGentleAskCard: View {
                 .buttonStyle(.bbPrimary)
                 .padding(.top, 20)
 
-            QuietNudgeButton(title: "Maybe later", action: onDismiss)
+            QuietNudgeButton(title: String(localized: "Maybe later"), action: onDismiss)
 
             // The line that makes the whole thing fair: the ask is opt-out, and says so.
             Text("Reminders can be turned off in Settings.")
@@ -153,7 +167,7 @@ struct SupportMilestoneSheet: View {
                 .buttonStyle(.bbPrimary)
                 .padding(.top, 20)
 
-            QuietNudgeButton(title: "Not now", action: onDismiss)
+            QuietNudgeButton(title: String(localized: "Not now"), action: onDismiss)
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
@@ -171,11 +185,11 @@ struct SupportMilestoneSheet: View {
                 .padding(.top, 18)
 
             HStack(spacing: 8) {
-                PerkChip(title: "Themes", color: BBColor.tummy)
+                PerkChip(title: String(localized: "Themes"), color: BBColor.tummy)
                 // `primary`, not `brand`: the latter is the one fixed token in the palette, and an
                 // undimmed dot beside the adaptive one would be the only thing on the sheet ignoring
                 // dark mode.
-                PerkChip(title: "Alt app icons", color: BBColor.primary)
+                PerkChip(title: String(localized: "Alt app icons"), color: BBColor.primary)
             }
             .padding(.top, 12)
         }
@@ -361,21 +375,21 @@ private struct QuietNudgeButton: View {
 
 // MARK: - Previews
 
-#Preview("Gentle ask") {
+#Preview(String(localized: "Gentle ask")) {
     ZStack {
         BBColor.surface.ignoresSafeArea()
         SupportGentleAskCard(onSupport: {}, onDismiss: {})
     }
 }
 
-#Preview("Milestone") {
+#Preview(String(localized: "Milestone")) {
     Color.clear
         .sheet(isPresented: .constant(true)) {
             SupportMilestoneSheet(count: 500, onSupport: {}, onDismiss: {})
         }
 }
 
-#Preview("Banner") {
+#Preview(String(localized: "Banner")) {
     ZStack {
         BBColor.surface.ignoresSafeArea()
         SupportBanner(onSupport: {}, onDismiss: {}).padding()

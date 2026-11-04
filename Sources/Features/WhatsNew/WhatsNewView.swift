@@ -12,7 +12,7 @@ struct WhatsNewView: View {
     /// Settings can be told apart.
     let source: Analytics.WhatsNewSource
     /// "Continue" on first launch; Settings passes "Done", where nothing is being continued.
-    var dismissTitle = "Continue"
+    var dismissTitle = String(localized: "Continue")
     /// Called after the cover is dismissed, so the caller can record the version it showed.
     var onDismiss: () -> Void = {}
 
@@ -107,9 +107,9 @@ struct WhatsNewView: View {
                         .foregroundStyle(item.icon.tint)
                 }
             VStack(alignment: .leading, spacing: 3) {
-                Text(item.title).font(.system(size: 15.5, weight: .semibold))
+                Text(NSLocalizedString(item.title, comment: "Bundled release note title")).font(.system(size: 15.5, weight: .semibold))
                 if !item.body.isEmpty {
-                    Text(item.body)
+                    Text(NSLocalizedString(item.body, comment: "Bundled release note body"))
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -125,7 +125,7 @@ struct WhatsNewView: View {
     private var fixedHeader: some View {
         VStack(spacing: 0) {
             divider
-            SectionHeader("Also fixed")
+            SectionHeader(String(localized: "Also fixed"))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 16)
                 .padding(.top, 14)
@@ -139,7 +139,7 @@ struct WhatsNewView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(BBColor.success)
                 .padding(.top, 1)
-            Text(text)
+            Text(NSLocalizedString(text, comment: "Bundled release note fix"))
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -191,11 +191,11 @@ struct WhatsNewView: View {
     WhatsNewView(note: ReleaseNote(
         version: "1.0.3",
         new: [
-            .init(icon: .sync, title: "Sync problems are visible",
-                  body: "Rejected records stop retrying and wait in Pending Changes with the reason."),
-            .init(icon: .alert, title: "Flagged on the Timeline",
-                  body: "Records that failed to sync show a red warning. Tap it to see why."),
+            .init(icon: .sync, title: String(localized: "Sync problems are visible"),
+                  body: String(localized: "Rejected records stop retrying and wait in Pending Changes with the reason.")),
+            .init(icon: .alert, title: String(localized: "Flagged on the Timeline"),
+                  body: String(localized: "Records that failed to sync show a red warning. Tap it to see why.")),
         ],
-        fixed: ["Repeating a feeding keeps the right end time"]),
+        fixed: [String(localized: "Repeating a feeding keeps the right end time")]),
         source: .launch)
 }

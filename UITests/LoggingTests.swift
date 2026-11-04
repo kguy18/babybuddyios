@@ -23,7 +23,7 @@ final class LoggingTests: UITestCase {
         XCTAssertEqual(diapers.label, before)
 
         // Timeline: repeat the seeded tagged feeding, then undo it — over the list's own rows.
-        tap(app.tabBars.buttons["Timeline"])
+        tap(tab("Timeline"))
         let tagged = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label BEGINSWITH 'Feeding, ' AND label CONTAINS 'tags: hungry, night'"))
         expect(tagged.firstMatch).swipeRight()
@@ -78,7 +78,7 @@ final class LoggingTests: UITestCase {
         XCTAssertNotEqual(diapers.label, before)
         let queued = "label BEGINSWITH 'Diaper Change, Wet, Solid' AND label CONTAINS 'waiting to sync'"
         expect(elements(queued).firstMatch)
-        tap(app.tabBars.buttons["Timeline"])
+        tap(tab("Timeline"))
         expect(elements(queued).firstMatch)
     }
 
@@ -99,9 +99,10 @@ final class LoggingTests: UITestCase {
         tags.typeText("\n") // Return creates it, like the row
         expect(app.buttons["Remove tag newtag"])
 
+        revealSheetBar("New Feeding")
         tap(bar.buttons["Save"])
         expectGone(bar)
-        tap(app.tabBars.buttons["Timeline"])
+        tap(tab("Timeline"))
         expect(elements("label BEGINSWITH 'Feeding, ' AND label CONTAINS 'tags: hungry, newtag'").firstMatch)
     }
 
@@ -173,9 +174,9 @@ final class LoggingTests: UITestCase {
 
         let waiting = element(labeled: "Tylenol, next dose OK at")
         expect(waiting)
-        tap(app.tabBars.buttons["Timeline"])
+        tap(tab("Timeline"))
         expect(elements("label BEGINSWITH 'Medication, Tylenol' AND label CONTAINS 'next dose OK at'").firstMatch)
-        tap(app.tabBars.buttons["Home"])
+        tap(tab("Home"))
 
         openEditor("Medication")
         bar = expect(app.navigationBars["New Medication"])
@@ -207,7 +208,11 @@ final class LoggingTests: UITestCase {
         // Day cells are the only labels ending in a day number while the calendar is up, and the
         // 15th of next month is in the future whatever today is.
         tap(app.buttons.matching(NSPredicate(format: "label ENDSWITH ' 15'")).firstMatch)
-        tap(dateButton) // close the calendar, so the notice underneath can be read
+        // Close the calendar, so the notice underneath can be read, and wait for it to go: on
+        // iPhone Duo a Cancel tapped while it was still closing only finished closing it.
+        let calendar = app.buttons["PopoverDismissRegion"]
+        tap(calendar)
+        expectGone(calendar)
 
         expect(element(labeled: "Can\u{2019}t save yet. That time is in the future"))
         XCTAssertFalse(bar.buttons["Save"].isEnabled, "A future change mustn't be sendable")

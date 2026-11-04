@@ -10,9 +10,9 @@ enum ChartPeriod: Int, CaseIterable, Identifiable {
     var days: Int { rawValue }
 
     /// Compact segmented-control label.
-    var label: String { "\(rawValue)d" }
+    var label: String { String(localized: "\(rawValue)d") }
     /// Spoken label for accessibility.
-    var accessibilityLabel: String { "\(rawValue) days" }
+    var accessibilityLabel: String { String(localized: "\(rawValue) days") }
 }
 
 /// One day's total sleep, in hours.
@@ -165,7 +165,7 @@ struct ChartAggregator {
             let key = MedicationReminderPolicy.normalizedName(spelled)
             if counts[key] == nil {
                 order.append(key)
-                names[key] = spelled.isEmpty ? "Medication" : spelled
+                names[key] = spelled.isEmpty ? String(localized: "Medication") : spelled
             }
             counts[key, default: 0] += 1
         }

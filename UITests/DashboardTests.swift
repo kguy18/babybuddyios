@@ -10,7 +10,7 @@ final class DashboardTests: UITestCase {
         let count = Int(tile.label.components(separatedBy: ", ").last ?? "") ?? -1
 
         tap(tile)
-        let day = expect(app.navigationBars["Feeding · Today"])
+        expect(app.navigationBars["Feeding · Today"])
         let rows = elements("label BEGINSWITH 'Feeding, '")
         XCTAssertEqual(rows.count, count, "The day should list what the tile counted")
 
@@ -23,7 +23,7 @@ final class DashboardTests: UITestCase {
         expectGone(toast)
         XCTAssertEqual(rows.count, count)
 
-        tap(day.buttons.firstMatch) // back
+        back(from: "Feeding · Today")
         expect(element(labeled: "Feedings, "))
         app.open(URL(string: "babybuddy://day/feeding")!)
         expect(app.navigationBars["Feeding · Today"])

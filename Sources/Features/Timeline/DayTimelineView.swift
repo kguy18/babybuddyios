@@ -109,7 +109,7 @@ struct DayTimelineView: View {
         }
         .overlay(alignment: .bottomTrailing) {
             if let kind {
-                FloatingAddButton(accessibilityLabelText: "Add \(kind.displayName)") {
+                FloatingAddButton(accessibilityLabelText: String(localized: "Add \(kind.displayName)")) {
                     adding = true
                 }
                 .padding(.trailing, 20)
@@ -126,9 +126,9 @@ struct DayTimelineView: View {
     private var title: String {
         guard let kind else { return "" }
         let when = Calendar.current.isDateInToday(day)
-            ? "Today"
+            ? String(localized: "Today")
             : day.formatted(.dateTime.month(.abbreviated).day())
-        return "\(kind.displayName) · \(when)"
+        return String(localized: "\(kind.displayName) · \(when)")
     }
 
     /// "Today" over the day's counts, where a pushed day has its navigation title.
@@ -149,7 +149,7 @@ struct DayTimelineView: View {
             ContentUnavailableView(
                 "No \(kind.displayName)",
                 systemImage: kind.systemImage,
-                description: Text("No \(kind.displayName.lowercased()) logged for this day."))
+                description: Text("No \(kind.sentenceName) logged for this day."))
         } else {
             ContentUnavailableView(
                 "Nothing logged today", systemImage: "list.bullet",

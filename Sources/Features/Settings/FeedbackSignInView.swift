@@ -50,10 +50,10 @@ struct FeedbackSignInView: View {
         let blocked = now < blockedUntil
         return VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(step == .code ? "Check your email" : "Sign in")
+                Text(step == .code ? String(localized: "Check your email") : String(localized: "Sign in"))
                     .font(.title2.weight(.bold))
                     .accessibilityAddTraits(.isHeader)
-                Text(step == .code ? "Enter the 6-digit code we sent to \(trimmedEmail)." : context)
+                Text(step == .code ? String(localized: "Enter the 6-digit code we sent to \(trimmedEmail).") : context)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -68,8 +68,8 @@ struct FeedbackSignInView: View {
     }
 
     private var context: String {
-        widget == .help ? "Sign in with your email so I can reply to you."
-            : "Sign in with your email to post and vote."
+        widget == .help ? String(localized: "Sign in with your email so I can reply to you.")
+            : String(localized: "Sign in with your email to post and vote.")
     }
 
     // MARK: Steps
@@ -80,15 +80,15 @@ struct FeedbackSignInView: View {
             Button("Send Code", action: sendCode)
                 .buttonStyle(.bbPrimary)
                 .disabled(!emailLooksValid || working || blocked)
-            hint("No password needed. You'll get a 6-digit code by email.")
-            quietLink("Use a password instead") { show(.password) }
+            hint(String(localized: "No password needed. You'll get a 6-digit code by email."))
+            quietLink(String(localized: "Use a password instead")) { show(.password) }
         }
         .onAppear { if email.isEmpty { focus = .email } }
     }
 
     private func codeStep(now: Date, blocked: Bool) -> some View {
         VStack(spacing: 14) {
-            field("Code", showsError: true) {
+            field(String(localized: "Code"), showsError: true) {
                 TextField("Code", text: $code, prompt: Text("6-digit code").foregroundStyle(.secondary))
                     .textContentType(.oneTimeCode)
                     .keyboardType(.numberPad)
@@ -103,11 +103,11 @@ struct FeedbackSignInView: View {
             Button("Sign In") { verify(code) }
                 .buttonStyle(.bbPrimary)
                 .disabled(code.count != 6 || working || blocked)
-            hint("The code fills in from Mail and signs you in on its own.")
+            hint(String(localized: "The code fills in from Mail and signs you in on its own."))
             let wait = Int(resendAt.timeIntervalSince(now).rounded(.up))
-            quietLink(wait > 0 ? "Resend code in \(wait)s" : "Resend code", action: sendCode)
+            quietLink(wait > 0 ? String(localized: "Resend code in \(wait)s") : String(localized: "Resend code"), action: sendCode)
                 .disabled(wait > 0 || working || blocked)
-            quietLink("Use a different email") { show(.email) }
+            quietLink(String(localized: "Use a different email")) { show(.email) }
         }
         .onAppear { focus = .code }
     }
@@ -115,7 +115,7 @@ struct FeedbackSignInView: View {
     private func passwordStep(blocked: Bool) -> some View {
         VStack(spacing: 14) {
             emailField
-            field("Password", showsError: true) {
+            field(String(localized: "Password"), showsError: true) {
                 SecureField("Password", text: $password)
                     .textContentType(.password)
                     .submitLabel(.go)
@@ -126,15 +126,15 @@ struct FeedbackSignInView: View {
                 .buttonStyle(.bbPrimary)
                 .disabled(!emailLooksValid || password.isEmpty || working || blocked)
             if working { ProgressView().frame(maxWidth: .infinity) }
-            quietLink("Use an email code instead") { show(.email) }
+            quietLink(String(localized: "Use an email code instead")) { show(.email) }
             // Rare enough that the portal's own reset flow, in Safari, is enough.
-            quietLink("Forgot password?") { openURL(FeedbackWidget.serverURL.appending(path: "auth/login")) }
+            quietLink(String(localized: "Forgot password?")) { openURL(FeedbackWidget.serverURL.appending(path: "auth/login")) }
         }
     }
 
     /// The email field; send errors show under it on the email step.
     private var emailField: some View {
-        field("Email", showsError: step == .email) {
+        field(String(localized: "Email"), showsError: step == .email) {
             TextField("Email", text: $email, prompt: Text("you@example.com").foregroundStyle(.secondary))
                 .textContentType(.emailAddress)
                 .keyboardType(.emailAddress)

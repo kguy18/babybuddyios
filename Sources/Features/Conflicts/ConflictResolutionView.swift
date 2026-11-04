@@ -102,9 +102,7 @@ struct ConflictResolutionView: View {
                     Image(systemName: "trash")
                         .font(.system(size: 17))
                         .foregroundStyle(BBColor.danger)
-                    Text("This \(conflict.kind.displayName.lowercased()) was deleted on the server "
-                         + "while you had local changes here. Keep your version to restore it, or "
-                         + "discard it to accept the deletion.")
+                    Text("This \(conflict.kind.sentenceName) was deleted on the server while you had local changes here. Keep your version to restore it, or discard it to accept the deletion.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     Spacer(minLength: 0)
@@ -137,8 +135,8 @@ struct ConflictResolutionView: View {
                     Text("\(conflict.kind.displayName) · \(recordTimeText)")
                         .font(.subheadline.weight(.semibold))
                     Text(conflict.serverDeleted
-                         ? "Deleted on the server while you edited it"
-                         : "Changed here and on the server")
+                         ? String(localized: "Deleted on the server while you edited it")
+                         : String(localized: "Changed here and on the server"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -164,8 +162,8 @@ struct ConflictResolutionView: View {
 
     private var legend: some View {
         HStack(spacing: 18) {
-            legendItem(dot: BBColor.brand, name: "Mine", nameColor: BBColor.brandAccent, detail: mineDetail)
-            legendItem(dot: .secondary, name: "Server", nameColor: BBColor.tagChipText, detail: serverDetail)
+            legendItem(dot: BBColor.brand, name: String(localized: "Mine"), nameColor: BBColor.brandAccent, detail: mineDetail)
+            legendItem(dot: .secondary, name: String(localized: "Server"), nameColor: BBColor.tagChipText, detail: serverDetail)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 2)
@@ -195,7 +193,7 @@ struct ConflictResolutionView: View {
 
     private var diffControlsRow: some View {
         HStack(spacing: 0) {
-            Text(differingFields.count == 1 ? "1 field differs" : "\(differingFields.count) fields differ")
+            Text("\(differingFields.count) fields differ")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Spacer(minLength: 8)
@@ -227,7 +225,7 @@ struct ConflictResolutionView: View {
             withAnimation(.snappy(duration: 0.16)) { keepMineByField[field] = keepMine }
         } label: {
             VStack(alignment: .leading, spacing: 6) {
-                Text(keepMine ? "MINE" : "SERVER")
+                Text(keepMine ? String(localized: "MINE") : String(localized: "SERVER"))
                     .font(.caption2.weight(.semibold))
                     .kerning(0.4)
                     .foregroundStyle(selected ? BBColor.brandAccent : .secondary)
@@ -308,8 +306,8 @@ struct ConflictResolutionView: View {
                 .font(.system(size: 18))
                 .foregroundStyle(keepMine ? BBColor.brandAccent : .secondary)
             Text(keepMine
-                 ? "Keeps this device's version. The server's copy will be overwritten on the next sync."
-                 : "Uses the server's version. Your local changes here will be replaced.")
+                 ? String(localized: "Keeps this device's version. The server's copy will be overwritten on the next sync.")
+                 : String(localized: "Uses the server's version. Your local changes here will be replaced."))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Spacer(minLength: 0)
@@ -333,7 +331,7 @@ struct ConflictResolutionView: View {
         switch mode {
         case .merge:
             Button { saveMerged() } label: {
-                Label("Save merged \(conflict.kind.displayName.lowercased())",
+                Label("Save merged \(conflict.kind.sentenceName)",
                       systemImage: "arrow.triangle.merge")
             }
             .buttonStyle(.bbPrimary)
@@ -353,8 +351,8 @@ struct ConflictResolutionView: View {
     private var tally: String {
         let mineCount = differingFields.filter { keepMineByField[$0] ?? true }.count
         let serverCount = differingFields.count - mineCount
-        let mine = mineCount == 1 ? "1 field" : "\(mineCount) fields"
-        return "\(mine) from this device · \(serverCount) from server"
+        let mine = String(localized: "\(mineCount) fields")
+        return String(localized: "\(mine) from this device · \(serverCount) from server")
     }
 
     // MARK: Actions
@@ -401,10 +399,9 @@ struct ConflictResolutionView: View {
         let labels = matchingFields.map(label)
         guard !labels.isEmpty else { return nil }
         if labels.count > 3 {
-            return "\(labels.count) other fields match — kept automatically."
+            return String(localized: "\(labels.count) other fields match — kept automatically.")
         }
-        let verb = labels.count == 1 ? "matches" : "match"
-        return "\(listPhrase(labels)) \(verb) — kept automatically."
+        return String(localized: "Matching fields: \(listPhrase(labels)). Kept automatically.")
     }
 
     private var recordTimeText: String {
@@ -412,18 +409,18 @@ struct ConflictResolutionView: View {
         guard ts != .distantPast else { return "—" }
         let time = ts.formatted(date: .omitted, time: .shortened)
         let cal = Calendar.current
-        if cal.isDateInToday(ts) { return "Today, \(time)" }
-        if cal.isDateInYesterday(ts) { return "Yesterday, \(time)" }
-        return "\(ts.formatted(date: .abbreviated, time: .omitted)), \(time)"
+        if cal.isDateInToday(ts) { return String(localized: "Today, \(time)") }
+        if cal.isDateInYesterday(ts) { return String(localized: "Yesterday, \(time)") }
+        return String(localized: "\(ts.formatted(date: .abbreviated, time: .omitted)), \(time)")
     }
 
     // MARK: Formatting helpers
 
     private func title(for mode: ResolveMode) -> String {
         switch mode {
-        case .keepMine: return "Keep mine"
-        case .keepServer: return "Keep server"
-        case .merge: return "Merge"
+        case .keepMine: return String(localized: "Keep mine")
+        case .keepServer: return String(localized: "Keep server")
+        case .merge: return String(localized: "Merge")
         }
     }
 
@@ -444,39 +441,40 @@ struct ConflictResolutionView: View {
 
     /// Joins labels into a natural list: "A", "A and B", "A, B and C".
     private func listPhrase(_ items: [String]) -> String {
-        switch items.count {
-        case 0: return ""
-        case 1: return items[0]
-        case 2: return "\(items[0]) and \(items[1])"
-        default: return "\(items.dropLast().joined(separator: ", ")) and \(items.last!)"
-        }
+        items.formatted(.list(type: .and))
     }
 
     private func label(_ field: String) -> String {
         switch field {
-        case "start": return "Start time"
-        case "end": return "End time"
-        case "time": return "Time"
-        case "date": return "Date"
-        case "amount": return "Amount"
-        case "notes": return "Notes"
-        case "note": return "Note"
-        case "tags": return "Tags"
-        case "type": return "Type"
-        case "method": return "Method"
-        case "color": return "Color"
-        case "wet": return "Wet"
-        case "solid": return "Solid"
-        case "nap": return "Nap"
-        case "milestone": return "Milestone"
-        case "weight": return "Weight"
-        case "height": return "Height"
-        case "head_circumference": return "Head circumference"
-        case "temperature": return "Temperature"
-        case "bmi": return "BMI"
-        case "name": return "Name"
-        case "dosage": return "Dosage"
-        case "dosage_unit": return "Dosage unit"
+        case "start": return String(localized: "Start time")
+        case "end": return String(localized: "End time")
+        case "time": return String(localized: "Time")
+        case "date": return String(localized: "Date")
+        case "amount": return String(localized: "Amount")
+        case "notes": return String(localized: "Notes")
+        case "note": return String(localized: "Note")
+        case "tags": return String(localized: "Tags")
+        case "type": return String(localized: "Type")
+        case "method": return String(localized: "Method")
+        case "color": return String(localized: "Color")
+        case "wet": return String(localized: "Wet")
+        case "solid": return String(localized: "Solid")
+        case "nap": return String(localized: "Nap")
+        case "milestone": return String(localized: "Milestone")
+        case "weight": return String(localized: "Weight")
+        case "height": return String(localized: "Height")
+        case "head_circumference": return String(localized: "Head circumference")
+        case "temperature": return String(localized: "Temperature")
+        case "bmi": return String(localized: "BMI")
+        case "name": return String(localized: "Name")
+        case "dosage": return String(localized: "Dosage")
+        case "dosage_unit": return String(localized: "Dosage unit")
+        case "child": return String(localized: "Child")
+        case "next_dose_interval": return String(localized: "Next dose after")
+        case "birth_date": return String(localized: "Date of birth")
+        case "first_name": return String(localized: "First name")
+        case "last_name": return String(localized: "Last name")
+        case "image", "picture": return String(localized: "Photo")
         default: return field.replacingOccurrences(of: "_", with: " ").capitalized
         }
     }
@@ -495,6 +493,12 @@ struct ConflictResolutionView: View {
             }
         case "amount":
             if let n = value as? NSNumber { return EntityFormatting.formatAmount(n.doubleValue) }
+        case "type":
+            if let raw = value as? String { return FeedingType(rawValue: raw)?.label ?? raw }
+        case "method":
+            if let raw = value as? String { return FeedingMethod(rawValue: raw)?.label ?? raw }
+        case "color":
+            if let raw = value as? String { return DiaperColor(rawValue: raw)?.label ?? raw }
         default:
             break
         }
@@ -504,10 +508,10 @@ struct ConflictResolutionView: View {
     private func display(_ value: Any?) -> String {
         switch value {
         case nil, is NSNull: return "—"
-        case let b as Bool: return b ? "Yes" : "No"
+        case let b as Bool: return b ? String(localized: "Yes") : String(localized: "No")
         case let s as String: return s.isEmpty ? "—" : s
         case let arr as [Any]: return arr.isEmpty ? "—" : arr.map { "\($0)" }.joined(separator: ", ")
-        case let n as NSNumber: return n.stringValue
+        case let n as NSNumber: return n.doubleValue.formatted(.number.grouping(.never))
         default: return "\(value!)"
         }
     }

@@ -18,6 +18,7 @@ struct StartTimerSheet: View {
     /// Minutes before the Start tap (0 = now); `nil` once a start is picked, which `customStart` holds.
     @State private var minutesBack: Int? = 0
     @State private var customStart = Date.now
+    @State private var wide = false
 
     /// The convertible activities a timer can become — same set as the dashboard's convert menu.
     private let activities: [EntityKind] = [.feeding, .sleep, .tummyTime, .pumping]
@@ -27,8 +28,9 @@ struct StartTimerSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    SectionHeader("Activity")
+                // On iPhone Duo's open display: the activities left, the details and Start right.
+                SheetColumns(wide: wide) {
+                    SectionHeader(String(localized: "Activity"))
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(activities) { kind in
                             ActivityPickTile(kind: kind, isSelected: selected == kind) {
@@ -36,20 +38,31 @@ struct StartTimerSheet: View {
                             }
                         }
                     }
+                } trailing: {
                     detailsCard
                     Text("The timer counts up from its start until you stop it.")
                         .font(.caption).foregroundStyle(.secondary)
+                    if wide { startButtons }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
             }
+            .trackingWide($wide)
             .background(BBColor.surface)
             .navigationTitle("Start Timer")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
-            .safeAreaInset(edge: .bottom) { startBar }
+            .safeAreaInset(edge: .bottom) {
+                if !wide {
+                    startButtons
+                        .padding(.horizontal, 16)
+                        .padding(.top, 10)
+                        .padding(.bottom, 6)
+                        .background(BBColor.surface)
+                }
+            }
         }
     }
 
@@ -72,7 +85,7 @@ struct StartTimerSheet: View {
                     HStack {
                         Text("Starts").font(.subheadline).foregroundStyle(.secondary)
                         Spacer()
-                        DatePicker("Starts", selection: Binding(
+                        DatePicker(String(localized: "Starts"), selection: Binding(
                             get: { startDate() },
                             set: { customStart = min($0, .now); minutesBack = nil }
                         ), in: ...Date.now, displayedComponents: [.date, .hourAndMinute])
@@ -81,7 +94,7 @@ struct StartTimerSheet: View {
                             .tint(BBColor.brandAccent)
                     }
                     BBSegmentedControl(selection: $minutesBack, options: [0, 5, 15, 30]) { minutes in
-                        minutes == 0 ? "Now" : "−\(minutes ?? 0) min"
+                        minutes == 0 ? String(localized: "Now") : "−\(minutes ?? 0) min"
                     }
                 }
                 .padding(.horizontal, 15).padding(.vertical, 11)
@@ -91,7 +104,7 @@ struct StartTimerSheet: View {
 
     // MARK: Start actions
 
-    private var startBar: some View {
+    private var startButtons: some View {
         VStack(spacing: 6) {
             Button { start(kind: selected) } label: { Text(startTitle) }
                 .buttonStyle(startStyle)
@@ -105,15 +118,11 @@ struct StartTimerSheet: View {
                     .padding(.vertical, 4)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 6)
-        .background(BBColor.surface)
     }
 
     private var startTitle: String {
-        if let selected { return "Start \(selected.displayName.lowercased()) timer" }
-        return "Start timer"
+        if let selected { return String(localized: "Start \(selected.sentenceName) timer") }
+        return String(localized: "Start timer")
     }
 
     /// The primary button adopts the chosen activity's color (dark-on-tint label for contrast in

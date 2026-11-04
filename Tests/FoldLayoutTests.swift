@@ -29,6 +29,16 @@ final class FoldLayoutTests: XCTestCase {
         XCTAssertNil(FoldLayout.panes(width: 2 * FoldLayout.minPane + FoldLayout.assumedFold - 1, fold: nil))
     }
 
+    /// Sheets take two columns on the open display, where the system centres them 653 pt wide, and
+    /// keep one on the front display and every other iPhone.
+    func testOnlyTheOpenDisplaysSheetIsWide() {
+        XCTAssertTrue(FoldLayout.isWide(653))
+        XCTAssertTrue(FoldLayout.isWide(951))
+        for width: CGFloat in [320, 382, 402, 440, 466] {
+            XCTAssertFalse(FoldLayout.isWide(width), "\(width) pt sheet took two columns")
+        }
+    }
+
     func testAFoldReachingPastTheWindowIsClipped() {
         XCTAssertEqual(FoldLayout.panes(width: 800, fold: CGRect(x: 380, y: -20, width: 40, height: 900)),
                        FoldLayout.Panes(side: 380, fold: 40, main: 380))

@@ -12,15 +12,15 @@ final class SmokeTests: UITestCase {
         XCTAssertTrue(app.staticTexts["TODAY"].exists)
         XCTAssertTrue(app.staticTexts["LATEST"].exists)
 
-        tap(app.tabBars.buttons["Timeline"])
+        tap(tab("Timeline"))
         expect(element(labeled: "Feeding, "))
 
-        tap(app.tabBars.buttons["Trends"])
+        tap(tab("Trends"))
         for card in ["Sleep", "Feedings", "Diapers", "Tummy Time", "Pumping"] {
             expect(app.staticTexts[card])
         }
 
-        tap(app.tabBars.buttons["Settings"])
+        tap(tab("Settings"))
         for section in ["SUPPORT THE APP", "SERVER", "NOTIFICATIONS", "QUICK LOG", "FEEDBACK"] {
             expect(app.staticTexts[section])
         }
@@ -81,13 +81,13 @@ final class SmokeTests: UITestCase {
         launch()
         try audit()
 
-        for tab in ["Timeline", "Trends", "Settings"] {
-            tap(app.tabBars.buttons[tab])
-            expect(app.navigationBars[tab])
+        for name in ["Timeline", "Trends", "Settings"] {
+            tap(tab(name))
+            expect(app.navigationBars[name])
             try audit()
         }
 
-        tap(app.tabBars.buttons["Home"])
+        tap(tab("Home"))
         openEditor("Feeding")
         expect(app.navigationBars["New Feeding"])
         try audit()
