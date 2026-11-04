@@ -96,7 +96,7 @@ final class AppSession {
         let normalized = Self.normalizedServerURLString(serverURL)
         guard let url = URL(string: normalized), url.host != nil else {
             Analytics.report(.invalidURL, context: "signIn")
-            lastError = "That doesn't look like a valid server address."
+            lastError = String(localized: "That doesn't look like a valid server address.")
             return false
         }
         guard let headers = validated(headers) else { return false }
@@ -160,12 +160,12 @@ final class AppSession {
             var message = error.isForbidden ? APIError.unauthorized.userMessage : error.userMessage
             // The API root always exists on a Baby Buddy server, so a 404 here is the wrong address,
             // not the record message the sync queue shows.
-            if error == .notFound { message = "There's no Baby Buddy API at that address. Check the server URL." }
+            if error == .notFound { message = String(localized: "There's no Baby Buddy API at that address. Check the server URL.") }
             if case .accessGate(let gate) = error {
                 lastGate = gate
                 switch gate {
                 case .cloudflareAccess where !config.headers.isEmpty:
-                    message = "Cloudflare Access turned down the custom headers. Check the service token's client ID and secret."
+                    message = String(localized: "Cloudflare Access turned down the custom headers. Check the service token's client ID and secret.")
                 case .unknown where !config.headers.isEmpty:
                     message += " Check the custom headers."
                 default: break

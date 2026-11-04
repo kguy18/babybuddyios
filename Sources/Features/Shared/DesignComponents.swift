@@ -269,7 +269,7 @@ struct BBSegmentedControl<Value: Hashable>: View {
 struct FloatingAddButton: View {
     /// Rotates the glyph 45° (the "+"→"×" morph); left false where there's no open/close state.
     var rotated: Bool = false
-    var accessibilityLabelText: String = "Add"
+    var accessibilityLabelText: String = String(localized: "Add")
     var action: () -> Void
 
     var body: some View {

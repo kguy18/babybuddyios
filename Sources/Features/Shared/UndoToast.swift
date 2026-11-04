@@ -47,7 +47,7 @@ final class UndoToastCenter {
 
     func show(_ entity: LocalEntity) {
         present(Item(localID: entity.localID, kind: entity.kind,
-                     title: "Logged \(entity.kind.displayName.lowercased())",
+                     title: String(localized: "Logged \(entity.kind.sentenceName)"),
                      subtitle: EntityFormatting.subtitle(entity), revert: nil))
     }
 
@@ -143,7 +143,7 @@ struct UndoToastView: View {
             .padding(.horizontal, 16)
             .transition(.move(edge: .bottom).combined(with: .opacity))
             .accessibilityElement(children: .contain)
-            .accessibilityLabel(item.kind.map { "Logged \($0.displayName)" } ?? item.title)
+            .accessibilityLabel(item.kind.map { String(localized: "Logged \($0.displayName)") } ?? item.title)
             .accessibilityActions {
                 if item.canUndo { Button("Undo") { center.undo(in: context) } }
             }
