@@ -7,7 +7,8 @@ import SwiftUI
 
 // MARK: - A · Gentle ask
 
-/// The one-time centered card, over a scrim.
+/// The one-time centered card, over a scrim. On iPhone Duo's open display it sits at the bottom of
+/// the pane right of the fold.
 ///
 /// A card rather than a sheet on purpose: this is the app pausing once to say something, and a
 /// sheet's drag indicator would invite a swipe that means neither yes nor no. Saying no is explicit
@@ -34,19 +35,32 @@ struct SupportGentleAskCard: View {
                 .accessibilityHidden(true)
                 .transition(.opacity)
 
-            // At accessibility text sizes the card is taller than the screen. `minHeight` keeps it
-            // centered while it fits and lets it scroll once it doesn't — without this the body copy
-            // is silently truncated mid-sentence, which is the one thing a card of copy can't afford.
-            GeometryReader { proxy in
-                ScrollView {
-                    peekingCard
-                        .padding(.horizontal, 28)
-                        .padding(.vertical, 24)
-                        .frame(minHeight: proxy.size.height, alignment: .center)
+            // On iPhone Duo's open display a centred card would span the fold, so it sits at the
+            // bottom of the pane right of the fold instead, over Home.
+            FoldSplitView { Color.clear } main: { split in
+                if split {
+                    scrolling(alignment: .bottom, horizontalPadding: 16)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                } else {
+                    scrolling(alignment: .center, horizontalPadding: 28)
+                        .transition(.scale(scale: 0.96).combined(with: .opacity))
                 }
-                .scrollBounceBehavior(.basedOnSize)
             }
-            .transition(.scale(scale: 0.96).combined(with: .opacity))
+        }
+    }
+
+    /// At accessibility text sizes the card is taller than the screen. `minHeight` keeps it in
+    /// place while it fits and lets it scroll once it doesn't — without this the body copy is
+    /// silently truncated mid-sentence, which is the one thing a card of copy can't afford.
+    private func scrolling(alignment: Alignment, horizontalPadding: CGFloat) -> some View {
+        GeometryReader { proxy in
+            ScrollView {
+                peekingCard
+                    .padding(.horizontal, horizontalPadding)
+                    .padding(.vertical, 24)
+                    .frame(minHeight: proxy.size.height, alignment: alignment)
+            }
+            .scrollBounceBehavior(.basedOnSize)
         }
     }
 

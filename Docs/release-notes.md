@@ -26,6 +26,25 @@ trimming is the whole parser.
 The rest of the store listing (description, keywords, review information) lives in
 `app_store_listing.md`, which is gitignored because it stages the reviewer's demo credentials.
 
+## 1.5.0
+
+```appstore
+#New
+- iPhone Duo support. On the open display, Home shows today's timeline on the left of the fold and the usual Home on the right. In sick mode the left side holds your running timers and the sick timeline. Folding or unfolding keeps your place and any sheet you have open.
+- The Timeline uses both halves of the open iPhone Duo. Tap a record on the left and it opens on the right, ready to edit, with Save, Repeat and Delete at the top. If you fold with a record open, it moves into the usual editor sheet.
+- On the open iPhone Duo, the editor, Start Timer and Stop Timer lay out in two columns, and Add Activity shows each group on one row. Stop Timer opens tall enough to show its tiles, on the front display too.
+- The support card and support sheet sit clear of the fold on iPhone Duo.
+
+Nothing changes on other iPhones.
+```
+
+```whatsnew
+#New
+- new | iPhone Duo support | Home, Timeline and the editors use both halves of the open display.
+- new | Timeline beside the fold | Tap a record on the left to edit it on the right.
+- timer | Timer sheets fit the Duo | Start and Stop Timer use two columns and show all their tiles.
+```
+
 ## 1.4.0
 
 ```appstore
