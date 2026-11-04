@@ -20,8 +20,8 @@ not silently become a completed feeding or an Awake status. Stopped drafts remai
 their server DELETE is queued. Unknown/custom timers without an activity hint keep the existing
 generic timer header and do not invent a feeding or sleep status.
 
-Labels and spoken time descriptions live in the separate English/German `ActivityTimes` catalog,
-shared by the app and widgets. The fix can be reviewed independently of localization PR #206.
+Labels and spoken time descriptions live in the English/German `ActivityTimes` catalog,
+shared by the app and widgets alongside the main localization catalog.
 Latest-row VoiceOver describes the same end/start basis as the visual row. The generic timeline
 accessibility formatter retains its original start-time behavior.
 
@@ -32,6 +32,7 @@ completed sessions, fallback cases, timers, other kinds, midnight and both DST b
 `ActivityRecencyTests` and `CompletedActivityStatusTests` cover the helper, compiled translations,
 latest-end selection, child scoping, unchanged timestamps/payloads/day totals and stopped drafts.
 The added `DashboardTests` flow verifies end-based Latest labels and unchanged timeline semantics.
+`GermanLocalizationTests` also checks the German wake/feeding-finished descriptions on Home.
 
 The standalone checks do not compile the iOS app, WidgetKit views or SwiftData models. Those tests
 and a device review require full Xcode; they must not be represented as passed on a CLI-only host.

@@ -19,6 +19,12 @@ struct StopTimerSheet: View {
 
     @State private var selected: EntityKind?
     @State private var wide = false
+    @State private var detent: PresentationDetent = .medium
+    /// The middle of the first tile and the top of the buttons pinned below the tiles, in global
+    /// coordinates, for ``openTallEnough()``. Zero until measured.
+    @State private var firstTileMid: CGFloat = 0
+    @State private var actionsTop: CGFloat = 0
+    @State private var checkedHeight = false
 
     /// The convertible activities — same set as the Start Timer grid.
     private let activities: [EntityKind] = [.feeding, .sleep, .tummyTime, .pumping]
@@ -40,11 +46,15 @@ struct StopTimerSheet: View {
                 HStack(alignment: .top, spacing: 14) {
                     VStack(alignment: .leading, spacing: 18) {
                         summaryCard
-                        SectionHeader("Log as")
+                        SectionHeader(String(localized: "Log as"))
                         LazyVGrid(columns: columns, spacing: 12) {
                             ForEach(activities) { kind in
                                 ActivityPickTile(kind: kind, isSelected: selected == kind) {
                                     selected = (selected == kind) ? nil : kind
+                                }
+                                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).midY } action: {
+                                    guard kind == activities.first else { return }
+                                    firstTileMid = $0
                                 }
                             }
                         }
@@ -55,6 +65,9 @@ struct StopTimerSheet: View {
                 .padding(.top, 8)
             }
             .trackingWide($wide)
+            // The open display: the tiles fill the left column, and half height cuts them off.
+            .onChange(of: wide) { if wide { detent = .large } }
+            .task(id: actionsTop) { await openTallEnough() }
             .background(BBColor.surface)
             .navigationTitle("Stop Timer")
             .navigationBarTitleDisplayMode(.inline)
@@ -68,35 +81,84 @@ struct StopTimerSheet: View {
                         .padding(.top, 10)
                         .padding(.bottom, 6)
                         .background(BBColor.surface)
+                        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: { actionsTop = $0 }
                 }
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.medium, .large], selection: $detent)
+    }
+
+    /// Opens the sheet full height when less than half of the first row of "Log as" tiles shows at
+    /// half height, as on iPhone Duo's front display, which is short for its width. A phone shows
+    /// the first row whole and keeps half height. The sheet grows through several sizes as it
+    /// presents, so this waits for its height to hold still, then decides once, which leaves the
+    /// sheet free to be dragged back down.
+    private func openTallEnough() async {
+        guard !checkedHeight, actionsTop > 0 else { return }
+        try? await Task.sleep(for: .milliseconds(300))
+        guard !Task.isCancelled, !checkedHeight else { return }
+        checkedHeight = true
+        if detent == .medium, firstTileMid > actionsTop { detent = .large }
     }
 
     // MARK: Summary
 
+    /// One row on a phone. A narrower card, in the left column of the open display's wide sheet,
+    /// moves the count under the name, and a narrower one still stacks everything. The name stays
+    /// on one line in the first two: the row squeezed it onto two rather than give way to the next.
     private var summaryCard: some View {
         BBCard {
-            HStack(spacing: 14) {
-                ActivityTile(kind: selected ?? .timer, size: 46, glyph: 24)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(headline).font(.headline)
-                    HStack(spacing: 6) {
-                        Text("Started").font(.caption).foregroundStyle(.secondary)
-                        DatePicker("Started", selection: Binding(get: { timer.timestamp }, set: setStartTime),
-                                   displayedComponents: .hourAndMinute)
-                            .labelsHidden()
-                            .datePickerStyle(.compact)
-                            .tint(BBColor.brandAccent)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 14) {
+                    summaryTile
+                    VStack(alignment: .leading, spacing: 3) {
+                        summaryHeadline.fixedSize()
+                        startedRow
+                    }
+                    Spacer(minLength: 8)
+                    duration
+                }
+                HStack(alignment: .top, spacing: 14) {
+                    summaryTile
+                    VStack(alignment: .leading, spacing: 6) {
+                        summaryHeadline.fixedSize()
+                        startedRow
+                        duration
                     }
                 }
-                Spacer(minLength: 8)
-                Text(EntityFormatting.clock(elapsed))
-                    .font(.title2.weight(.semibold)).monospacedDigit()
-                    .accessibilityLabel("Stopped after \(EntityFormatting.spokenDuration(elapsed))")
+                VStack(alignment: .leading, spacing: 8) {
+                    summaryTile
+                    summaryHeadline
+                    startedRow
+                    duration
+                }
             }
         }
+    }
+
+    private var summaryTile: some View { ActivityTile(kind: selected ?? .timer, size: 46, glyph: 24) }
+
+    /// Identified because the "Log as" tile beside it can carry the same name.
+    private var summaryHeadline: some View {
+        Text(headline).font(.headline).accessibilityIdentifier("stop-timer-activity")
+    }
+
+    private var startedRow: some View {
+        HStack(spacing: 6) {
+            // Fixed: beside the picker on the front display it wrapped a few letters per line.
+            Text("Started").font(.caption).foregroundStyle(.secondary).fixedSize()
+            DatePicker("Started", selection: Binding(get: { timer.timestamp }, set: setStartTime),
+                       displayedComponents: .hourAndMinute)
+                .labelsHidden()
+                .datePickerStyle(.compact)
+                .tint(BBColor.brandAccent)
+        }
+    }
+
+    private var duration: some View {
+        Text(EntityFormatting.clock(elapsed))
+            .font(.title2.weight(.semibold)).monospacedDigit()
+            .accessibilityLabel("Stopped after \(EntityFormatting.spokenDuration(elapsed))")
     }
 
     /// Frozen at Stop, so a parent who walks away mid-sheet comes back to the same number.
@@ -122,7 +184,7 @@ struct StopTimerSheet: View {
     private var headline: String {
         if let selected { return selected.displayName }
         if let name = timer.payloadObject["name"] as? String, !name.isEmpty { return name }
-        return "Timer"
+        return String(localized: "Timer")
     }
 
     // MARK: Actions
@@ -155,10 +217,10 @@ struct StopTimerSheet: View {
     }
 
     private var logTitle: String {
-        guard let selected else { return "Choose a type to log" }
+        guard let selected else { return String(localized: "Choose a type to log") }
         // Feeding/pumping need type/method/amount, so logging them continues to a detail form.
         let needsDetails = TimerActivity(convertKind: selected)?.isInstantLoggable == false
-        return "Log \(selected.displayName.lowercased())\(needsDetails ? "…" : "")"
+        return String(localized: "Log \(selected.sentenceName)\(needsDetails ? "…" : "")")
     }
 
     /// The log button adopts the chosen activity's color (dark-on-tint label for both modes);

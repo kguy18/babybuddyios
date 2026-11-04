@@ -69,7 +69,7 @@ final class ActivityRecencyTests: XCTestCase {
         XCTAssertNil(ActivityRecency.timer(kind: "pumping", start: now, stoppedAt: nil, now: now))
     }
 
-    func testGermanTimeLabelsAreBundledIndependentlyOfTheMainTranslationPR() throws {
+    func testGermanTimeLabelsAreBundledInTheSharedTimeCatalog() throws {
         let path = try XCTUnwrap(Bundle.main.path(forResource: "de", ofType: "lproj"))
         let german = try XCTUnwrap(Bundle(path: path))
         XCTAssertEqual(german.localizedString(forKey: "Awake", value: nil, table: "ActivityTimes"), "Wach")

@@ -208,7 +208,7 @@ struct LocalRepository {
         context.delete(mutation)
     }
 
-    nonisolated static let staleTimerMessage = "The timer this was logged from no longer exists on the server. It may already have been saved from another device — check before creating it again."
+    nonisolated static let staleTimerMessage = String(localized: "The timer this was logged from no longer exists on the server. It may already have been saved from another device — check before creating it again.")
 
     /// Queue the DELETE for a timer's server copy, unless one is queued already. A timer the
     /// server never saw just loses its queued create.

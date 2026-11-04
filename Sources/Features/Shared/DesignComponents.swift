@@ -273,7 +273,7 @@ struct BBSegmentedControl<Value: Hashable>: View {
 struct FloatingAddButton: View {
     /// Rotates the glyph 45° (the "+"→"×" morph); left false where there's no open/close state.
     var rotated: Bool = false
-    var accessibilityLabelText: String = "Add"
+    var accessibilityLabelText: String = String(localized: "Add")
     var action: () -> Void
 
     var body: some View {
@@ -301,6 +301,9 @@ struct FloatingAddButton: View {
 struct FittedSheet<Content: View>: View {
     /// The laid-out content height, measured from inside.
     @State private var contentHeight: CGFloat = 0
+    /// The detent the sheet is at, moved along with the height. Changing only the set of detents
+    /// can leave an open sheet where it was on iPhone Duo (iOS 27), e.g. when the tips load in.
+    @State private var detent: PresentationDetent = .medium
     @ViewBuilder var content: () -> Content
 
     var body: some View {
@@ -309,10 +312,16 @@ struct FittedSheet<Content: View>: View {
         }
         // Content taller than the detent scrolls; anything shorter doesn't.
         .scrollBounceBehavior(.basedOnSize)
-        .presentationDetents(contentHeight > 0 ? [.height(contentHeight)] : [.medium])
+        // iPhone Duo's front display insets the trailing edge for its rail, and the sheet would
+        // centre its content in what's left. A phone's sheet has no side insets.
+        .ignoresSafeArea(.container, edges: .horizontal)
+        .presentationDetents(contentHeight > 0 ? [.height(contentHeight)] : [.medium], selection: $detent)
         .presentationDragIndicator(.visible)
         .presentationBackground(BBColor.card)
-        .onPreferenceChange(FittedSheetHeightKey.self) { contentHeight = $0 }
+        .onPreferenceChange(FittedSheetHeightKey.self) { height in
+            contentHeight = height
+            detent = height > 0 ? .height(height) : .medium
+        }
     }
 
     private var heightReader: some View {
