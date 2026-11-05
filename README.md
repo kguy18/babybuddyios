@@ -81,7 +81,6 @@ server error messages, stays in the language set in your Baby Buddy user setting
 
 :brazil: Brazilian Portuguese, :us: English (base), :de: German
 
-
 ## Your baby's records stay with you
 
 Baby tracking data syncs only between the app and your
