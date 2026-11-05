@@ -15,6 +15,12 @@
             "state": "translated",
             "value": "Baby Buddy verwendet Face ID, um die Daten deines Babys zu schützen."
           }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Baby Buddy usa o Face ID para manter os dados do seu bebê privados."
+          }
         }
       }
     },
@@ -31,6 +37,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Baby Buddy verwendet die Kamera, um den Anmelde-QR-Code auf der Seite „Gerät hinzufügen“ deines Servers zu scannen."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Baby Buddy usa a câmera para escanear o QR code de login da página Add a Device do seu servidor."
           }
         }
       }
