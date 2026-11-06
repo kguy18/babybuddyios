@@ -49,6 +49,10 @@ final class SyncEngine {
     /// Guards against overlapping syncs (foreground + reconnect + manual could collide).
     private var isSyncing = false
 
+    /// A sync was asked for while one was running. The running sync makes one more pass before it
+    /// finishes, so a change queued mid-sync (stopping a timer during a long pull) is still pushed.
+    private(set) var pendingSync = false
+
     /// Stands in for ``AppSession/client`` so the push/upload loops can be driven against a stub
     /// transport. `nil` in the app, where the session owns the client and its lifetime.
     private let clientOverride: APIClient?
@@ -68,20 +72,25 @@ final class SyncEngine {
         }
     }
 
-    /// Push queued local changes, then pull fresh server state. Reentrancy-guarded.
+    /// Push queued local changes, then pull fresh server state. Reentrancy-guarded: a call made
+    /// while a sync is running returns at once and the running sync makes one more pass, so
+    /// nothing queued in the meantime waits for some later, unrelated sync.
     func sync() async {
-        guard !isSyncing else { return }
+        guard !isSyncing else { pendingSync = true; return }
         isSyncing = true
         defer { isSyncing = false }
-        let push = await pushPending()
-        // Image uploads drain after the mutation queue so a just-created record already has its
-        // serverID (a multipart PATCH needs it).
-        let uploads = await drainImageUploads()
-        let pulledChanges = await pullAll()
-        // A dose or timer logged elsewhere reschedules its local notification, background syncs too.
-        if pulledChanges { await LocalAlerts.shared.reconcile() }
-        let changed = push.delivered > 0 || uploads.delivered > 0 || pulledChanges
-        reportOutcome(push, uploads, changed: changed)
+        repeat {
+            pendingSync = false
+            let push = await pushPending()
+            // Image uploads drain after the mutation queue so a just-created record already has its
+            // serverID (a multipart PATCH needs it).
+            let uploads = await drainImageUploads()
+            let pulledChanges = await pullAll()
+            // A dose or timer logged elsewhere reschedules its local notification, background syncs too.
+            if pulledChanges { await LocalAlerts.shared.reconcile() }
+            let changed = push.delivered > 0 || uploads.delivered > 0 || pulledChanges
+            reportOutcome(push, uploads, changed: changed)
+        } while pendingSync
     }
 
     /// What one pass over a queue did: the facts that separate a drained sync from a partial one.
