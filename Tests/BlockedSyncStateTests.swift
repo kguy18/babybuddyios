@@ -11,10 +11,16 @@ private final class StubTransport: URLProtocol {
 
     static var replies: [Reply] = []
     static var requests: [(method: String, url: String)] = []
+    /// Runs once, on the main actor, when the first request arrives and before it is answered.
+    static var onFirstRequest: (@MainActor () -> Void)?
+    /// Holds the next reply until this is true (checked on the main actor), for up to five seconds.
+    static var holdReplyUntil: (@MainActor () -> Bool)?
 
     static func reset(_ replies: [Reply]) {
         self.replies = replies
         self.requests = []
+        self.onFirstRequest = nil
+        self.holdReplyUntil = nil
     }
 
     /// A client wired to this stub. The base URL is never reached — every request is intercepted.
@@ -30,6 +36,17 @@ private final class StubTransport: URLProtocol {
 
     override func startLoading() {
         Self.requests.append((request.httpMethod ?? "?", request.url?.absoluteString ?? "?"))
+        if let hook = Self.onFirstRequest {
+            Self.onFirstRequest = nil
+            DispatchQueue.main.sync { MainActor.assumeIsolated { hook() } }
+        }
+        if let ready = Self.holdReplyUntil {
+            let deadline = Date().addingTimeInterval(5)
+            while Date() < deadline, !DispatchQueue.main.sync(execute: { MainActor.assumeIsolated { ready() } }) {
+                Thread.sleep(forTimeInterval: 0.01)
+            }
+            Self.holdReplyUntil = nil
+        }
         let reply = Self.replies.count > 1 ? Self.replies.removeFirst() : (Self.replies.first ?? Reply(status: 200, body: "{}"))
         let response = HTTPURLResponse(url: request.url!, statusCode: reply.status,
                                        httpVersion: "HTTP/1.1", headerFields: nil)!
@@ -899,6 +916,31 @@ final class BlockedSyncStateTests: XCTestCase {
         XCTAssertTrue(try XCTUnwrap(rows.first { $0.localID == blockedID }).isBlocked)
         XCTAssertFalse(try XCTUnwrap(rows.first { $0.localID != blockedID }).isBlocked,
                        "a row that was never failed is waiting, not blocked")
+    }
+
+    // MARK: Syncs asked for during a sync
+
+    /// Stopping a timer queues its DELETE and asks for a sync. When a sync is already running
+    /// (a long pull), that request used to be dropped, and the DELETE waited for whatever sync
+    /// came next (#229). Now the running sync makes one more pass and pushes it.
+    func testSyncAskedForMidSyncRunsAnotherPass() async {
+        queueCreate(createdAt: Date(timeIntervalSince1970: 1_000))
+        StubTransport.reset([.init(status: 201, body: #"{"id":42,"child":1,"start":"2024-01-15T10:00:00-05:00"}"#)])
+        // While the first push waits on its reply, queue another change and ask for a sync, as
+        // the dashboard does after a timer stop.
+        StubTransport.onFirstRequest = {
+            self.queueCreate(createdAt: Date(timeIntervalSince1970: 2_000))
+            Task { await self.engine.sync() }
+        }
+        // Answer only once that request has reached the engine, so it lands mid-sync.
+        StubTransport.holdReplyUntil = { self.engine.pendingSync }
+
+        await engine.sync()
+
+        XCTAssertEqual(StubTransport.requests.map(\.method), ["POST", "POST"],
+                       "the change queued mid-sync went out in a second pass")
+        XCTAssertTrue(mutations().isEmpty, "nothing is left waiting for a later sync")
+        XCTAssertFalse(engine.pendingSync)
     }
 
     // MARK: Sync outcome telemetry (Work Package 6)
