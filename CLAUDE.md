@@ -123,7 +123,7 @@ release notes can be written from the milestone:
   (`scripts/ui-test.sh --duo-open -only-testing:BabyBuddyUITests/FoldTests`) and leave the lane to CI.
 - `UITests/Screenshots` holds the App Store screenshots. The global `/store-screenshots` skill runs
   them through ascelerate and the `BabyBuddyScreenshots` scheme; no CI lane or `scripts/ui-test.sh`
-  run does. `store-screenshots/` holds their config, copy and final PNGs.
+  run does. This repo is public, so their config, copy and final images stay out of it.
 - The keyboard covers the tab bar, so a tab tap with it up lands on a key: type `\n` first. An
   active search also hides the Timeline toolbar until its "Close" button ends it.
 - Notifications and Live Activities live outside the app, in SpringBoard: `UITestCase` has

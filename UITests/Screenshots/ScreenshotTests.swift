@@ -1,9 +1,9 @@
 import XCTest
 
-/// The App Store screenshots, run by ascelerate through the `BabyBuddyScreenshots` scheme (see
-/// store-screenshots/ and the store-screenshots skill). Every screen is its own fresh launch, set
-/// up with `BB_*` hooks, so nothing here depends on the language on screen. Names are the `source`
-/// in store-screenshots/config.json; `_outer` marks a capture on iPhone Duo's folded display.
+/// The App Store screenshots, run by ascelerate through the `BabyBuddyScreenshots` scheme (see the
+/// store-screenshots skill). Every screen is its own fresh launch, set up with `BB_*` hooks, so
+/// nothing here depends on the language on screen. Names are each screen's `source` in the skill's
+/// config; `_outer` marks a capture on iPhone Duo's folded display.
 final class ScreenshotTests: UITestCase {
     private struct Shot {
         let name: String
