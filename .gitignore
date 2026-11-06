@@ -42,3 +42,11 @@ localorg/
 discussion-post.md
 telemetrydeck analytics docs/
 Docs/TelemetryDeck-Sync-Reliability-Remediation-Handoff.md
+
+# store-screenshots: only config, copy and final PNGs are committed
+store-screenshots/raw/
+store-screenshots/framed/
+store-screenshots/stub/
+store-screenshots/.ascelerate/
+store-screenshots/gallery.html
+store-screenshots/render-report.json

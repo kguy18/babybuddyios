@@ -1,0 +1,124 @@
+{
+  "app": "Baby Buddy",
+  "bundleId": "com.kurtisguy.BabyBuddy",
+  "project": "BabyBuddy.xcodeproj",
+  "workspace": null,
+  "scheme": "BabyBuddyScreenshots",
+  "uiTestTarget": "BabyBuddyUITests",
+  "deviceFamily": "1",
+  "languages": [
+    "en-US"
+  ],
+  "themes": {
+    "sky": {
+      "background": "linear-gradient(170deg, #2A86C4, #155A8A)",
+      "solid": "#155A8A",
+      "text": "#FFFFFF",
+      "accent": "#FFE08A",
+      "font": "-apple-system, 'SF Pro Display', sans-serif",
+      "bezelColor": "Silver"
+    },
+    "mist": {
+      "background": "linear-gradient(170deg, #F2F7FC, #D9E8F5)",
+      "solid": "#F2F7FC",
+      "text": "#12344D",
+      "accent": "#1D6FA5",
+      "font": "-apple-system, 'SF Pro Display', sans-serif",
+      "bezelColor": "Silver"
+    },
+    "warm": {
+      "background": "linear-gradient(170deg, #FFF4E3, #FFE3C2)",
+      "solid": "#FFF4E3",
+      "text": "#3A2A14",
+      "accent": "#C7620A",
+      "font": "-apple-system, 'SF Pro Display', sans-serif",
+      "bezelColor": "Silver"
+    }
+  },
+  "screens": [
+    {
+      "id": "home",
+      "source": "01_home",
+      "order": 1,
+      "layout": "top",
+      "theme": "sky",
+      "devices": [
+        "iphone",
+        "duo-inner",
+        "duo-outer"
+      ]
+    },
+    {
+      "id": "sick",
+      "source": "02_sick",
+      "order": 2,
+      "layout": "top",
+      "theme": "warm",
+      "devices": [
+        "iphone",
+        "duo-inner",
+        "duo-outer"
+      ]
+    },
+    {
+      "id": "timer",
+      "source": "03_timer",
+      "order": 3,
+      "layout": "tilted",
+      "theme": "mist",
+      "devices": [
+        "iphone",
+        "duo-inner",
+        "duo-outer"
+      ]
+    },
+    {
+      "id": "log",
+      "source": "04_log",
+      "order": 4,
+      "layout": "top",
+      "theme": "sky",
+      "devices": [
+        "iphone",
+        "duo-inner"
+      ]
+    },
+    {
+      "id": "timeline",
+      "source": "05_timeline",
+      "order": 5,
+      "layout": "tilted",
+      "theme": "mist",
+      "devices": [
+        "iphone",
+        "duo-inner"
+      ],
+      "overrides": {
+        "rotation": 3
+      }
+    },
+    {
+      "id": "trends",
+      "source": "06_trends",
+      "order": 6,
+      "layout": "cropped",
+      "theme": "sky",
+      "devices": [
+        "iphone",
+        "duo-inner"
+      ]
+    },
+    {
+      "id": "server",
+      "source": "07_server",
+      "order": 7,
+      "layout": "top",
+      "theme": "warm",
+      "devices": [
+        "iphone",
+        "duo-inner"
+      ]
+    }
+  ],
+  "issuerKeychain": "babybuddy-asc-issuer"
+}

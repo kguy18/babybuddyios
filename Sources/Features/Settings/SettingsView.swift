@@ -133,6 +133,7 @@ struct SettingsView: View {
             // "Sick mode ended" and its Undo, when it's ended from here.
             .overlay(alignment: .bottom) { UndoToastView().padding(.bottom, 12) }
             .navigationTitle("Settings")
+            .accessibilityIdentifier("screen-settings")
             .fullScreenCover(isPresented: $showingSignOut) {
                 SignOutDialog(host: serverHost, pendingCount: pendingCount,
                               onCancel: { setSignOutDialog(false) },

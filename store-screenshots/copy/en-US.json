@@ -1,0 +1,9 @@
+{
+  "home": { "eyebrow": "For your Baby Buddy server", "headline": "Your baby's day,\n*in your pocket*" },
+  "sick": { "eyebrow": "Sick kid mode", "headline": "Fever and meds\n*at a glance*" },
+  "timer": { "eyebrow": "Timers", "headline": "Start a timer\n*in one tap*" },
+  "log": { "eyebrow": "Quick logging", "headline": "Log a feeding\n*in seconds*" },
+  "timeline": { "eyebrow": "Timeline", "headline": "Every entry,\n*one timeline*" },
+  "trends": { "eyebrow": "Trends", "headline": "Spot the\n*patterns*" },
+  "server": { "eyebrow": "Self-hosted", "headline": "Your server,\n*your data*" }
+}

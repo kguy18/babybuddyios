@@ -1,0 +1,18 @@
+# Written by the store-screenshots skill's setup action. The skill runs ascelerate on a temporary
+# copy of this file with absolute paths, the DerivedData folder and the languages from
+# store-screenshots/config.json.
+project: BabyBuddy.xcodeproj
+scheme: BabyBuddyScreenshots
+devices:
+  - simulator: iPhone 18 Pro Max
+  - simulator: iPhone Duo
+languages:
+  - en-US
+outputDirectory: ./store-screenshots/.ascelerate
+clearPreviousScreenshots: true
+eraseSimulator: false
+localizeSimulator: true
+overrideStatusBar: true
+disableAnimations: false
+configuration: Debug
+helperPath: UITests/Screenshots/ScreenshotHelper.swift
