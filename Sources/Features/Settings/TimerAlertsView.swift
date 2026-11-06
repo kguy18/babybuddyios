@@ -21,8 +21,8 @@ struct TimerAlertsView: View {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 8) {
                     BBCard(cornerRadius: BBRadius.tile, padding: 0) {
-                        SettingsRow(symbol: "bell.badge", tint: BBColor.restart, title: "Forgotten timer alerts") {
-                            SettingsView.alertToggle("Forgotten timer alerts", $enabled, setting: "forgottenTimerAlerts")
+                        SettingsRow(symbol: "bell.badge", tint: BBColor.restart, title: String(localized: "Forgotten timer alerts")) {
+                            SettingsView.alertToggle(String(localized: "Forgotten timer alerts"), $enabled, setting: "forgottenTimerAlerts")
                         }
                         .padding(.horizontal, 15)
                     }
@@ -35,7 +35,7 @@ struct TimerAlertsView: View {
 
                 if enabled {
                     VStack(alignment: .leading, spacing: 8) {
-                        SectionHeader("Alert after")
+                        SectionHeader(String(localized: "Alert after"))
                         BBCard(cornerRadius: BBRadius.tile, padding: 0) {
                             VStack(spacing: 0) {
                                 ForEach(Array(TimerActivity.allCases.enumerated()), id: \.element) { index, activity in

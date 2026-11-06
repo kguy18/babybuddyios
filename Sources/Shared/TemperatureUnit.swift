@@ -31,7 +31,7 @@ enum TemperatureUnit: String, CaseIterable {
     }
 
     var symbol: String { self == .fahrenheit ? "°F" : "°C" }
-    var name: String { self == .fahrenheit ? "Fahrenheit" : "Celsius" }
+    var name: String { self == .fahrenheit ? String(localized: "Fahrenheit") : String(localized: "Celsius") }
 
     /// The unit a stored number is in, going by its range.
     func unit(ofStored value: Double) -> TemperatureUnit {
@@ -57,5 +57,5 @@ enum TemperatureUnit: String, CaseIterable {
     func format(_ value: Double) -> String { Self.decimal(value) + symbol }
 
     /// One decimal, no unit: "100.8", "38.0".
-    static func decimal(_ value: Double) -> String { String(format: "%.1f", value) }
+    static func decimal(_ value: Double) -> String { value.formatted(.number.precision(.fractionLength(1)).grouping(.never)) }
 }

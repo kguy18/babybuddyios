@@ -46,8 +46,8 @@ private struct ConflictInboxRow: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
                     Text(conflict.serverDeleted
-                         ? "Deleted on the server while you edited it"
-                         : "Changed on the server and on this device")
+                         ? String(localized: "Deleted on the server while you edited it")
+                         : String(localized: "Changed on the server and on this device"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)

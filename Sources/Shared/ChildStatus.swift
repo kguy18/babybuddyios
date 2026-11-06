@@ -40,7 +40,7 @@ struct ChildStatus: Equatable {
             .max { $0.timestamp < $1.timestamp }
             .map { timer -> RunningTimer in
                 let name = (timer.payloadObject["name"] as? String).flatMap { $0.isEmpty ? nil : $0 }
-                return RunningTimer(name: name ?? "Timer", start: timer.timestamp)
+                return RunningTimer(name: name ?? String(localized: "Timer"), start: timer.timestamp)
             }
 
         func status(for kind: EntityKind) -> KindStatus {
@@ -68,12 +68,12 @@ struct ChildStatus: Equatable {
     /// "2h 15m", "1d 20h", "2d").
     static func compactAge(from date: Date, to now: Date) -> String {
         let minutes = Int(max(0, now.timeIntervalSince(date)) / 60)
-        if minutes < 1 { return "now" }
-        if minutes < 60 { return "\(minutes)m" }
+        if minutes < 1 { return String(localized: "now") }
+        if minutes < 60 { return String(localized: "\(minutes)m") }
         let hours = minutes / 60
-        if hours < 24 { let m = minutes % 60; return m > 0 ? "\(hours)h \(m)m" : "\(hours)h" }
+        if hours < 24 { let m = minutes % 60; return m > 0 ? String(localized: "\(hours)h \(m)m") : String(localized: "\(hours)h") }
         let days = hours / 24, h = hours % 24
-        return h > 0 ? "\(days)d \(h)h" : "\(days)d"
+        return h > 0 ? String(localized: "\(days)d \(h)h") : String(localized: "\(days)d")
     }
 
     /// The child's first name (falling back to last name, then "Child") — matches the Dashboard.
@@ -82,7 +82,7 @@ struct ChildStatus: Equatable {
         let first = (p["first_name"] as? String) ?? ""
         if !first.isEmpty { return first }
         let last = (p["last_name"] as? String) ?? ""
-        return last.isEmpty ? "Child" : last
+        return last.isEmpty ? String(localized: "Child") : last
     }
 }
 
@@ -111,9 +111,9 @@ struct KindStatus: Equatable {
     /// Short caregiver-facing label for the widget ("Fed", "Slept", "Changed").
     var shortLabel: String {
         switch kind {
-        case .feeding: return "Fed"
-        case .sleep: return "Slept"
-        case .change: return "Changed"
+        case .feeding: return String(localized: "Fed")
+        case .sleep: return String(localized: "Slept")
+        case .change: return String(localized: "Changed")
         default: return kind.displayName
         }
     }

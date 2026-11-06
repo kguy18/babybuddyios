@@ -26,6 +26,23 @@ trimming is the whole parser.
 The rest of the store listing (description, keywords, review information) lives in
 `app_store_listing.md`, which is gitignored because it stages the reviewer's demo credentials.
 
+## 1.5.0
+
+```appstore
+#New
+- German and Brazilian Portuguese. The app, widgets, and Live Activities follow your iPhone's language. Anything else still shows in English.
+- iPhone Duo support. On the open display, Home shows today's timeline beside the usual Home, and tapping a record in the Timeline opens it for editing on the other side. The editor, Start Timer, and Stop Timer lay out in two columns, and the support card and sheet sit clear of the fold. Folding or unfolding keeps your place and any sheet you have open.
+
+#Fixed
+- Sick mode comparisons such as "up since yesterday" no longer show a few English words in the middle of a translated sentence.
+```
+
+```whatsnew
+#New
+- new | German and Portuguese | Baby Buddy now speaks Deutsch and Português (Brasil).
+- new | iPhone Duo support | Home and Timeline use both halves of the open display. For the lucky few with a Duo!
+```
+
 ## 1.4.0
 
 ```appstore

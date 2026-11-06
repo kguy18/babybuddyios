@@ -26,14 +26,14 @@ struct CustomHeader: Codable, Equatable {
 
         var message: String {
             switch self {
-            case .missingName: return "A header is missing its name. Add one or remove the header."
-            case .missingValue(let name): return "\(name) needs a value. Add one or remove the header."
+            case .missingName: return String(localized: "A header is missing its name. Add one or remove the header.")
+            case .missingValue(let name): return String(localized: "\(name) needs a value. Add one or remove the header.")
             case .reserved(let name) where name.lowercased() == "authorization":
-                return "Authorization carries your API token, so it can't be a custom header."
-            case .reserved(let name): return "The app sets \(name) itself, so it can't be a custom header."
+                return String(localized: "Authorization carries your API token, so it can't be a custom header.")
+            case .reserved(let name): return String(localized: "The app sets \(name) itself, so it can't be a custom header.")
             case .invalidName(let name): return "\"\(name)\" isn't a valid header name. Use letters, digits and dashes."
-            case .invalidValue(let name): return "The value for \(name) can't contain a line break or control character."
-            case .duplicate(let name): return "\(name) is set more than once."
+            case .invalidValue(let name): return String(localized: "The value for \(name) can't contain a line break or control character.")
+            case .duplicate(let name): return String(localized: "\(name) is set more than once.")
             }
         }
     }

@@ -36,7 +36,7 @@ struct ActiveTimerEntry: TimelineEntry {
 struct ActiveTimerProvider: TimelineProvider {
     func placeholder(in context: Context) -> ActiveTimerEntry {
         ActiveTimerEntry(date: .now, timer: TimerSnapshot(
-            localID: "", name: "Sleep", start: .now.addingTimeInterval(-3725), activity: .sleep))
+            localID: "", name: String(localized: "Sleep"), start: .now.addingTimeInterval(-3725), activity: .sleep))
     }
 
     func getSnapshot(in context: Context, completion: @escaping (ActiveTimerEntry) -> Void) {
@@ -61,7 +61,7 @@ struct ActiveTimerProvider: TimelineProvider {
         guard let timers = try? context.fetch(descriptor),
               let timer = TimerActivity.runningTimers(in: timers, childID: SharedDefaults.selectedChildID).first
         else { return nil }
-        let name = (timer.payloadObject["name"] as? String) ?? "Timer"
+        let name = (timer.payloadObject["name"] as? String) ?? String(localized: "Timer")
         return TimerSnapshot(localID: timer.localID.uuidString, name: name, start: timer.timestamp,
                              activity: TimerActivity(timer: timer))
     }
@@ -86,7 +86,7 @@ struct ActiveTimerView: View {
     @ViewBuilder private var rectangular: some View {
         if let timer = entry.timer {
             VStack(alignment: .leading, spacing: 2) {
-                Label(timer.name, systemImage: timer.activity?.systemImage ?? "timer")
+                Label(EntityFormatting.timerName(timer.name), systemImage: timer.activity?.systemImage ?? "timer")
                     .font(.headline)
                     .widgetAccentable()
                 Text(timer.start, style: .timer)
@@ -153,7 +153,7 @@ struct ActiveTimerView: View {
                 Image(systemName: timer.activity?.systemImage ?? "timer")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(tint)
-                Text(timer.name)
+                Text(EntityFormatting.timerName(timer.name))
                     .font(.system(size: 13, weight: .medium))
                     .lineLimit(1)
                 Spacer(minLength: 0)

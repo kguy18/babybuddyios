@@ -52,7 +52,7 @@ struct PendingChangesView: View {
                 ForEach(uploads) { upload in
                     let entity = LocalStore.fetch(localID: upload.localID, in: context)
                     row(QueueRow(kind: upload.kind,
-                                 title: "\(upload.kind.displayName) photo",
+                                 title: String(localized: "\(upload.kind.displayName) photo"),
                                  detail: entity.flatMap(EntityFormatting.subtitle),
                                  lastError: upload.lastError,
                                  isBlocked: upload.isBlocked,
@@ -92,7 +92,7 @@ struct PendingChangesView: View {
                 Button("Create") { createWithoutTimer(mutation) }
                 Button("Cancel", role: .cancel) {}
             } message: { mutation in
-                Text("If this \(mutation.kind.displayName.lowercased()) was already saved when the timer was stopped, you'll end up with two copies. Check the server first if you're unsure.")
+                Text("If this \(mutation.kind.sentenceName) was already saved when the timer was stopped, you'll end up with two copies. Check the server first if you're unsure.")
             }
         }
     }
@@ -133,12 +133,12 @@ struct PendingChangesView: View {
         switch target {
         case .mutation(let mutation):
             switch mutation.op {
-            case .create: return "This \(mutation.kind.displayName.lowercased()) never reached the server, so discarding it deletes it from this device too."
-            case .update: return "Your unsaved edits are discarded and the record goes back to the server's version."
-            case .delete: return "The record stays on the server and reappears on this device."
+            case .create: return String(localized: "This \(mutation.kind.sentenceName) never reached the server, so discarding it deletes it from this device too.")
+            case .update: return String(localized: "Your unsaved edits are discarded and the record goes back to the server's version.")
+            case .delete: return String(localized: "The record stays on the server and reappears on this device.")
             }
         case .upload:
-            return "The photo is removed from this device. Any photo already on the server is kept."
+            return String(localized: "The photo is removed from this device. Any photo already on the server is kept.")
         }
     }
 
@@ -155,9 +155,9 @@ struct PendingChangesView: View {
     private func title(for mutation: PendingMutation) -> String {
         let name = mutation.kind.displayName
         switch mutation.op {
-        case .create: return "Added \(name)"
-        case .update: return "Edited \(name)"
-        case .delete: return "Deleted \(name)"
+        case .create: return String(localized: "Added \(name)")
+        case .update: return String(localized: "Edited \(name)")
+        case .delete: return String(localized: "Deleted \(name)")
         }
     }
 
@@ -212,9 +212,9 @@ private struct QueueRow: View {
                 }
                 if isBlocked {
                     HStack(spacing: 8) {
-                        if let onRetry { action("Retry", systemImage: "arrow.clockwise", onRetry) }
+                        if let onRetry { action(String(localized: "Retry"), systemImage: "arrow.clockwise", onRetry) }
                         if let onCreateWithoutTimer {
-                            action("Create without timer", systemImage: "timer.slash", onCreateWithoutTimer)
+                            action(String(localized: "Create without timer"), systemImage: "timer.slash", onCreateWithoutTimer)
                         }
                     }
                 }

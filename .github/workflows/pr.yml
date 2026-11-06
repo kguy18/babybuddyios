@@ -178,7 +178,7 @@ jobs:
           - shard: timeline
             classes: TimelineTests DialogTests SyncTests ReassignChildTests
           - shard: settings
-            classes: NotificationTests SettingsTests FeedbackTests FeedbackAccountTests DashboardTests
+            classes: NotificationTests SettingsTests FeedbackTests FeedbackAccountTests DashboardTests GermanLocalizationTests PortugueseLocalizationTests
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/ios-setup
@@ -361,7 +361,7 @@ jobs:
           - shard: logging
             classes: LoggingTests
           - shard: settings
-            classes: SettingsTests NotificationTests DashboardTests
+            classes: SettingsTests NotificationTests DashboardTests GermanLocalizationTests PortugueseLocalizationTests
           - shard: dialogs
             classes: DialogTests SyncTests ReassignChildTests
           - shard: timers
@@ -512,6 +512,8 @@ jobs:
         run: node --test scripts/*.test.mjs
       - name: Every release has valid notes
         run: node scripts/release.mjs validate
+      - name: Localization catalogs are valid (English complete, other languages optional)
+        run: python3 scripts/check-localization.py
 
   attribution:
     name: attribution

@@ -78,20 +78,39 @@ enum EntityKind: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .child: return "Child"
-        case .feeding: return "Feeding"
-        case .change: return "Diaper Change"
-        case .sleep: return "Sleep"
-        case .tummyTime: return "Tummy Time"
-        case .pumping: return "Pumping"
-        case .note: return "Note"
-        case .timer: return "Timer"
-        case .weight: return "Weight"
-        case .height: return "Height"
-        case .headCircumference: return "Head Circumference"
-        case .temperature: return "Temperature"
-        case .bmi: return "BMI"
-        case .medication: return "Medication"
+        case .child: return String(localized: "Child")
+        case .feeding: return String(localized: "Feeding")
+        case .change: return String(localized: "Diaper Change")
+        case .sleep: return String(localized: "Sleep")
+        case .tummyTime: return String(localized: "Tummy Time")
+        case .pumping: return String(localized: "Pumping")
+        case .note: return String(localized: "Note")
+        case .timer: return String(localized: "Timer")
+        case .weight: return String(localized: "Weight")
+        case .height: return String(localized: "Height")
+        case .headCircumference: return String(localized: "Head Circumference")
+        case .temperature: return String(localized: "Temperature")
+        case .bmi: return String(localized: "BMI")
+        case .medication: return String(localized: "Medication")
+        }
+    }
+
+    var sentenceName: String {
+        switch self {
+        case .child: return String(localized: "child")
+        case .feeding: return String(localized: "feeding")
+        case .change: return String(localized: "diaper change")
+        case .sleep: return String(localized: "sleep")
+        case .tummyTime: return String(localized: "tummy time")
+        case .pumping: return String(localized: "pumping")
+        case .note: return String(localized: "note")
+        case .timer: return String(localized: "timer")
+        case .weight: return String(localized: "weight")
+        case .height: return String(localized: "height")
+        case .headCircumference: return String(localized: "head circumference")
+        case .temperature: return String(localized: "temperature")
+        case .bmi: return String(localized: "bmi")
+        case .medication: return String(localized: "medication")
         }
     }
 

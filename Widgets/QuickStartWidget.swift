@@ -65,7 +65,7 @@ struct QuickStartView: View {
     private var grid: some View {
         VStack(spacing: 7) {
             HStack(spacing: 4) {
-                Text(entry.childName.map { "Start a timer · \($0)" } ?? "Start a timer")
+                Text(entry.childName.map { String(localized: "Start a timer · \($0)") } ?? String(localized: "Start a timer"))
                     .font(.system(size: 12, weight: .medium))
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
@@ -88,11 +88,11 @@ struct QuickStartView: View {
         if let id = entry.runningTimers[activity] {
             Button(intent: OpenTimerIntent(timerLocalID: id)) { tileLabel(activity, running: true) }
                 .buttonStyle(.plain)
-                .accessibilityLabel("\(activity.timerName), timer running, open timer")
+                .accessibilityLabel("\(activity.displayName), timer running, open timer")
         } else {
             Button(intent: StartTimerIntent(activity: activity)) { tileLabel(activity, running: false) }
                 .buttonStyle(.plain)
-                .accessibilityLabel("\(activity.timerName), start timer")
+                .accessibilityLabel("\(activity.displayName), start timer")
         }
     }
 
@@ -102,7 +102,7 @@ struct QuickStartView: View {
             Image(systemName: running ? "stopwatch" : activity.systemImage)
                 .font(.system(size: 17, weight: .semibold))
             Spacer(minLength: 2)
-            Text(activity.timerName)
+            Text(activity.displayName)
                 .font(.system(size: 11, weight: .medium))
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)

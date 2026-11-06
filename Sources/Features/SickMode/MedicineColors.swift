@@ -7,7 +7,7 @@ enum MedicineColor: Int, CaseIterable, Identifiable {
 
     var id: Int { rawValue }
     var color: Color { BBColor.medicine[rawValue] }
-    var name: String { ["Red", "Purple", "Pink", "Teal", "Olive", "Slate"][rawValue] }
+    var name: String { [String(localized: "Red"), String(localized: "Purple"), String(localized: "Pink"), String(localized: "Teal"), String(localized: "Olive"), String(localized: "Slate")][rawValue] }
 
     /// The color for the `position`th medicine name, wrapping after six.
     init(position: Int) { self = Self.allCases[position % Self.allCases.count] }
