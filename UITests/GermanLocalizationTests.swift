@@ -1,6 +1,12 @@
 import XCTest
 
 final class GermanLocalizationTests: UITestCase {
+    func testGermanLatestIdentifiesSessionEnds() {
+        launch(language: "de", locale: "de_DE")
+        expect(elements("label BEGINSWITH 'Schlaf, ' AND label CONTAINS 'aufgewacht'").firstMatch)
+        expect(elements("label BEGINSWITH 'Mahlzeit, ' AND label CONTAINS 'beendet'").firstMatch)
+    }
+
     func testGermanOnboarding() {
         launch(demo: false, language: "de", locale: "de_DE")
         expect(app.staticTexts["Mit deinem eigenen Server verbinden"])

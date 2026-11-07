@@ -155,6 +155,7 @@ struct MetricTile: View {
 /// A single recent event: tinted tile, title + detail, and an absolute-over-relative time.
 struct EventRow: View {
     let entity: LocalEntity
+    private var recency: ActivityRecency { entity.activityRecency() }
     /// Watched so a temperature redraws in a unit picked in Settings.
     @AppStorage(TemperatureUnit.key, store: SharedDefaults.suite) private var unit: TemperatureUnit?
 
@@ -170,15 +171,18 @@ struct EventRow: View {
                 }
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(entity.timestamp.formatted(date: .omitted, time: .shortened))
+                    if let label = recency.rowLabel {
+                        Text(label).font(.caption2).foregroundStyle(.secondary)
+                    }
+                    Text(recency.date.formatted(date: .omitted, time: .shortened))
                         .font(.subheadline.weight(.semibold)).monospacedDigit()
-                    Text(entity.timestamp, format: .relative(presentation: .named))
+                    Text(recency.date, format: .relative(presentation: .named))
                         .font(.caption2).foregroundStyle(.tertiary)
                 }
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(EntityFormatting.accessibilityLabel(entity))
+        .accessibilityLabel(EntityFormatting.accessibilityLabel(entity, recency: recency))
     }
 }
 
