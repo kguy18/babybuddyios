@@ -201,3 +201,14 @@ schemes:
     test:
       targets:
         - BabyBuddyUITests
+  # The App Store screenshots. ascelerate runs every test in the scheme, so this one holds only
+  # the screenshot test.
+  BabyBuddyScreenshots:
+    build:
+      targets:
+        BabyBuddy: all
+        BabyBuddyUITests: [test]
+    test:
+      targets:
+        - name: BabyBuddyUITests
+          selectedTests: [ScreenshotTests]
