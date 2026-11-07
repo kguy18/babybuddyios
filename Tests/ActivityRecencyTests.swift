@@ -69,12 +69,32 @@ final class ActivityRecencyTests: XCTestCase {
         XCTAssertNil(ActivityRecency.timer(kind: "pumping", start: now, stoppedAt: nil, now: now))
     }
 
-    func testGermanTimeLabelsAreBundledInTheSharedTimeCatalog() throws {
+    func testWidgetWordingForFinishedSessions() {
+        XCTAssertEqual(ActivityRecency(date: now, basis: .feedEnded).widgetLabel, "Last fed")
+        XCTAssertEqual(ActivityRecency(date: now, basis: .woke).widgetLabel, "Awake")
+        XCTAssertEqual(ActivityRecency(date: now, basis: .woke).tileLabel, "Awake")
+    }
+
+    func testRunningTimerWordingNamesItsFixedStartTime() {
+        let time = now.formatted(date: .omitted, time: .shortened)
+        let sleeping = ActivityRecency(date: now, basis: .sleeping), feeding = ActivityRecency(date: now, basis: .feeding)
+        XCTAssertEqual(sleeping.widgetLabel, "Sleeping")
+        XCTAssertEqual(sleeping.tileLabel, "Sleeping since")
+        XCTAssertEqual(sleeping.sinceText, "since \(time)")
+        XCTAssertEqual(sleeping.spokenTime(), "Sleeping since \(time)")
+        XCTAssertEqual(feeding.tileLabel, "Feeding since")
+        XCTAssertEqual(feeding.spokenTime(), "Feeding since \(time)")
+    }
+
+    func testGermanTimeLabelsAreInTheMainCatalog() throws {
         let path = try XCTUnwrap(Bundle.main.path(forResource: "de", ofType: "lproj"))
         let german = try XCTUnwrap(Bundle(path: path))
-        XCTAssertEqual(german.localizedString(forKey: "Awake", value: nil, table: "ActivityTimes"), "Wach")
-        XCTAssertEqual(german.localizedString(forKey: "Feed ended", value: nil, table: "ActivityTimes"), "Gefüttert")
-        let format = german.localizedString(forKey: "Woke %@", value: nil, table: "ActivityTimes")
-        XCTAssertEqual(String(format: format, "vor 30 Minuten"), "vor 30 Minuten aufgewacht")
+        for (key, text) in ["Awake": "Wach", "Last fed": "Zuletzt gefüttert", "Sleeping since": "Schläft seit"] {
+            XCTAssertEqual(german.localizedString(forKey: key, value: nil, table: nil), text)
+        }
+        let woke = german.localizedString(forKey: "Woke %@", value: nil, table: nil)
+        XCTAssertEqual(String(format: woke, "vor 30 Minuten"), "vor 30 Minuten aufgewacht")
+        let since = german.localizedString(forKey: "Sleeping since %@", value: nil, table: nil)
+        XCTAssertEqual(String(format: since, "13:10"), "Schläft seit 13:10")
     }
 }

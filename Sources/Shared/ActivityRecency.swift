@@ -1,6 +1,7 @@
 import Foundation
 
-/// Presentation time only. Canonical record timestamps, durations and day totals stay start-based.
+/// Display time only: what a row or widget shows and how Latest sorts. Stored timestamps,
+/// durations, and day totals stay start-based.
 struct ActivityRecency: Equatable {
     enum Basis: Equatable {
         case event, feedEnded, woke, feedStarted, sleepStarted
@@ -16,7 +17,7 @@ struct ActivityRecency: Equatable {
         if let start, let end, end >= start, end <= now {
             return Self(date: end, basis: kind == "feeding" ? .feedEnded : .woke)
         }
-        return Self(date: start ?? timestamp, basis: kind == "feeding" ? .feedStarted : .sleepStarted)
+        return Self(date: timestamp, basis: kind == "feeding" ? .feedStarted : .sleepStarted)
     }
 
     static func timer(kind: String, start: Date, stoppedAt: Date?, now: Date) -> Self? {
@@ -30,50 +31,59 @@ struct ActivityRecency: Equatable {
 
     var isRunning: Bool { basis == .feeding || basis == .sleeping }
 
+    /// The clock time, for a running timer's "since 1:10 PM". A fixed time, so it never needs a tick.
+    var timeText: String { date.formatted(date: .omitted, time: .shortened) }
+
+    var sinceText: String { String(localized: "since \(timeText)") }
+
     var rowLabel: String? {
         switch basis {
         case .event: return nil
-        case .feedEnded: return activityTimeText("Finished")
-        case .woke: return activityTimeText("Woke")
-        case .feedStarted, .sleepStarted, .feeding, .sleeping: return activityTimeText("Started")
-        case .feedStopped, .sleepStopped: return activityTimeText("Timer stopped")
+        case .feedEnded: return String(localized: "Finished")
+        case .woke: return String(localized: "Woke")
+        case .feedStarted, .sleepStarted, .feeding, .sleeping: return String(localized: "Started")
+        case .feedStopped, .sleepStopped: return String(localized: "Timer stopped")
         }
     }
 
     var widgetLabel: String? {
         switch basis {
         case .event: return nil
-        case .feedEnded: return activityTimeText("Feed ended")
-        case .woke: return activityTimeText("Awake")
-        case .feedStarted: return activityTimeText("Feed started")
-        case .sleepStarted: return activityTimeText("Sleep started")
-        case .feeding: return activityTimeText("Feeding")
-        case .sleeping: return activityTimeText("Sleeping")
-        case .feedStopped: return activityTimeText("Feed stopped")
-        case .sleepStopped: return activityTimeText("Sleep stopped")
+        case .feedEnded: return String(localized: "Last fed")
+        case .woke: return String(localized: "Awake")
+        case .feedStarted: return String(localized: "Feed started")
+        case .sleepStarted: return String(localized: "Sleep started")
+        case .feeding: return String(localized: "Feeding")
+        case .sleeping: return String(localized: "Sleeping")
+        case .feedStopped: return String(localized: "Feed stopped")
+        case .sleepStopped: return String(localized: "Sleep stopped")
         }
     }
 
+    /// The medium tile's caption. A running timer's reads into the start time below it.
+    var tileLabel: String? {
+        switch basis {
+        case .feeding: return String(localized: "Feeding since")
+        case .sleeping: return String(localized: "Sleeping since")
+        default: return widgetLabel
+        }
+    }
+
+    /// The whole sentence for VoiceOver, and for the inline widget while a timer runs.
     func spokenTime(now: Date = .now) -> String {
         let formatter = RelativeDateTimeFormatter()
         formatter.dateTimeStyle = .named
         let age = formatter.localizedString(for: date, relativeTo: now)
-        let key: String
         switch basis {
         case .event: return age
-        case .feedEnded: key = "Feeding finished %@"
-        case .woke: key = "Woke %@"
-        case .feedStarted: key = "Feeding started %@"
-        case .sleepStarted: key = "Sleep started %@"
-        case .feeding: key = "Feeding in progress, started %@"
-        case .sleeping: key = "Sleep in progress, started %@"
-        case .feedStopped: key = "Feeding timer stopped %@"
-        case .sleepStopped: key = "Sleep timer stopped %@"
+        case .feedEnded: return String(localized: "Feeding finished \(age)")
+        case .woke: return String(localized: "Woke \(age)")
+        case .feedStarted: return String(localized: "Feeding started \(age)")
+        case .sleepStarted: return String(localized: "Sleep started \(age)")
+        case .feeding: return String(localized: "Feeding since \(timeText)")
+        case .sleeping: return String(localized: "Sleeping since \(timeText)")
+        case .feedStopped: return String(localized: "Feeding timer stopped \(age)")
+        case .sleepStopped: return String(localized: "Sleep timer stopped \(age)")
         }
-        return String(format: activityTimeText(key), locale: Locale.current, age)
     }
-}
-
-func activityTimeText(_ key: String) -> String {
-    String(localized: String.LocalizationValue(key), table: "ActivityTimes")
 }

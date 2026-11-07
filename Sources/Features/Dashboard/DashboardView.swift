@@ -783,13 +783,18 @@ struct DashboardView: View {
         if kind == .feeding || kind == .sleep {
             let now = Date.now
             return childEntities.filter { $0.kind == kind }
-                .max { $0.activityRecency(now: now).date < $1.activityRecency(now: now).date }
+                .map { ($0, $0.activityRecency(now: now).date) }
+                .max { $0.1 < $1.1 }?.0
         }
         return childEntities.first { $0.kind == kind }
     }
 
     private var latestEvents: [LocalEntity] {
-        recentKinds.compactMap { lastEvent(of: $0) }.sorted { $0.timestamp > $1.timestamp }
+        let now = Date.now
+        return recentKinds.compactMap { lastEvent(of: $0) }
+            .map { ($0, $0.activityRecency(now: now).date) }
+            .sorted { $0.1 > $1.1 }
+            .map(\.0)
     }
 
     /// The newest dose of each medication whose next dose is still ahead, soonest first.

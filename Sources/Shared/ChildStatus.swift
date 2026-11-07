@@ -50,8 +50,9 @@ struct ChildStatus: Equatable {
 
         func status(for kind: EntityKind) -> KindStatus {
             let ofKind = mine.filter { $0.kind == kind }.sorted { $0.timestamp > $1.timestamp }
-            let last = ofKind.max { $0.activityRecency(now: now).date < $1.activityRecency(now: now).date }
-            var timing = last?.activityRecency(now: now)
+            let latest = ofKind.map { ($0, $0.activityRecency(now: now)) }.max { $0.1.date < $1.1.date }
+            let last = latest?.0
+            var timing = latest?.1
             if kind == .feeding || kind == .sleep {
                 // A running sleep must say Sleeping, rather than continue an old Awake clock.
                 // Stopped drafts are labelled as stopped timers until a record is actually saved.
@@ -67,7 +68,7 @@ struct ChildStatus: Equatable {
             }
             return KindStatus(kind: kind,
                               last: timing?.date,
-                              detail: timing == last?.activityRecency(now: now) ? last.flatMap(EntityFormatting.subtitle) : nil,
+                              detail: timing == latest?.1 ? last.flatMap(EntityFormatting.subtitle) : nil,
                               todayCount: todayCount, timing: timing)
         }
 
