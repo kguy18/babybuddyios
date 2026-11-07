@@ -36,8 +36,8 @@ enum DemoData {
         guard existing else { return }
 
         insert(.child, id: 1, [
-            "id": 1, "first_name": "Maya", "last_name": "Guy",
-            "birth_date": "2025-11-02", "slug": "maya-guy",
+            "id": 1, "first_name": "Maya", "last_name": "Rivers",
+            "birth_date": "2025-11-02", "slug": "maya-rivers",
             "picture": demoChildPicture() as Any,
         ], context)
 
@@ -145,8 +145,8 @@ enum DemoData {
     /// which the single-child demo household never reaches.
     private static func seedSecondChild(into context: ModelContext) {
         insert(.child, id: 2, [
-            "id": 2, "first_name": "Leo", "last_name": "Guy",
-            "birth_date": "2025-11-02", "slug": "leo-guy", "picture": NSNull(),
+            "id": 2, "first_name": "Leo", "last_name": "Rivers",
+            "birth_date": "2025-11-02", "slug": "leo-rivers", "picture": NSNull(),
         ], context)
     }
 

@@ -29,8 +29,8 @@ final class ReassignChildTests: UITestCase {
         let editor = expect(app.navigationBars["Edit Feeding"])
 
         expect(app.staticTexts["Baby"])
-        tap(app.buttons.labeled("Maya Guy")) // the Baby row's current-child menu trigger
-        tap(app.buttons["Leo Guy"])
+        tap(app.buttons.labeled("Maya Rivers")) // the Baby row's current-child menu trigger
+        tap(app.buttons["Leo Rivers"])
         tap(editor.buttons["Save"])
         expectGone(editor)
 
@@ -38,8 +38,8 @@ final class ReassignChildTests: UITestCase {
         expectGone(row)
 
         // Switch to Leo through the ChildSwitcher and find it there instead.
-        tap(app.buttons.labeled("Current child, Maya Guy"))
-        tap(app.buttons["Leo Guy"])
+        tap(app.buttons.labeled("Current child, Maya Rivers"))
+        tap(app.buttons["Leo Rivers"])
         expect(row)
     }
 
@@ -63,8 +63,8 @@ final class ReassignChildTests: UITestCase {
         let warning = element(labeled: "Warning. Overlaps the")
         expect(warning)
 
-        tap(app.buttons.labeled("Maya Guy"))
-        tap(app.buttons["Leo Guy"])
+        tap(app.buttons.labeled("Maya Rivers"))
+        tap(app.buttons["Leo Rivers"])
         expectGone(warning)
     }
 }
