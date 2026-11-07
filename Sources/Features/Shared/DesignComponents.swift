@@ -159,7 +159,7 @@ struct MetricTile: View {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Text(footer.label).font(.caption).foregroundStyle(.secondary)
                             Spacer(minLength: 0)
-                            Text(footer.time).font(.system(size: 13, weight: .semibold)).monospacedDigit()
+                            Text(footer.time).font(.footnote.weight(.semibold)).monospacedDigit()
                                 .lineLimit(1).minimumScaleFactor(0.7)
                         }
                     }
