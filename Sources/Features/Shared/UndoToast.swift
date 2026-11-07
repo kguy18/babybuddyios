@@ -90,10 +90,12 @@ final class UndoToastCenter {
 }
 
 /// The toast itself: activity tile, "Logged <kind>" plus the record's summary line, an Undo pill,
-/// and a draining bar in the activity colour. Each screen that can create a record overlays it
+/// and a draining bar in the activity colour. At accessibility sizes the tile goes and Undo takes a
+/// line of its own: beside the text it squeezed to a letter per line. Each screen that can create a record overlays it
 /// (an overlay on the `TabView` itself renders but never receives taps on iOS 26).
 struct UndoToastView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var center = UndoToastCenter.shared
 
     var body: some View {
@@ -103,34 +105,26 @@ struct UndoToastView: View {
 
     @ViewBuilder private var toast: some View {
         if let item = center.current {
-            HStack(spacing: 11) {
-                if let kind = item.kind {
-                    ActivityTile(kind: kind, size: 34, glyph: 18)
-                } else if let symbol = item.symbol {
-                    Image(systemName: symbol)
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(BBColor.success)
-                        .accessibilityHidden(true)
-                }
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(item.title)
-                        .font(.subheadline.weight(.semibold))
-                    if let subtitle = item.subtitle, !subtitle.isEmpty {
-                        Text(subtitle).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+            Group {
+                if typeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 10) {
+                        message(item)
+                        undoButton(item)
                     }
-                }
-                Spacer(minLength: 8)
-                if item.canUndo {
-                    Button {
-                        center.undo(in: context)
-                    } label: {
-                        Label("Undo", systemImage: "arrow.uturn.backward")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(BBColor.brandAccent)
-                            .padding(.horizontal, 12).padding(.vertical, 8)
-                            .background(BBColor.brandTint, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                } else {
+                    HStack(spacing: 11) {
+                        if let kind = item.kind {
+                            ActivityTile(kind: kind, size: 34, glyph: 18)
+                        } else if let symbol = item.symbol {
+                            Image(systemName: symbol)
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundStyle(BBColor.success)
+                                .accessibilityHidden(true)
+                        }
+                        message(item)
+                        Spacer(minLength: 8)
+                        undoButton(item)
                     }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 12).padding(.vertical, 11)
@@ -147,6 +141,36 @@ struct UndoToastView: View {
             .accessibilityActions {
                 if item.canUndo { Button("Undo") { center.undo(in: context) } }
             }
+        }
+    }
+
+    private func message(_ item: UndoToastCenter.Item) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(item.title)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(2)
+            if let subtitle = item.subtitle, !subtitle.isEmpty {
+                Text(subtitle).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+            }
+        }
+    }
+
+    /// Never narrower than its label, and as wide as the toast when it has a line of its own.
+    @ViewBuilder private func undoButton(_ item: UndoToastCenter.Item) -> some View {
+        if item.canUndo {
+            let fullWidth = typeSize.isAccessibilitySize
+            Button {
+                center.undo(in: context)
+            } label: {
+                Label("Undo", systemImage: "arrow.uturn.backward")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(BBColor.brandAccent)
+                    .fixedSize()
+                    .frame(maxWidth: fullWidth ? .infinity : nil)
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .background(BBColor.brandTint, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+            .buttonStyle(.plain)
         }
     }
 }
