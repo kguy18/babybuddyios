@@ -245,4 +245,20 @@ final class LoggingTests: UITestCase {
         expect(app.navigationBars["Edit Feeding"])
         XCTAssertFalse(element(labeled: "Warning. Overlaps").exists)
     }
+
+    /// At the largest text size a label sits above its date pills, where beside them it squeezed to
+    /// a letter per line, and the warning above Save grows with the text, where it stayed at 14 pt.
+    func testEditorFitsTheLargestText() {
+        launch(largestText: true)
+        openEditor("Pumping")
+        expect(app.navigationBars["New Pumping"])
+        let start = expect(app.staticTexts["Start"])
+        let end = expect(app.staticTexts["End"])
+        XCTAssertGreaterThan(start.frame.width, start.frame.height, "\"Start\" should fit on one line")
+        XCTAssertGreaterThan(end.frame.width, end.frame.height, "\"End\" should fit on one line")
+        XCTAssertGreaterThan(app.datePickers.element(boundBy: 0).frame.minY, start.frame.maxY - 1,
+                             "The date pills should sit below their label")
+        XCTAssertGreaterThan(expect(element(labeled: "Can\u{2019}t save yet.")).frame.height, 100,
+                             "The warning should grow with the text")
+    }
 }

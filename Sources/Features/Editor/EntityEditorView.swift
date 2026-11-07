@@ -12,6 +12,10 @@ struct EntityEditorView: View {
     @Environment(LiveActivityManager.self) private var liveActivity
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.dynamicTypeSize) private var typeSize
+    /// The amount stepper's button size, which follows the text size up to `maxStepperSide`.
+    @ScaledMetric(relativeTo: .body) private var stepperSide: CGFloat = 38
+    private let maxStepperSide: CGFloat = 64
 
     let childID: Int
     /// nil → creating a new record; non-nil → editing.
@@ -185,21 +189,26 @@ struct EntityEditorView: View {
             Button { showingPending = true } label: {
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 15))
+                        .font(.subheadline)
                         .foregroundStyle(BBColor.danger)
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Couldn\u{2019}t sync")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(BBColor.danger)
+                        // At accessibility sizes the full text fills the screen, so the banner keeps
+                        // to two lines. Pending Changes has the rest, and VoiceOver reads all of it.
                         Text(message)
                             .font(.footnote)
                             .foregroundStyle(.primary)
+                            .lineLimit(typeSize.isAccessibilitySize ? 2 : nil)
                             .fixedSize(horizontal: false, vertical: true)
-                        Text(blockedMutation.isStaleTimer
-                             ? String(localized: "Retry, discard, or create without the timer in Pending Changes")
-                             : String(localized: "Fix it here and save, or retry or discard in Pending Changes"))
-                            .font(.caption)
-                            .foregroundStyle(BBColor.danger)
+                        if !typeSize.isAccessibilitySize {
+                            Text(blockedMutation.isStaleTimer
+                                 ? String(localized: "Retry, discard, or create without the timer in Pending Changes")
+                                 : String(localized: "Fix it here and save, or retry or discard in Pending Changes"))
+                                .font(.caption)
+                                .foregroundStyle(BBColor.danger)
+                        }
                     }
                     Spacer(minLength: 0)
                     Image(systemName: "chevron.right")
@@ -332,9 +341,11 @@ struct EntityEditorView: View {
     }
 
     private var childRow: some View {
-        HStack {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout())
+        return layout {
             Text("Baby").font(.body)
-            Spacer()
+            if !typeSize.isAccessibilitySize { Spacer() }
             Menu {
                 ForEach(children, id: \.serverID) { child in
                     if let id = child.serverID {
@@ -375,33 +386,40 @@ struct EntityEditorView: View {
         }
     }
 
-    private func pickerRow(_ label: String, selection: Binding<Date>,
+    /// A label beside its date pills, or above them at accessibility sizes and wherever one line
+    /// doesn't fit, as in a 290 pt column on iPhone Duo's open display. `detail` sits at the row's
+    /// end, next to the label when stacked.
+    private func pickerRow(_ label: String, detail: String? = nil, selection: Binding<Date>,
                            components: DatePickerComponents) -> some View {
-        HStack {
-            Text(label).font(.body)
-            Spacer()
-            DatePicker("", selection: selection, displayedComponents: components)
-                .labelsHidden()
-                .datePickerStyle(.compact)
-                .tint(BBColor.brandAccent)
+        let title = Text(label).font(.body).fixedSize()
+        let caption = detail.map {
+            Text($0).font(.caption).foregroundStyle(.tertiary).monospacedDigit().fixedSize()
+        }
+        let picker = DatePicker("", selection: selection, displayedComponents: components)
+            .labelsHidden()
+            .datePickerStyle(.compact)
+            .tint(BBColor.brandAccent)
+        let stacked = VStack(alignment: .leading, spacing: 8) {
+            HStack { title; Spacer(); caption }
+            picker
+        }
+        return Group {
+            if typeSize.isAccessibilitySize {
+                stacked
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack { title; Spacer(); caption; picker }
+                    stacked
+                }
+            }
         }
         .padding(.horizontal, 15).padding(.vertical, 11)
     }
 
     private var endRow: some View {
-        HStack {
-            Text("End").font(.body)
-            Spacer()
-            if end > start {
-                Text(EntityFormatting.formatInterval(end.timeIntervalSince(start)))
-                    .font(.caption).foregroundStyle(.tertiary).monospacedDigit()
-            }
-            DatePicker("", selection: $end, displayedComponents: [.date, .hourAndMinute])
-                .labelsHidden()
-                .datePickerStyle(.compact)
-                .tint(BBColor.brandAccent)
-        }
-        .padding(.horizontal, 15).padding(.vertical, 11)
+        pickerRow(String(localized: "End"),
+                  detail: end > start ? EntityFormatting.formatInterval(end.timeIntervalSince(start)) : nil,
+                  selection: $end, components: [.date, .hourAndMinute])
     }
 
     // MARK: Details card (type-specific)
@@ -488,19 +506,19 @@ struct EntityEditorView: View {
                         .frame(width: 26, height: 26)
                         .overlay {
                             Image(systemName: "exclamationmark.triangle")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(.footnote.weight(.semibold))
                                 .foregroundStyle(BBColor.warningAccent)
                         }
                     Text(fever
                          ? String(localized: "\(value.trimmingCharacters(in: .whitespaces)) looks like \(other.name). In \(unit.name) that's \(TemperatureUnit.decimal(converted))°, over your fever line.")
                          : String(localized: "\(value.trimmingCharacters(in: .whitespaces)) looks like \(other.name). In \(unit.name) that's \(TemperatureUnit.decimal(converted))°."))
-                        .font(.system(size: 14))
+                        .font(.subheadline)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
                 }
                 Button { value = TemperatureUnit.decimal(converted) } label: {
                     Text("Use \(unit.format(converted))")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(BBColor.brandAccent)
                         .frame(maxWidth: .infinity, minHeight: 40)
                         .background(BBColor.card, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -629,7 +647,9 @@ struct EntityEditorView: View {
 
     /// Amount = grouped large value + "ml", with a neutral "−" and a brand-blue "+".
     private var amountStepper: some View {
-        HStack(spacing: 10) {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(spacing: 10))
+        return layout {
             HStack(spacing: 6) {
                 TextField("0", text: $amount)
                     .keyboardType(.decimalPad)
@@ -646,15 +666,18 @@ struct EntityEditorView: View {
                     .strokeBorder(BBColor.fieldStroke, lineWidth: 0.5)
             }
 
-            stepperButton(system: "minus", tint: false) { adjustAmount(-5) }
-            stepperButton(system: "plus", tint: true) { adjustAmount(5) }
+            HStack(spacing: 10) {
+                stepperButton(system: "minus", tint: false) { adjustAmount(-5) }
+                stepperButton(system: "plus", tint: true) { adjustAmount(5) }
+            }
         }
     }
 
     private func stepperButton(system: String, tint: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: system).font(.system(size: 17, weight: .medium))
-                .frame(width: 38, height: 38)
+            let side = min(stepperSide, maxStepperSide)
+            Image(systemName: system).font(.system(size: side * 0.45, weight: .medium))
+                .frame(width: side, height: side)
                 .foregroundStyle(tint ? BBColor.brandAccent : Color.secondary)
                 .background(tint ? BBColor.brandTint : BBColor.controlFill,
                             in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -787,10 +810,10 @@ struct EntityEditorView: View {
     private func warningNotice(_ message: String, accessibilityLabel: String) -> some View {
         HStack(alignment: .top, spacing: 9) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 13))
+                .font(.footnote)
                 .foregroundStyle(BBColor.warning)
             Text(message)
-                .font(.system(size: 14))
+                .font(.subheadline)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
