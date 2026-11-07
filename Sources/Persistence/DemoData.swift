@@ -89,6 +89,9 @@ enum DemoData {
         ], context)
 
         seedHistory(into: context)
+        if ProcessInfo.processInfo.environment["BB_SEED_FORECAST"] == "1" {
+            seedForecast(into: context)
+        }
 
         if ProcessInfo.processInfo.environment["BB_SEED_CONFLICT"] == "1" {
             seedConflict(into: context)
@@ -103,6 +106,37 @@ enum DemoData {
             seedSecondChild(into: context)
         }
         try? context.save()
+    }
+
+    /// A synthetic regular routine, isolated from the default sparse demo records: feedings,
+    /// naps, and diaper changes every three hours, with a recent one of each, so every estimate
+    /// is ready at any time of day.
+    private static func seedForecast(into context: ModelContext) {
+        let now = Date.now
+        let records = (try? context.fetch(FetchDescriptor<LocalEntity>())) ?? []
+        for entity in records where entity.childID == 1 && [.feeding, .sleep, .change].contains(entity.kind) {
+            context.delete(entity)
+        }
+        func iso(_ hoursAgo: Double) -> String {
+            APIDate.isoDateTime.string(from: now.addingTimeInterval(-hoursAgo * 3600))
+        }
+        for index in 0..<57 {
+            let hoursAgo = Double(index * 3)
+            insert(.feeding, id: 1000 + index, [
+                "id": 1000 + index, "child": 1, "start": iso(hoursAgo + 1), "end": iso(hoursAgo + 0.75),
+                "type": "formula", "method": "bottle", "tags": [],
+            ], context)
+            insert(.sleep, id: 2000 + index, [
+                "id": 2000 + index, "child": 1, "start": iso(hoursAgo + 1.5), "end": iso(hoursAgo + 0.5),
+                "nap": true, "tags": [],
+            ], context)
+            insert(.change, id: 3000 + index, [
+                "id": 3000 + index, "child": 1, "time": iso(hoursAgo + 0.25), "wet": true, "solid": false,
+                "color": "", "tags": [],
+            ], context)
+        }
+        ForecastPreferences.enabled = true
+        SharedDefaults.lastSyncDate = now
     }
 
     /// `BB_SEED_SECOND_CHILD=1`: a second child with no records of her own, so the Editor's Baby

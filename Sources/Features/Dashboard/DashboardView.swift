@@ -71,6 +71,7 @@ struct DashboardView: View {
     @AppStorage(SickMode.suggestKey, store: SharedDefaults.suite) private var suggestsSickMode = true
     // Settings ▸ Today tiles; `nil` until changed, which is the default four (``TodayTiles``).
     @AppStorage(TodayTiles.key, store: SharedDefaults.suite) private var todayTilesRaw: String?
+    @AppStorage(ForecastPreferences.enabledKey, store: SharedDefaults.suite) private var showsEstimates = false
 
     /// A request to convert a specific timer into a specific activity kind.
     private struct ConvertRequest: Identifiable {
@@ -580,21 +581,45 @@ struct DashboardView: View {
     @ViewBuilder private var todaySection: some View {
         let kinds = TodayTiles.decode(todayTilesRaw)
         if !kinds.isEmpty {
-            let today = childEntities.filter { Calendar.current.isDateInToday($0.timestamp) }
             VStack(alignment: .leading, spacing: 9) {
                 SectionHeader(String(localized: "Today"))
-                LazyVGrid(columns: columns, spacing: 9) {
-                    ForEach(kinds) { kind in
-                        metricLink(kind) {
-                            MetricTile(kind: kind, label: TodayTiles.label(kind),
-                                       value: TodayTiles.value(kind, today: today, unit: unit))
-                        }
-                        // Latest repeats the label ("Pumping, …"), so UI tests find tiles by id.
-                        .accessibilityIdentifier("today-\(kind.rawValue)")
+                if showsEstimates {
+                    SwiftUI.TimelineView(.periodic(from: .now, by: 60)) { timeline in
+                        // A save can arrive between ticks. Its end time must not read as being in
+                        // the future merely because the last scheduled date is a minute old.
+                        let now = max(timeline.date, Date.now)
+                        todayGrid(kinds, now: now, forecast: ForecastCache.snapshot(
+                            allEntities, childID: selectedChildID, lastSync: sync.lastSyncDate, now: now))
                     }
+                } else {
+                    todayGrid(kinds, now: .now, forecast: nil)
                 }
             }
         }
+    }
+
+    private func todayGrid(_ kinds: [EntityKind], now: Date, forecast: ForecastSnapshot?) -> some View {
+        let today = childEntities.filter { Calendar.current.isDateInToday($0.timestamp) }
+        return LazyVGrid(columns: columns, spacing: 9) {
+            ForEach(kinds) { kind in
+                metricLink(kind) {
+                    MetricTile(kind: kind, label: TodayTiles.label(kind),
+                               value: TodayTiles.value(kind, today: today, unit: unit),
+                               footer: forecast.flatMap { tileFooter(kind, forecast: $0, now: now) },
+                               fillsRow: forecast != nil)
+                }
+                // Latest repeats the label ("Pumping, …"), so UI tests find tiles by id.
+                .accessibilityIdentifier("today-\(kind.rawValue)")
+            }
+        }
+    }
+
+    private func tileFooter(_ kind: EntityKind, forecast: ForecastSnapshot, now: Date) -> MetricTile.Footer? {
+        guard let recordKind = ForecastRecord.Kind(rawValue: kind.rawValue),
+              let estimate = forecast.tileEstimate(recordKind) else { return nil }
+        let time = ForecastFormat.time(estimate.window.midpoint, now: now)
+        return MetricTile.Footer(label: estimate.kind.tileLabel, time: "~\(time)",
+                                 spoken: estimate.kind.tileSpokenText(time))
     }
 
     /// Wrap a "Today" tile so tapping it pushes a single-day, single-kind timeline slice.

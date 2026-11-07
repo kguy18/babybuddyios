@@ -555,9 +555,9 @@ struct SettingsView: View {
 
     // MARK: Appearance
 
-    /// Home's Today tiles, and the Home Screen icon shown by name with the picker one tap away.
+    /// Home's Today tiles and activity estimates, and the Home Screen icon shown by name with the picker one tap away.
     /// Icons are free for everyone — the row carries no lock, badge, or price, and never consults
-    /// ``PurchaseManager``. Devices that can't switch icons get only the tiles row.
+    /// ``PurchaseManager``. Devices that can't switch icons get no icon row.
     private var appearanceCard: some View {
         card {
             NavigationLink {
@@ -570,6 +570,12 @@ struct SettingsView: View {
                         disclosure
                     }
                 }
+            }
+            .buttonStyle(.plain)
+            rowDivider
+            NavigationLink { ForecastSettingsView() } label: {
+                SettingsRow(symbol: "clock.arrow.circlepath", tint: BBColor.brand,
+                            title: forecastText("Activity estimates")) { disclosure }
             }
             .buttonStyle(.plain)
             if icons.isSupported {
