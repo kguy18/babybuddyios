@@ -156,7 +156,9 @@ final class CompletedActivityStatusTests: XCTestCase {
     }
 
     func testRunningSleepReplacesAwakeStatusAndStoppedDraftRemainsExplicit() {
-        let now = Date(), earlier = now.addingTimeInterval(-7200)
+        // Midday, so the sleep two hours earlier starts today whenever this runs.
+        let now = Calendar.current.startOfDay(for: Date()).addingTimeInterval(12 * 3600)
+        let earlier = now.addingTimeInterval(-7200)
         let sleep = entity(.sleep, start: earlier, end: earlier.addingTimeInterval(1800))
         let timer = entity(.timer, start: now.addingTimeInterval(-1200))
         timer.timerActivityRaw = EntityKind.sleep.rawValue
