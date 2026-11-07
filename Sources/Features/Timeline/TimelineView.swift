@@ -80,6 +80,7 @@ struct TimelineView: View {
             }
             .background(BBColor.surface)
             .navigationTitle("Timeline")
+            .accessibilityIdentifier("screen-timeline")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ChildSwitcher(children: children, selectedChildID: $selectedChildID)

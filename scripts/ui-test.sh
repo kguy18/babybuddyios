@@ -36,7 +36,7 @@ RESULT=build/UITests.xcresult
 DUO_OPEN=""
 # The server tests are their own lane: they sign in for real, so they don't belong in a run that is
 # meant to need nothing but the simulator.
-LANE=(-skip-testing:BabyBuddyUITests/ServerTests)
+LANE=(-skip-testing:BabyBuddyUITests/ServerTests -skip-testing:BabyBuddyUITests/ScreenshotTests)
 
 if [ "${1:-}" = "--server" ]; then
   shift

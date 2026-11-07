@@ -118,6 +118,7 @@ struct DashboardView: View {
                 mainPane(split: split)
             }
             .background(BBColor.surface)
+            .accessibilityIdentifier("screen-home")
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: EntityKind.self) { kind in
                 DayTimelineView(kind: kind, childID: selectedChildID)
@@ -414,7 +415,7 @@ struct DashboardView: View {
     private var header: some View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(Date.now, format: .dateTime.weekday(.wide).month().day())
+                Text(PinnedDate.now, format: .dateTime.weekday(.wide).month().day())
                     .font(.subheadline).foregroundStyle(.secondary)
                 Text(currentChildName).font(.title.weight(.semibold))
                 freshnessStamp

@@ -17,7 +17,7 @@ struct StartTimerSheet: View {
     @State private var selected: EntityKind?
     /// Minutes before the Start tap (0 = now); `nil` once a start is picked, which `customStart` holds.
     @State private var minutesBack: Int? = 0
-    @State private var customStart = Date.now
+    @State private var customStart = PinnedDate.now
     @State private var wide = false
 
     /// The convertible activities a timer can become — same set as the dashboard's convert menu.
@@ -50,6 +50,7 @@ struct StartTimerSheet: View {
             .trackingWide($wide)
             .background(BBColor.surface)
             .navigationTitle("Start Timer")
+            .accessibilityIdentifier("screen-start-timer")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
@@ -133,7 +134,7 @@ struct StartTimerSheet: View {
                               foreground: Color.adaptive(light: "FFFFFF", dark: "0C0E12"))
     }
 
-    private func startDate(now: Date = .now) -> Date {
+    private func startDate(now: Date = PinnedDate.now) -> Date {
         minutesBack.map { now.addingTimeInterval(-Double($0) * 60) } ?? customStart
     }
 

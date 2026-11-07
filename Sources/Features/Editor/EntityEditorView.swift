@@ -53,10 +53,10 @@ struct EntityEditorView: View {
     }
 
     // Common fields
-    @State private var start = Date()
-    @State private var end = Date()
-    @State private var time = Date()
-    @State private var date = Date()
+    @State private var start = PinnedDate.now
+    @State private var end = PinnedDate.now
+    @State private var time = PinnedDate.now
+    @State private var date = PinnedDate.now
     @State private var notes = ""
     @State private var tagNames: [String] = []
     // Feeding
@@ -164,6 +164,7 @@ struct EntityEditorView: View {
         .background(BBColor.surface)
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle(navTitle)
+        .accessibilityIdentifier("screen-editor")
         .navigationBarTitleDisplayMode(.inline)
         // `.alert`, not `confirmationDialog` — iOS 26 anchors the latter to its source as a
         // popover and drops the cancel action, leaving a destructive prompt with no way back.
