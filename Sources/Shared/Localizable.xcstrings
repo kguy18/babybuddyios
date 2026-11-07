@@ -3781,6 +3781,23 @@
         }
       }
     },
+    "Awake": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Awake"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wach"
+          }
+        }
+      }
+    },
     "BMI": {
       "extractionState": "manual",
       "localizations": {
@@ -7231,6 +7248,40 @@
         }
       }
     },
+    "Feed started": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feed started"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fütterbeginn"
+          }
+        }
+      }
+    },
+    "Feed stopped": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feed stopped"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Füttern gestoppt"
+          }
+        }
+      }
+    },
     "Feedback": {
       "extractionState": "manual",
       "localizations": {
@@ -7323,6 +7374,23 @@
         }
       }
     },
+    "Feeding finished %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feeding finished %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mahlzeit %@ beendet"
+          }
+        }
+      }
+    },
     "Feeding method": {
       "extractionState": "manual",
       "localizations": {
@@ -7342,6 +7410,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "Método de alimentação"
+          }
+        }
+      }
+    },
+    "Feeding since": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feeding since"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mahlzeit seit"
+          }
+        }
+      }
+    },
+    "Feeding since %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feeding since %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mahlzeit seit %@"
+          }
+        }
+      }
+    },
+    "Feeding started %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feeding started %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mahlzeit %@ begonnen"
+          }
+        }
+      }
+    },
+    "Feeding timer stopped %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feeding timer stopped %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fütterungstimer %@ gestoppt"
           }
         }
       }
@@ -7549,6 +7685,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Onde encontrar seus dados"
+          }
+        }
+      }
+    },
+    "Finished": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finished"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beendet"
           }
         }
       }
@@ -8929,6 +9082,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Última dose: %@."
+          }
+        }
+      }
+    },
+    "Last fed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last fed"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zuletzt gefüttert"
           }
         }
       }
@@ -14200,6 +14370,125 @@
         }
       }
     },
+    "Sleep started": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sleep started"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schlafbeginn"
+          }
+        }
+      }
+    },
+    "Sleep started %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sleep started %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schlaf %@ begonnen"
+          }
+        }
+      }
+    },
+    "Sleep stopped": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sleep stopped"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schlaf gestoppt"
+          }
+        }
+      }
+    },
+    "Sleep timer stopped %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sleep timer stopped %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schlaftimer %@ gestoppt"
+          }
+        }
+      }
+    },
+    "Sleeping": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sleeping"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schläft"
+          }
+        }
+      }
+    },
+    "Sleeping since": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sleeping since"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schläft seit"
+          }
+        }
+      }
+    },
+    "Sleeping since %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sleeping since %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schläft seit %@"
+          }
+        }
+      }
+    },
     "Slept": {
       "extractionState": "manual",
       "localizations": {
@@ -16684,6 +16973,23 @@
         }
       }
     },
+    "Timer stopped": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timer stopped"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timer gestoppt"
+          }
+        }
+      }
+    },
     "Tip %@": {
       "extractionState": "manual",
       "localizations": {
@@ -17903,6 +18209,40 @@
         }
       }
     },
+    "Woke": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Woke"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufgewacht"
+          }
+        }
+      }
+    },
+    "Woke %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Woke %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ aufgewacht"
+          }
+        }
+      }
+    },
     "Works offline": {
       "extractionState": "manual",
       "localizations": {
@@ -18819,6 +19159,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "rodando"
+          }
+        }
+      }
+    },
+    "since %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "since %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "seit %@"
           }
         }
       }

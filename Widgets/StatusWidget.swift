@@ -63,9 +63,11 @@ extension ChildStatus {
     static let sample = ChildStatus(
         hasChild: true, childName: "Ada",
         feeding: KindStatus(kind: .feeding, last: .now.addingTimeInterval(-2 * 3600),
-                            detail: String(localized: "Formula · Bottle · 20m"), todayCount: 4),
+                            detail: String(localized: "Formula · Bottle · 20m"), todayCount: 4,
+                            timing: ActivityRecency(date: .now.addingTimeInterval(-2 * 3600), basis: .feedEnded)),
         sleep: KindStatus(kind: .sleep, last: .now.addingTimeInterval(-45 * 60),
-                          detail: String(localized: "1h 10m · Nap"), todayCount: 3),
+                          detail: String(localized: "1h 10m · Nap"), todayCount: 3,
+                          timing: ActivityRecency(date: .now.addingTimeInterval(-45 * 60), basis: .woke)),
         change: KindStatus(kind: .change, last: .now.addingTimeInterval(-35 * 60),
                            detail: String(localized: "Wet"), todayCount: 6),
         runningTimer: nil)
@@ -137,14 +139,14 @@ struct StatusWidgetView: View {
     }
 
     private func smallRow(_ s: KindStatus) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             glyph(s, side: 24, icon: 12)
             VStack(alignment: .leading, spacing: 1) {
-                Text(s.shortLabel).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                Text(s.shortLabel).font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.5)
                 relative(s).font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
                     .lineLimit(1).minimumScaleFactor(0.7)
             }
-            Spacer(minLength: 2)
+            Spacer(minLength: 0)
             VStack(alignment: .trailing, spacing: 0) {
                 Text("\(s.todayCount)").font(.system(size: 14, weight: .semibold)).monospacedDigit()
                 Text("today").font(.system(size: 9)).foregroundStyle(.secondary)
@@ -213,8 +215,8 @@ struct StatusWidgetView: View {
                 .frame(width: 32, height: 32)
                 .background(tint, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             Spacer(minLength: 6)
-            Text(tileLabel(s.kind))
-                .font(.system(size: 12, weight: .semibold)).foregroundStyle(tint).lineLimit(1)
+            Text(s.timing?.tileLabel ?? tileLabel(s.kind))
+                .font(.system(size: 12, weight: .semibold)).foregroundStyle(tint).lineLimit(1).minimumScaleFactor(0.65)
             Text(lastAge(s))
                 .font(.system(size: 18, weight: .semibold)).foregroundStyle(.primary)
                 .lineLimit(1).minimumScaleFactor(0.6)
@@ -249,8 +251,10 @@ struct StatusWidgetView: View {
         }
     }
 
-    /// Compact "last" age for a tile ("20m", "2h", "1d 20h"), relative to the entry time, or "—".
+    /// Compact "last" age for a tile ("20m", "2h", "1d 20h"), relative to the entry time, a running
+    /// timer's start time, or "—".
     private func lastAge(_ s: KindStatus) -> String {
+        if let timing = s.timing, timing.isRunning { return timing.timeText }
         guard let last = s.last else { return "—" }
         return ChildStatus.compactAge(from: last, to: entry.date)
     }
@@ -264,9 +268,12 @@ struct StatusWidgetView: View {
             .background(tint.opacity(0.15), in: RoundedRectangle(cornerRadius: side * 0.28))
     }
 
-    /// The kind's relative "last" time, self-updating via `Text(_, style: .relative)`, or "—".
+    /// The kind's relative "last" time, self-updating via `Text(_, style: .relative)`, "since 1:10 PM"
+    /// while its timer runs, or "—".
     @ViewBuilder private func relative(_ s: KindStatus) -> some View {
-        if let last = s.last {
+        if let timing = s.timing, timing.isRunning {
+            Text(timing.sinceText)
+        } else if let last = s.last {
             Text(last, style: .relative)
         } else {
             Text("—")
@@ -290,7 +297,9 @@ struct StatusWidgetView: View {
     private var inline: some View {
         let recent = mostRecent
         return Label {
-            if let recent, let last = recent.last {
+            if let timing = recent?.timing, timing.isRunning {
+                Text(timing.spokenTime())
+            } else if let recent, let last = recent.last {
                 Text("\(recent.shortLabel) ") + Text(last, style: .relative)
             } else {
                 Text("No activity yet")
@@ -308,7 +317,13 @@ struct StatusWidgetView: View {
                 Image(systemName: EntityKind.feeding.systemImage)
                     .font(.system(size: 13, weight: .semibold))
                 if let last = feeding.last {
-                    Text(last, style: .relative)
+                    Group {
+                        if let timing = feeding.timing, timing.isRunning {
+                            Text(timing.timeText)
+                        } else {
+                            Text(last, style: .relative)
+                        }
+                    }
                         .font(.system(size: 10, weight: .medium))
                         .monospacedDigit()
                         .minimumScaleFactor(0.5).lineLimit(1)
@@ -329,11 +344,8 @@ struct StatusWidgetView: View {
                         .font(.system(size: 11, weight: .semibold))
                         .widgetAccentable()
                         .frame(width: 14)
-                    if let last = kind.last {
-                        Text(last, style: .relative).font(.system(size: 12)).monospacedDigit()
-                    } else {
-                        Text("—").font(.system(size: 12))
-                    }
+                    Text(kind.shortLabel).font(.system(size: 9)).lineLimit(1).minimumScaleFactor(0.6)
+                    relative(kind).font(.system(size: 12)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7).layoutPriority(1)
                     Spacer(minLength: 2)
                     Text("\(kind.todayCount)")
                         .font(.system(size: 12, weight: .semibold)).monospacedDigit()

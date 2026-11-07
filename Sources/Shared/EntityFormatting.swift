@@ -71,10 +71,15 @@ enum EntityFormatting {
     /// then sync state and tags — so the row reads as one coherent element instead of fragments.
     /// `blocked`: the server refused the queued write — what the row's red triangle shows, and not
     /// something that will sync by waiting.
-    static func accessibilityLabel(_ entity: LocalEntity, blocked: Bool = false) -> String {
+    static func accessibilityLabel(_ entity: LocalEntity, blocked: Bool = false,
+                                   recency: ActivityRecency? = nil) -> String {
         var parts: [String] = [title(entity)]
         if let subtitle = subtitle(entity), !subtitle.isEmpty { parts.append(subtitle) }
-        parts.append(entity.timestamp.formatted(date: .omitted, time: .shortened))
+        if let recency, recency.basis != .event {
+            parts.append(recency.spokenTime())
+        } else {
+            parts.append(entity.timestamp.formatted(date: .omitted, time: .shortened))
+        }
         switch entity.syncState {
         case .pendingCreate, .pendingUpdate, .pendingDelete:
             parts.append(blocked ? String(localized: "sync needs attention") : String(localized: "waiting to sync"))
