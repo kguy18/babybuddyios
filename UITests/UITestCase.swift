@@ -32,9 +32,14 @@ class UITestCase: XCTestCase {
     ///
     /// The feedback sheet points at a port nothing listens on unless a test says otherwise, so no
     /// UI test reaches the live feedback server; `BB_FEEDBACK_STUB` stands in for it.
+    ///
+    /// `OS_ACTIVITY_DT_MODE` is off because xcodebuild turns it on, which copies every log line to
+    /// stderr. XCTest evaluates queries on the app's main thread and logs each element it reads, so
+    /// on a small CI runner that write blocks the main thread: in a spindump of a test that hit the
+    /// time allowance, 81% of the main thread's samples were in it.
     func launch(_ environment: [String: String] = [:], demo: Bool = true,
                 language: String? = "en", locale: String = "en_US") {
-        var env = ["BB_UITEST": "1", "BB_FEEDBACK": "https://127.0.0.1:2"]
+        var env = ["BB_UITEST": "1", "BB_FEEDBACK": "https://127.0.0.1:2", "OS_ACTIVITY_DT_MODE": "NO"]
         if demo { env["BB_DEMO"] = "1" }
         app.launchEnvironment = env.merging(environment) { $1 }
         // `nil` keeps the language the screenshot helper already put in the launch arguments.

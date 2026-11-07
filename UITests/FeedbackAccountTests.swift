@@ -41,7 +41,8 @@ final class FeedbackAccountTests: UITestCase {
 
         tap(signOut)
         tap(app.alerts["Sign out of feedback?"].buttons["Sign Out"])
-        expect(app.navigationBars["Send Feedback"])
+        // The screen pops once the session's cookies are gone from WebKit's cookie store.
+        expect(app.navigationBars["Send Feedback"], timeout: cookieStoreTimeout)
         expectGone(app.navigationBars["Feedback Account"])
         expectGone(app.buttons.labeled("Feedback Account"))
 
