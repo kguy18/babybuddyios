@@ -2,6 +2,32 @@ import XCTest
 
 /// Home's day summary and where it leads.
 final class DashboardTests: UITestCase {
+    func testLatestExplainsSessionEndWhileTimelineRetainsItsStartTime() {
+        launch()
+        // On an open display, Home also contains start-based rows in its Today pane.
+        let sleep = expect(elements("label BEGINSWITH 'Sleep, ' AND label CONTAINS 'Woke'").firstMatch)
+        expect(elements("label BEGINSWITH 'Feeding, ' AND label CONTAINS 'Feeding finished'").firstMatch)
+        tap(sleep)
+        expect(app.navigationBars["Timeline"])
+        let rows = elements("label BEGINSWITH 'Sleep, '")
+        XCTAssertGreaterThan(rows.count, 0)
+        for row in rows.allElementsBoundByIndex {
+            XCTAssertFalse(row.label.contains("Woke"), "Timeline rows retain their original start-time meaning")
+        }
+    }
+
+    /// The seeded note falls between the sleep's start and its end, so the sleep sorts above the
+    /// note only by its end, which is the time its row shows.
+    func testLatestOrdersSessionsByTheTimeTheyShow() throws {
+        launch()
+        let sleep = expect(elements("label BEGINSWITH 'Sleep, ' AND label CONTAINS 'Woke'").firstMatch)
+        _ = expect(element(labeled: "Note, Looking out at the garden."))
+        // On an open display, Home also lists the note in its Today pane.
+        let note = elements("label BEGINSWITH 'Note, Looking out at the garden.'").allElementsBoundByIndex
+            .first { abs($0.frame.minX - sleep.frame.minX) < 1 }
+        XCTAssertLessThan(sleep.frame.minY, try XCTUnwrap(note).frame.minY)
+    }
+
     /// A TODAY tile opens that kind's day (#24), whose own "+" logs into it (#40) — and the status
     /// widget's tile link lands on the same screen (#45).
     func testTodayTileDrillDown() {
