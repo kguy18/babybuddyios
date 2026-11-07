@@ -15,22 +15,11 @@
             "state": "translated",
             "value": "Aktivitätsschätzungen"
           }
-        }
-      }
-    },
-    "An activity is in progress or waiting to be logged.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "An activity is in progress or waiting to be logged."
-          }
         },
-        "de": {
+        "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Eine Aktivität läuft oder muss noch gespeichert werden."
+            "value": "Estimativas de atividades"
           }
         }
       }
@@ -49,56 +38,11 @@
             "state": "translated",
             "value": "Die Schätzung beruht auf protokollierten Abläufen und kennt die aktuellen Bedürfnisse deines Babys nicht. Beachte seine Signale und euren Betreuungsplan. Warte zum Füttern oder Prüfen der Windel nicht auf eine Schätzung."
           }
-        }
-      }
-    },
-    "Calculated": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Calculated"
-          }
         },
-        "de": {
+        "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Berechnet"
-          }
-        }
-      }
-    },
-    "Check incomplete entries or sync conflicts.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Check incomplete entries or sync conflicts."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Prüfe unvollständige Einträge oder Synchronisierungskonflikte."
-          }
-        }
-      }
-    },
-    "Days": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Days"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tage"
+            "value": "Com base nas rotinas registradas, não nas necessidades atuais do seu bebê. Siga os sinais do seu bebê e o seu plano de cuidados; não espere uma estimativa para alimentar ou verificar a fralda."
           }
         }
       }
@@ -117,6 +61,12 @@
             "state": "translated",
             "value": "Muster der Windeleinträge"
           }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Padrão de registro de fraldas"
+          }
         }
       }
     },
@@ -133,6 +83,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Die angezeigten Zeiträume fassen frühere Einträge zusammen. Sie sind kein vorgegebener Zeitplan, keine Wahrscheinlichkeit und keine für medizinische Zwecke geprüfte Prognose."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os intervalos exibidos resumem registros anteriores. Não são uma rotina prescrita, uma probabilidade nem uma previsão validada para uso médico."
           }
         }
       }
@@ -151,22 +107,11 @@
             "state": "translated",
             "value": "Schätzung"
           }
-        }
-      }
-    },
-    "Estimated window": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Estimated window"
-          }
         },
-        "de": {
+        "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Geschätzter Zeitraum"
+            "value": "Estimativa"
           }
         }
       }
@@ -185,6 +130,12 @@
             "state": "translated",
             "value": "Bei Mahlzeiten zählen die Abstände vom Beginn einer Mahlzeit bis zum Beginn der nächsten. Bei Schläfchen zählen sie vom Aufwachen bis zum nächsten als Schläfchen erfassten Schlafbeginn. Bei laufendem Schlaftimer werden frühere Schlafdauern für eine Schätzung des Aufwachens verwendet."
           }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os intervalos de alimentação vão do início ao início. Os intervalos de soneca vão do fim de um sono ao início de uma soneca registrada. As estimativas de despertar usam durações de sono anteriores quando um cronômetro de sono está ativo."
+          }
         }
       }
     },
@@ -202,22 +153,103 @@
             "state": "translated",
             "value": "So funktioniert es"
           }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Como funciona"
+          }
         }
       }
     },
-    "More similar entries across at least three days are needed.": {
+    "Nap": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "More similar entries across at least three days are needed."
+            "value": "Nap"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Es werden mehr ähnliche Einträge an mindestens drei Tagen benötigt."
+            "value": "Nickerchen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soneca"
+          }
+        }
+      }
+    },
+    "nap around %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "nap around %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nickerchen gegen %@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "soneca por volta de %@"
+          }
+        }
+      }
+    },
+    "Next": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächste"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Próxima"
+          }
+        }
+      }
+    },
+    "next around %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "next around %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "nächste gegen %@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "próxima por volta de %@"
           }
         }
       }
@@ -236,6 +268,12 @@
             "state": "translated",
             "value": "Nächste Mahlzeit"
           }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Próxima mamada"
+          }
         }
       }
     },
@@ -252,6 +290,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nächstes Schläfchen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Próxima soneca"
           }
         }
       }
@@ -270,6 +314,12 @@
             "state": "translated",
             "value": "Optionale Schätzungen auf der Startseite und im mittelgroßen Status-Widget. Verwendet werden nur lokal gespeicherte Einträge des ausgewählten Kindes, ohne Netzwerkanfrage."
           }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimativas opcionais no Início e no widget médio de status. Usam apenas os registros em cache da criança selecionada, sem nenhuma solicitação de rede."
+          }
         }
       }
     },
@@ -287,39 +337,11 @@
             "state": "translated",
             "value": "Mögliches Aufwachen"
           }
-        }
-      }
-    },
-    "Recent intervals vary too much for a useful estimate.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recent intervals vary too much for a useful estimate."
-          }
         },
-        "de": {
+        "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die letzten Abstände schwanken zu stark für eine hilfreiche Schätzung."
-          }
-        }
-      }
-    },
-    "Refresh your records before using estimates.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Refresh your records before using estimates."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aktualisiere die Einträge, bevor du Schätzungen verwendest."
+            "value": "Possível despertar"
           }
         }
       }
@@ -338,50 +360,22 @@
             "state": "translated",
             "value": "Aktivitätsschätzungen anzeigen"
           }
-        }
-      }
-    },
-    "Similar intervals": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Similar intervals"
-          }
         },
-        "de": {
+        "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ähnliche Abstände"
+            "value": "Mostrar estimativas de atividades"
           }
         }
       }
     },
-    "The usual window has passed. There is no current estimate.": {
+    "Uses the last 14 days and up to ten similar intervals near the same time of day. At least four intervals across three days are required. Sparse, irregular, incomplete, or stale data produces no estimate.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The usual window has passed. There is no current estimate."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Der bisher übliche Zeitraum ist vorbei. Es gibt keine aktuelle Schätzung."
-          }
-        }
-      }
-    },
-    "Uses the last 14 days and up to ten similar intervals near the same time of day. At least four intervals across three days are required. Sparse, irregular, incomplete or stale data produces no estimate.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Uses the last 14 days and up to ten similar intervals near the same time of day. At least four intervals across three days are required. Sparse, irregular, incomplete or stale data produces no estimate."
+            "value": "Uses the last 14 days and up to ten similar intervals near the same time of day. At least four intervals across three days are required. Sparse, irregular, incomplete, or stale data produces no estimate."
           }
         },
         "de": {
@@ -389,39 +383,57 @@
             "state": "translated",
             "value": "Verwendet die letzten 14 Tage und bis zu zehn ähnliche Abstände zu einer vergleichbaren Tageszeit. Erforderlich sind mindestens vier Abstände an drei Tagen. Bei zu wenigen, unregelmäßigen, unvollständigen oder veralteten Daten wird keine Schätzung angezeigt."
           }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usa os últimos 14 dias e até dez intervalos semelhantes perto do mesmo horário. São necessários pelo menos quatro intervalos em três dias. Dados escassos, irregulares, incompletos ou desatualizados não geram estimativa."
+          }
         }
       }
     },
-    "Usual nap length": {
+    "Wakes": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Usual nap length"
+            "value": "Wakes"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bisher übliche Schlafdauer"
+            "value": "Wacht auf"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acorda"
           }
         }
       }
     },
-    "What's next": {
+    "wakes around %@": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "What's next"
+            "value": "wakes around %@"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Was kommt als Nächstes?"
+            "value": "wacht gegen %@ auf"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "acorda por volta de %@"
           }
         }
       }

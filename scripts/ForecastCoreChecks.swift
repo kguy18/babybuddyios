@@ -61,11 +61,41 @@ let nap = run(sleeps, hour: 8).cues.first { $0.kind == .nap }!
 check(nap.state == .ready, "Regular nap pattern")
 check(nap.estimate?.anchor == time(0, 7), "Awake interval starts at sleep END")
 check(nap.estimate?.window.midpoint == time(0, 9), "Nap starts at observed wake interval")
-check(nap.estimate?.usualNapSeconds != nil, "Typical nap duration")
 let timer = ForecastTimer(childID: 1, kind: .sleep, start: time(0, 9))
 let sleeping = run(sleeps, hour: 9.25, timers: [timer])
 check(sleeping.cues.first { $0.kind == .wake }?.estimate?.window.midpoint == time(0, 10), "Wake estimate from sleep duration")
 check(sleeping.cues.first { $0.kind == .nap }?.state == .inProgress, "No second nap while asleep")
+check(sleeping.tileEstimate(.sleep)?.kind == .wake, "Sleep tile shows the wake-up while asleep")
+check(run(sleeps, hour: 8).tileEstimate(.sleep)?.kind == .nap, "Sleep tile shows the nap otherwise")
+check(run(feeds, hour: 15).tileEstimate(.feeding) == nil, "Elapsed cues show nothing on a tile")
+// Three naps a day, then bed at 7:30 PM: no fourth nap is predicted after the last one.
+func sleep(_ day: Int, _ start: Double, _ end: Double, nap: Bool) -> ForecastRecord {
+    ForecastRecord(id: UUID(), childID: 1, kind: .sleep, start: time(day, start), end: time(day, end), nap: nap)
+}
+let routine = (-7..<0).flatMap { day in
+    [sleep(day, 19.5, 31, nap: false)] + [9.0, 12.25, 15.25].map { sleep(day + 1, $0, $0 + 1, nap: true) }
+}.filter { $0.start < time(0, 0) }
+check(run(routine + [9.0, 12.25, 15.25].map { sleep(0, $0, $0 + 1, nap: true) }, hour: 16.5)
+    .cues.first { $0.kind == .nap }?.state == .insufficient, "No phantom nap after the last one")
+check(run(routine + [sleep(0, 9, 10, nap: true)], hour: 10.5).cues.first { $0.kind == .nap }?.state == .ready,
+      "Mid-morning nap still estimated")
+// A conflict counts only when it is the latest record.
+var oldConflict = feeds
+oldConflict[1].conflicted = true
+check(run(oldConflict).cues.first?.state == .ready, "Old conflict does not hide the feeding estimate")
+var oldSleepConflict = sleeps
+oldSleepConflict[0].conflicted = true
+check(run(oldSleepConflict, hour: 8).cues.first { $0.kind == .nap }?.state == .ready, "Old conflict does not hide the nap")
+check(run(oldSleepConflict, hour: 9.25, timers: [timer]).cues.first { $0.kind == .wake }?.state == .ready,
+      "Old conflict does not hide the wake-up")
+var lastConflict = sleeps
+lastConflict[lastConflict.count - 1].conflicted = true
+check(run(lastConflict, hour: 8).cues.first { $0.kind == .nap }?.state == .invalid, "Latest conflict hides the nap")
+// A window after midnight reads as times alone.
+let lateNow = time(0, 23.5), late = ForecastWindow(start: time(1, 0.9), end: time(1, 1.5))
+check(ForecastFormat.window(late, now: lateNow)
+      == "\(ForecastFormat.time(late.start, now: lateNow))\u{2013}\(ForecastFormat.time(late.end, now: lateNow))", "Times only")
+check(ForecastFormat.time(late.start, now: lateNow) == late.start.formatted(date: .omitted, time: .shortened), "No date")
 check(ForecastEngine.quantile([4, 1, 3, 2], fraction: 0.5) == 2.5, "Median")
 let irregular = (-7..<0).flatMap { day in [feed(day, 9), feed(day, day.isMultiple(of: 2) ? 9.1 : 14.9)] } + [feed(0, 9)]
 check(run(irregular).cues.first?.state == .irregular, "Irregular patterns are suppressed")

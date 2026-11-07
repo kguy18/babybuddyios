@@ -1,55 +1,102 @@
 import XCTest
 
+/// Estimates on the Today tiles: a footer on the Feedings, Sleep, and Diapers tiles, off by default.
+/// `BB_SEED_FORECAST=1` turns them on and seeds a routine that makes all three ready at any hour.
 final class ActivityForecastUITests: UITestCase {
-    func testGermanRoutineAndSettingsStayLocalized() {
-        launch(["BB_SEED_FORECAST": "1"], language: "de", locale: "de_DE")
-        expect(app.staticTexts["Was kommt als Nächstes?"])
-        expect(app.staticTexts["Nächste Mahlzeit"])
-        tap(tab("Einstellungen"))
-        let settings = app.buttons.labeled("Aktivitätsschätzungen")
-        for _ in 0..<8 where !settings.isHittable { app.swipeUp() }
-        tap(settings)
-        expect(app.navigationBars["Aktivitätsschätzungen"])
-        toggle(app.switches["forecast-enabled"], to: "0")
-        tap(tab("Übersicht"))
-        XCTAssertFalse(app.staticTexts["Was kommt als Nächstes?"].exists)
+    private func tile(_ kind: String) -> XCUIElement {
+        app.descendants(matching: .any)["today-\(kind)"]
     }
 
-    func testRegularRoutineShowsEstimateAndSettingCanHideIt() {
+    private func expectLabel(of element: XCUIElement, contains text: String, line: UInt = #line) {
+        expect(element, line: line)
+        expect(element, matching: NSPredicate(format: "label CONTAINS %@", text), timeout: 10,
+               describedAs: "to mention \(text)", line: line)
+    }
+
+    /// Opens the estimates screen and returns its switch. A `Form` toggle's element is the whole
+    /// row, so tapping it lands on the label: the real switch is nested at its trailing edge.
+    private func estimatesSwitch(row: String) -> XCUIElement {
+        let settings = app.buttons.labeled(row)
+        for _ in 0..<8 where !settings.isHittable { app.swipeUp() }
+        tap(settings)
+        return app.switches["forecast-enabled"].switches.firstMatch
+    }
+
+    func testRegularRoutineShowsEstimatesAndSettingCanHideThem() {
         launch(["BB_SEED_FORECAST": "1"])
-        expect(app.staticTexts["What's next"])
-        expect(app.staticTexts["Next feeding"])
-        expect(app.staticTexts["Similar intervals"].firstMatch)
+        expectLabel(of: tile("feeding"), contains: ", next around ")
+        expectLabel(of: tile("sleep"), contains: ", nap around ")
+        expectLabel(of: tile("change"), contains: ", next around ")
+        XCTAssertFalse(expect(tile("tummyTime")).label.contains("around"))
+        XCTAssertEqual(tile("change").frame.height, tile("tummyTime").frame.height,
+                       "A tile without a footer matches the one beside it")
+
         tap(tab("Settings"))
-        let settings = app.buttons.labeled("Activity estimates")
-        for _ in 0..<8 where !settings.isHittable { app.swipeUp() }
-        tap(settings)
-        toggle(app.switches["forecast-enabled"], to: "0")
+        toggle(estimatesSwitch(row: "Activity estimates"), to: "0")
         tap(tab("Home"))
-        XCTAssertFalse(app.staticTexts["What's next"].exists)
+        XCTAssertFalse(expect(tile("feeding")).label.contains("around"))
     }
 
-    func testChildSwitchDoesNotReuseForecast() {
+    func testRunningSleepTimerShowsAWakeUpEstimate() {
+        launch(["BB_SEED_FORECAST": "1"])
+        expectLabel(of: tile("sleep"), contains: ", nap around ")
+        tap(app.buttons["Add"])
+        tap(app.buttons["Start timer"])
+        expect(app.navigationBars["Start Timer"])
+        tap(app.buttons["Sleep"])
+        tap(app.buttons["Start sleep timer"])
+        expectLabel(of: tile("sleep"), contains: ", wakes around ")
+    }
+
+    func testGermanEstimatesAndSettingsStayLocalized() {
+        launch(["BB_SEED_FORECAST": "1"], language: "de", locale: "de_DE")
+        expectLabel(of: tile("feeding"), contains: ", nächste gegen ")
+        expectLabel(of: tile("sleep"), contains: ", Nickerchen gegen ")
+        tap(tab("Einstellungen"))
+        let enabled = estimatesSwitch(row: "Aktivitätsschätzungen")
+        expect(app.navigationBars["Aktivitätsschätzungen"])
+        toggle(enabled, to: "0")
+    }
+
+    func testPortugueseEstimatesStayLocalized() {
+        launch(["BB_SEED_FORECAST": "1"], language: "pt-BR", locale: "pt_BR")
+        expectLabel(of: tile("feeding"), contains: ", próxima por volta de ")
+        expectLabel(of: tile("sleep"), contains: ", soneca por volta de ")
+    }
+
+    func testChildSwitchDoesNotReuseEstimates() {
         launch(["BB_SEED_FORECAST": "1", "BB_SEED_SECOND_CHILD": "1"])
-        expect(app.staticTexts["Similar intervals"].firstMatch)
-        tap(app.buttons.labeled("Current child, Maya Guy"))
+        expectLabel(of: tile("feeding"), contains: ", next around ")
+        // A tap can land before the avatar's menu is ready; once in a suite run it opened nothing.
+        let avatar = app.buttons.labeled("Current child, Maya")
+        tap(avatar)
+        if !app.buttons["Leo Guy"].waitForExistence(timeout: 3) { avatar.tap() }
         tap(app.buttons["Leo Guy"])
-        expect(app.staticTexts["Next feeding"])
-        XCTAssertFalse(app.staticTexts["Similar intervals"].exists)
-        expect(app.staticTexts["More similar entries across at least three days are needed."].firstMatch)
+        expect(app.buttons.labeled("Current child, Leo"))
+        XCTAssertFalse(expect(tile("feeding")).label.contains("around"))
     }
 
     func testOffByDefault() {
         launch()
-        XCTAssertFalse(app.staticTexts["What's next"].exists)
+        XCTAssertFalse(expect(tile("feeding")).label.contains("around"))
+        tap(tab("Settings"))
+        expectValue(estimatesSwitch(row: "Activity estimates"), "0")
     }
 
-    func testEstimateRemainsOnHomeAfterOpeningTheDayTimeline() {
+    func testEstimateRemainsAfterOpeningTheDayTimeline() {
         launch(["BB_SEED_FORECAST": "1"])
-        expect(app.staticTexts["What's next"])
-        tap(app.descendants(matching: .any)["today-feeding"])
+        tap(expect(tile("feeding")))
         back(from: "Feeding · Today")
-        expect(app.staticTexts["What's next"])
-        expect(app.staticTexts["Similar intervals"].firstMatch)
+        expectLabel(of: tile("feeding"), contains: ", next around ")
+    }
+
+    func testDisclaimerLivesInSettings() {
+        launch()
+        let disclaimer = "Based on logged routines"
+        XCTAssertFalse(app.staticTexts.labeled(disclaimer).exists)
+        tap(tab("Settings"))
+        _ = estimatesSwitch(row: "Activity estimates")
+        for _ in 0..<4 where !app.staticTexts.labeled(disclaimer).exists { app.swipeUp() }
+        expect(app.staticTexts.labeled(disclaimer))
     }
 }

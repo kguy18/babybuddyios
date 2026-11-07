@@ -185,7 +185,7 @@ struct StatusWidgetView: View {
                 }
                 .frame(maxHeight: .infinity)   // tiles flex to fill the height below the header
                 if let estimate = entry.forecast?.ready.first {
-                    Text("\(forecastText("Estimate")): \(estimate.kind.title) · \(ForecastFormat.window(estimate.window))")
+                    Text("\(forecastText("Estimate")): \(estimate.kind.title) · \(ForecastFormat.window(estimate.window, now: entry.date))")
                         .font(.caption2).foregroundStyle(.secondary).lineLimit(2)
                 }
                 freshnessStamp

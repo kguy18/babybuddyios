@@ -50,7 +50,6 @@ final class ActivityForecastTests: XCTestCase {
         XCTAssertEqual(cue.state, .ready)
         XCTAssertEqual(cue.estimate?.anchor, time(0, 7))
         XCTAssertEqual(cue.estimate?.window.midpoint, time(0, 9))
-        XCTAssertNotNil(cue.estimate?.usualNapSeconds)
     }
 
     func testRunningSleepEstimatesWakeInsteadOfAnotherNap() {
@@ -107,6 +106,79 @@ final class ActivityForecastTests: XCTestCase {
         }
         let timer = ForecastTimer(childID: 1, kind: nil, start: time(0, 9.5))
         XCTAssertTrue(snapshot(history(), timers: [timer]).cues.allSatisfy { $0.state == .inProgress })
+    }
+
+    /// Three naps at about 9, 12:15, and 3:15, then bed at 7:30 PM. `day` 0 holds what is logged so far.
+    private func threeNapDays(today naps: [Double]) -> [ForecastRecord] {
+        func sleep(_ day: Int, _ start: Double, _ end: Double, nap: Bool) -> ForecastRecord {
+            ForecastRecord(id: UUID(), childID: 1, kind: .sleep, start: time(day, start), end: time(day, end), nap: nap)
+        }
+        var records: [ForecastRecord] = []
+        for day in -7..<0 {
+            records.append(sleep(day, 19.5, 31, nap: false)) // 7:30 PM to 7:00 AM
+            records += [9.0, 12.25, 15.25].map { sleep(day + 1, $0, $0 + 1, nap: true) }
+        }
+        return records.filter { $0.start < time(0, 0) } + naps.map { sleep(0, $0, $0 + 1, nap: true) }
+    }
+
+    func testNoNapIsPredictedAfterTheDaysLastNap() {
+        let records = threeNapDays(today: [9, 12.25, 15.25])
+        let result = snapshot(records, now: time(0, 16.5))
+        XCTAssertEqual(result.cues.first { $0.kind == .nap }?.state, .insufficient)
+        XCTAssertNil(result.tileEstimate(.sleep))
+    }
+
+    func testMidMorningNapEstimateStillWorksInAThreeNapRoutine() throws {
+        let cue = try XCTUnwrap(snapshot(threeNapDays(today: [9]), now: time(0, 10.5)).cues.first { $0.kind == .nap })
+        XCTAssertEqual(cue.state, .ready)
+        XCTAssertEqual(cue.estimate?.anchor, time(0, 10))
+    }
+
+    func testOldConflictOnlyDropsItsOwnEvidence() {
+        var records = history()
+        records[1].conflicted = true
+        let feeding = snapshot(records).cues.first
+        XCTAssertEqual(feeding?.state, .ready)
+        XCTAssertEqual(feeding?.estimate?.window.midpoint, time(0, 12))
+        XCTAssertFalse(feeding?.estimate?.observations.isEmpty ?? true)
+
+        var sleeps = sleepHistory()
+        sleeps[0].conflicted = true
+        XCTAssertEqual(snapshot(sleeps, now: time(0, 8)).cues.first { $0.kind == .nap }?.state, .ready)
+        let timer = ForecastTimer(childID: 1, kind: .sleep, start: time(0, 9))
+        XCTAssertEqual(snapshot(sleeps, now: time(0, 9.25), timers: [timer]).cues.first { $0.kind == .wake }?.state, .ready)
+    }
+
+    func testConflictedLatestSleepSuppressesNapAndWake() {
+        var sleeps = sleepHistory()
+        sleeps[sleeps.count - 1].conflicted = true
+        XCTAssertEqual(snapshot(sleeps, now: time(0, 8)).cues.first { $0.kind == .nap }?.state, .invalid)
+        let timer = ForecastTimer(childID: 1, kind: .sleep, start: time(0, 9))
+        XCTAssertEqual(snapshot(sleeps, now: time(0, 9.25), timers: [timer]).cues.first { $0.kind == .wake }?.state, .invalid)
+    }
+
+    func testWindowPastMidnightShowsTimesOnly() {
+        let now = time(0, 23.5)
+        let window = ForecastWindow(start: time(1, 0.9), end: time(1, 1.5))
+        XCTAssertEqual(ForecastFormat.window(window, now: now),
+                       "\(ForecastFormat.time(window.start, now: now))\u{2013}\(ForecastFormat.time(window.end, now: now))")
+        XCTAssertEqual(ForecastFormat.time(window.start, now: now),
+                       window.start.formatted(date: .omitted, time: .shortened))
+    }
+
+    func testTimeMoreThanADayAwayKeepsItsDate() {
+        let later = time(2, 9)
+        XCTAssertEqual(ForecastFormat.time(later, now: time(0, 9)), later.formatted(date: .numeric, time: .shortened))
+    }
+
+    func testTileEstimateMapsKindsAndShowsOnlyReadyCues() {
+        let sleeping = snapshot(sleepHistory(), now: time(0, 9.25),
+                                timers: [ForecastTimer(childID: 1, kind: .sleep, start: time(0, 9))])
+        XCTAssertEqual(sleeping.tileEstimate(.sleep)?.kind, .wake)
+        XCTAssertEqual(snapshot(sleepHistory(), now: time(0, 8)).tileEstimate(.sleep)?.kind, .nap)
+        XCTAssertEqual(snapshot(history()).tileEstimate(.feeding)?.kind, .feeding)
+        XCTAssertNil(snapshot(history()).tileEstimate(.change))
+        XCTAssertNil(snapshot(history(), now: time(0, 15)).tileEstimate(.feeding), "An elapsed cue shows nothing")
     }
 
     func testQuantilesAreDeterministic() {

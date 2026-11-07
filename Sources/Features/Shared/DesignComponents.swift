@@ -129,9 +129,19 @@ struct RunningDot: View {
 
 /// A compact "today" stat: tinted glyph + label over a large tabular figure.
 struct MetricTile: View {
+    /// A line under the value. `spoken` is added to the tile's VoiceOver label.
+    struct Footer {
+        let label: String
+        let time: String
+        let spoken: String
+    }
+
     let kind: EntityKind
     let label: String
     let value: String
+    var footer: Footer?
+    /// Takes the row's height, so a tile without a footer matches the one beside it that has one.
+    var fillsRow = false
 
     var body: some View {
         BBCard(cornerRadius: BBRadius.tile, padding: 13) {
@@ -143,10 +153,23 @@ struct MetricTile: View {
                 }
                 Text(value).font(.title2.weight(.semibold)).monospacedDigit()
                     .minimumScaleFactor(0.7)
+                if let footer {
+                    VStack(spacing: 8) {
+                        Rectangle().fill(BBColor.divider).frame(height: 1)
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(footer.label).font(.caption).foregroundStyle(.secondary)
+                            Spacer(minLength: 0)
+                            Text(footer.time).font(.system(size: 13, weight: .semibold)).monospacedDigit()
+                                .lineLimit(1).minimumScaleFactor(0.7)
+                        }
+                    }
+                    .padding(.top, 1)
+                }
             }
+            .frame(maxHeight: fillsRow ? .infinity : nil, alignment: .top)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(label), \(value)")
+        .accessibilityLabel(footer.map { "\(label), \(value), \($0.spoken)" } ?? "\(label), \(value)")
     }
 }
 

@@ -39,7 +39,6 @@ struct ForecastEstimate: Equatable, Sendable {
     let observations: [Double]
     let distinctDays: Int
     let medianSeconds: Double
-    var usualNapSeconds: ClosedRange<Double>?
 }
 
 struct ForecastCue: Equatable, Identifiable, Sendable {
@@ -56,6 +55,17 @@ struct ForecastSnapshot: Equatable, Sendable {
     let generatedAt: Date
     let cues: [ForecastCue]
     var ready: [ForecastEstimate] { cues.compactMap { $0.state == .ready ? $0.estimate : nil } }
+    /// The estimate for a Today tile. Sleep has one at most: a running timer turns the nap cue
+    /// into a wake-up cue.
+    func tileEstimate(_ kind: ForecastRecord.Kind) -> ForecastEstimate? {
+        ready.first {
+            switch $0.kind {
+            case .feeding: return kind == .feeding
+            case .nap, .wake: return kind == .sleep
+            case .change: return kind == .change
+            }
+        }
+    }
     func expires(lastSync: Date?) -> Date {
         let deadlines = [generatedAt.addingTimeInterval(15 * 60), ready.map(\.window.end).min(),
                          lastSync?.addingTimeInterval(ForecastEngine.maximumCacheAge)]
@@ -135,9 +145,7 @@ struct ForecastEngine {
 
     private func eventCue(_ kind: ForecastKind, records: [ForecastRecord], now: Date) -> ForecastCue {
         guard let last = records.last else { return ForecastCue(kind: kind, state: .insufficient) }
-        guard valid(last, now: now), !records.contains(where: \.conflicted) else {
-            return ForecastCue(kind: kind, state: .invalid)
-        }
+        guard valid(last, now: now) else { return ForecastCue(kind: kind, state: .invalid) }
         let intervals = zip(records, records.dropFirst()).compactMap { earlier, later -> Observation? in
             guard valid(earlier, now: now), valid(later, now: now),
                   (earlier.end ?? earlier.start) <= later.start,
@@ -149,29 +157,25 @@ struct ForecastEngine {
 
     private func napCue(sleeps: [ForecastRecord], now: Date) -> ForecastCue {
         guard let last = sleeps.last else { return ForecastCue(kind: .nap, state: .insufficient) }
-        guard valid(last, now: now), let wake = last.end, !sleeps.contains(where: \.conflicted) else {
+        guard valid(last, now: now), let wake = last.end else {
             return ForecastCue(kind: .nap, state: .invalid)
         }
-        let gaps = zip(sleeps, sleeps.dropFirst()).compactMap { earlier, later -> Observation? in
-            guard valid(earlier, now: now), valid(later, now: now), later.nap == true,
+        let anchors = zip(sleeps, sleeps.dropFirst()).compactMap { earlier, later -> (gap: Observation, nap: Bool)? in
+            guard valid(earlier, now: now), valid(later, now: now),
                   let end = earlier.end, later.start > end, matches(end, wake) else { return nil }
-            return Observation(seconds: later.start.timeIntervalSince(end), context: end)
+            return (Observation(seconds: later.start.timeIntervalSince(end), context: end), later.nap == true)
         }
-        var cue = estimate(.nap, observations: gaps, anchor: wake, now: now)
-        if var value = cue.estimate {
-            let durations = sleeps.compactMap { record -> Observation? in
-                guard record.nap == true, valid(record, now: now), let end = record.end,
-                      matches(record.start, value.window.midpoint) else { return nil }
-                return Observation(seconds: end.timeIntervalSince(record.start), context: record.start)
-            }
-            if let summary = summary(durations) { value.usualNapSeconds = summary.low...summary.high }
-            cue.estimate = value
+        // After the day's last nap the next sleep is usually the night, so the gaps that did end
+        // in a nap say nothing about today unless most wake-ups at this hour led to one.
+        let recent = anchors.suffix(Self.maximumSamples)
+        guard recent.filter(\.nap).count * 2 > recent.count else {
+            return ForecastCue(kind: .nap, state: .insufficient)
         }
-        return cue
+        return estimate(.nap, observations: anchors.filter(\.nap).map(\.gap), anchor: wake, now: now)
     }
 
     private func wakeCue(sleeps: [ForecastRecord], timer: ForecastTimer, now: Date) -> ForecastCue {
-        guard timer.start <= now, !sleeps.contains(where: \.conflicted) else {
+        guard timer.start <= now, sleeps.last?.conflicted != true else {
             return ForecastCue(kind: .wake, state: .invalid)
         }
         let durations = sleeps.compactMap { record -> Observation? in
