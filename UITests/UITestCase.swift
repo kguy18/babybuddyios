@@ -50,8 +50,8 @@ class UITestCase: XCTestCase {
         // passed. It only ever hits the first launch of a run, and only on a simulator the app has
         // run on before, which is why an erased one never shows it. Replacing that instance costs
         // one relaunch.
-        let onboardingTitle = language.hasPrefix("de")
-            ? "Mit deinem eigenen Server verbinden" : "Connect to your self-hosted server"
+        let onboardingTitle = language.hasPrefix("de") ? "Mit deinem eigenen Server verbinden"
+            : language.hasPrefix("pt") ? "Conecte ao seu servidor próprio" : "Connect to your self-hosted server"
         if demo, app.staticTexts[onboardingTitle].waitForExistence(timeout: 3) {
             app.terminate()
             app.launch()

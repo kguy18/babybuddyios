@@ -1,6 +1,6 @@
 # Localization
 
-The app ships in English and German (`de`). iOS selects the language from the system
+The app ships in English, German (`de`) and Brazilian Portuguese (`pt-BR`). iOS selects the language from the system
 preferences or the system's per-app language setting. There is no language override in the app.
 
 English is the development language and the only required one. Every key needs English text.
@@ -18,7 +18,7 @@ Use native SwiftUI localization for literals. Use `String(localized:)` when pass
 `String` to a custom component or returning a display label. Translate complete sentences and
 use catalog plural variants rather than assembling English suffixes. Feeding-picker labels
 have separate short keys where context matters: solid food is "Beikost", while a solid diaper
-contains "Stuhlgang".
+contains "Stuhlgang". Brazilian Portuguese makes the same split with "Sólidos" and "Cocô".
 
 The What's New view passes the titles, bodies and fixes parsed from the bundled English release
 notes to `NSLocalizedString`. A line with a catalog entry shows translated; a line without one
@@ -31,7 +31,7 @@ display time. Server-provided messages and the externally hosted feedback interf
 language supplied by those services. Localizing this client does not translate the server.
 
 Dates and times use Foundation formatting. Decimal display follows the current region, including
-the German decimal comma; the editor already accepts comma and period input. Displaying a
+the German and Brazilian decimal comma; the editor already accepts comma and period input. Displaying a
 translated unit never changes a stored value or its unit.
 
 ## Adding or updating a language
@@ -50,6 +50,16 @@ translated unit never changes a stored value or its unit.
 `de: 100%, 0 missing`; CI adds the same lines to the job summary.
 `python3 scripts/check-localization.py --missing <lang>` lists the keys a language still lacks.
 
+## Brazilian Portuguese
+
+The `pt-BR` strings use the informal "você" and Apple's own Brazilian terms for system places:
+Ajustes (Settings), Início (Home), Tela de Início, Atividade ao Vivo and Tempo de Uso. The
+activity terms are Alimentação and mamada (feeding), Sono and soneca, Tempo de bruços (tummy
+time), Extração (pumping), Troca de fralda with Xixi and Cocô, Remédio and dose, and Cronômetro
+(timer), since the timers count up. Short confirmations such as "Added %@" read "Adicionado: %@"
+so the sentence agrees with any activity name. Portuguese uses the `one` plural form for 0, so
+every `pt-BR` plural also has a `zero` form with the plural wording ("0 campos").
+
 ## Validation
 
 ```sh
@@ -63,8 +73,8 @@ The catalog check fails only when English text is missing, `project.yml` no long
 widget the shared catalog, or an existing translation is empty, lacks an `other` plural form, or
 changes an argument's position or type. It runs in the PR workflow. `LocalizationTests`
 checks the compiled resources, language selection, English fallback, plurals, reordered
-arguments and stable payload values. `GermanLocalizationTests` launches the app with German
-language and region settings; the existing UI suite continues to run in English.
+arguments and stable payload values. `GermanLocalizationTests` and `PortugueseLocalizationTests` launch the app with German or
+Brazilian Portuguese language and region settings; the existing UI suite continues to run in English.
 
 With Xcode and an iOS 26+ simulator, run the unit scheme and `scripts/ui-test.sh` as described in
 [DEVELOPMENT.md](DEVELOPMENT.md). These checks require Xcode; Swift syntax parsing alone does
