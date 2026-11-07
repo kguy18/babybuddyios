@@ -80,6 +80,11 @@ release notes can be written from the milestone:
   and `build-and-test` doesn't wait for them, because a preview image can queue for a long time;
   they start once `build-and-test` is done, so they never hold a runner a required lane needs. A
   new UI test class goes in a shard of both `ui` and `duo`; the `changes` job fails until it does.
+- The seven Duo UI shards run only on a PR that touches `Sources/`, `Widgets/`, `UITests/`,
+  `scripts/ui-test.sh` or `pr.yml` (the `changes` job's `duo-ui` output). Any other code PR, such
+  as a version bump or a tooling change, still gets `duo (unit)` and `duo (open)`.
+- macOS jobs share one pool of five runners across both images, so a Duo job that started early
+  would hold a slot a required lane is waiting for. That is why the Duo jobs wait.
 - `release-notes` runs on every PR, docs-only ones included: `node scripts/release.mjs validate`
   checks that each version in `Docs/release-notes.md` has a non-empty `appstore` and `whatsnew`
   block and that the store text fits App Store Connect's 4,000 characters. It reports through
