@@ -221,6 +221,22 @@ final class LoggingTests: UITestCase {
         expectGone(bar)
     }
 
+    /// At the largest text size Undo has a line of its own under the message and still undoes:
+    /// beside the message it squeezed to a letter per line.
+    func testUndoToastFitsTheLargestText() {
+        launch(["BB_TOAST_SECONDS": "30"], largestText: true)
+        openEditor("Diaper")
+        let sheet = expect(app.navigationBars["New Diaper Change"])
+        tap(sheet.buttons["Save"])
+        expectGone(sheet)
+        let toast = expect(element(labeled: "Logged Diaper Change"))
+        let undo = expect(app.buttons["Undo"])
+        XCTAssertGreaterThan(undo.frame.width, undo.frame.height, "Undo should fit on one line")
+        XCTAssertGreaterThan(undo.frame.width, toast.frame.width * 0.8, "Undo should fill the toast's width")
+        tap(undo)
+        expectGone(undo)
+    }
+
     /// Baby Buddy refuses a feeding that overlaps another, so the editor names the cached one it
     /// would overlap. Only a warning: Save stays enabled. The seeded feeding ran 90 to 70 minutes
     /// before launch; a new one started 80 minutes ago and ending now overlaps it.
