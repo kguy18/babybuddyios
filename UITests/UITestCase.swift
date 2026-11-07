@@ -32,12 +32,18 @@ class UITestCase: XCTestCase {
     ///
     /// The feedback sheet points at a port nothing listens on unless a test says otherwise, so no
     /// UI test reaches the live feedback server; `BB_FEEDBACK_STUB` stands in for it.
+    ///
+    /// `OS_ACTIVITY_DT_MODE` is off because xcodebuild turns it on, which copies every log line to
+    /// stderr. XCTest evaluates queries on the app's main thread and logs each element it reads, so
+    /// on a small CI runner that write blocks the main thread: in a spindump of a test that hit the
+    /// time allowance, 81% of the main thread's samples were in it.
     func launch(_ environment: [String: String] = [:], demo: Bool = true,
-                language: String = "en", locale: String = "en_US", largestText: Bool = false) {
-        var env = ["BB_UITEST": "1", "BB_FEEDBACK": "https://127.0.0.1:2"]
+                language: String? = "en", locale: String = "en_US", largestText: Bool = false) {
+        var env = ["BB_UITEST": "1", "BB_FEEDBACK": "https://127.0.0.1:2", "OS_ACTIVITY_DT_MODE": "NO"]
         if demo { env["BB_DEMO"] = "1" }
         app.launchEnvironment = env.merging(environment) { $1 }
-        app.launchArguments = ["-AppleLanguages", "(\(language))", "-AppleLocale", locale]
+        // `nil` keeps the language the screenshot helper already put in the launch arguments.
+        if let language { app.launchArguments = ["-AppleLanguages", "(\(language))", "-AppleLocale", locale] }
         if largestText {
             app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
         }
@@ -53,6 +59,7 @@ class UITestCase: XCTestCase {
         // passed. It only ever hits the first launch of a run, and only on a simulator the app has
         // run on before, which is why an erased one never shows it. Replacing that instance costs
         // one relaunch.
+        guard let language else { return }
         let onboardingTitle = language.hasPrefix("de") ? "Mit deinem eigenen Server verbinden"
             : language.hasPrefix("pt") ? "Conecte ao seu servidor próprio" : "Connect to your self-hosted server"
         if demo, app.staticTexts[onboardingTitle].waitForExistence(timeout: 3) {

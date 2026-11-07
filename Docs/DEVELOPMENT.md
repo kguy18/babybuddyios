@@ -79,6 +79,7 @@ Pass these via `SIMCTL_CHILD_<NAME>` environment variables to `xcrun simctl laun
 | Flag | Effect |
 |------|--------|
 | `BB_DEMO=1` | Seed sample data and skip the network (no server needed) |
+| `BB_DEMO_DATE=yyyy-MM-dd` | Show this date in Home's header and in the date fields of a new record, for screenshots. The screenshot test passes it. Records still seed relative to the real clock |
 | `BB_UITEST=1` | Start from a clean install: wipe the store, defaults, keychain and notifications first (seeding at once with `BB_DEMO`); no analytics or purchases. Every UI test launches with it |
 | `BB_SEED_CONFLICT=1` | Also seed a sample sync conflict (into an empty store) |
 | `BB_SEED_PENDING=1` | Also seed queued, blocked and photo changes for Pending Changes (into an empty store) |
