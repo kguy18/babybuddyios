@@ -68,10 +68,12 @@ final class ActivityForecastUITests: UITestCase {
         launch(["BB_SEED_FORECAST": "1", "BB_SEED_SECOND_CHILD": "1"])
         expectLabel(of: tile("feeding"), contains: ", next around ")
         // A tap can land before the avatar's menu is ready; once in a suite run it opened nothing.
+        // An open menu covers the avatar, so a slow one isn't tapped again.
         let avatar = app.buttons.labeled("Current child, Maya")
+        let leo = app.buttons.labeled("Leo")
         tap(avatar)
-        if !app.buttons["Leo Guy"].waitForExistence(timeout: 3) { avatar.tap() }
-        tap(app.buttons["Leo Guy"])
+        if !leo.waitForExistence(timeout: 3), avatar.isHittable { avatar.tap() }
+        tap(leo)
         expect(app.buttons.labeled("Current child, Leo"))
         XCTAssertFalse(expect(tile("feeding")).label.contains("around"))
     }
