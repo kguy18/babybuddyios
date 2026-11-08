@@ -184,4 +184,34 @@ if total == 0:
 if skipped and sys.argv[1]:
     print("::error::UI tests skipped on the open display"); sys.exit(1)
 ' "$DUO_OPEN" || exit 1
+
+# CI passes -retry-tests-on-failure -test-iterations 2, and a test that passes on its second
+# attempt counts as passed: a flaky test hides behind a green run. List those here and, in CI, in
+# the job's step summary. A retry never fails the run.
+xcrun xcresulttool get test-results tests --path "$RESULT" --compact | python3 -c '
+import json, os, sys
+retried = []
+def walk(node, suite=None):
+    kind = node.get("nodeType")
+    if kind == "Test Suite":
+        suite = node.get("name")
+    elif kind == "Test Case":
+        runs = [c for c in node.get("children", []) if c.get("nodeType") == "Repetition"]
+        results = {run.get("result") for run in runs}
+        if "Failed" in results and "Passed" in results:
+            attempts = ", ".join("{} {}".format(run.get("name"), run.get("result").lower()) for run in runs)
+            retried.append("{}/{}: {}".format(suite, node.get("name"), attempts))
+    for child in node.get("children", []):
+        walk(child, suite)
+for node in json.load(sys.stdin)["testNodes"]:
+    walk(node)
+if retried:
+    print(f"Retried tests: {len(retried)} passed only on a later attempt")
+    for line in retried:
+        print("  RETRY " + line)
+    print(f"::warning::{len(retried)} UI tests passed only on a retry; see the step summary")
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+            summary.write("### Retried tests\n\n" + "".join(f"- {line}\n" for line in retried) + "\n")
+' || echo "::warning::could not read the result bundle for retried tests"
 exit $STATUS
