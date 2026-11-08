@@ -23,15 +23,11 @@ struct CustomHeader: Codable, Equatable {
         case invalidName(String)
         case invalidValue(String)
         case duplicate(String)
-        #if DEBUG
         case diagnostic(String)
-        #endif
 
         var message: String {
             switch self {
-            #if DEBUG
             case .diagnostic(let text): return text
-            #endif
             case .missingName: return String(localized: "A header is missing its name. Add one or remove the header.")
             case .missingValue(let name): return String(localized: "\(name) needs a value. Add one or remove the header.")
             case .reserved(let name) where name.lowercased() == "authorization":
@@ -72,7 +68,6 @@ struct CustomHeader: Codable, Equatable {
             guard name.unicodeScalars.allSatisfy(tokenCharacters.contains) else { throw Problem.invalidName(name) }
             guard !reserved.contains(name.lowercased()) else { throw Problem.reserved(name) }
             guard !value.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) else {
-                #if DEBUG
                 let scalars = Array(value.unicodeScalars)
                 let hex = scalars.map { scalar -> String in
                     let h = String(scalar.value, radix: 16)
@@ -83,9 +78,6 @@ struct CustomHeader: Codable, Equatable {
                         + (scalar.properties.generalCategory == .control ? "" : " not .control")
                 }.joined()
                 throw Problem.diagnostic("\(name) \(scalars.count) scalars: \(hex)\(detail)")
-                #else
-                throw Problem.invalidValue(name)
-                #endif
             }
             guard seen.insert(name.lowercased()).inserted else { throw Problem.duplicate(name) }
             return CustomHeader(name: name, value: value)
