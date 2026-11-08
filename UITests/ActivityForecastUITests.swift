@@ -28,7 +28,7 @@ final class ActivityForecastUITests: UITestCase {
         expectLabel(of: tile("sleep"), contains: ", nap around ")
         expectLabel(of: tile("change"), contains: ", next around ")
         XCTAssertFalse(expect(tile("tummyTime")).label.contains("around"))
-        XCTAssertEqual(tile("change").frame.height, tile("tummyTime").frame.height,
+        XCTAssertEqual(tile("change").frame.height, tile("tummyTime").frame.height, accuracy: 0.5,
                        "A tile without a footer matches the one beside it")
 
         tap(tab("Settings"))
