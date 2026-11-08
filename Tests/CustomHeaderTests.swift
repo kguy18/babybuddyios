@@ -303,3 +303,39 @@ final class CustomHeaderTests: XCTestCase {
             .contains("**baby.example.com**"))
     }
 }
+
+/// #241: an attempt that fails before the probe must not keep the gate from the attempt before.
+/// Sign-in reopens Advanced configuration whenever a failed attempt left a gate behind, so a stale
+/// one put the sheet back over every validation error. `AppSession.probe` uses the shared session,
+/// so the stub is registered globally rather than installed on a session of its own.
+@MainActor
+final class StaleGateTests: XCTestCase {
+    override func setUp() {
+        _ = StubProtocol.install(["<html>Sign in at team.cloudflareaccess.com</html>"])
+        URLProtocol.registerClass(StubProtocol.self)
+    }
+
+    override func tearDown() { URLProtocol.unregisterClass(StubProtocol.self) }
+
+    func testAHeaderValidationFailureClearsTheGateFromTheTryBefore() async {
+        let session = AppSession()
+        let gated = await session.signIn(serverURL: "baby.example.com", token: "t")
+        XCTAssertFalse(gated)
+        XCTAssertEqual(session.lastGate, .cloudflareAccess)
+
+        let ok = await session.signIn(serverURL: "baby.example.com", token: "t",
+                                      headers: [CustomHeader(name: "", value: "x")])
+        XCTAssertFalse(ok)
+        XCTAssertNil(session.lastGate)
+        XCTAssertEqual(session.lastError, CustomHeader.Problem.missingName.message)
+    }
+
+    func testABadAddressClearsTheGateFromTheTryBefore() async {
+        let session = AppSession()
+        _ = await session.signIn(serverURL: "baby.example.com", token: "t")
+        XCTAssertEqual(session.lastGate, .cloudflareAccess)
+        let ok = await session.signIn(serverURL: "", token: "t")
+        XCTAssertFalse(ok)
+        XCTAssertNil(session.lastGate)
+    }
+}

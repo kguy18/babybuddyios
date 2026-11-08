@@ -20,7 +20,10 @@ final class AppSession {
     var lastError: String?
 
     /// What answered the last failed probe in Baby Buddy's place, if something did. Sign-in opens
-    /// Advanced configuration when it's a gate that custom headers can get through.
+    /// Advanced configuration when it's a gate that custom headers can get through. Cleared at the
+    /// start of every attempt, not only in ``probe(_:context:)``: an attempt that fails before the
+    /// probe, on the address or a header, would otherwise keep the gate from the attempt before and
+    /// reopen Advanced configuration over its own error, every time (#241).
     private(set) var lastGate: AccessGate?
 
     /// When true (DEBUG launch with `BB_DEMO=1`), the app runs against seeded local data
@@ -47,6 +50,11 @@ final class AppSession {
             state = .authenticated(ServerConfig(baseURL: URL(string: "https://demo.local")!, token: "demo"))
             return
         }
+        #if DEBUG
+        // `BB_GATE_PREVIEW` opens Advanced configuration as if this gate had answered a sign-in
+        // (OnboardingView); a real answer would have left the gate here too.
+        if let raw = ProcessInfo.processInfo.environment["BB_GATE_PREVIEW"] { lastGate = AccessGate(rawValue: raw) }
+        #endif
         if let config = KeychainStore.load() {
             state = .authenticated(config)
             client = APIClient(config: config)
@@ -93,6 +101,7 @@ final class AppSession {
     /// and activate it.
     func signIn(serverURL: String, token: String, headers: [CustomHeader] = []) async -> Bool {
         lastError = nil
+        lastGate = nil
         let normalized = Self.normalizedServerURLString(serverURL)
         guard let url = URL(string: normalized), url.host != nil else {
             Analytics.report(.invalidURL, context: "signIn")
@@ -121,6 +130,7 @@ final class AppSession {
     /// same probe sign-in runs. A failed probe keeps the old headers.
     func updateHeaders(_ headers: [CustomHeader]) async -> Bool {
         lastError = nil
+        lastGate = nil
         guard var config, let headers = validated(headers) else { return false }
         config.headers = headers
         guard let probe = await probe(config, context: "editHeaders") else { return false }
@@ -142,7 +152,6 @@ final class AppSession {
     /// A client for `config` if the server answers ``APIClient/validateToken()``; otherwise `nil`,
     /// with ``lastError`` saying why.
     private func probe(_ config: ServerConfig, context: String) async -> APIClient? {
-        lastGate = nil
         let probe = APIClient(config: config)
         do {
             try await probe.validateToken()

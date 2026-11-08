@@ -173,6 +173,32 @@ final class DialogTests: UITestCase {
         expectValue(app.textFields["Client ID"], "88bf3b6d86161464f6509f72.access")
     }
 
+    /// #241: a value that fails before any request goes out shows its error on the sign-in screen,
+    /// once. Before, the gate from the try before was still recorded, so sign-in put Advanced
+    /// configuration straight back over the error, and Save and try again looped.
+    func testAValidationErrorDoesNotReopenAdvancedConfiguration() {
+        launch(["BB_GATE_PREVIEW": "cloudflareAccess"], demo: false)
+        let sheet = app.navigationBars["Advanced configuration"]
+        expect(sheet)
+        revealSheetBar("Advanced configuration")
+        tap(app.buttons["Cancel"])
+        expectGone(sheet)
+        replaceText(app.textFields["Your server URL or IP address"], with: "baby.example.com")
+        replaceText(app.secureTextFields["Paste your API token"], with: "abc\n")
+
+        tap(app.buttons["Advanced configuration"])
+        expect(sheet)
+        replaceText(app.textFields["Client ID"], with: "abc.access\n")
+        expect(app.secureTextFields["Client Secret"]).typeText("s3cret\n")
+        tap(app.buttons["Add another header"])
+        replaceText(app.textFields["Header name"], with: "Cookie")
+        replaceText(app.secureTextFields["Header value"], with: "x\n")
+        tap(app.buttons["Save and try again"])
+        expectGone(sheet)
+        expect(element(labeled: "The app sets Cookie itself"))
+        XCTAssertFalse(sheet.exists, "the error reopened Advanced configuration")
+    }
+
     /// #148: Settings lists the header names, and an edit that fails keeps the old set. A rejected
     /// name fails before the probe; the demo server's address would take a minute to time out.
     func testCustomHeaderEditInSettings() {

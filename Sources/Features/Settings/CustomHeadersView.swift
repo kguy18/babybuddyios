@@ -112,11 +112,17 @@ struct CustomHeaderFields: View {
                 removeButton(row.wrappedValue)
             }
             HStack(spacing: 8) {
+                // A password manager stores a service token as a login: the client ID is the
+                // username, the secret the password. Tagged, Password AutoFill fills each into its
+                // own field. The `onChange` cleaning below is for text that arrives any other way:
+                // #241's value came through Paste with a control character in it.
                 Group {
                     if preset.secret {
                         SecureField(preset.placeholder, text: row.value)
+                            .textContentType(.password)
                     } else {
                         TextField(preset.placeholder, text: row.value)
+                            .textContentType(.username)
                     }
                 }
                 .font(.system(size: 17))
@@ -136,12 +142,17 @@ struct CustomHeaderFields: View {
         HStack(spacing: 10) {
             VStack(spacing: 10) {
                 TextField("Header name", text: row.name)
+                    // An empty content type opts the field out of AutoFill. Without it iOS takes
+                    // the text field above a password field for the username and offers to fill a
+                    // login's username in as the header name.
+                    .textContentType(UITextContentType(rawValue: ""))
                     .font(.system(size: 16).monospaced())
                     .focused($focus, equals: .name(row.wrappedValue.id))
                     .submitLabel(.next)
                     .onSubmit { advance(from: .name(row.wrappedValue.id)) }
                 HStack(spacing: 8) {
                     SecureField("Header value", text: row.value)
+                        .textContentType(.password)
                         .font(.system(size: 17))
                         .focused($focus, equals: .value(row.wrappedValue.id))
                         .submitLabel(isLast(.value(row.wrappedValue.id)) ? .done : .next)

@@ -35,7 +35,7 @@ The rest of the store listing (description, keywords, review information) lives 
 
 #Fixed
 - Sick mode comparisons such as "up since yesterday" no longer show a few English words in the middle of a translated sentence.
-- Service token and custom header values now save even when the copied text carries a hidden tab or line break. Before, the app refused the value with "can't contain a line break or control character" and there was no way to see what was wrong. It now removes those characters, and a space inside a Cloudflare Client ID or Secret with them. If Cloudflare Access turns the token down, the app says so.
+- A Cloudflare service token pasted from a password manager now saves even when the copied value carries a hidden control character or line break, and the password manager's AutoFill puts the client ID and the secret in the right fields. Before, the app refused the value with "can't contain a line break or control character" and put the Advanced configuration sheet back over the error, so there was no way to see what was wrong. If Cloudflare Access turns the token down, the app says so.
 ```
 
 ```whatsnew
@@ -43,7 +43,7 @@ The rest of the store listing (description, keywords, review information) lives 
 - new | German and Portuguese | Baby Buddy now speaks Deutsch and Português (Brasil).
 - new | iPhone Duo support | Home and Timeline use both halves of the open display. For the lucky few with a Duo!
 #Fixed
-- Service token values save even with a hidden line break
+- Service tokens pasted from a password manager save even with a hidden line break
 ```
 
 ## 1.4.0
