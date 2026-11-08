@@ -52,7 +52,7 @@ struct CustomHeader: Codable, Equatable {
     /// Drops invisible format characters (Unicode Cf), such as a byte order mark, a zero-width space
     /// or a direction mark. Text copied from a web dashboard or a password manager often carries
     /// them, and the user can't see them to delete. Control characters (Cc) stay: a header name with
-    /// one in it is rejected by the token check.
+    /// one in it is rejected by the token check, and ``stripped(value:for:)`` removes them from values.
     static func withoutFormatCharacters(_ text: String) -> String {
         String(String.UnicodeScalarView(text.unicodeScalars.filter { $0.properties.generalCategory != .format }))
     }
@@ -64,18 +64,31 @@ struct CustomHeader: Codable, Equatable {
     /// in a single-line field, so an error about it is a dead end. If the cleaned value is still
     /// wrong, the gate turns it down and sign-in says so. URLSession would refuse a line break in a
     /// header value anyway, so nothing is sent that couldn't be before.
+    ///
+    /// Only the standard library's Unicode properties decide what goes, never a `CharacterSet`.
+    /// The phones in #241 rejected a hand-typed ASCII client ID through the old
+    /// `CharacterSet.controlCharacters` check, and on the iOS 26.5 simulator that set is wrong
+    /// outright: in every 256-code-point block of plane 14 it marks 0x01 and 0x20-0x7F as control,
+    /// the tag block's layout repeated across the plane, 24,735 scalars that are neither Cc nor Cf.
+    /// A broken set would delete real characters from a token here. The standard library's tables
+    /// are the reference.
     static func stripped(value: String, for name: String) -> String {
-        var dropped = CharacterSet.controlCharacters
-        if tokenValued.contains(name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()) {
-            dropped.formUnion(.whitespacesAndNewlines)
+        let token = tokenValued.contains(name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+        let kept = value.unicodeScalars.filter { scalar in
+            let category = scalar.properties.generalCategory
+            if category == .control || category == .format { return false }
+            return !(token && scalar.properties.isWhitespace)
         }
-        let kept = withoutFormatCharacters(value).unicodeScalars.filter { !dropped.contains($0) }
         return String(String.UnicodeScalarView(kept))
     }
 
-    /// A value as it will be sent: ``stripped(value:for:)`` with no whitespace at either end.
+    /// A value as it will be sent: ``stripped(value:for:)`` with no whitespace at either end. The
+    /// trim goes by the standard library's `isWhitespace` for the same reason the stripping does.
     static func cleaned(value: String, for name: String) -> String {
-        stripped(value: value, for: name).trimmingCharacters(in: .whitespacesAndNewlines)
+        let scalars = stripped(value: value, for: name).unicodeScalars
+            .drop { $0.properties.isWhitespace }
+            .reversed().drop { $0.properties.isWhitespace }.reversed()
+        return String(String.UnicodeScalarView(scalars))
     }
 
     /// The rows cleaned, or the first problem with them. A row with an empty name or value is an

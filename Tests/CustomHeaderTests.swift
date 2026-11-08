@@ -97,6 +97,24 @@ final class CustomHeaderTests: XCTestCase {
         }
     }
 
+    /// #241: the phones rejected a hand-typed ASCII client ID, and Foundation's
+    /// `CharacterSet.controlCharacters` is wrong on the iOS 26.5 simulator (it marks 24,735 plane-14
+    /// scalars that are neither Cc nor Cf as control), so cleaning goes by the standard library's
+    /// Unicode categories alone. Every printable ASCII character survives, and so does a scalar from
+    /// the range that set gets wrong.
+    func testCleaningKeepsEveryPrintableASCIICharacter() {
+        let printable = String(String.UnicodeScalarView((0x20...0x7E).map { Unicode.Scalar($0)! }))
+        XCTAssertEqual(CustomHeader.cleaned(value: printable, for: "X-Gate"),
+                       String(printable.dropFirst()), "only the leading space, at an end, goes")
+        XCTAssertEqual(CustomHeader.stripped(value: printable, for: "X-Gate"), printable)
+    }
+
+    func testCleaningKeepsAScalarFoundationMistakesForAControl() {
+        let value = "a\u{E0130}b"
+        XCTAssertEqual(CustomHeader.stripped(value: value, for: "X-Gate"), value)
+        XCTAssertEqual(CustomHeader.cleaned(value: value, for: "X-Gate"), value)
+    }
+
     /// The same cleaning a value field runs as it changes: everything but the ends, which are
     /// trimmed at save so a space being typed survives.
     func testStrippingLeavesTheEndsOfAnOrdinaryValueAlone() {

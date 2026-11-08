@@ -114,9 +114,8 @@ struct CustomHeaderFields: View {
             HStack(spacing: 8) {
                 // A password manager stores a service token as a login: the client ID is the
                 // username, the secret the password. Tagged, Password AutoFill fills each into its
-                // own field. The `onChange` cleaning below is for text that arrives any other way:
-                // #241's value came through Paste with a control character at its end, which the
-                // trim there doesn't remove.
+                // own field. The `onChange` cleaning below handles text that arrives any other way,
+                // typed or pasted, so a hidden tab or line break never sits in the field.
                 Group {
                     if preset.secret {
                         SecureField(preset.placeholder, text: row.value)
@@ -180,8 +179,8 @@ struct CustomHeaderFields: View {
         .accessibilityLabel("Remove header")
     }
 
-    /// Keeps a value free of the characters sign-in would drop anyway, so a line break or a tab the
-    /// system's Paste brought in never sits invisibly in the field (#241). The ends are trimmed at
+    /// Keeps a value free of the characters sign-in would drop anyway, so a line break or a tab
+    /// from a paste never sits invisibly in the field. The ends are trimmed at
     /// save, not here, so a space being typed into an ordinary header's value survives.
     private func clean(_ row: Binding<HeaderRow>) {
         let typed = row.wrappedValue.value
