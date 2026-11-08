@@ -114,7 +114,9 @@ set +e
 # Unsigned on purpose: the store and the keychain both fall back to app-only locations without the
 # App Group entitlement, which is all an in-app UI test touches.
 # Time allowances so a hung test fails itself rather than the run: a demo test takes ~30 s, and a
-# server one ~2 min (it signs in, then waits on the app's own sync).
+# server one ~2 min (it signs in, then waits on the app's own sync). On an iPhone Duo (CI's
+# xcode-27 preview image) a test takes 40 s to 2 min, and one slow wait pushed a retry past 300 s,
+# so that lane gets 420 and 600.
 # UI_TEST_XCTESTRUN runs tests already built with `build-for-testing` instead of building them, as
 # CI's iPhone Duo shards do with the one build they share.
 if [ -n "${UI_TEST_XCTESTRUN:-}" ]; then
@@ -122,11 +124,14 @@ if [ -n "${UI_TEST_XCTESTRUN:-}" ]; then
 else
   BUILD=(-project BabyBuddy.xcodeproj -scheme BabyBuddyUITests test)
 fi
+if [ -n "${UI_TEST_XCTESTRUN:-}" ] || xcrun simctl list devices "$UDID" --json | grep -q '"deviceTypeIdentifier" : ".*Duo"'; then
+  ALLOWANCE=(-default-test-execution-time-allowance 420 -maximum-test-execution-time-allowance 600)
+else
+  ALLOWANCE=(-default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 300)
+fi
 xcodebuild "${BUILD[@]}" -destination "id=$UDID" \
   -resultBundlePath "$RESULT" \
-  -test-timeouts-enabled YES \
-  -default-test-execution-time-allowance 240 \
-  -maximum-test-execution-time-allowance 300 \
+  -test-timeouts-enabled YES "${ALLOWANCE[@]}" \
   CODE_SIGNING_ALLOWED=NO -quiet "${LANE[@]}" "$@"
 STATUS=$?
 set -e
