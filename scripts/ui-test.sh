@@ -101,11 +101,20 @@ if [ -n "$DUO_OPEN" ]; then
   # Unfold, then check the inner screen took over: duoctl drives private simulator interfaces, and
   # a run that stayed on the front display would only skip FoldTests.
   mkdir -p build
-  scripts/duoctl open
-  if ! scripts/duoctl state | python3 -c 'import json, sys; sys.exit(json.load(sys.stdin)["activeScreen"] != "inner")'; then
-    scripts/duoctl screenshot build/duo-open.png || true
-    echo "::error::duoctl open left the iPhone Duo on its front display"
-    exit 1
+  unfold() {
+    scripts/duoctl open \
+      && scripts/duoctl state | python3 -c 'import json, sys; sys.exit(json.load(sys.stdin)["activeScreen"] != "inner")'
+  }
+  # Once in CI, straight after bootstatus, duoctl answered "no display is active (is the simulator
+  # still booting?)": SpringBoard wasn't up yet. One more try after a pause covers that.
+  if ! unfold; then
+    echo "duoctl open didn't take; trying once more in 15 s"
+    sleep 15
+    if ! unfold; then
+      scripts/duoctl screenshot build/duo-open.png || true
+      echo "::error::duoctl open left the iPhone Duo on its front display"
+      exit 1
+    fi
   fi
 fi
 
