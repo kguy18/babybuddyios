@@ -60,10 +60,38 @@ final class CustomHeaderTests: XCTestCase {
         }
     }
 
-    func testAValueWithALineBreakIsRejected() {
-        XCTAssertThrowsError(try CustomHeader.validated([CustomHeader(name: "X-Gate", value: "a\r\nHost: evil")])) {
-            XCTAssertEqual($0 as? CustomHeader.Problem, .invalidValue("X-Gate"))
-        }
+    /// #241: a line break or a tab inside a pasted value can't be seen in a single-line field, so
+    /// it's removed rather than refused. A line break can't smuggle a second header in: there's
+    /// nothing left to separate it.
+    func testControlCharactersInsideAValueAreRemoved() throws {
+        let rows = try CustomHeader.validated([
+            CustomHeader(name: "X-Gate", value: "a\r\nHost: evil"),
+            CustomHeader(name: "X-Tab", value: "op\ten"),
+            CustomHeader(name: "X-Mixed", value: "o\u{0085}p\u{0}e\u{7F}n\n"),
+        ])
+        XCTAssertEqual(rows.map(\.value), ["aHost: evil", "open", "open"])
+    }
+
+    func testAnOrdinaryHeaderKeepsTheSpacesInsideItsValue() throws {
+        let rows = try CustomHeader.validated([CustomHeader(name: "X-Gate", value: " Bearer open ")])
+        XCTAssertEqual(rows, [CustomHeader(name: "X-Gate", value: "Bearer open")])
+    }
+
+    /// A service token never contains whitespace, so a space or line break that a wrapped copy
+    /// brought along comes out, whatever case the header name was saved in.
+    func testAServiceTokenLosesEveryWhitespaceInsideIt() throws {
+        let rows = try CustomHeader.validated([
+            CustomHeader(name: "CF-Access-Client-Id", value: "88bf3b6d\n86161464 f6509f72.access"),
+            CustomHeader(name: "cf-access-client-secret", value: " s3\tcr et\u{00A0}\n"),
+        ])
+        XCTAssertEqual(rows.map(\.value), ["88bf3b6d86161464f6509f72.access", "s3cret"])
+    }
+
+    /// The same cleaning a value field runs as it changes: everything but the ends, which are
+    /// trimmed at save so a space being typed survives.
+    func testStrippingLeavesTheEndsOfAnOrdinaryValueAlone() {
+        XCTAssertEqual(CustomHeader.stripped(value: "Bearer \n", for: "X-Gate"), "Bearer ")
+        XCTAssertEqual(CustomHeader.stripped(value: "ab c ", for: "CF-Access-Client-Id"), "abc")
     }
 
     func testInvisibleFormatCharactersAreStripped() throws {
@@ -75,11 +103,11 @@ final class CustomHeaderTests: XCTestCase {
                               CustomHeader(name: "X-Gate", value: "open")])
     }
 
-    func testAnEmbeddedLineBreakIsStillRejectedAfterStripping() {
-        for value in ["\u{200B}a\nb", "a\u{FEFF}\rb", "a\u{0}b"] {
-            XCTAssertThrowsError(try CustomHeader.validated([CustomHeader(name: "X-Gate", value: value)])) {
-                XCTAssertEqual($0 as? CustomHeader.Problem, .invalidValue("X-Gate"))
-            }
+    /// A value that is nothing but hidden characters is a missing value, not a header with an
+    /// empty value.
+    func testAValueOfOnlyHiddenCharactersIsMissing() {
+        XCTAssertThrowsError(try CustomHeader.validated([CustomHeader(name: "X-Gate", value: "\u{200B}\n\t\r")])) {
+            XCTAssertEqual($0 as? CustomHeader.Problem, .missingValue("X-Gate"))
         }
     }
 

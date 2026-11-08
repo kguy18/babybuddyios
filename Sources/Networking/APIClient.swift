@@ -21,7 +21,6 @@ struct CustomHeader: Codable, Equatable {
         case missingValue(String)
         case reserved(String)
         case invalidName(String)
-        case invalidValue(String)
         case duplicate(String)
 
         var message: String {
@@ -32,7 +31,6 @@ struct CustomHeader: Codable, Equatable {
                 return String(localized: "Authorization carries your API token, so it can't be a custom header.")
             case .reserved(let name): return String(localized: "The app sets \(name) itself, so it can't be a custom header.")
             case .invalidName(let name): return "\"\(name)\" isn't a valid header name. Use letters, digits and dashes."
-            case .invalidValue(let name): return String(localized: "The value for \(name) can't contain a line break or control character.")
             case .duplicate(let name): return String(localized: "\(name) is set more than once.")
             }
         }
@@ -47,27 +45,50 @@ struct CustomHeader: Codable, Equatable {
     private static let tokenCharacters = CharacterSet(
         charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%&'*+-.^_`|~")
 
+    /// Headers whose value is a single token with no whitespace in it, such as a Cloudflare Access
+    /// service token's. Copied text that wrapped mid-string brings a space or a line break along.
+    private static let tokenValued: Set<String> = ["cf-access-client-id", "cf-access-client-secret"]
+
     /// Drops invisible format characters (Unicode Cf), such as a byte order mark, a zero-width space
     /// or a direction mark. Text copied from a web dashboard or a password manager often carries
-    /// them, and the user can't see them to delete. Control characters (Cc) stay and are rejected.
+    /// them, and the user can't see them to delete. Control characters (Cc) stay: a header name with
+    /// one in it is rejected by the token check.
     static func withoutFormatCharacters(_ text: String) -> String {
         String(String.UnicodeScalarView(text.unicodeScalars.filter { $0.properties.generalCategory != .format }))
     }
 
-    /// The rows trimmed, or the first problem with them. A row with an empty name or value is an
+    /// The value with every format and control character removed, and, for a header named in
+    /// ``tokenValued``, every whitespace character too. Whitespace at the ends of any other value
+    /// stays, so a field can run this as its text changes without eating a space as it's typed.
+    /// Cleaning rather than refusing (#241): a line break or a tab in a pasted value is invisible
+    /// in a single-line field, so an error about it is a dead end. If the cleaned value is still
+    /// wrong, the gate turns it down and sign-in says so. URLSession would refuse a line break in a
+    /// header value anyway, so nothing is sent that couldn't be before.
+    static func stripped(value: String, for name: String) -> String {
+        var dropped = CharacterSet.controlCharacters
+        if tokenValued.contains(name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()) {
+            dropped.formUnion(.whitespacesAndNewlines)
+        }
+        let kept = withoutFormatCharacters(value).unicodeScalars.filter { !dropped.contains($0) }
+        return String(String.UnicodeScalarView(kept))
+    }
+
+    /// A value as it will be sent: ``stripped(value:for:)`` with no whitespace at either end.
+    static func cleaned(value: String, for name: String) -> String {
+        stripped(value: value, for: name).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// The rows cleaned, or the first problem with them. A row with an empty name or value is an
     /// error rather than skipped: dropping it quietly would sign in without a header the user typed.
     static func validated(_ rows: [CustomHeader]) throws -> [CustomHeader] {
         var seen: Set<String> = []
         return try rows.map { row in
             let name = withoutFormatCharacters(row.name).trimmingCharacters(in: .whitespacesAndNewlines)
-            let value = withoutFormatCharacters(row.value).trimmingCharacters(in: .whitespacesAndNewlines)
+            let value = cleaned(value: row.value, for: name)
             guard !name.isEmpty else { throw Problem.missingName }
             guard !value.isEmpty else { throw Problem.missingValue(name) }
             guard name.unicodeScalars.allSatisfy(tokenCharacters.contains) else { throw Problem.invalidName(name) }
             guard !reserved.contains(name.lowercased()) else { throw Problem.reserved(name) }
-            guard !value.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) else {
-                throw Problem.invalidValue(name)
-            }
             guard seen.insert(name.lowercased()).inserted else { throw Problem.duplicate(name) }
             return CustomHeader(name: name, value: value)
         }

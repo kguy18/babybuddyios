@@ -16582,29 +16582,6 @@
         }
       }
     },
-    "The value for %@ can't contain a line break or control character.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The value for %@ can't contain a line break or control character."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Der Wert für %@ darf keine Zeilenumbrüche oder Steuerzeichen enthalten."
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "O valor de %@ não pode ter quebra de linha nem caractere de controle."
-          }
-        }
-      }
-    },
     "The whole app is free, and stays that way. A one-time tip supports development — thank you either way.": {
       "extractionState": "manual",
       "localizations": {

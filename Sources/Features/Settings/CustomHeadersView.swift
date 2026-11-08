@@ -126,7 +126,8 @@ struct CustomHeaderFields: View {
                 .focused($focus, equals: .value(row.wrappedValue.id))
                 .submitLabel(isLast(.value(row.wrappedValue.id)) ? .done : .next)
                 .onSubmit { advance(from: .value(row.wrappedValue.id)) }
-                pasteButton(into: row.value)
+                .onChange(of: row.wrappedValue.value) { clean(row) }
+                pasteButton(into: row)
             }
         }
     }
@@ -145,7 +146,8 @@ struct CustomHeaderFields: View {
                         .focused($focus, equals: .value(row.wrappedValue.id))
                         .submitLabel(isLast(.value(row.wrappedValue.id)) ? .done : .next)
                         .onSubmit { advance(from: .value(row.wrappedValue.id)) }
-                    pasteButton(into: row.value)
+                        .onChange(of: row.wrappedValue.value) { clean(row) }
+                    pasteButton(into: row)
                 }
             }
             .textInputAutocapitalization(.never)
@@ -166,10 +168,19 @@ struct CustomHeaderFields: View {
         .accessibilityLabel("Remove header")
     }
 
-    private func pasteButton(into value: Binding<String>) -> some View {
+    /// Keeps a value free of the characters sign-in would drop anyway, so a line break or a tab the
+    /// system's Paste brought in never sits invisibly in the field (#241). The ends are trimmed at
+    /// save, not here, so a space being typed into an ordinary header's value survives.
+    private func clean(_ row: Binding<HeaderRow>) {
+        let typed = row.wrappedValue.value
+        let stripped = CustomHeader.stripped(value: typed, for: row.wrappedValue.name)
+        if stripped != typed { row.wrappedValue.value = stripped }
+    }
+
+    private func pasteButton(into row: Binding<HeaderRow>) -> some View {
         Button {
             if let clip = UIPasteboard.general.string {
-                value.wrappedValue = CustomHeader.withoutFormatCharacters(clip).trimmingCharacters(in: .whitespacesAndNewlines)
+                row.wrappedValue.value = CustomHeader.cleaned(value: clip, for: row.wrappedValue.name)
             }
         } label: {
             Label("Paste", systemImage: "doc.on.clipboard")
