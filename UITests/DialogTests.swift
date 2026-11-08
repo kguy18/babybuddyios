@@ -189,6 +189,22 @@ final class DialogTests: UITestCase {
         XCTAssertFalse(sheet.exists, "the error reopened Advanced configuration")
     }
 
+    /// At the largest text size nothing is pinned over the sheet: Save and its note took half of it.
+    /// Both scroll with the content, and the fields grow with the text.
+    func testAdvancedConfigurationFitsTheLargestText() {
+        launch(["BB_GATE_PREVIEW": "cloudflareAccess"], demo: false, largestText: true)
+        expect(app.navigationBars["Advanced configuration"])
+        let field = expect(app.textFields["Client ID"])
+        let note = expect(app.staticTexts["Sent with every request to your server, never to another address."])
+        let save = expect(app.buttons["Save and try again"])
+        XCTAssertGreaterThan(note.frame.minY, field.frame.maxY, "The note should follow the fields")
+        XCTAssertGreaterThan(save.frame.minY, note.frame.maxY, "Save should follow the note")
+        XCTAssertGreaterThan(save.frame.maxY, app.windows.firstMatch.frame.maxY, "Save should scroll, not cover the sheet")
+        XCTAssertGreaterThan(field.frame.height, 40, "The field should grow with the text")
+        let stopped = app.staticTexts["Stopped here"]
+        XCTAssertGreaterThan(stopped.frame.width, stopped.frame.height, "\"Stopped here\" should fit on one line")
+    }
+
     /// #148: Settings lists the header names, and an edit that fails keeps the old set. A rejected
     /// name fails before the probe; the demo server's address would take a minute to time out.
     func testCustomHeaderEditInSettings() {

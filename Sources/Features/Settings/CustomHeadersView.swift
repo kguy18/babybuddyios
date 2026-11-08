@@ -125,7 +125,7 @@ struct CustomHeaderFields: View {
                             .textContentType(.username)
                     }
                 }
-                .font(.system(size: 17))
+                .font(.body)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .accessibilityLabel(preset.label)
@@ -146,14 +146,14 @@ struct CustomHeaderFields: View {
                     // the text field above a password field for the username and offers to fill a
                     // login's username in as the header name.
                     .textContentType(UITextContentType(rawValue: ""))
-                    .font(.system(size: 16).monospaced())
+                    .font(.body.monospaced())
                     .focused($focus, equals: .name(row.wrappedValue.id))
                     .submitLabel(.next)
                     .onSubmit { advance(from: .name(row.wrappedValue.id)) }
                 HStack(spacing: 8) {
                     SecureField("Header value", text: row.value)
                         .textContentType(.password)
-                        .font(.system(size: 17))
+                        .font(.body)
                         .focused($focus, equals: .value(row.wrappedValue.id))
                         .submitLabel(isLast(.value(row.wrappedValue.id)) ? .done : .next)
                         .onSubmit { advance(from: .value(row.wrappedValue.id)) }
@@ -220,6 +220,7 @@ struct AdvancedConfigurationSheet: View {
 
     @State private var draft: [HeaderRow]
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     init(rows: [HeaderRow], gate: AccessGate?, host: String, onSave: @escaping ([HeaderRow], Bool) -> Void) {
         self.gate = gate.flatMap { $0.acceptsHeaders ? $0 : nil }
@@ -250,14 +251,21 @@ struct AdvancedConfigurationSheet: View {
                         BBCard(cornerRadius: BBRadius.tile, padding: 0) {
                             CustomHeaderFields(rows: $draft, addTitle: draft.isEmpty ? String(localized: "Add header") : String(localized: "Add another header"))
                         }
+                        Text(CustomHeaderFields.footnote)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
                     }
+                    if typeSize.isAccessibilitySize { saveButton }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 20)
             }
             .background(BBColor.surface.ignoresSafeArea())
-            .safeAreaInset(edge: .bottom) { footer }
+            .safeAreaInset(edge: .bottom) {
+                if !typeSize.isAccessibilitySize { footer }
+            }
             .navigationTitle("Advanced configuration")
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
@@ -274,28 +282,28 @@ struct AdvancedConfigurationSheet: View {
         }
     }
 
+    /// Pinned under the content, except at accessibility sizes: there it would cover the sheet, so
+    /// Save scrolls with the content instead.
     private var footer: some View {
-        VStack(spacing: 8) {
-            Button {
-                onSave(draft, gate != nil)
-                dismiss()
-            } label: {
-                Label(gate == nil ? String(localized: "Save") : String(localized: "Save and try again"),
-                      systemImage: gate == nil ? "checkmark" : "arrow.clockwise")
-            }
-            .buttonStyle(.bbPrimary)
-            .disabled(gate != nil && !ready)
-            .opacity(gate != nil && !ready ? 0.5 : 1)
-            Text(CustomHeaderFields.footnote)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+        saveButton
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+            .background(BBColor.surface)
+            .overlay(alignment: .top) { Rectangle().fill(BBColor.fieldStroke).frame(height: 1) }
+    }
+
+    private var saveButton: some View {
+        Button {
+            onSave(draft, gate != nil)
+            dismiss()
+        } label: {
+            Label(gate == nil ? String(localized: "Save") : String(localized: "Save and try again"),
+                  systemImage: gate == nil ? "checkmark" : "arrow.clockwise")
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 12)
-        .padding(.bottom, 8)
-        .background(BBColor.surface)
-        .overlay(alignment: .top) { Rectangle().fill(BBColor.fieldStroke).frame(height: 1) }
+        .buttonStyle(.bbPrimary)
+        .disabled(gate != nil && !ready)
+        .opacity(gate != nil && !ready ? 0.5 : 1)
     }
 
     private func fixBox(_ gate: AccessGate) -> some View {
@@ -352,6 +360,7 @@ struct SignInTrace: View {
     let gate: AccessGate
     let host: String
     let ready: Bool
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     struct Hop: Equatable {
         enum Kind { case plain, stopped, gate, arrived }
@@ -433,20 +442,24 @@ struct SignInTrace: View {
                         .foregroundStyle(tint)
                 }
             VStack(alignment: .leading, spacing: 1) {
-                Text(hop.title).font(.body.weight(.semibold)).lineLimit(1)
+                Text(hop.title).font(.body.weight(.semibold)).lineLimit(2)
                 Text(hop.detail).font(.footnote).foregroundStyle(.secondary)
+                if hop.kind == .stopped, typeSize.isAccessibilitySize { stoppedPill }
             }
             Spacer(minLength: 4)
-            if hop.kind == .stopped {
-                Text("Stopped here")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(BBColor.danger)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 3)
-                    .background(BBColor.danger.opacity(0.12), in: Capsule())
-            }
+            if hop.kind == .stopped, !typeSize.isAccessibilitySize { stoppedPill }
         }
         .accessibilityElement(children: .combine)
+    }
+
+    private var stoppedPill: some View {
+        Text("Stopped here")
+            .font(.caption.weight(.bold))
+            .foregroundStyle(BBColor.danger)
+            .fixedSize()
+            .padding(.horizontal, 9)
+            .padding(.vertical, 3)
+            .background(BBColor.danger.opacity(0.12), in: Capsule())
     }
 }
 
