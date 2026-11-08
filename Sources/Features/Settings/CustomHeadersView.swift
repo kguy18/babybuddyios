@@ -115,7 +115,8 @@ struct CustomHeaderFields: View {
                 // A password manager stores a service token as a login: the client ID is the
                 // username, the secret the password. Tagged, Password AutoFill fills each into its
                 // own field. The `onChange` cleaning below is for text that arrives any other way:
-                // #241's value came through Paste with a control character in it.
+                // #241's value came through Paste with a control character at its end, which the
+                // trim there doesn't remove.
                 Group {
                     if preset.secret {
                         SecureField(preset.placeholder, text: row.value)

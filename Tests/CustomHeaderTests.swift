@@ -87,6 +87,16 @@ final class CustomHeaderTests: XCTestCase {
         XCTAssertEqual(rows.map(\.value), ["88bf3b6d86161464f6509f72.access", "s3cret"])
     }
 
+    /// #241: trimming drops a line break at either end of a value, but not a NUL or a DEL, so a
+    /// control character at the very end of an otherwise clean client ID survived Paste and failed
+    /// the old check while the field looked fine.
+    func testAControlCharacterAtTheEndOfAServiceTokenComesOut() {
+        for tail in ["\u{0}", "\u{7F}"] {
+            XCTAssertEqual(CustomHeader.cleaned(value: "88bf3b6d86161464f6509f72.access" + tail, for: "CF-Access-Client-Id"),
+                           "88bf3b6d86161464f6509f72.access")
+        }
+    }
+
     /// The same cleaning a value field runs as it changes: everything but the ends, which are
     /// trimmed at save so a space being typed survives.
     func testStrippingLeavesTheEndsOfAnOrdinaryValueAlone() {
