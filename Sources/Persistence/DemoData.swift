@@ -84,7 +84,7 @@ enum DemoData {
             "id": 50, "child": 1, "weight": 5.4, "date": APIDate.dateOnly.string(from: now), "tags": [],
         ], context)
         insert(.note, id: 60, [
-            "id": 60, "child": 1, "time": iso(150), "note": "Looking out at the garden.",
+            "id": 60, "child": 1, "time": iso(200), "note": "Looking out at the garden.",
             "image": demoNoteImage() as Any, "tags": ["milestone"],
         ], context)
 

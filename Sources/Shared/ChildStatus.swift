@@ -33,6 +33,11 @@ struct ChildStatus: Equatable {
         // This child's own events (the denormalized `childID` is the FK), ignoring records queued
         // for deletion — the same visibility rule the Dashboard/timeline use.
         let mine = entities.filter { $0.childID == childID && $0.syncState != .pendingDelete }
+        // A stopped draft remains visible while its server timer DELETE is queued.
+        let statusTimers = entities.filter {
+            $0.childID == childID && $0.kind == .timer
+                && ($0.syncState != .pendingDelete || $0.stoppedAt != nil)
+        }
 
         // A running timer is a cached `.timer` record for this child (most recent wins).
         let running = mine
@@ -45,14 +50,26 @@ struct ChildStatus: Equatable {
 
         func status(for kind: EntityKind) -> KindStatus {
             let ofKind = mine.filter { $0.kind == kind }.sorted { $0.timestamp > $1.timestamp }
-            let last = ofKind.first
+            let latest = ofKind.map { ($0, $0.activityRecency(now: now)) }.max { $0.1.date < $1.1.date }
+            let last = latest?.0
+            var timing = latest?.1
+            if kind == .feeding || kind == .sleep {
+                // A running sleep must say Sleeping, rather than continue an old Awake clock.
+                // Stopped drafts are labelled as stopped timers until a record is actually saved.
+                let timers = statusTimers.filter { TimerActivity(timer: $0)?.convertKind == kind }
+                let newest = timers.compactMap {
+                    ActivityRecency.timer(kind: kind.rawValue, start: $0.timestamp,
+                                          stoppedAt: $0.stoppedAt, now: now)
+                }.max { $0.date < $1.date }
+                if let newest, newest.date > (timing?.date ?? .distantPast) { timing = newest }
+            }
             let todayCount = ofKind.reduce(into: 0) { count, event in
                 if calendar.isDate(event.timestamp, inSameDayAs: now) { count += 1 }
             }
             return KindStatus(kind: kind,
-                              last: last?.timestamp,
-                              detail: last.flatMap(EntityFormatting.subtitle),
-                              todayCount: todayCount)
+                              last: timing?.date,
+                              detail: timing == latest?.1 ? last.flatMap(EntityFormatting.subtitle) : nil,
+                              todayCount: todayCount, timing: timing)
         }
 
         return ChildStatus(
@@ -98,11 +115,12 @@ struct RunningTimer: Equatable {
 /// times it happened today.
 struct KindStatus: Equatable {
     let kind: EntityKind
-    /// Timestamp of the most recent event of this kind, or `nil` if there are none cached.
+    /// Display time: a valid session end, explicit start fallback, or current timer's start/stop.
     let last: Date?
     /// A short human detail for the most recent event (e.g. "Formula · Bottle · 20m"), or `nil`.
     let detail: String?
     let todayCount: Int
+    var timing: ActivityRecency? = nil
 
     static func empty(_ kind: EntityKind) -> KindStatus {
         KindStatus(kind: kind, last: nil, detail: nil, todayCount: 0)
@@ -110,6 +128,7 @@ struct KindStatus: Equatable {
 
     /// Short caregiver-facing label for the widget ("Fed", "Slept", "Changed").
     var shortLabel: String {
+        if let label = timing?.widgetLabel { return label }
         switch kind {
         case .feeding: return String(localized: "Fed")
         case .sleep: return String(localized: "Slept")

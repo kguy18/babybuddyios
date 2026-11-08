@@ -14,8 +14,8 @@ final class FoldTests: UITestCase {
     /// runner asks for it, and otherwise only on the open display itself, skipping anywhere else.
     /// The app's window tells: 951 pt wide open, against 466 folded and at most 440 on other
     /// iPhones. SpringBoard's frame doesn't, as it still reads the front display's on an open Duo.
-    private func launchOpen(_ environment: [String: String] = [:]) throws {
-        launch(forced ? environment.merging(["BB_FOLD": "1"]) { $1 } : environment)
+    private func launchOpen(_ environment: [String: String] = [:], largestText: Bool = false) throws {
+        launch(forced ? environment.merging(["BB_FOLD": "1"]) { $1 } : environment, largestText: largestText)
         guard !forced else { return }
         let width = app.windows.firstMatch.frame.width
         try XCTSkipUnless(width >= 900, "Needs iPhone Duo's open display (scripts/ui-test.sh --duo-open) or "
@@ -74,6 +74,16 @@ final class FoldTests: UITestCase {
         expectGone(later)
     }
 
+    /// Two columns can't hold the largest text, so the editor keeps to one, wide as the sheet.
+    func testEditorKeepsOneColumnAtTheLargestText() throws {
+        try launchOpen(largestText: true)
+        openEditor("Feeding")
+        expect(app.navigationBars["New Feeding"])
+        let when = expect(app.staticTexts["WHEN"]), tags = expect(app.staticTexts["TAGS"])
+        XCTAssertEqual(tags.frame.minX, when.frame.minX, accuracy: 1, "Tags should sit under When")
+        XCTAssertGreaterThan(tags.frame.minY, when.frame.maxY, "Tags should sit under When")
+    }
+
     /// Each sheet takes two columns, or for Add Activity one row of six per group.
     func testSheetsUseTwoColumns() throws {
         try launchOpen()
@@ -88,6 +98,10 @@ final class FoldTests: UITestCase {
         let editor = expect(app.navigationBars["New Feeding"])
         XCTAssertGreaterThan(app.staticTexts["TAGS"].frame.minX, app.staticTexts["WHEN"].frame.minX + 50,
                              "Tags should sit right of When")
+        // The narrow column keeps "End" whole beside its duration and date pills: it wrapped to
+        // "En / d" even at the default text size.
+        let end = app.staticTexts["End"]
+        XCTAssertGreaterThan(end.frame.width, end.frame.height, "\"End\" should fit on one line")
         tap(editor.buttons["Cancel"])
         expectGone(editor)
 
