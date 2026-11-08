@@ -191,6 +191,8 @@ struct CustomHeaderFields: View {
                 .background(BBColor.brandTint, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
+        // "Paste" repeats down the sheet and on the sign-in screen behind it.
+        .accessibilityIdentifier("Paste \(row.wrappedValue.name)")
     }
 
     static let footnote = String(localized: "Sent with every request to your server, never to another address.")

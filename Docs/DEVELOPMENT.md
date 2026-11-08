@@ -91,6 +91,8 @@ Pass these via `SIMCTL_CHILD_<NAME>` environment variables to `xcrun simctl laun
 | `BB_OPEN_PENDING=1` / `BB_OPEN_CONFLICT=1` | Open Pending Changes / the first conflict from Settings |
 | `BB_SUPPORTER=1` / `BB_SUPPORTER_SHEET=1` | Force supporter status on / open the supporter sheet from Settings |
 | `BB_SCANNER_PREVIEW=1` | Open the QR scanner over a black backdrop, without the camera |
+| `BB_GATE_PREVIEW=cloudflareAccess\|unknown` | Open Advanced configuration on sign-in as if that access gate had answered |
+| `BB_PASTEBOARD=<text>` | Put `text` on the pasteboard at sign-in, as if copied from elsewhere, for the Paste buttons |
 | `BB_LOAD_OLDER=<n>` | Auto-page the timeline back `n` history chunks on launch (with `BB_DEMO`) |
 | `BB_LOCK=1` | Force the Face ID lock on |
 | `BB_FOLD=1` | Lay out Home, the Timeline and the sheets as on iPhone Duo's open display, however narrow the screen. `FoldTests` pass it when the test runner has `BB_FOLD=1`, to run off the open display |

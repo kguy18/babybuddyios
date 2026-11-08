@@ -163,21 +163,14 @@ final class DialogTests: UITestCase {
 
     /// #241: a Client ID copied from text that wrapped carries a line break the field can't show.
     /// Paste drops it, and a space along with it, rather than refusing the value at Save.
+    /// `BB_PASTEBOARD` stands in for the copy: a write from this runner never reaches the app.
     func testPastedServiceTokenLosesItsLineBreak() {
-        launch(["BB_GATE_PREVIEW": "cloudflareAccess"], demo: false)
+        launch(["BB_GATE_PREVIEW": "cloudflareAccess", "BB_PASTEBOARD": "88bf3b6d8616\n1464f650 9f72.access\n"],
+               demo: false)
         expect(app.navigationBars["Advanced configuration"])
-        UIPasteboard.general.string = "88bf3b6d8616\n1464f650 9f72.access\n"
-        // The first Paste button is the Client ID row's; the Client Secret row's is the second.
-        tap(app.buttons["Paste"].firstMatch)
-        allowPasteIfAsked()
+        // By identifier: "Paste" is also the API token's button on the sign-in screen behind the sheet.
+        tap(app.buttons["Paste CF-Access-Client-Id"])
         expectValue(app.textFields["Client ID"], "88bf3b6d86161464f6509f72.access")
-    }
-
-    /// iOS asks before an app reads what another one put on the pasteboard; the test runner is
-    /// another one.
-    private func allowPasteIfAsked() {
-        let allow = springboard.buttons["Allow Paste"]
-        if allow.waitForExistence(timeout: 5) { allow.tap() }
     }
 
     /// #148: Settings lists the header names, and an edit that fails keeps the old set. A rejected
