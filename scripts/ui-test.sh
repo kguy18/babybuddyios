@@ -118,6 +118,21 @@ if [ -n "$DUO_OPEN" ]; then
   fi
 fi
 
+# A Duo shard's first test paid the simulator's cold start on top of its own waits. With a
+# prebuilt app at hand, launch it once so its frameworks, WebKit among them, are warm before
+# xcodebuild's first launch. The tests reinstall it and BB_UITEST wipes what this launch wrote.
+if [ -n "${UI_TEST_XCTESTRUN:-}" ]; then
+  APP="$(dirname "$UI_TEST_XCTESTRUN")/Debug-iphonesimulator/BabyBuddy.app"
+  if [ -d "$APP" ]; then
+    xcrun simctl install "$UDID" "$APP"
+    SIMCTL_CHILD_BB_UITEST=1 xcrun simctl launch "$UDID" com.kurtisguy.BabyBuddy >/dev/null
+    sleep 10
+    xcrun simctl terminate "$UDID" com.kurtisguy.BabyBuddy >/dev/null 2>&1 || true
+  else
+    echo "no prebuilt app beside $UI_TEST_XCTESTRUN; skipping the warm-up launch"
+  fi
+fi
+
 rm -rf "$RESULT"
 set +e
 # Unsigned on purpose: the store and the keychain both fall back to app-only locations without the
