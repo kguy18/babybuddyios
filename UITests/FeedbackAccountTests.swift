@@ -9,7 +9,7 @@ final class FeedbackAccountTests: UITestCase {
     func testFeedbackAccountScreen() {
         launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in"])
         openSendFeedback()
-        expect(app.buttons.labeled("Feedback Account"), timeout: cookieStoreTimeout)
+        expect(app.buttons.labeled("Feedback Account"))
         XCTAssertFalse(app.buttons["Sign Out of Feedback"].exists, "Sign Out lives on the account screen")
         XCTAssertFalse(app.buttons["Delete Feedback Account"].exists)
 
@@ -41,8 +41,8 @@ final class FeedbackAccountTests: UITestCase {
 
         tap(signOut)
         tap(app.alerts["Sign out of feedback?"].buttons["Sign Out"])
-        // The screen pops once the session's cookies are gone from WebKit's cookie store.
-        expect(app.navigationBars["Send Feedback"], timeout: cookieStoreTimeout)
+        // The screen pops once the session is gone.
+        expect(app.navigationBars["Send Feedback"])
         expectGone(app.navigationBars["Feedback Account"])
         expectGone(app.buttons.labeled("Feedback Account"))
 
@@ -101,9 +101,15 @@ final class FeedbackAccountTests: UITestCase {
     /// Account row and the board opens signed in. The app goes to the Home Screen before it's
     /// killed, as it does when someone quits it, since WebKit writes its cookies to disk only now
     /// and then.
-    func testSignInSurvivesARelaunch() throws {
+    ///
+    /// Slow on purpose. This is the one test where the stub keeps the session in WebKit's cookie
+    /// store (`BB_FEEDBACK_COOKIE_STORE=1`), as the real sign-in does, since only that store
+    /// survives the relaunch. The store's first read after launch took over a minute on a cold
+    /// iPhone Duo simulator, hence `cookieStoreTimeout`; every other feedback test keeps the
+    /// session in memory and shows the row at once.
+    func testSignInSurvivesARelaunchThroughWebKitsCookieStore() throws {
         try skipIfAppCantBeLeft()
-        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out"])
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out", "BB_FEEDBACK_COOKIE_STORE": "1"])
         openSendFeedback()
         XCTAssertFalse(app.buttons.labeled("Feedback Account").exists)
         tap(app.buttons.labeled("Request a Feature"))
@@ -116,9 +122,10 @@ final class FeedbackAccountTests: UITestCase {
         pressHome()
         sleep(2)
         app.terminate()
-        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out", "BB_FEEDBACK_KEEP_SESSION": "1"])
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out", "BB_FEEDBACK_KEEP_SESSION": "1",
+                "BB_FEEDBACK_COOKIE_STORE": "1"])
         openSendFeedback()
-        expect(app.buttons.labeled("Feedback Account"))
+        expect(app.buttons.labeled("Feedback Account"), timeout: cookieStoreTimeout)
         tap(app.buttons.labeled("Request a Feature"))
         expect(app.webViews.staticTexts["Stub widget: new-post"], timeout: 30)
         XCTAssertFalse(board.buttons["Sign In"].exists, "Still signed in")

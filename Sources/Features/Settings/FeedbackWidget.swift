@@ -128,7 +128,7 @@ enum FeedbackWidget: String, Identifiable {
 
     /// The widget page plays the real one's part over the same bridge. Like Quackback 0.14.1, it
     /// reports a session's user with `auth-change` before `ready` and says nothing for an
-    /// anonymous visitor; it has a session when the web view's cookie store holds one, as the
+    /// anonymous visitor; it has a session when the app holds one (in memory under the stub), as the
     /// native sign-in leaves it. It shows the `quackback:open` view it's sent so a test can read it,
     /// and a "Sign in to post" link to the portal's sign-in, as the real board has.
     private static func stubPage(signedIn: Bool) -> String {
