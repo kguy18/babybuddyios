@@ -43,9 +43,9 @@ struct TimerAlertsView: View {
                                         Rectangle().fill(BBColor.divider).frame(height: 0.5)
                                     }
                                     SettingsRow(symbol: activity.systemImage, tint: BBColor.tint(for: activity),
-                                                title: activity.timerName) {
+                                                title: activity.displayName) {
                                         Menu {
-                                            Picker(activity.timerName, selection: threshold(activity)) {
+                                            Picker(activity.displayName, selection: threshold(activity)) {
                                                 ForEach(ForgottenTimerPolicy.choices(for: activity), id: \.self) {
                                                     Text(EntityFormatting.formatInterval($0)).tag($0)
                                                 }
