@@ -39,7 +39,8 @@ diaper-logging pattern cues. It does not reproduce Baby Tracker's proprietary al
 ## Where estimates show
 
 The feature starts off. The switch is on Settings > Appearance > Activity estimates, which
-also holds the disclaimer and how the estimates work.
+also holds the disclaimer and how the estimates work. Turning it on shows three choices, each on
+until changed: On the Today tiles, What's next section, and Status widget.
 
 On Home each estimate is a footer on its Today tile: Feedings "Next", Sleep "Nap" or, while a
 sleep timer runs, "Wakes", and Diapers "Next". The time is `~` plus the window's midpoint. Only
@@ -47,7 +48,13 @@ a ready cue shows, so an elapsed, irregular, stale, or insufficient cue leaves t
 was. A hidden tile hides its estimate, sick mode's fixed grid has no footers, and VoiceOver
 reads the estimate after the tile's value. The Dashboard recomputes each minute.
 
-The medium status widget has a compact line with the first ready estimate's window. Widget
+What's next sits on Home below Today. Closed, it is a title row and a chevron; with the tile
+footers off it also shows the soonest ready estimate. It starts closed, and each device remembers
+whether it is open (standard defaults, not the shared suite). Open, it lists every cue, a window
+with its evidence (similar intervals and days, plus the usual nap length for a nap) or the reason
+there is none, and the disclaimer. It shows even when nothing is ready, and not in sick mode.
+
+When its choice is on, the medium status widget has a compact line with the first ready estimate's window. Widget
 timelines include an explicit expiry entry to remove estimates at their end or freshness cutoff
 even when WidgetKit delays its refresh. Other widget families keep their original layout.
 
@@ -63,7 +70,7 @@ changed by this feature.
 `scripts/test-forecast-core.sh` compiles the actual Foundation engine and formatter with a
 standalone assertion harness. XCTest cases cover starts versus ends, sparse and irregular
 evidence, stale sync, child isolation, duplicates, deletions, conflicts, timers, old history,
-quantiles, the nap majority, and date formatting. UI tests cover the tile footers, the setting,
+quantiles, the nap majority, and date formatting. UI tests cover the tile footers, What's next, the settings, sick mode,
 off-by-default behavior, localization, and child switching. `BB_SEED_FORECAST=1` supplies a
 synthetic routine; no server credentials or real family records are used.
 

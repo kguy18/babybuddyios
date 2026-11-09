@@ -39,6 +39,8 @@ struct ForecastEstimate: Equatable, Sendable {
     let observations: [Double]
     let distinctDays: Int
     let medianSeconds: Double
+    /// How long similar-time naps lasted, for a nap estimate with enough of them.
+    var usualNapSeconds: ClosedRange<Double>?
 }
 
 struct ForecastCue: Equatable, Identifiable, Sendable {
@@ -65,6 +67,11 @@ struct ForecastSnapshot: Equatable, Sendable {
             case .change: return kind == .change
             }
         }
+    }
+    /// What the closed What's next row adds beside its title: the soonest ready estimate, and
+    /// only when the Today tiles don't already show theirs.
+    func closedRowEstimate(tilesShown: Bool) -> ForecastEstimate? {
+        tilesShown ? nil : ready.min { $0.window.midpoint < $1.window.midpoint }
     }
     func expires(lastSync: Date?) -> Date {
         let deadlines = [generatedAt.addingTimeInterval(15 * 60), ready.map(\.window.end).min(),
@@ -171,7 +178,17 @@ struct ForecastEngine {
         guard recent.filter(\.nap).count * 2 > recent.count else {
             return ForecastCue(kind: .nap, state: .insufficient)
         }
-        return estimate(.nap, observations: anchors.filter(\.nap).map(\.gap), anchor: wake, now: now)
+        var cue = estimate(.nap, observations: anchors.filter(\.nap).map(\.gap), anchor: wake, now: now)
+        if var value = cue.estimate {
+            let durations = sleeps.compactMap { record -> Observation? in
+                guard record.nap == true, valid(record, now: now), let end = record.end,
+                      matches(record.start, value.window.midpoint) else { return nil }
+                return Observation(seconds: end.timeIntervalSince(record.start), context: record.start)
+            }
+            if let summary = summary(durations) { value.usualNapSeconds = summary.low...summary.high }
+            cue.estimate = value
+        }
+        return cue
     }
 
     private func wakeCue(sleeps: [ForecastRecord], timer: ForecastTimer, now: Date) -> ForecastCue {
