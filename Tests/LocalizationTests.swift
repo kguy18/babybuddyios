@@ -152,4 +152,14 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(MedicationDoseUnit.milliliters.format(0.05), "0.05 mL")
         XCTAssertEqual(MedicationDoseUnit.unspecified.format(5), "5")
     }
+
+    func testCustomMedicationUnitsUseOneLineAndPreserveTheUnitAndAmount() {
+        XCTAssertEqual(MedicationDoseUnit.customValue("  IE  ", limit: 20), "IE")
+        XCTAssertEqual(MedicationDoseUnit.customValue("mL", limit: 20), "ml")
+        XCTAssertNil(MedicationDoseUnit.customValue(" ", limit: 20))
+        XCTAssertNil(MedicationDoseUnit.customValue("unit\nlabel", limit: 20))
+        XCTAssertNil(MedicationDoseUnit.customValue("unit", limit: 3))
+        XCTAssertEqual(MedicationDoseUnit.format(0.05, rawValue: "IE"), "0.05 IE")
+        XCTAssertEqual(MedicationDoseUnit.options(including: "IE", custom: ["IE"]).filter { $0 == "IE" }, ["IE"])
+    }
 }

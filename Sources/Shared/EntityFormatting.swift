@@ -104,9 +104,7 @@ enum EntityFormatting {
     static func dosage(_ entity: LocalEntity) -> String? {
         let p = entity.payloadObject
         guard let dose = p["dosage"] as? Double else { return nil }
-        let rawUnit = MedicationDoseUnit.editorValue(p["dosage_unit"] as? String ?? "")
-        return MedicationDoseUnit(rawValue: rawUnit)?.format(dose)
-            ?? String(localized: "\(trim(dose)) \(rawUnit)").trimmingCharacters(in: .whitespaces)
+        return MedicationDoseUnit.format(dose, rawValue: p["dosage_unit"] as? String ?? "")
     }
 
     private static func trim(_ value: Double) -> String {

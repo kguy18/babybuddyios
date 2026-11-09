@@ -201,6 +201,16 @@ final class APIClient {
         return try await send(req, decode: T.self)
     }
 
+    /// A writable string field in the medication endpoint's OPTIONS metadata permits custom units.
+    /// Older Baby Buddy servers describe the same field as a choice instead.
+    func customMedicationUnitLimit() async throws -> Int? {
+        let request = try makeRequest(path: "\(MedicationDTO.path)/", method: "OPTIONS")
+        let metadata = try await send(request, decode: MedicationUnitMetadata.self)
+        guard let field = metadata.actions?.POST?.dosage_unit, field.type == "string",
+              field.read_only == false, let limit = field.max_length, limit > 0 else { return nil }
+        return limit
+    }
+
     func create<T: APIResource>(_ body: T) async throws -> T {
         var req = try makeRequest(path: "\(T.path)/", method: "POST")
         req.httpBody = try APICoders.encoder.encode(body)
@@ -294,6 +304,24 @@ final class APIClient {
 
     func deleteRaw(path: String, id: Int) async throws {
         _ = try await sendRaw(try makeRequest(path: "\(path)/\(id)/", method: "DELETE"))
+    }
+
+    private struct MedicationUnitMetadata: Decodable {
+        struct Field: Decodable {
+            let type: String
+            let read_only: Bool?
+            let max_length: Int?
+        }
+
+        struct Fields: Decodable {
+            let dosage_unit: Field?
+        }
+
+        struct Actions: Decodable {
+            let POST: Fields?
+        }
+
+        let actions: Actions?
     }
 
     /// Split a list body into per-record JSON `Data` plus a has-next flag.

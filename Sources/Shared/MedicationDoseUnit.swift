@@ -1,6 +1,6 @@
 import Foundation
 
-/// Baby Buddy's medication API accepts these values, including an empty unit.
+/// The standard medication units, including an empty unit.
 enum MedicationDoseUnit: String, CaseIterable {
     case unspecified = ""
     case milligrams = "mg"
@@ -14,14 +14,30 @@ enum MedicationDoseUnit: String, CaseIterable {
             ? Self.milliliters.rawValue : rawValue
     }
 
-    static func options(including current: String) -> [String] {
-        let supported = allCases.map(\.rawValue)
+    static func options(including current: String, custom: [String] = []) -> [String] {
+        let supported = allCases.map(\.rawValue) + custom
         // Keep an existing custom unit selected until the user deliberately changes it.
         return supported.contains(current) ? supported : supported + [current]
     }
 
     static func label(for rawValue: String) -> String {
         Self(rawValue: rawValue)?.label ?? rawValue
+    }
+
+    static func customValue(_ text: String, limit: Int) -> String? {
+        let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty, value.unicodeScalars.count <= limit,
+              !value.unicodeScalars.contains(where: {
+                  $0.properties.generalCategory == .control || CharacterSet.newlines.contains($0)
+              }) else { return nil }
+        return allCases.first { $0.rawValue.caseInsensitiveCompare(value) == .orderedSame }?.rawValue ?? value
+    }
+
+    static func format(_ dose: Double, rawValue: String) -> String {
+        let raw = editorValue(rawValue)
+        if let unit = Self(rawValue: raw) { return unit.format(dose) }
+        let amount = formattedAmount(dose)
+        return String(localized: "\(amount) \(raw)")
     }
 
     private var label: String {
@@ -35,7 +51,7 @@ enum MedicationDoseUnit: String, CaseIterable {
     }
 
     func format(_ dose: Double) -> String {
-        let amount = dose.formatted(.number.grouping(.never).precision(.fractionLength(0...16)))
+        let amount = Self.formattedAmount(dose)
         switch self {
         case .unspecified:
             return amount
@@ -48,5 +64,9 @@ enum MedicationDoseUnit: String, CaseIterable {
             if let count = Int(exactly: dose) { return String(localized: "\(count) drops") }
             return String(localized: "\(amount) drops")
         }
+    }
+
+    private static func formattedAmount(_ dose: Double) -> String {
+        dose.formatted(.number.grouping(.never).precision(.fractionLength(0...16)))
     }
 }

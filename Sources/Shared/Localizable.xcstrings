@@ -3163,6 +3163,29 @@
         }
       }
     },
+    "Add custom unit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add custom unit"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eigene Einheit hinzufügen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adicionar unidade personalizada"
+          }
+        }
+      }
+    },
     "Add header": {
       "extractionState": "manual",
       "localizations": {
@@ -7017,6 +7040,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Digite o código"
+          }
+        }
+      }
+    },
+    "Enter a unit such as IU.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a unit such as IU."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gib eine Einheit wie IE ein."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Digite uma unidade, como UI."
           }
         }
       }

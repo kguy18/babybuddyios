@@ -14,7 +14,10 @@ final class AppSession {
     }
 
     private(set) var state: State
-    private(set) var client: APIClient?
+    private(set) var client: APIClient? {
+        didSet { medicationUnitLimit = nil }
+    }
+    private var medicationUnitLimit: Int?
 
     /// Set when a request fails validation during onboarding, for inline display.
     var lastError: String?
@@ -72,6 +75,18 @@ final class AppSession {
     var config: ServerConfig? {
         if case .authenticated(let config) = state { return config }
         return nil
+    }
+
+    /// Keep a confirmed capability for this connection so it is still available while offline.
+    func customMedicationUnitLimit() async -> Int? {
+        #if DEBUG
+        if isDemo { return ProcessInfo.processInfo.environment["BB_CUSTOM_MEDICATION_UNITS"] == "1" ? 20 : nil }
+        #endif
+        if let medicationUnitLimit { return medicationUnitLimit }
+        guard let client, let limit = try? await client.customMedicationUnitLimit(),
+              self.client === client else { return nil }
+        medicationUnitLimit = limit
+        return limit
     }
 
     /// Identity of a server for cache-ownership purposes: the normalized URL, lowercased and

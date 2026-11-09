@@ -44,16 +44,12 @@ final class GermanLocalizationTests: UITestCase {
 
     func testGermanMedicationUnitMenuAndSavedDose() {
         launch(language: "de", locale: "de_DE")
-        tap(app.buttons["Hinzufügen"])
-        tap(app.buttons.labeled("Mehr …"))
-        expect(app.navigationBars["Aktivität hinzufügen"])
-        let medication = app.buttons["Medikament"]
-        if !medication.waitForExistence(timeout: 2) { app.buttons["Mahlzeit"].swipeUp() }
-        tap(medication)
+        openGermanMedicationEditor()
 
         let title = "Medikament hinzufügen"
         let editor = expect(app.navigationBars[title])
         let unitMenu = expect(app.buttons["Dosiseinheit"])
+        XCTAssertFalse(app.buttons["Eigene Einheit hinzufügen"].exists)
         expectValue(unitMenu, "Ohne Einheit")
         tap(unitMenu)
         for unit in ["Ohne Einheit", "mg", "mL", "Tabletten", "Tropfen"] {
@@ -77,5 +73,37 @@ final class GermanLocalizationTests: UITestCase {
         tap(row)
         expect(app.navigationBars["Medikament bearbeiten"])
         expectValue(app.buttons["Dosiseinheit"], "Tropfen")
+    }
+
+    func testGermanCustomMedicationUnitPersistsInTheMenu() {
+        launch(["BB_CUSTOM_MEDICATION_UNITS": "1"], language: "de", locale: "de_DE")
+        openGermanMedicationEditor()
+        let title = "Medikament hinzufügen"
+        let editor = expect(app.navigationBars[title])
+        tap(app.buttons["Eigene Einheit hinzufügen"])
+        let alert = expect(app.alerts["Eigene Einheit hinzufügen"])
+        let field = alert.textFields["Einheit"]
+        tap(field)
+        field.typeText("IE")
+        tap(alert.buttons["Hinzufügen"])
+        expectGone(alert)
+        expectValue(app.buttons["Dosiseinheit"], "IE")
+
+        revealSheetBar(title)
+        tap(editor.buttons["Abbrechen"])
+        expectGone(editor)
+        openGermanMedicationEditor()
+        tap(app.buttons["Dosiseinheit"])
+        tap(app.buttons["IE"])
+        expectValue(app.buttons["Dosiseinheit"], "IE")
+    }
+
+    private func openGermanMedicationEditor() {
+        tap(app.buttons["Hinzufügen"])
+        tap(app.buttons.labeled("Mehr …"))
+        expect(app.navigationBars["Aktivität hinzufügen"])
+        let medication = app.buttons["Medikament"]
+        if !medication.waitForExistence(timeout: 2) { app.buttons["Mahlzeit"].swipeUp() }
+        tap(medication)
     }
 }
