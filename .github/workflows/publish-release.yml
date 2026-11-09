@@ -3,7 +3,8 @@ name: Publish Release
 # Run by hand once the App Store version is live. Publishes the draft GitHub Release that Prepare
 # Release made, on the commit of the build Apple shipped (its build/<version>/<build> tag), which
 # creates the version tag there. Then it rebuilds babybuddy.app so /whatsnew/ shows it, posts the
-# notes to feedback.babybuddy.app's changelog and sets the requests the milestone names to Shipped.
+# notes to feedback.babybuddy.app's changelog, sets the requests the milestone names to Shipped, and
+# closes the milestone.
 # Uploads nothing: the App Store is the only place a build comes from.
 #
 # Safe to run early or twice. Before Apple reports the version as live it stops without changing
@@ -24,7 +25,7 @@ concurrency:
 
 permissions:
   contents: write   # publish the release, which creates the tag
-  issues: read      # the milestone's issues and PRs, for their Quackback: lines
+  issues: write     # the milestone's issues and PRs, for their Quackback: lines, and closing it
 
 jobs:
   publish:
@@ -147,6 +148,7 @@ jobs:
       # public. scripts/quackback.mjs finds an earlier run's changelog entry by its title and skips
       # posts already Shipped, so a rerun posts nothing twice and notifies nobody twice.
       - name: Post the changelog and mark the milestone's requests Shipped
+        id: quackback
         if: ${{ !cancelled() && (steps.publish.outcome == 'success' || steps.public.outcome == 'success') }}
         env:
           QUACKBACK_API_KEY: ${{ secrets.QUACKBACK_API_KEY }}
@@ -161,8 +163,8 @@ jobs:
           : > "$RUNNER_TEMP/issues.jsonl"
           if [ -n "$MILESTONE" ]; then
             for N in $(gh api --paginate "repos/$GITHUB_REPOSITORY/issues?milestone=$MILESTONE&state=all&per_page=100" --jq '.[].number'); do
-              gh api "repos/$GITHUB_REPOSITORY/issues/$N" --jq '{author_association, body}' > "$RUNNER_TEMP/issue.json"
-              gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$N/comments" --jq '.[] | {author_association, body}' |
+              gh api "repos/$GITHUB_REPOSITORY/issues/$N" --jq '{author_association, body, user: {login: .user.login, type: .user.type}}' > "$RUNNER_TEMP/issue.json"
+              gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$N/comments" --jq '.[] | {author_association, body, user: {login: .user.login, type: .user.type}}' |
                 jq -cs --slurpfile issue "$RUNNER_TEMP/issue.json" '$issue[0] + {comments: .}' >> "$RUNNER_TEMP/issues.jsonl"
             done
           else
@@ -170,3 +172,13 @@ jobs:
           fi
           RELEASE_NOTES="$RUNNER_TEMP/quackback-notes.md" \
             node scripts/quackback.mjs ship "$VERSION" "$PUBLISHED" < "$RUNNER_TEMP/issues.jsonl"
+          echo "milestone=$MILESTONE" >> "$GITHUB_OUTPUT"
+
+      # Only once Shipped is set. Closing a closed milestone again changes nothing, so a rerun is safe.
+      - name: Close the milestone
+        if: ${{ !cancelled() && steps.quackback.outcome == 'success' && steps.quackback.outputs.milestone != '' }}
+        env:
+          MILESTONE: ${{ steps.quackback.outputs.milestone }}
+        run: |
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/milestones/$MILESTONE" -f state=closed --jq '"milestone \(.title) is \(.state)"' \
+            | tee -a "$GITHUB_STEP_SUMMARY"

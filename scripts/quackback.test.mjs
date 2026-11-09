@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
   addition, appendedBody, changelogEntry, duplicates, issueBody, issueIds, jsonLines, live, moves, openIssueArgs, plan,
-  postIds, requestId,
+  plannedIds, postIds, prPlan, requestId, restText, STARTED_FROM, trusted,
 } from './quackback.mjs'
 
 const A = 'post_01m5ecc0e0e4erxvtz2kvjec7m'
@@ -242,4 +242,88 @@ test("--to edits a trusted user's issue, and comments on a stranger's", () => {
   const theirs = addition({ author_association: 'NONE', body: 'Please add sleep windows.' }, [post(C)])
   assert.deepEqual(theirs, { comment: issueBody([post(C)]) })
   assert.deepEqual(postIds(theirs.comment), [C])
+})
+
+// MARK: this repository's workflows
+
+const bot = { login: 'github-actions[bot]', type: 'Bot' }
+
+test('text from github-actions[bot] is trusted, whatever GitHub calls its association', () => {
+  assert.equal(trusted({ author_association: 'CONTRIBUTOR', user: bot }), true)
+  assert.equal(trusted({ author_association: 'NONE', user: bot }), true)
+  assert.equal(trusted({ author_association: 'NONE', user: { login: 'github-actions[bot]', type: 'User' } }), false)
+  assert.equal(trusted({ author_association: 'NONE', user: { login: 'dependabot[bot]', type: 'Bot' } }), false)
+  assert.equal(trusted({ author_association: 'NONE' }), false)
+})
+
+test('closing an issue the planned workflow opened sets Complete', () => {
+  const opened = issue({ author_association: 'CONTRIBUTOR', user: bot, state: 'closed', state_reason: 'completed' })
+  assert.deepEqual(plan({ action: 'closed', issue: opened }), { ids: [A], status: 'Complete' })
+})
+
+test('planned skips deleted and merged posts', () => {
+  assert.deepEqual(plannedIds([{ id: A }, { id: B, deletedAt: '2026-11-01' }, { id: C, mergedAt: '2026-11-01' }]), [A])
+})
+
+// MARK: pull requests
+
+const pr = (extra = {}) => ({ number: 30, author_association: 'OWNER', body: 'Closes #7', comments: [], closing: [], ...extra })
+const prEvent = (action, extra = {}) => ({ action, pull_request: { number: 30, state: 'open', merged: false, ...extra } })
+const closes = (author_association, body) => ({ author_association, body, comments: [] })
+
+test('a PR links what its own lines name and what the issues it closes name', () => {
+  const linked = pr({ body: `Closes #7\nQuackback: ${A}`, closing: [closes('OWNER', `Quackback: ${B}`)],
+    comments: [by('MEMBER', `Quackback: ${C}`)] })
+  for (const action of ['opened', 'reopened', 'edited', 'ready_for_review']) {
+    assert.deepEqual(prPlan(prEvent(action), linked), { ids: [A, C, B], status: 'In Progress', from: STARTED_FROM }, action)
+  }
+})
+
+test("a stranger's PR links nothing through its body or the issues it says it closes", () => {
+  const theirs = pr({ author_association: 'NONE', body: `Quackback: ${A}`, closing: [closes('OWNER', `Quackback: ${B}`)],
+    comments: [by('OWNER', `Quackback: ${C}`)] })
+  assert.deepEqual(prPlan(prEvent('opened'), theirs).ids, [C])
+})
+
+test('other PR actions, and an edit to a closed PR, do nothing', () => {
+  const linked = pr({ body: `Quackback: ${A}` })
+  assert.deepEqual(prPlan(prEvent('synchronize'), linked), { ids: [], status: null })
+  assert.deepEqual(prPlan(prEvent('edited', { state: 'closed' }), linked), { ids: [], status: null })
+})
+
+test('In Progress moves only Open, Under Review, and Planned', () => {
+  const allowed = (current) => moves(current, 'In Progress', STARTED_FROM)
+  assert.deepEqual(['Open', 'Under Review', 'Planned', 'In Progress', 'Complete', 'Shipped', 'Closed'].map(allowed),
+    [true, true, true, false, false, false, false])
+})
+
+test('a merged PR sets Complete on its own lines only', () => {
+  const linked = pr({ body: `Quackback: ${A}`, closing: [closes('OWNER', `Quackback: ${B}`)] })
+  assert.deepEqual(prPlan(prEvent('closed', { state: 'closed', merged: true }), linked), { ids: [A], status: 'Complete' })
+})
+
+test('closing a PR unmerged puts In Progress back to Planned, unless another open PR links it', () => {
+  const linked = pr({ body: `Quackback: ${A}`, closing: [closes('OWNER', `Quackback: ${B}`)] })
+  const others = [
+    pr({ number: 31, body: 'Closes #7', closing: [closes('OWNER', `Quackback: ${B}`)] }),
+    pr({ number: 32, author_association: 'NONE', body: `Quackback: ${A}` }),
+    pr({ number: 30, body: `Quackback: ${A}` }),
+  ]
+  const result = prPlan(prEvent('closed', { state: 'closed' }), linked, others)
+  assert.deepEqual(result, { ids: [A], status: 'Planned', from: ['In Progress'] })
+  const back = (current) => moves(current, 'Planned', result.from)
+  assert.deepEqual(['In Progress', 'Planned', 'Open', 'Complete', 'Shipped'].map(back), [true, false, false, false, false])
+})
+
+test("GraphQL text reads as REST's, a bot's login with [bot]", () => {
+  const node = {
+    number: 30, body: 'x', authorAssociation: 'NONE', author: { login: 'github-actions', __typename: 'Bot' },
+    comments: { nodes: [{ body: 'y', authorAssociation: 'OWNER', author: { login: 'kguy18', __typename: 'User' } }] },
+    closingIssuesReferences: { nodes: [{ body: 'z', authorAssociation: 'OWNER', author: null, comments: { nodes: [] } }] },
+  }
+  const rest = restText(node)
+  assert.equal(trusted(rest), true)
+  assert.deepEqual(rest.user, bot)
+  assert.deepEqual(rest.comments[0].user, { login: 'kguy18', type: 'User' })
+  assert.equal(rest.closing[0].user, null)
 })

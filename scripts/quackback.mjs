@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 // Keeps request statuses on Quackback (feedback.babybuddy.app) in step with GitHub. An issue or PR
 // belongs to a request when a line `Quackback: post_<id>`, one line per request, is in its body
-// and the owner or a collaborator wrote that body, or is in a comment one of them wrote.
+// and the owner, a collaborator, or this repository's own workflows (github-actions[bot]) wrote
+// that body, or is in a comment one of them wrote.
 //
 //   node scripts/quackback.mjs issue <event.json> [<comments.jsonl>]
 //                                                         an `issues` or `issue_comment` event:
 //                                                         Planned or Complete
+//   node scripts/quackback.mjs pr <event.json>            a `pull_request_target` event: In Progress,
+//                                                         back to Planned, or Complete on merge
+//   node scripts/quackback.mjs planned                    an issue for each Planned request no
+//                                                         issue names yet
 //   node scripts/quackback.mjs ship <version> <published>  the changelog entry, then Shipped
 //   node scripts/quackback.mjs open-issue <request>... [--to <issue>] [--milestone <version>]
 //     [--title "<text>"] [--dry-run]                      a feature-request issue naming them
@@ -14,7 +19,11 @@
 // `open-issue` creates the issue with the local `gh` login, so the status workflow trusts it, and
 // takes the key from the login keychain (`babybuddy-quackback-api-key`) when QUACKBACK_API_KEY is
 // unset. `--to` appends to an existing issue instead, or comments on it when a stranger opened it. It
-// stops if any issue already names a request.
+// stops if any issue already names a request. `planned` runs it once per Planned request and skips
+// the ones an issue already names. Both need `gh`, which reads GH_TOKEN in CI.
+//
+// `pr` reads the PR's comments and the issues it closes through `gh`, and, when it closes unmerged,
+// every other open PR the same way.
 //
 // `issue` reads the issue's comments, one REST comment object per line, on a close or reopen.
 // `ship` reads the milestone's issues and PRs on stdin, one per line, each a REST issue object
@@ -45,14 +54,19 @@ export function postIds(body) {
   return [...new Set(found.map((m) => m[1]))]
 }
 
-/// Whether GitHub's `author_association` is someone with access to the repository. The workflow
-/// holds an admin key, so only their text may name a request.
-export const trusted = (association) => ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(association)
+/// Whether an issue, PR, or comment was written by someone with access to the repository, by its
+/// `author_association`, or by this repository's workflows: `planned` opens issues as
+/// github-actions[bot], which GitHub calls CONTRIBUTOR or NONE. Only GITHUB_TOKEN from this
+/// repository's own runs can write here as that bot. The workflow holds an admin key, so only
+/// their text may name a request.
+export const trusted = ({ author_association, user } = {}) =>
+  ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(author_association) ||
+  (user?.login === 'github-actions[bot]' && user?.type === 'Bot')
 
 /// Every post an issue or PR names: its body's IDs if a trusted user opened it, then those in its
 /// trusted users' comments. Anyone else's text is ignored.
-export function issueIds({ body, author_association, comments = [] }) {
-  const texts = [trusted(author_association) ? body : '', ...comments.filter((c) => trusted(c.author_association)).map((c) => c.body)]
+export function issueIds(item) {
+  const texts = [trusted(item) ? item.body : '', ...(item.comments ?? []).filter(trusted).map((c) => c.body)]
   return [...new Set(texts.flatMap(postIds))]
 }
 
@@ -69,13 +83,13 @@ const added = (text, before) => {
 export function plan({ action, issue, changes, comment }, comments = []) {
   let ids = []
   if (comment) {
-    if (trusted(comment.author_association) && !issue.pull_request) {
+    if (trusted(comment) && !issue.pull_request) {
       if (action === 'created') ids = postIds(comment.body)
       else if (action === 'edited') ids = added(comment.body, changes?.body?.from ?? comment.body)
     }
   } else if (action === 'closed' || action === 'reopened') {
     ids = issueIds({ ...issue, comments })
-  } else if (trusted(issue.author_association)) {
+  } else if (trusted(issue)) {
     if (action === 'opened') ids = postIds(issue.body)
     else if (action === 'edited') ids = added(issue.body, changes?.body?.from ?? issue.body)
   }
@@ -84,8 +98,44 @@ export function plan({ action, issue, changes, comment }, comments = []) {
   return { ids, status }
 }
 
-/// Whether a post at `current` moves to `target`. Nothing moves a post back from Shipped.
-export const moves = (current, target) => current !== target && current !== 'Shipped'
+/// Whether a post at `current` moves to `target`. Nothing moves a post back from Shipped, and when
+/// `from` is given the post must be at one of those statuses.
+export const moves = (current, target, from) =>
+  current !== target && current !== 'Shipped' && (!from || from.includes(current))
+
+// MARK: pull requests
+
+/// The requests a PR links: `own`, by `Quackback:` lines in its trusted text, and `all`, those plus
+/// the ones named by the issues it closes. The closing issues count only when a trusted user opened
+/// the PR, since a stranger's `Closes #N` is their own text. `closing` holds those issues, each with
+/// its `comments`.
+export function prLinks(pr) {
+  const own = issueIds(pr)
+  const closing = trusted(pr) ? (pr.closing ?? []).flatMap(issueIds) : []
+  return { own, all: [...new Set([...own, ...closing])] }
+}
+
+/// Where In Progress may come from. A post already Complete or Shipped stays there.
+export const STARTED_FROM = ['Open', 'Under Review', 'Planned']
+const OPENS = ['opened', 'reopened', 'edited', 'ready_for_review']
+
+/// What a `pull_request_target` event asks for, as `plan` does for issues, plus `from`, the
+/// statuses a post must be at to move. `pr` is the PR as `prLinks` takes it and `others` the open
+/// PRs, read only when it closes unmerged. Drafts count as open.
+export function prPlan({ action, pull_request }, pr, others = []) {
+  const { own, all } = prLinks(pr)
+  if (action === 'closed') {
+    // The issues a merged PR closes go Complete through their own close event.
+    if (pull_request.merged) return { ids: own, status: 'Complete' }
+    const elsewhere = new Set(others.filter((o) => o.number !== pull_request.number).flatMap((o) => prLinks(o).all))
+    return { ids: all.filter((id) => !elsewhere.has(id)), status: 'Planned', from: ['In Progress'] }
+  }
+  if (pull_request.state === 'open' && OPENS.includes(action)) return { ids: all, status: 'In Progress', from: STARTED_FROM }
+  return { ids: [], status: null }
+}
+
+/// The Planned posts `planned` opens issues for: not deleted, and not merged into another post.
+export const plannedIds = (posts) => posts.filter((p) => !p.deletedAt && !p.mergedAt).map((p) => p.id)
 
 /// The changelog entry for a release: the `appstore` block, with its `#New` labels as headings.
 /// Publish Release finds an earlier run's entry by this title, so changing it duplicates entries.
@@ -169,7 +219,7 @@ export const duplicates = (ids, issues) => ids.flatMap((id) => {
 
 /// How `--to` adds the requests to an issue: a new body when a trusted user opened it, otherwise
 /// a comment, since only trusted text links a request and a stranger's body is theirs.
-export const addition = (issue, posts) => trusted(issue.author_association)
+export const addition = (issue, posts) => trusted(issue)
   ? { body: appendedBody(issue.body, posts) }
   : { comment: issueBody(posts) }
 
@@ -226,10 +276,10 @@ async function load(ids) {
   return { named, posts }
 }
 
-async function setStatus(posts, named, target) {
+async function setStatus(posts, named, target, from) {
   const id = named(target)
   for (const post of posts) {
-    if (!moves(post.status, target)) {
+    if (!moves(post.status, target, from)) {
       report(`${post.id} "${post.title}" is ${post.status}; left as it is`)
       continue
     }
@@ -250,17 +300,20 @@ export async function issueEvent(event, comments) {
   await setStatus(posts, named, status)
 }
 
-/// All changelog entries, drafts included, across every page.
-async function changelog() {
-  const entries = []
+/// Every row of a list endpoint, across every page. `path` ends in its query string, or `?`.
+async function all(path) {
+  const rows = []
   let cursor = ''
   for (;;) {
-    const { data, meta } = await api(`/changelog?limit=100${cursor && `&cursor=${encodeURIComponent(cursor)}`}`)
-    entries.push(...data)
-    if (!meta?.pagination?.hasMore) return entries
+    const { data, meta } = await api(`${path}&limit=100${cursor && `&cursor=${encodeURIComponent(cursor)}`}`)
+    rows.push(...data)
+    if (!meta?.pagination?.hasMore) return rows
     cursor = meta.pagination.cursor
   }
 }
+
+/// All changelog entries, drafts included.
+const changelog = () => all('/changelog?')
 
 /// Posts the release's changelog entry once, links it to the posts, and sets them to Shipped.
 /// A rerun finds the entry by title and only adds missing links, and a post already Shipped is
@@ -325,7 +378,10 @@ export async function openIssue(argv) {
   if (target) numbers.delete(String(target.number))
   const issues = [...(target ? [target] : []), ...[...numbers].map(fullIssue)]
   const dupes = duplicates(args.ids, issues)
-  if (dupes.length) fail(`${dupes.map((d) => `${d.id} is already named by ${d.url}`).join('\n')}\nNothing was written.`)
+  if (dupes.length) {
+    throw Object.assign(new Error(`${dupes.map((d) => `${d.id} is already named by ${d.url}`).join('\n')}\nNothing was written.`),
+      { duplicate: true })
+  }
 
   const title = args.title ?? posts[0].title
   const { body, comment } = target ? addition(target, posts) : { body: issueBody(posts) }
@@ -350,8 +406,59 @@ export async function openIssue(argv) {
 function fullIssue(number) {
   const issue = JSON.parse(gh(['api', `repos/{owner}/{repo}/issues/${number}`]))
   const comments = jsonLines(gh(['api', '--paginate', `repos/{owner}/{repo}/issues/${number}/comments`,
-    '--jq', '.[] | {author_association, body} | tojson']))
+    '--jq', '.[] | {author_association, body, user: {login: .user.login, type: .user.type}} | tojson']))
   return { ...issue, url: issue.html_url, comments }
+}
+
+/// An issue for each Planned request no issue names yet, with no milestone. A request an issue
+/// already names is skipped, and one that fails doesn't stop the rest.
+export async function openPlanned() {
+  loadApiKey()
+  const failed = []
+  for (const id of plannedIds(await all('/posts?status=planned'))) {
+    try {
+      await openIssue([id])
+    } catch (error) {
+      if (error.duplicate) { console.log(`${id}: an issue already names it`); continue }
+      console.error(`::error::${id}: ${error.message.split('\n')[0]}`)
+      failed.push(id)
+    }
+  }
+  if (failed.length) fail(`no issue opened for ${failed.join(', ')}`)
+}
+
+// MARK: pull requests, the GitHub part
+
+const TEXT = 'body authorAssociation author { login __typename }'
+// ponytail: the first 50 open PRs, 50 comments each and 10 closing issues; page them if that's ever short.
+const LINKED = `${TEXT} number comments(first: 50) { nodes { ${TEXT} } }
+  closingIssuesReferences(first: 10) { nodes { ${TEXT} comments(first: 50) { nodes { ${TEXT} } } } }`
+const QUERY = `query($owner: String!, $repo: String!, $number: Int!, $others: Boolean!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $number) { ${LINKED} }
+    pullRequests(states: OPEN, first: 50) @include(if: $others) { nodes { ${LINKED} } }
+  }
+}`
+
+/// GraphQL's shape for text, as REST has it, for `trusted`. GraphQL names a bot without `[bot]`.
+export function restText({ body, authorAssociation, author, number, comments, closingIssuesReferences }) {
+  const bot = author?.__typename === 'Bot'
+  const login = author && (bot && !author.login.endsWith('[bot]') ? `${author.login}[bot]` : author.login)
+  return {
+    number, body, author_association: authorAssociation, user: author && { login, type: bot ? 'Bot' : 'User' },
+    comments: comments?.nodes.map(restText), closing: closingIssuesReferences?.nodes.map(restText),
+  }
+}
+
+export async function prEvent(event) {
+  const others = event.action === 'closed' && !event.pull_request.merged
+  const { data } = JSON.parse(gh(['api', 'graphql', '-f', `query=${QUERY}`, '-F', 'owner={owner}', '-F', 'repo={repo}',
+    '-F', `number=${event.pull_request.number}`, '-F', `others=${others}`]))
+  const { pullRequest, pullRequests } = data.repository
+  const { ids, status, from } = prPlan(event, restText(pullRequest), pullRequests?.nodes.map(restText))
+  if (ids.length === 0 || !status) return
+  const { named, posts } = await load(ids)
+  await setStatus(posts, named, status, from)
 }
 
 function fail(message) {
@@ -363,6 +470,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
     if (command === 'open-issue') {
       await openIssue(process.argv.slice(3))
+    } else if (command === 'planned') {
+      await openPlanned()
+    } else if (command === 'pr' && a) {
+      await prEvent(JSON.parse(readFileSync(a, 'utf8')))
     } else if (command === 'issue' && a) {
       await issueEvent(JSON.parse(readFileSync(a, 'utf8')), b ? jsonLines(readFileSync(b, 'utf8')) : [])
     } else if (command === 'ship' && a && b) {
@@ -370,7 +481,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       const ids = [...new Set(jsonLines(readFileSync(0, 'utf8')).flatMap(issueIds))]
       await ship(a, b, ids, readFileSync(notesFile, 'utf8'))
     } else {
-      console.error('usage: quackback.mjs issue <event.json> [<comments.jsonl>] | ship <version> <published-at> < issues.jsonl\n' +
+      console.error('usage: quackback.mjs issue <event.json> [<comments.jsonl>] | pr <event.json> | planned\n' +
+        '       quackback.mjs ship <version> <published-at> < issues.jsonl\n' +
         '       quackback.mjs open-issue <request>... [--to <issue>] [--milestone <version>] [--title "<text>"] [--dry-run]')
       process.exit(2)
     }

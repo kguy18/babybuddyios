@@ -23,8 +23,8 @@ An offline-first iOS client for a self-hosted [Baby Buddy](https://github.com/ba
 - **Publish Release** (`.github/workflows/publish-release.yml`, run by hand from `main`) publishes
   a version's draft GitHub Release on the commit of the build Apple shipped (its build tag),
   creating the `v<version>` tag there, rebuilds babybuddy.app, posts the notes to the feedback
-  site's changelog and sets the requests on the milestone to Shipped (AGENTS.md, "Feedback
-  requests"). It runs only once App Store
+  site's changelog, sets the requests on the milestone to Shipped (AGENTS.md, "Feedback
+  requests"), and closes the milestone. It runs only once App Store
   Connect reports the version `READY_FOR_DISTRIBUTION`. GitHub Releases carry notes and an App
   Store link, never a build. `node scripts/release.mjs status <version>` asks App Store Connect the
   same question locally, with `ASC_KEY_ID` and `ASC_ISSUER_ID` set.

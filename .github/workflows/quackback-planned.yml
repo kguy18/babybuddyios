@@ -1,0 +1,38 @@
+name: Quackback planned
+
+# Every 15 minutes, opens a `feature-request` issue for each feedback.babybuddy.app request in
+# Planned that no issue names yet, through `scripts/quackback.mjs planned`, which runs open-issue
+# for each. No milestone. A request an issue already names, in any state, body, or comment, is
+# skipped. It only reads Quackback: a request that leaves Planned does nothing to its issue.
+# The issue's author is github-actions[bot], which the status workflow and the script trust, so
+# closing it as completed sets the request to Complete.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+# A slow run and the next one could each open an issue for the same request.
+concurrency:
+  group: quackback-planned
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write   # create the issue, and the feature-request label if it's missing
+
+jobs:
+  planned:
+    name: planned
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Open issues for Planned requests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          QUACKBACK_API_KEY: ${{ secrets.QUACKBACK_API_KEY }}
+        run: node scripts/quackback.mjs planned
