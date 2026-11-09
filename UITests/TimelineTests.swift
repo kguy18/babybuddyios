@@ -100,6 +100,35 @@ final class TimelineTests: UITestCase {
         expectGone(row)
     }
 
+    /// At the largest text a day's summary goes under the day, where beside it it was cut off, and
+    /// the Filters sheet opens at full height: at half height the date range was off the bottom.
+    func testDayHeadersAndFiltersAtTheLargestText() {
+        launch(["BB_START_TAB": "timeline"], largestText: true)
+        let today = expect(app.staticTexts["Today"])
+        let summary = expect(app.staticTexts.matching(NSPredicate(
+            format: "label CONTAINS ' feeds' OR label CONTAINS ' diapers' OR label CONTAINS ' sleep'")).firstMatch)
+        XCTAssertGreaterThan(summary.frame.minY, today.frame.maxY - 1, "The summary should sit under the day")
+
+        tap(app.buttons["Filters"])
+        expect(app.navigationBars["Filters"])
+        let to = expect(app.switches["To"])
+        XCTAssertTrue(app.windows.firstMatch.frame.contains(to.frame), "The date range should be on screen")
+    }
+
+    /// At the largest text the empty search's Clear button scrolls clear of the keyboard: drawn
+    /// over the list, it sat under it.
+    func testNoResultsCanBeClearedAboveTheKeyboard() {
+        launch(["BB_START_TAB": "timeline"], largestText: true)
+        let feedings = elements("label BEGINSWITH 'Feeding, '")
+        expect(feedings.firstMatch)
+        let search = app.searchFields.firstMatch
+        tap(search)
+        search.typeText("zzqx")
+        expect(app.keyboards.firstMatch)
+        tap(app.buttons["Clear Search & Filters"])
+        expect(feedings.firstMatch)
+    }
+
     /// Narrows the timeline to notes, through the Filters sheet.
     private func filterToNotes() {
         tap(app.buttons["Filters"])

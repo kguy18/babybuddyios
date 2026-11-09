@@ -31,6 +31,7 @@ struct TimelineView: View {
     @State private var showingFilters = false
     @State private var searchActive = false
     @State private var searchDebounce: Task<Void, Never>?
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     init(selectedChildID: Binding<Int>) {
         _selectedChildID = selectedChildID
@@ -65,10 +66,22 @@ struct TimelineView: View {
                     .safeAreaInset(edge: .top, spacing: 0) { paneHeader }
             } main: { split in
                 Group {
-                    if split { detailPane } else { list(items, tagColors: tagColors, split: false) }
+                    if split {
+                        detailPane
+                    } else {
+                        // Split, the search field and the child pill are in the left pane's
+                        // header instead: in the navigation bar they ran across the fold.
+                        list(items, tagColors: tagColors, split: false)
+                            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always),
+                                        prompt: String(localized: "Search notes, tags, type…"))
+                    }
                 }
+                .navigationTitle(split ? "" : String(localized: "Timeline"))
                 .toolbar {
-                    if !split { ToolbarItem(placement: .topBarTrailing) { filterButton } }
+                    if !split {
+                        ChildSwitcher(children: children, selectedChildID: $selectedChildID)
+                        ToolbarItem(placement: .topBarTrailing) { filterButton }
+                    }
                 }
                 // Folding the phone with a record open carries it into the phone's editor sheet.
                 .onChange(of: split) { _, split in
@@ -79,14 +92,8 @@ struct TimelineView: View {
                 }
             }
             .background(BBColor.surface)
-            .navigationTitle("Timeline")
             .accessibilityIdentifier("screen-timeline")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ChildSwitcher(children: children, selectedChildID: $selectedChildID)
-            }
-            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always),
-                        prompt: String(localized: "Search notes, tags, type…"))
             .onChange(of: searchText) { _, newValue in handleSearchChange(newValue) }
             .onAppear(perform: autoLoadOlderIfRequested)
             .onAppear { applyRequestedKind(router.showTimelineKind) }
@@ -104,6 +111,12 @@ struct TimelineView: View {
     /// in the right pane instead of a sheet, and the open record's row is highlighted.
     private func list(_ items: [TimelineItem], tagColors: [String: String], split: Bool) -> some View {
         List {
+            if items.isEmpty {
+                // In the list rather than over it, so it scrolls clear of the keyboard.
+                emptyState
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+            }
             ForEach(items) { item in
                 switch item {
                 case .header(let day, let summary):
@@ -151,27 +164,79 @@ struct TimelineView: View {
         .background(BBColor.surface)
         .overlay(alignment: .bottom) { UndoToastView().padding(.bottom, 12) }
         .refreshable { await sync.sync() }
-        .overlay {
-            if items.isEmpty { emptyState }
-        }
     }
 
     private func open(_ entity: LocalEntity, split: Bool) {
         if split { selected = entity } else { editing = entity }
     }
 
-    /// The left pane's own title bar, with the filter button: on iPhone Duo only the right pane's
-    /// actions go in the rail.
+    /// The left pane's own title bar, with the filter button, the child pill and the search field:
+    /// on iPhone Duo only the right pane's actions go in the rail, and the navigation bar's search
+    /// field and pill ran across the fold.
     private var paneHeader: some View {
-        HStack {
-            Text("Timeline").font(.title3.weight(.bold))
-                .accessibilityAddTraits(.isHeader)
-            Spacer()
-            filterButton.font(.title3)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Timeline").font(.title3.weight(.bold))
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+                filterButton.font(.title3)
+            }
+            childPill
+            searchField
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 8)
         .background(BBColor.surface)
+    }
+
+    /// The left pane's search field, on the same text as the navigation bar's.
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            TextField("Search notes, tags, type…", text: $searchText)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
+            if !searchText.isEmpty {
+                Button { searchText = "" } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                }
+                .accessibilityLabel("Clear text")
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(BBColor.controlFill, in: Capsule())
+    }
+
+    /// ``ChildSwitcher`` as a view, for the left pane: a menu with more than one child.
+    @ViewBuilder private var childPill: some View {
+        let child = children.first { $0.serverID == selectedChildID }
+        let name = child.flatMap(childName) ?? "Baby Buddy"
+        let label = HStack(spacing: 6) {
+            ChildAvatar(pictureURL: child?.payloadObject["picture"] as? String,
+                        initial: String(name.prefix(1)), size: 26)
+            Text(name).font(.headline).foregroundStyle(.primary)
+            if children.count > 1 { Image(systemName: "chevron.down").font(.caption2) }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Current child, \(name)")
+        if children.count > 1 {
+            Menu {
+                ForEach(children, id: \.serverID) { child in
+                    Button {
+                        if let id = child.serverID { selectedChildID = id }
+                    } label: {
+                        Label(childName(child) ?? String(localized: "Child"),
+                              systemImage: child.serverID == selectedChildID ? "checkmark" : "person.crop.circle")
+                    }
+                }
+            } label: {
+                label.accessibilityHint("Switch child")
+            }
+        } else {
+            label
+        }
     }
 
     /// Right of the fold: the open record's editor, or a prompt to pick one. A record that has
@@ -191,7 +256,12 @@ struct TimelineView: View {
     private var emptyState: some View {
         if isFilteringOrSearching {
             ContentUnavailableView {
-                Label("No Results", systemImage: "magnifyingglass")
+                // The icon would push the Clear button under the keyboard.
+                if typeSize.isAccessibilitySize {
+                    Text("No Results")
+                } else {
+                    Label("No Results", systemImage: "magnifyingglass")
+                }
             } description: {
                 Text("No activity matches your search and filters.")
             } actions: {
@@ -251,15 +321,19 @@ struct TimelineView: View {
 
     // MARK: Day header
 
+    /// The day over its summary at accessibility sizes, where side by side the summary truncated.
     private func dayHeader(_ day: Date, summary: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        let stacked = typeSize.isAccessibilitySize
+        let layout = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
+        return layout {
             Text(dayLabel(day))
                 .font(.subheadline.weight(.semibold))
-            Spacer(minLength: 8)
+            if !stacked { Spacer(minLength: 8) }
             Text(summary)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .lineLimit(1)
+                .lineLimit(stacked ? nil : 1)
         }
         .padding(.horizontal, 18)
         .padding(.top, 16)
@@ -280,7 +354,10 @@ struct TimelineView: View {
     /// The selected child's display name, included in the search haystack so activity can be
     /// found by child even though the payload only carries the child's id.
     private var selectedChildName: String? {
-        guard let child = children.first(where: { $0.serverID == selectedChildID }) else { return nil }
+        children.first(where: { $0.serverID == selectedChildID }).flatMap(childName)
+    }
+
+    private func childName(_ child: LocalEntity) -> String? {
         let p = child.payloadObject
         let parts = [p["first_name"] as? String, p["last_name"] as? String]
             .compactMap { $0 }.filter { !$0.isEmpty }
@@ -443,6 +520,8 @@ struct TimelineRailRow: View {
     var blocked: Bool = false
     /// Watched so a temperature redraws in a unit picked in Settings.
     @AppStorage(TemperatureUnit.key, store: SharedDefaults.suite) private var unit: TemperatureUnit?
+    /// At accessibility sizes the time goes under the title: beside it, both broke mid-word.
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         HStack(alignment: .top, spacing: 9) {
@@ -482,9 +561,13 @@ struct TimelineRailRow: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(EntityFormatting.title(entity))
                         .font(.subheadline.weight(.semibold))
+                    if typeSize.isAccessibilitySize {
+                        HStack(spacing: 6) { time }.padding(.top, 2)
+                    }
                     if let subtitle = EntityFormatting.subtitle(entity, unit: unit ?? .region), !subtitle.isEmpty {
                         Text(subtitle)
-                            .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            .font(.caption).foregroundStyle(.secondary)
+                            .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
                             .padding(.top, 2)
                     }
                     if let nextDose {
@@ -516,14 +599,18 @@ struct TimelineRailRow: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .padding(.leading, 4)
                 }
-                Spacer(minLength: 8)
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(entity.timestamp.formatted(date: .omitted, time: .shortened))
-                        .font(.subheadline.weight(.semibold)).monospacedDigit()
-                    SyncStateBadge(state: entity.syncState, blocked: blocked).font(.caption2)
+                if !typeSize.isAccessibilitySize {
+                    Spacer(minLength: 8)
+                    VStack(alignment: .trailing, spacing: 2) { time }
                 }
             }
         }
+    }
+
+    @ViewBuilder private var time: some View {
+        Text(entity.timestamp.formatted(date: .omitted, time: .shortened))
+            .font(.subheadline.weight(.semibold)).monospacedDigit()
+        SyncStateBadge(state: entity.syncState, blocked: blocked).font(.caption2)
     }
 }
 
@@ -561,6 +648,7 @@ private struct TimelineFiltersView: View {
     @Binding var kindFilter: EntityKind?
     @Binding var dateFrom: Date?
     @Binding var dateTo: Date?
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private var hasActiveFilters: Bool { kindFilter != nil || dateFrom != nil || dateTo != nil }
 
@@ -598,7 +686,8 @@ private struct TimelineFiltersView: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
         }
-        .presentationDetents([.medium, .large])
+        // Full height at accessibility sizes: at half height the date range was cut off.
+        .presentationDetents(typeSize.isAccessibilitySize ? [.large] : [.medium, .large])
     }
 
     /// A toggle that enables/clears an optional date bound, plus a date picker shown when on.
