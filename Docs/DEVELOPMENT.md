@@ -91,6 +91,8 @@ Pass these via `SIMCTL_CHILD_<NAME>` environment variables to `xcrun simctl laun
 | `BB_OPEN_PENDING=1` / `BB_OPEN_CONFLICT=1` | Open Pending Changes / the first conflict from Settings |
 | `BB_SUPPORTER=1` / `BB_SUPPORTER_SHEET=1` | Force supporter status on / open the supporter sheet from Settings |
 | `BB_SCANNER_PREVIEW=1` | Open the QR scanner over a black backdrop, without the camera |
+| `BB_GATE_PREVIEW=cloudflareAccess\|unknown` | Open Advanced configuration on sign-in as if that access gate had answered |
+| `BB_PASTEBOARD=<text>` | Put `text` on the pasteboard at sign-in, as if copied from elsewhere, for the Paste buttons |
 | `BB_LOAD_OLDER=<n>` | Auto-page the timeline back `n` history chunks on launch (with `BB_DEMO`) |
 | `BB_LOCK=1` | Force the Face ID lock on |
 | `BB_FOLD=1` | Lay out Home, the Timeline and the sheets as on iPhone Duo's open display, however narrow the screen. `FoldTests` pass it when the test runner has `BB_FOLD=1`, to run off the open display |
@@ -100,7 +102,8 @@ Pass these via `SIMCTL_CHILD_<NAME>` environment variables to `xcrun simctl laun
 | `BB_DOSE_ALERT_SECONDS=<n>` | Turn medication reminders on and shorten every next-dose interval to `n` seconds (the editor's shortest is 4 h) |
 | `BB_TOAST_SECONDS=<n>` | Hold the undo toast open for `n` seconds instead of 5 |
 | `BB_FEEDBACK=<url>` | Point Settings ▸ Feedback ▸ Send Feedback at another Quackback server instead of feedback.babybuddy.app. The UI tests pass an unreachable one to reach the Mail fallback |
-| `BB_FEEDBACK_STUB=signed-out\|signed-in` | With `BB_UITEST`, the feedback sheet and its sign-in use stubs instead of the server. The widget is a small inline page that shows the view the app asks for and reports a user (before `ready`, as Quackback does) only while the web view holds a session cookie. The sign-in calls answer locally: an email starting `busy@` hits the rate limit, the code `000000` and the password `wrong` are refused, and anything else signs in. `signed-in` starts the launch with a stub session. UI tests that open the sheet use it, so they need no network |
+| `BB_FEEDBACK_STUB=signed-out\|signed-in` | With `BB_UITEST`, the feedback sheet and its sign-in use stubs instead of the server. The widget is a small inline page that shows the view the app asks for and reports a user (before `ready`, as Quackback does) only while the app holds a session. The sign-in calls answer locally: an email starting `busy@` hits the rate limit, the code `000000` and the password `wrong` are refused, and anything else signs in. `signed-in` starts the launch with a stub session. The stub keeps the session in memory, not in WebKit's cookie store, whose first read after launch can take over a minute on a cold simulator. UI tests that open the sheet use it, so they need no network |
+| `BB_FEEDBACK_COOKIE_STORE=1` | With `BB_FEEDBACK_STUB`, keep the stub's session in WebKit's cookie store as the real sign-in does, so a UI test can check that it survives a relaunch. Slow: see `cookieStoreTimeout` in `UITests/FeedbackTests.swift` |
 | `BB_FEEDBACK_KEEP_SESSION=1` | With `BB_UITEST`, keep the feedback session the last launch left in the web view instead of clearing it, so a UI test can check that it survives a relaunch |
 | `BB_FEEDBACK_DELETION_MAIL=sent` | With `BB_UITEST`, Send Feedback ▸ Delete Feedback Account's request counts as sent without the Mail composer, which the simulator can't show without a Mail account |
 

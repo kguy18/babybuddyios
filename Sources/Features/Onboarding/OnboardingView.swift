@@ -106,6 +106,10 @@ struct OnboardingView: View {
             if let raw = ProcessInfo.processInfo.environment["BB_GATE_PREVIEW"], let gate = AccessGate(rawValue: raw) {
                 advanced = AdvancedRequest(gate: gate)
             }
+            // Put text on the pasteboard as if copied from elsewhere, for a test of the Paste
+            // buttons. Written by the app itself, so iOS raises no paste prompt; a write from the
+            // test runner never reached the app on the iOS 27 simulator.
+            if let clip = ProcessInfo.processInfo.environment["BB_PASTEBOARD"] { UIPasteboard.general.string = clip }
         }
         #endif
     }

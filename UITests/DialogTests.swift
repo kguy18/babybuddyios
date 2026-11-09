@@ -161,6 +161,34 @@ final class DialogTests: UITestCase {
         XCTAssertFalse(app.buttons.labeled("Advanced configuration ·").exists, "Cancel kept the edits")
     }
 
+    /// #241: a Client ID copied from text that wrapped carries a line break the field can't show.
+    /// Paste drops it, and a space along with it, rather than refusing the value at Save.
+    /// `BB_PASTEBOARD` stands in for the copy: a write from this runner never reaches the app.
+    func testPastedServiceTokenLosesItsLineBreak() {
+        launch(["BB_GATE_PREVIEW": "cloudflareAccess", "BB_PASTEBOARD": "88bf3b6d8616\n1464f650 9f72.access\n"],
+               demo: false)
+        expect(app.navigationBars["Advanced configuration"])
+        // By identifier: "Paste" is also the API token's button on the sign-in screen behind the sheet.
+        tap(app.buttons["Paste CF-Access-Client-Id"])
+        expectValue(app.textFields["Client ID"], "88bf3b6d86161464f6509f72.access")
+    }
+
+    /// #241: a sign-in that fails before any request goes out shows its error on the sign-in
+    /// screen, once. Before, the gate from the try before was still recorded, so sign-in put
+    /// Advanced configuration straight back over the error, and Save and try again looped. The
+    /// address is left empty so the failure needs no server; a bad header fails the same way.
+    func testAValidationErrorDoesNotReopenAdvancedConfiguration() {
+        launch(["BB_GATE_PREVIEW": "cloudflareAccess"], demo: false)
+        let sheet = app.navigationBars["Advanced configuration"]
+        expect(sheet)
+        replaceText(app.textFields["Client ID"], with: "abc.access\n")
+        expect(app.secureTextFields["Client Secret"]).typeText("s3cret\n")
+        tap(app.buttons["Save and try again"])
+        expectGone(sheet)
+        expect(element(labeled: "That doesn't look like a valid server address"))
+        XCTAssertFalse(sheet.exists, "the error reopened Advanced configuration")
+    }
+
     /// At the largest text size nothing is pinned over the sheet: Save and its note took half of it.
     /// Both scroll with the content, and the fields grow with the text.
     func testAdvancedConfigurationFitsTheLargestText() {

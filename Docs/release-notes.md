@@ -35,12 +35,15 @@ The rest of the store listing (description, keywords, review information) lives 
 
 #Fixed
 - Sick mode comparisons such as "up since yesterday" no longer show a few English words in the middle of a translated sentence.
+- Signing in through Cloudflare Access with a service token no longer fails with "can't contain a line break or control character" on some iPhones, and the Advanced configuration sheet no longer comes back over the error.
 ```
 
 ```whatsnew
 #New
 - new | German and Portuguese | Baby Buddy now speaks Deutsch and Português (Brasil).
 - new | iPhone Duo support | Home and Timeline use both halves of the open display. For the lucky few with a Duo!
+#Fixed
+- Cloudflare service tokens no longer rejected as containing a control character
 ```
 
 ## 1.4.0
