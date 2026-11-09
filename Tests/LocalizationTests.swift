@@ -133,4 +133,23 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(TimerActivity(timerName: "Tummy time"), .tummyTime)
         XCTAssertEqual(EntityFormatting.timerName("My custom timer"), "My custom timer")
     }
+
+    func testMedicationUnitOptionsUseServerValuesAndPreserveExistingUnits() {
+        let serverValues = ["", "mg", "ml", "tablets", "drops"]
+        XCTAssertEqual(MedicationDoseUnit.options(including: ""), serverValues)
+        XCTAssertEqual(MedicationDoseUnit.options(including: "drops"), serverValues)
+        XCTAssertEqual(MedicationDoseUnit.editorValue("mL"), "ml")
+        XCTAssertEqual(MedicationDoseUnit.editorValue("IE"), "IE")
+        XCTAssertEqual(MedicationDoseUnit.options(including: "IE"), serverValues + ["IE"])
+        XCTAssertEqual(MedicationDoseUnit.label(for: "IE"), "IE")
+    }
+
+    func testMedicationDosageUsesLocalizedUnitsAndPreservesFractionalAmounts() {
+        XCTAssertEqual(MedicationDoseUnit.drops.format(1), "1 drop")
+        XCTAssertEqual(MedicationDoseUnit.drops.format(2), "2 drops")
+        XCTAssertEqual(MedicationDoseUnit.tablets.format(1), "1 tablet")
+        XCTAssertEqual(MedicationDoseUnit.tablets.format(0.25), "0.25 tablets")
+        XCTAssertEqual(MedicationDoseUnit.milliliters.format(0.05), "0.05 mL")
+        XCTAssertEqual(MedicationDoseUnit.unspecified.format(5), "5")
+    }
 }

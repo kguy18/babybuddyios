@@ -91,7 +91,7 @@ struct EntityEditorView: View {
     // Medication
     @State private var medName = ""
     @State private var dosage = ""
-    @State private var dosageUnit = "mg"
+    @State private var dosageUnit = MedicationDoseUnit.unspecified.rawValue
     @State private var doseInterval: DoseInterval = .none
     @State private var customDoseHours = ""
     @State private var customDoseMinutes = ""
@@ -537,9 +537,14 @@ struct EntityEditorView: View {
             VStack(alignment: .leading, spacing: 16) {
                 fieldLabeled(String(localized: "Name")) { plainField(String(localized: "Name"), text: $medName) }
                 fieldLabeled(String(localized: "Dosage")) {
-                    HStack(spacing: 10) {
+                    let layout = typeSize.isAccessibilitySize
+                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(spacing: 10))
+                    layout {
                         numericField(text: $dosage, unit: nil)
-                        plainField(String(localized: "Unit"), text: $dosageUnit).frame(width: 92)
+                        menuField(options: MedicationDoseUnit.options(including: dosageUnit),
+                                  selection: $dosageUnit, label: MedicationDoseUnit.label(for:))
+                            .accessibilityLabel("Dosage unit")
+                            .accessibilityValue(MedicationDoseUnit.label(for: dosageUnit))
                     }
                 }
                 fieldLabeled(String(localized: "Next dose after")) {
@@ -915,7 +920,9 @@ struct EntityEditorView: View {
         imageURL = (p["image"] as? String).flatMap { $0.isEmpty ? nil : $0 }
         medName = p["name"] as? String ?? ""
         if let d = p["dosage"] as? Double { dosage = trimmed(d) }
-        dosageUnit = p["dosage_unit"] as? String ?? dosageUnit
+        if let rawUnit = p["dosage_unit"] as? String {
+            dosageUnit = MedicationDoseUnit.editorValue(rawUnit)
+        }
         if let raw = p["next_dose_interval"] as? String, let seconds = APIDuration.parse(raw), seconds > 0 {
             if MedicationReminderPolicy.choices.contains(seconds) {
                 doseInterval = .preset(seconds)

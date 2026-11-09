@@ -41,4 +41,41 @@ final class GermanLocalizationTests: UITestCase {
         tap(editor.buttons["Abbrechen"])
         expect(app.navigationBars["Mahlzeit · Heute"])
     }
+
+    func testGermanMedicationUnitMenuAndSavedDose() {
+        launch(language: "de", locale: "de_DE")
+        tap(app.buttons["Hinzufügen"])
+        tap(app.buttons.labeled("Mehr …"))
+        expect(app.navigationBars["Aktivität hinzufügen"])
+        let medication = app.buttons["Medikament"]
+        if !medication.waitForExistence(timeout: 2) { app.buttons["Mahlzeit"].swipeUp() }
+        tap(medication)
+
+        let title = "Medikament hinzufügen"
+        let editor = expect(app.navigationBars[title])
+        let unitMenu = expect(app.buttons["Dosiseinheit"])
+        expectValue(unitMenu, "Ohne Einheit")
+        tap(unitMenu)
+        for unit in ["Ohne Einheit", "mg", "mL", "Tabletten", "Tropfen"] {
+            expect(app.buttons[unit])
+        }
+        tap(app.buttons["Tropfen"])
+        expectValue(unitMenu, "Tropfen")
+
+        let name = app.textFields["Name"]
+        tap(name)
+        name.typeText("Testmed")
+        let amount = app.textFields["0"]
+        tap(amount)
+        amount.typeText("2")
+        revealSheetBar(title)
+        tap(editor.buttons["Speichern"])
+        expectGone(editor)
+
+        tap(tab("Verlauf"))
+        let row = expect(elements("label BEGINSWITH 'Medikament, Testmed' AND label CONTAINS '2 Tropfen'").firstMatch)
+        tap(row)
+        expect(app.navigationBars["Medikament bearbeiten"])
+        expectValue(app.buttons["Dosiseinheit"], "Tropfen")
+    }
 }
