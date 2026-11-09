@@ -61,7 +61,8 @@ private struct ConflictInboxRow: View {
                 }
                 Spacer(minLength: 8)
                 SyncStateBadge(state: .conflicted)
-                    .font(typeSize.isAccessibilitySize ? .system(size: 16) : .body)
+                    .font(.body)
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.tertiary)

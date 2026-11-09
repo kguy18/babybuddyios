@@ -28,7 +28,7 @@ struct PendingChangesView: View {
 
     var body: some View {
         NavigationStack {
-            GeometryReader { geometry in
+            FoldSplitView { Color.clear } main: { _ in
                 ScrollViewReader { proxy in
                     List {
                         ForEach(mutations) { mutation in
@@ -66,10 +66,6 @@ struct PendingChangesView: View {
                     }
                     .onAppear { if let highlight { proxy.scrollTo(highlight, anchor: .center) } }
                 }
-                .frame(width: FoldLayout.isWide(geometry.size.width)
-                       ? max(0, (geometry.size.width - FoldLayout.assumedFold) / 2)
-                       : geometry.size.width)
-                .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
