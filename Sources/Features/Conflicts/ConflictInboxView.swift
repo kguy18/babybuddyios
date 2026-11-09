@@ -7,20 +7,22 @@ struct ConflictInboxView: View {
     @Query(sort: \ConflictRecord.detectedAt, order: .reverse) private var conflicts: [ConflictRecord]
 
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 10) {
-                ForEach(conflicts) { conflict in
-                    NavigationLink {
-                        ConflictResolutionView(conflict: conflict)
-                    } label: {
-                        ConflictInboxRow(conflict: conflict)
+        FoldSplitView { Color.clear } main: { _ in
+            ScrollView {
+                LazyVStack(spacing: 10) {
+                    ForEach(conflicts) { conflict in
+                        NavigationLink {
+                            ConflictResolutionView(conflict: conflict)
+                        } label: {
+                            ConflictInboxRow(conflict: conflict)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 24)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 24)
         }
         .background(BBColor.surface)
         .navigationTitle("Conflicts")
@@ -35,25 +37,31 @@ struct ConflictInboxView: View {
 
 /// A single conflict row: tinted activity tile, what happened, and the conflicted badge.
 private struct ConflictInboxRow: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     let conflict: ConflictRecord
 
     var body: some View {
         BBCard(cornerRadius: BBRadius.row, padding: 13) {
             HStack(spacing: 12) {
-                ActivityTile(kind: conflict.kind, size: 40, glyph: 21)
+                if !typeSize.isAccessibilitySize {
+                    ActivityTile(kind: conflict.kind, size: 40, glyph: 21)
+                }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(conflict.kind.displayName)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(conflict.serverDeleted
                          ? String(localized: "Deleted on the server while you edited it")
                          : String(localized: "Changed on the server and on this device"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 SyncStateBadge(state: .conflicted)
+                    .font(typeSize.isAccessibilitySize ? .system(size: 16) : .body)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.tertiary)

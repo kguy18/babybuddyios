@@ -137,4 +137,36 @@ final class FoldTests: UITestCase {
         expectGone(start)
         expect(element(labeled: "Sleep running"))
     }
+
+    func testSyncScreensKeepContentBesideTheFold() throws {
+        try launchOpen(["BB_START_TAB": "settings", "BB_SEED_PENDING": "1", "BB_OPEN_PENDING": "1"])
+        let pending = expect(app.navigationBars["Pending Changes"])
+        let title = expect(app.staticTexts["Added Pumping"])
+        XCTAssertGreaterThan(title.frame.minX, app.windows.firstMatch.frame.midX,
+                             "Pending rows should stay right of the fold")
+        tap(pending.buttons["Done"])
+
+        try launchOpen(["BB_START_TAB": "settings", "BB_SEED_CONFLICT": "1"])
+        tap(app.buttons.labeled("Conflicts"))
+        let row = expect(app.buttons.labeled("Feeding"))
+        XCTAssertGreaterThan(row.frame.minX, app.windows.firstMatch.frame.midX,
+                             "The inbox should stay in one pane")
+        tap(row)
+        expect(app.navigationBars["Resolve Conflict"])
+        let mine = expect(app.buttons.labeled("Amount, Mine,"))
+        let server = expect(app.buttons.labeled("Amount, Server,"))
+        XCTAssertGreaterThanOrEqual(server.frame.minX - mine.frame.maxX, 39,
+                                    "Mine and Server should have the fold between them")
+        XCTAssertEqual(mine.frame.minY, server.frame.minY, accuracy: 1)
+        if !forced {
+            let middle = app.windows.firstMatch.frame.midX
+            XCTAssertLessThan(mine.frame.maxX, middle)
+            XCTAssertGreaterThan(server.frame.minX, middle)
+        }
+        tap(app.buttons["All server"])
+        XCTAssertTrue(server.isSelected)
+        tap(app.buttons["Save merged feeding"])
+        expect(app.staticTexts["No Conflicts"])
+    }
+
 }

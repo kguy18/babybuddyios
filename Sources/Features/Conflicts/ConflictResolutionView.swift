@@ -14,6 +14,8 @@ struct ConflictResolutionView: View {
     @Environment(SyncEngine.self) private var sync
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var wide = false
 
     let conflict: ConflictRecord
 
@@ -48,6 +50,7 @@ struct ConflictResolutionView: View {
                 mergeBody
             }
         }
+        .trackingWide($wide)
         .background(BBColor.surface)
         .navigationTitle("Resolve Conflict")
         .navigationBarTitleDisplayMode(.inline)
@@ -64,9 +67,12 @@ struct ConflictResolutionView: View {
     private var mergeBody: some View {
         ScrollView {
             VStack(spacing: 16) {
-                headerCard
-
-                BBSegmentedControl(selection: $mode, options: modeOptions, label: title(for:))
+                if wide {
+                    SheetColumns(wide: wide) { headerCard } trailing: { modeControl }
+                } else {
+                    headerCard
+                    modeControl
+                }
 
                 legend
 
@@ -76,18 +82,48 @@ struct ConflictResolutionView: View {
                     VStack(spacing: 13) {
                         ForEach(differingFields, id: \.self) { fieldDiffRow($0) }
                     }
-                    matchInfoRow
+                    if !wide { matchInfoRow }
                 case .keepMine, .keepServer:
-                    outcomeCard
-                    affectsLine
+                    if wide {
+                        SheetColumns(wide: wide) { outcomeCard } trailing: { affectsLine }
+                    } else {
+                        outcomeCard
+                        affectsLine
+                    }
                 }
 
-                actionArea
-                    .padding(.top, 2)
+                if wide {
+                    SheetColumns(wide: wide) {
+                        if mode == .merge { matchInfoRow }
+                    } trailing: { actionArea }
+                } else {
+                    actionArea.padding(.top, 2)
+                }
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 28)
+        }
+    }
+
+    @ViewBuilder private var modeControl: some View {
+        if typeSize.isAccessibilitySize {
+            VStack(spacing: 8) {
+                ForEach(modeOptions, id: \.self) { option in
+                    Button {
+                        withAnimation(.snappy(duration: 0.18)) { mode = option }
+                    } label: {
+                        Text(title(for: option))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .buttonStyle(BBFilledButton(
+                        background: mode == option ? BBColor.brandTint : BBColor.controlFill,
+                        foreground: mode == option ? BBColor.brandAccent : .primary))
+                    .accessibilityAddTraits(mode == option ? .isSelected : [])
+                }
+            }
+        } else {
+            BBSegmentedControl(selection: $mode, options: modeOptions, label: title(for:))
         }
     }
 
@@ -130,7 +166,9 @@ struct ConflictResolutionView: View {
     private var headerCard: some View {
         BBCard(cornerRadius: BBRadius.tile, padding: 14) {
             HStack(spacing: 12) {
-                ActivityTile(kind: conflict.kind, size: 40, glyph: 22)
+                if !typeSize.isAccessibilitySize {
+                    ActivityTile(kind: conflict.kind, size: 40, glyph: 22)
+                }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(conflict.kind.displayName) · \(recordTimeText)")
                         .font(.subheadline.weight(.semibold))
@@ -139,9 +177,13 @@ struct ConflictResolutionView: View {
                          : String(localized: "Changed here and on the server"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    if typeSize.isAccessibilitySize { conflictPill }
                 }
-                Spacer(minLength: 8)
-                conflictPill
+                .fixedSize(horizontal: false, vertical: true)
+                if !typeSize.isAccessibilitySize {
+                    Spacer(minLength: 8)
+                    conflictPill
+                }
             }
         }
     }
@@ -161,12 +203,30 @@ struct ConflictResolutionView: View {
     // MARK: Legend (Mine = brand blue · Server = neutral slate)
 
     private var legend: some View {
-        HStack(spacing: 18) {
-            legendItem(dot: BBColor.brand, name: String(localized: "Mine"), nameColor: BBColor.brandAccent, detail: mineDetail)
-            legendItem(dot: .secondary, name: String(localized: "Server"), nameColor: BBColor.tagChipText, detail: serverDetail)
-            Spacer(minLength: 0)
+        Group {
+            if wide {
+                SheetColumns(wide: wide) { mineLegend } trailing: { serverLegend }
+            } else {
+                let layout = typeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+                    : AnyLayout(HStackLayout(spacing: 18))
+                layout {
+                    mineLegend
+                    serverLegend
+                    if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
+                }
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 2)
+    }
+
+    private var mineLegend: some View {
+        legendItem(dot: BBColor.brand, name: String(localized: "Mine"), nameColor: BBColor.brandAccent, detail: mineDetail)
+    }
+
+    private var serverLegend: some View {
+        legendItem(dot: .secondary, name: String(localized: "Server"), nameColor: BBColor.tagChipText, detail: serverDetail)
     }
 
     private func legendItem(dot: Color, name: String, nameColor: Color, detail: String?) -> some View {
@@ -177,6 +237,7 @@ struct ConflictResolutionView: View {
                 Text("· \(detail)").font(.caption).foregroundStyle(.secondary)
             }
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     /// When/how each side was edited — the local edit time (Mine) and when the server
@@ -192,30 +253,74 @@ struct ConflictResolutionView: View {
     // MARK: Merge controls
 
     private var diffControlsRow: some View {
-        HStack(spacing: 0) {
-            Text("\(differingFields.count) fields differ")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 8)
-            Button("All mine") { setAll(true) }
-            Text(" · ").foregroundStyle(.tertiary)
-            Button("All server") { setAll(false) }
+        Group {
+            if wide {
+                SheetColumns(wide: wide, spacing: 8) { differenceCount } trailing: { bulkChoices }
+            } else if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 8) {
+                    differenceCount
+                    bulkChoices
+                }
+            } else {
+                HStack(spacing: 0) {
+                    differenceCount
+                    Spacer(minLength: 8)
+                    bulkChoices
+                }
+            }
         }
         .font(.subheadline.weight(.medium))
         .tint(BBColor.brandAccent)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 2)
+    }
+
+    private var differenceCount: some View {
+        Text("\(differingFields.count) fields differ")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var bulkChoices: some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 0))
+        return layout {
+            Button("All mine") { setAll(true) }
+            if !typeSize.isAccessibilitySize { Text(" · ").foregroundStyle(.tertiary) }
+            Button("All server") { setAll(false) }
+        }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private func fieldDiffRow(_ field: String) -> some View {
         VStack(alignment: .leading, spacing: 7) {
-            Text(label(field))
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(BBColor.tagChipText)
-            HStack(alignment: .top, spacing: 8) {
-                choiceCard(field: field, keepMine: true)
-                choiceCard(field: field, keepMine: false)
+            if wide {
+                SheetColumns(wide: wide, spacing: 8) {
+                    fieldLabel(field)
+                    choiceCard(field: field, keepMine: true)
+                } trailing: {
+                    fieldLabel(field)
+                    choiceCard(field: field, keepMine: false)
+                }
+            } else {
+                fieldLabel(field)
+                let layout = typeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                    : AnyLayout(HStackLayout(alignment: .top, spacing: 8))
+                layout {
+                    choiceCard(field: field, keepMine: true)
+                    choiceCard(field: field, keepMine: false)
+                }
             }
         }
+    }
+
+    private func fieldLabel(_ field: String) -> some View {
+        Text(label(field))
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(BBColor.tagChipText)
     }
 
     private func choiceCard(field: String, keepMine: Bool) -> some View {
@@ -232,6 +337,7 @@ struct ConflictResolutionView: View {
                 valueContent(field: field, value: value, selected: selected)
             }
             .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+            .padding(.trailing, selected && typeSize.isAccessibilitySize ? 19 : 0)
             .padding(11)
             .background(selected ? BBColor.brandTint : BBColor.card,
                         in: RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -245,6 +351,8 @@ struct ConflictResolutionView: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(label(field)), \(keepMine ? String(localized: "Mine") : String(localized: "Server")), \(displayValue(field, value))")
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private var checkBadge: some View {

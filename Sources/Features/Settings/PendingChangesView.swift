@@ -28,42 +28,48 @@ struct PendingChangesView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollViewReader { proxy in
-            List {
-                ForEach(mutations) { mutation in
-                    let entity = LocalStore.fetch(localID: mutation.localID, in: context)
-                    row(QueueRow(kind: mutation.kind,
-                                 title: title(for: mutation),
-                                 detail: entity.flatMap(EntityFormatting.subtitle),
-                                 lastError: mutation.lastError,
-                                 isBlocked: mutation.isBlocked,
-                                 createdAt: mutation.createdAt,
-                                 // A parked create with no `timer` field (the DELETE found the timer
-                                 // gone) has nothing for the server to refuse: Retry would file the
-                                 // duplicate unasked, so only "Create without timer" sends it.
-                                 onRetry: mutation.isStaleTimer && !carriesTimer(mutation)
-                                     ? nil : { sync.retry(mutation) },
-                                 onCreateWithoutTimer: mutation.isStaleTimer
-                                     ? { creatingWithoutTimer = mutation } : nil,
-                                 highlighted: mutation.localID == highlight),
-                        target: .mutation(mutation))
-                    .id(mutation.localID)
+            GeometryReader { geometry in
+                ScrollViewReader { proxy in
+                    List {
+                        ForEach(mutations) { mutation in
+                            let entity = LocalStore.fetch(localID: mutation.localID, in: context)
+                            row(QueueRow(kind: mutation.kind,
+                                         title: title(for: mutation),
+                                         detail: entity.flatMap(EntityFormatting.subtitle),
+                                         lastError: mutation.lastError,
+                                         isBlocked: mutation.isBlocked,
+                                         createdAt: mutation.createdAt,
+                                         // A parked create with no `timer` field (the DELETE found the timer
+                                         // gone) has nothing for the server to refuse: Retry would file the
+                                         // duplicate unasked, so only "Create without timer" sends it.
+                                         onRetry: mutation.isStaleTimer && !carriesTimer(mutation)
+                                             ? nil : { sync.retry(mutation) },
+                                         onCreateWithoutTimer: mutation.isStaleTimer
+                                             ? { creatingWithoutTimer = mutation } : nil,
+                                         highlighted: mutation.localID == highlight),
+                                target: .mutation(mutation))
+                            .id(mutation.localID)
+                        }
+                        ForEach(uploads) { upload in
+                            let entity = LocalStore.fetch(localID: upload.localID, in: context)
+                            row(QueueRow(kind: upload.kind,
+                                         title: String(localized: "\(upload.kind.displayName) photo"),
+                                         detail: entity.flatMap(EntityFormatting.subtitle),
+                                         lastError: upload.lastError,
+                                         isBlocked: upload.isBlocked,
+                                         createdAt: upload.createdAt,
+                                         onRetry: { sync.retry(upload) },
+                                         onCreateWithoutTimer: nil,
+                                         highlighted: false),
+                                target: .upload(upload))
+                        }
+                    }
+                    .onAppear { if let highlight { proxy.scrollTo(highlight, anchor: .center) } }
                 }
-                ForEach(uploads) { upload in
-                    let entity = LocalStore.fetch(localID: upload.localID, in: context)
-                    row(QueueRow(kind: upload.kind,
-                                 title: String(localized: "\(upload.kind.displayName) photo"),
-                                 detail: entity.flatMap(EntityFormatting.subtitle),
-                                 lastError: upload.lastError,
-                                 isBlocked: upload.isBlocked,
-                                 createdAt: upload.createdAt,
-                                 onRetry: { sync.retry(upload) },
-                                 onCreateWithoutTimer: nil,
-                                 highlighted: false),
-                        target: .upload(upload))
-                }
-            }
-            .onAppear { if let highlight { proxy.scrollTo(highlight, anchor: .center) } }
+                .frame(width: FoldLayout.isWide(geometry.size.width)
+                       ? max(0, (geometry.size.width - FoldLayout.assumedFold) / 2)
+                       : geometry.size.width)
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
@@ -180,6 +186,7 @@ struct PendingChangesView: View {
 /// record's detail, when it was queued — and, when the server has refused it, why, plus the Retry
 /// that is the only thing that will make sync pick it up again.
 private struct QueueRow: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     let kind: EntityKind
     let title: String
     let detail: String?
@@ -196,22 +203,32 @@ private struct QueueRow: View {
         BBCard(cornerRadius: BBRadius.row, padding: 13) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 12) {
-                    ActivityTile(kind: kind, size: 40, glyph: 21)
+                    if !typeSize.isAccessibilitySize {
+                        ActivityTile(kind: kind, size: 40, glyph: 21)
+                    }
                     VStack(alignment: .leading, spacing: 2) {
                         Text(title)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if typeSize.isAccessibilitySize { timestamp }
                         if let detail, !detail.isEmpty {
-                            Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            Text(detail).font(.caption).foregroundStyle(.secondary)
+                                .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                         statusLine
                     }
-                    Spacer(minLength: 8)
-                    Text(createdAt, format: .relative(presentation: .named))
-                        .font(.caption2).foregroundStyle(.tertiary).lineLimit(1)
+                    if !typeSize.isAccessibilitySize {
+                        Spacer(minLength: 8)
+                        timestamp
+                    }
                 }
                 if isBlocked {
-                    HStack(spacing: 8) {
+                    let layout = typeSize.isAccessibilitySize
+                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                        : AnyLayout(HStackLayout(spacing: 8))
+                    layout {
                         if let onRetry { action(String(localized: "Retry"), systemImage: "arrow.clockwise", onRetry) }
                         if let onCreateWithoutTimer {
                             action(String(localized: "Create without timer"), systemImage: "timer.slash", onCreateWithoutTimer)
@@ -228,12 +245,21 @@ private struct QueueRow: View {
         }
     }
 
+    private var timestamp: some View {
+        Text(createdAt, format: .relative(presentation: .named))
+            .font(.caption2).foregroundStyle(.tertiary)
+            .accessibilityIdentifier("queue-time-\(title)")
+            .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
     private func action(_ title: String, systemImage: String, _ perform: @escaping () -> Void) -> some View {
         Button(action: perform) {
             Label(title, systemImage: systemImage)
                 .font(.caption.weight(.semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                .minimumScaleFactor(typeSize.isAccessibilitySize ? 1 : 0.8)
+                .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 7)
                 .background(BBColor.brandTint, in: RoundedRectangle(
