@@ -490,13 +490,7 @@ struct EntityEditorView: View {
             VStack(alignment: .leading, spacing: 16) {
                 fieldLabeled(String(localized: "Type")) {
                     if typeSize.isAccessibilitySize {
-                        Picker("Type", selection: $feedingType) {
-                            ForEach(FeedingType.allCases, id: \.self) { type in
-                                Text(type.label).tag(type)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .tint(BBColor.brandAccent)
+                        menuField(options: FeedingType.allCases, selection: $feedingType) { $0.label }
                     } else {
                         BBSegmentedControl(selection: $feedingType,
                                            options: FeedingType.allCases) { $0.shortLabel }

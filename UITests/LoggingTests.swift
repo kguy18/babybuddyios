@@ -266,11 +266,11 @@ final class LoggingTests: UITestCase {
         launch(largestText: true)
         openEditor("Feeding")
         expect(app.navigationBars["New Feeding"])
-        let picker = app.buttons.labeled("Type,")
+        let picker = app.buttons["Breast Milk"]
         reveal(picker, in: app.scrollViews["screen-editor"])
         tap(picker)
         tap(app.buttons["Fortified Breast Milk"])
-        XCTAssertTrue(app.buttons.labeled("Type, Fortified Breast Milk").exists)
+        XCTAssertTrue(app.buttons["Fortified Breast Milk"].exists)
         let save = app.buttons["Save Feeding"]
         reveal(save, in: app.scrollViews["screen-editor"])
         tap(save)

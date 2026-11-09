@@ -211,8 +211,16 @@ struct StopTimerSheet: View {
                     VStack(spacing: 14) { secondaryActions }
                 } else {
                     ViewThatFits(in: .horizontal) {
-                        HStack(spacing: 16) { secondaryActions }
-                            .fixedSize(horizontal: true, vertical: false)
+                        HStack {
+                            Button("Resume timer") { onResume() }
+                                .foregroundStyle(BBColor.brandAccent)
+                            Spacer(minLength: 12)
+                            Button("Restart from now") { setStart(.now); onResume() }
+                                .foregroundStyle(BBColor.brandAccent)
+                            Spacer(minLength: 12)
+                            Button("Discard timer", role: .destructive) { onDiscard() }
+                                .foregroundStyle(BBColor.danger)
+                        }
                         VStack(spacing: 14) { secondaryActions }
                     }
                 }
