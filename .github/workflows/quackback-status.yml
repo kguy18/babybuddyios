@@ -5,9 +5,11 @@ name: Quackback status
 # as completed. Closed as not planned leaves them alone and says so in the job summary. Only
 # Publish Release sets Shipped, and nothing here moves a post back from Shipped.
 # A line counts in the body of an issue the owner or a collaborator opened, or in a comment one of
-# them wrote on any issue, so a request can be linked to an issue a stranger opened.
-# scripts/quackback.mjs holds the rules; Quackback's own GitHub status sync is off so the two
-# can't fight.
+# them wrote on any issue, so a request can be linked to an issue a stranger opened. Text from
+# github-actions[bot] counts too: Quackback planned opens issues as that bot. Those issues' own
+# events start no workflow, but closing one does, and its lines then set Complete.
+# Quackback PRs moves requests to In Progress and back. scripts/quackback.mjs holds the rules;
+# Quackback's own GitHub status sync is off so the two can't fight.
 
 on:
   issues:
@@ -27,17 +29,19 @@ permissions:
 jobs:
   status:
     name: status
-    # Only text written by someone with access names a request; the script checks again. A
-    # stranger's issue still runs on a close or reopen, for its trusted comments. Comments on PRs,
-    # and bodies and comments with no `Quackback:` line, skip here.
+    # Only text written by someone with access, or by this repository's workflows, names a request;
+    # the script checks again. A stranger's issue still runs on a close or reopen, for its trusted
+    # comments. Comments on PRs, and bodies and comments with no `Quackback:` line, skip here.
     if: >-
       (github.event_name == 'issues' &&
         (github.event.action == 'closed' || github.event.action == 'reopened' ||
           (contains(github.event.issue.body, 'Quackback:') &&
-            contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.issue.author_association)))) ||
+            (contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.issue.author_association) ||
+              (github.event.issue.user.login == 'github-actions[bot]' && github.event.issue.user.type == 'Bot'))))) ||
       (github.event_name == 'issue_comment' && !github.event.issue.pull_request &&
         contains(github.event.comment.body, 'Quackback:') &&
-        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association))
+        (contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) ||
+          (github.event.comment.user.login == 'github-actions[bot]' && github.event.comment.user.type == 'Bot')))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -67,7 +71,7 @@ jobs:
           NUMBER: ${{ github.event.issue.number }}
         run: |
           gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments" \
-            --jq '.[] | {author_association, body} | tojson' > "$RUNNER_TEMP/comments.jsonl"
+            --jq '.[] | {author_association, body, user: {login: .user.login, type: .user.type}} | tojson' > "$RUNNER_TEMP/comments.jsonl"
       - name: Set the requests' status
         if: steps.sender.outputs.allowed != 'false'
         env:

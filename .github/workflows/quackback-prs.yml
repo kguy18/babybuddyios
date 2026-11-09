@@ -1,0 +1,48 @@
+name: Quackback PRs
+
+# Moves the feedback.babybuddy.app requests a PR links as the PR moves. A PR links a request when
+# it closes an issue that names it, or carries a `Quackback: post_<id>` line in its body or in a
+# comment. Its body, and the issues it closes, count only when the owner or a collaborator opened
+# it; a comment counts when one of them wrote it.
+#
+# - Opened, reopened, edited, or ready for review, drafts included: In Progress, but only from
+#   Open, Under Review, or Planned.
+# - Merged: Complete for the requests its own lines name. The issues it closes go Complete through
+#   Quackback status.
+# - Closed unmerged: back to Planned, but only from In Progress, and not while another open PR
+#   links the request.
+#
+# scripts/quackback.mjs holds the rules (`pr`). It runs on pull_request_target so a fork's PR
+# gets the key too, which is why this job checks out the base branch only and never the PR's
+# head: everything it reads from the PR is data, through the API.
+
+on:
+  pull_request_target:
+    types: [opened, reopened, edited, ready_for_review, closed]
+
+# Issues and PRs share numbers, so this queues behind Quackback status for the same number too.
+concurrency:
+  group: quackback-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: read   # the PR's comments and the issues it closes
+  issues: read
+
+jobs:
+  status:
+    name: status
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # The base branch, never github.event.pull_request.head.
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set the requests' status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          QUACKBACK_API_KEY: ${{ secrets.QUACKBACK_API_KEY }}
+        run: node scripts/quackback.mjs pr "$GITHUB_EVENT_PATH"
