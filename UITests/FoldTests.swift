@@ -53,9 +53,29 @@ final class FoldTests: UITestCase {
 
         tap(rows.element(boundBy: 0))
         tap(app.buttons["Delete"])
-        tap(app.alerts.buttons["Delete"])
+        let confirmation = expect(app.otherElements["Delete this feeding?"])
+        XCTAssertFalse(app.alerts.firstMatch.exists, "Pane deletion should stay inside the editor")
+        tap(confirmation.buttons["Cancel"])
+        expectGone(confirmation)
+        XCTAssertEqual(rows.count, 2, "Cancel should keep the feeding")
+        tap(app.buttons["Delete"])
+        tap(confirmation.buttons["Delete"])
         expect(empty)
         XCTAssertEqual(rows.count, 1, "Delete should remove the repeated feeding")
+    }
+
+    func testDeleteConfirmationStaysInThePaneAtTheLargestText() throws {
+        try launchOpen(["BB_START_TAB": "timeline"], largestText: true)
+        let row = elements("label BEGINSWITH 'Feeding, ' AND label CONTAINS 'tags: hungry, night'").firstMatch
+        tap(row)
+        tap(app.buttons["Delete"])
+        let confirmation = expect(app.otherElements["Delete this feeding?"])
+        XCTAssertFalse(app.alerts.firstMatch.exists)
+        XCTAssertGreaterThan(confirmation.frame.minX, app.windows.firstMatch.frame.midX,
+                             "The confirmation should stay right of the fold")
+        tap(confirmation.buttons["Cancel"])
+        expectGone(confirmation)
+        XCTAssertTrue(row.exists, "Cancel should keep the record")
     }
 
     /// The support nudge comes up at the bottom of the pane right of the fold rather than as a card
@@ -82,6 +102,36 @@ final class FoldTests: UITestCase {
         let when = expect(app.staticTexts["WHEN"]), tags = expect(app.staticTexts["TAGS"])
         XCTAssertEqual(tags.frame.minX, when.frame.minX, accuracy: 1, "Tags should sit under When")
         XCTAssertGreaterThan(tags.frame.minY, when.frame.maxY, "Tags should sit under When")
+    }
+
+    func testTimerSheetsKeepOneColumnAtTheLargestText() throws {
+        try launchOpen(largestText: true)
+        tap(app.buttons["Stop"])
+        expect(app.navigationBars["Stop Timer"])
+        let stopScroll = app.scrollViews["screen-stop-timer"]
+        let feeding = app.buttons["Feeding"]
+        reveal(feeding, in: stopScroll)
+        let sleep = expect(app.buttons["Sleep"])
+        XCTAssertGreaterThan(sleep.frame.minY, feeding.frame.maxY)
+        let resume = app.buttons["Resume timer"]
+        reveal(resume, in: stopScroll)
+        XCTAssertGreaterThan(resume.frame.minY, app.buttons["Pumping"].frame.maxY)
+        tap(resume)
+        expectGone(app.navigationBars["Stop Timer"])
+
+        tap(app.buttons["Add"])
+        tap(app.buttons["Start timer"])
+        expect(app.navigationBars["Start Timer"])
+        let startScroll = app.scrollViews["screen-start-timer"]
+        XCTAssertGreaterThan(app.buttons["Sleep"].frame.minY, app.buttons["Feeding"].frame.maxY)
+        reveal(app.buttons["Sleep"], in: startScroll)
+        tap(app.buttons["Sleep"])
+        let start = app.buttons["Start sleep timer"]
+        reveal(start, in: startScroll)
+        XCTAssertGreaterThan(start.frame.minY, app.buttons["Pumping"].frame.maxY)
+        tap(start)
+        expectGone(app.navigationBars["Start Timer"])
+        expect(element(labeled: "Sleep running"))
     }
 
     /// Each sheet takes two columns, or for Add Activity one row of six per group.

@@ -218,6 +218,16 @@ class UITestCase: XCTestCase {
         tap(app.buttons["PopoverDismissRegion"])
     }
 
+    /// Scrolls a sheet until a control is visible, with a bound so a missing control fails.
+    func reveal(_ element: XCUIElement, in scrollView: XCUIElement,
+                file: StaticString = #filePath, line: UInt = #line) {
+        for _ in 0..<10 {
+            if element.exists && element.isHittable { return }
+            scrollView.swipeUp()
+        }
+        XCTAssertTrue(element.isHittable, "The control should be reachable by scrolling", file: file, line: line)
+    }
+
     /// Home ▸ "+" ▸ More… ▸ `kind`. Not the quick-add rows: those log in one tap once #78 lands.
     func openEditor(_ kind: String) {
         tap(app.buttons["Add"])

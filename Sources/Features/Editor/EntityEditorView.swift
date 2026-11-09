@@ -100,6 +100,7 @@ struct EntityEditorView: View {
     @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "medication" }) private var medications: [LocalEntity]
 
     @State private var confirmingDelete = false
+    @State private var confirmingPaneDelete = false
     @State private var wide = false
     /// The queued write for this record that the server refused, if any. Drives the sync banner.
     @State private var blockedMutation: PendingMutation?
@@ -141,7 +142,7 @@ struct EntityEditorView: View {
                     close()
                 }
             }
-            Button("Delete", systemImage: "trash", role: .destructive) { confirmingDelete = true }
+            Button("Delete", systemImage: "trash", role: .destructive) { requestDelete() }
                 .tint(BBColor.danger)
         }
     }
@@ -163,6 +164,24 @@ struct EntityEditorView: View {
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 28)
+        }
+        .safeAreaInset(edge: .top) {
+            if onClose != nil, confirmingPaneDelete {
+                BBCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Delete this \(kind.sentenceName)?").font(.headline)
+                        Button("Delete", role: .destructive, action: delete)
+                            .buttonStyle(BBFilledButton(background: BBColor.danger, foreground: .white))
+                        Button("Cancel") { confirmingPaneDelete = false }
+                            .buttonStyle(.bbTinted)
+                    }
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Delete this \(kind.sentenceName)?")
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(BBColor.surface)
+            }
         }
         .trackingWide($wide)
         .background(BBColor.surface)
@@ -470,8 +489,18 @@ struct EntityEditorView: View {
         BBCard(cornerRadius: BBRadius.tile) {
             VStack(alignment: .leading, spacing: 16) {
                 fieldLabeled(String(localized: "Type")) {
-                    BBSegmentedControl(selection: $feedingType,
-                                       options: FeedingType.allCases) { $0.shortLabel }
+                    if typeSize.isAccessibilitySize {
+                        Picker("Type", selection: $feedingType) {
+                            ForEach(FeedingType.allCases, id: \.self) { type in
+                                Text(type.label).tag(type)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .tint(BBColor.brandAccent)
+                    } else {
+                        BBSegmentedControl(selection: $feedingType,
+                                           options: FeedingType.allCases) { $0.shortLabel }
+                    }
                 }
                 fieldLabeled(String(localized: "Method")) {
                     menuField(options: FeedingMethod.allCases, selection: $feedingMethod) { $0.label }
@@ -537,9 +566,12 @@ struct EntityEditorView: View {
             VStack(alignment: .leading, spacing: 16) {
                 fieldLabeled(String(localized: "Name")) { plainField(String(localized: "Name"), text: $medName) }
                 fieldLabeled(String(localized: "Dosage")) {
-                    HStack(spacing: 10) {
+                    let layout = typeSize.isAccessibilitySize
+                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(spacing: 10))
+                    layout {
                         numericField(text: $dosage, unit: nil)
-                        plainField(String(localized: "Unit"), text: $dosageUnit).frame(width: 92)
+                        plainField(String(localized: "Unit"), text: $dosageUnit)
+                            .frame(width: typeSize.isAccessibilitySize ? nil : 92)
                     }
                 }
                 fieldLabeled(String(localized: "Next dose after")) {
@@ -743,7 +775,7 @@ struct EntityEditorView: View {
             }
 
             if isEditing {
-                Button(role: .destructive) { confirmingDelete = true } label: {
+                Button(role: .destructive) { requestDelete() } label: {
                     Label("Delete \(kind.displayName)", systemImage: "trash")
                 }
                 .buttonStyle(BBFilledButton(background: BBColor.danger, foreground: .white))
@@ -971,6 +1003,10 @@ struct EntityEditorView: View {
         Task { await sync.sync() }
         Task { await liveActivity.reconcile() } // start the Live Activity for the new timer
         close()
+    }
+
+    private func requestDelete() {
+        if onClose != nil { confirmingPaneDelete = true } else { confirmingDelete = true }
     }
 
     private func delete() {

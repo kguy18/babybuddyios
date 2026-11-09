@@ -12,6 +12,8 @@ struct StopTimerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     let timer: LocalEntity
     let onLog: (EntityKind) -> Void
     let onResume: () -> Void
@@ -28,7 +30,9 @@ struct StopTimerSheet: View {
 
     /// The convertible activities — same set as the Start Timer grid.
     private let activities: [EntityKind] = [.feeding, .sleep, .tummyTime, .pumping]
-    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+    private var columns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 12), count: typeSize.isAccessibilitySize ? 1 : 2)
+    }
 
     init(timer: LocalEntity, onLog: @escaping (EntityKind) -> Void, onResume: @escaping () -> Void,
          onDiscard: @escaping () -> Void) {
@@ -43,26 +47,26 @@ struct StopTimerSheet: View {
         NavigationStack {
             ScrollView {
                 // On iPhone Duo's open display: what happened left, what to do with it right.
-                HStack(alignment: .top, spacing: 14) {
-                    VStack(alignment: .leading, spacing: 18) {
-                        summaryCard
-                        SectionHeader(String(localized: "Log as"))
-                        LazyVGrid(columns: columns, spacing: 12) {
-                            ForEach(activities) { kind in
-                                ActivityPickTile(kind: kind, isSelected: selected == kind) {
-                                    selected = (selected == kind) ? nil : kind
-                                }
-                                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).midY } action: {
-                                    guard kind == activities.first else { return }
-                                    firstTileMid = $0
-                                }
+                SheetColumns(wide: wide) {
+                    summaryCard
+                    SectionHeader(String(localized: "Log as"))
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        ForEach(activities) { kind in
+                            ActivityPickTile(kind: kind, isSelected: selected == kind) {
+                                selected = (selected == kind) ? nil : kind
+                            }
+                            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).midY } action: {
+                                guard kind == activities.first else { return }
+                                firstTileMid = $0
                             }
                         }
                     }
-                    if wide { actions.frame(maxWidth: .infinity) }
+                } trailing: {
+                    if wide || typeSize.isAccessibilitySize { actions }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
+                .padding(.bottom, typeSize.isAccessibilitySize ? 16 : 0)
             }
             .trackingWide($wide)
             // The open display: the tiles fill the left column, and half height cuts them off.
@@ -70,12 +74,13 @@ struct StopTimerSheet: View {
             .task(id: actionsTop) { await openTallEnough() }
             .background(BBColor.surface)
             .navigationTitle("Stop Timer")
+            .accessibilityIdentifier("screen-stop-timer")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
             }
             .safeAreaInset(edge: .bottom) {
-                if !wide {
+                if !wide && !typeSize.isAccessibilitySize {
                     actions
                         .padding(.horizontal, 16)
                         .padding(.top, 10)
@@ -85,7 +90,10 @@ struct StopTimerSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large], selection: $detent)
+        .presentationDetents(typeSize.isAccessibilitySize ? [.large] : [.medium, .large], selection: $detent)
+        .onChange(of: typeSize, initial: true) {
+            if typeSize.isAccessibilitySize { detent = .large }
+        }
     }
 
     /// Opens the sheet full height when less than half of the first row of "Log as" tiles shows at
@@ -198,22 +206,30 @@ struct StopTimerSheet: View {
                 .disabled(selected == nil)
                 .opacity(selected == nil ? 0.5 : 1)
 
-            let layout = wide ? AnyLayout(VStackLayout(spacing: 14)) : AnyLayout(HStackLayout())
-            layout {
-                Button("Resume timer") { onResume() }
-                    .foregroundStyle(BBColor.brandAccent)
-                if !wide { Spacer() }
-                // Started by mistake: it runs on from now instead of the original start.
-                Button("Restart from now") { setStart(.now); onResume() }
-                    .foregroundStyle(BBColor.brandAccent)
-                if !wide { Spacer() }
-                Button("Discard timer", role: .destructive) { onDiscard() }
-                    .foregroundStyle(BBColor.danger)
+            Group {
+                if wide || typeSize.isAccessibilitySize {
+                    VStack(spacing: 14) { secondaryActions }
+                } else {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 16) { secondaryActions }
+                            .fixedSize(horizontal: true, vertical: false)
+                        VStack(spacing: 14) { secondaryActions }
+                    }
+                }
             }
             .font(.subheadline.weight(.medium))
-            .lineLimit(1).minimumScaleFactor(0.8)
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.vertical, 4)
         }
+    }
+
+    @ViewBuilder private var secondaryActions: some View {
+        Button("Resume timer") { onResume() }
+            .foregroundStyle(BBColor.brandAccent)
+        Button("Restart from now") { setStart(.now); onResume() }
+            .foregroundStyle(BBColor.brandAccent)
+        Button("Discard timer", role: .destructive) { onDiscard() }
+            .foregroundStyle(BBColor.danger)
     }
 
     private var logTitle: String {

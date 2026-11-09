@@ -12,6 +12,8 @@ struct StartTimerSheet: View {
     @Environment(LiveActivityManager.self) private var liveActivity
     @Environment(\.dismiss) private var dismiss
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     let childID: Int
     @State private var name = ""
     @State private var selected: EntityKind?
@@ -23,7 +25,9 @@ struct StartTimerSheet: View {
     /// The convertible activities a timer can become — same set as the dashboard's convert menu.
     private let activities: [EntityKind] = [.feeding, .sleep, .tummyTime, .pumping]
 
-    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+    private var columns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 12), count: typeSize.isAccessibilitySize ? 1 : 2)
+    }
 
     var body: some View {
         NavigationStack {
@@ -42,10 +46,11 @@ struct StartTimerSheet: View {
                     detailsCard
                     Text("The timer counts up from its start until you stop it.")
                         .font(.caption).foregroundStyle(.secondary)
-                    if wide { startButtons }
+                    if wide || typeSize.isAccessibilitySize { startButtons }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
+                .padding(.bottom, typeSize.isAccessibilitySize ? 16 : 0)
             }
             .trackingWide($wide)
             .background(BBColor.surface)
@@ -56,7 +61,7 @@ struct StartTimerSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
             .safeAreaInset(edge: .bottom) {
-                if !wide {
+                if !wide && !typeSize.isAccessibilitySize {
                     startButtons
                         .padding(.horizontal, 16)
                         .padding(.top, 10)
@@ -83,9 +88,11 @@ struct StartTimerSheet: View {
                 Rectangle().fill(BBColor.divider).frame(height: 1).padding(.leading, 15)
 
                 VStack(spacing: 10) {
-                    HStack {
+                    let layout = typeSize.isAccessibilitySize
+                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout())
+                    layout {
                         Text("Starts").font(.subheadline).foregroundStyle(.secondary)
-                        Spacer()
+                        if !typeSize.isAccessibilitySize { Spacer() }
                         DatePicker(String(localized: "Starts"), selection: Binding(
                             get: { startDate() },
                             set: { customStart = min($0, .now); minutesBack = nil }
@@ -94,8 +101,22 @@ struct StartTimerSheet: View {
                             .datePickerStyle(.compact)
                             .tint(BBColor.brandAccent)
                     }
-                    BBSegmentedControl(selection: $minutesBack, options: [0, 5, 15, 30]) { minutes in
-                        minutes == 0 ? String(localized: "Now") : "−\(minutes ?? 0) min"
+                    if typeSize.isAccessibilitySize {
+                        Picker("Starts", selection: $minutesBack) {
+                            if minutesBack == nil {
+                                Text("Custom").tag(nil as Int?)
+                            }
+                            ForEach([0, 5, 15, 30], id: \.self) { minutes in
+                                Text(minutes == 0 ? String(localized: "Now") : "−\(minutes) min")
+                                    .tag(Optional(minutes))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .tint(BBColor.brandAccent)
+                    } else {
+                        BBSegmentedControl(selection: $minutesBack, options: [0, 5, 15, 30]) { minutes in
+                            minutes == 0 ? String(localized: "Now") : "−\(minutes ?? 0) min"
+                        }
                     }
                 }
                 .padding(.horizontal, 15).padding(.vertical, 11)
