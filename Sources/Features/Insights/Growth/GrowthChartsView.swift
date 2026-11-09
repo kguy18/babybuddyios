@@ -123,7 +123,6 @@ private struct GrowthChartCard: View {
                 .accessibilityIdentifier("growth-details-\(metric.rawValue)")
             }
         }
-        .accessibilityIdentifier("growth-card-\(metric.rawValue)")
     }
 }
 

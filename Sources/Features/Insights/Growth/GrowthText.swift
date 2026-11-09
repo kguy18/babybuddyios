@@ -1,8 +1,7 @@
 import Foundation
 
-/// A feature-owned table keeps this contribution independent of the German localization PR.
 func growthText(_ key: String) -> String {
-    String(localized: String.LocalizationValue(key), table: "Growth")
+    String(localized: String.LocalizationValue(key))
 }
 
 extension GrowthMetric {

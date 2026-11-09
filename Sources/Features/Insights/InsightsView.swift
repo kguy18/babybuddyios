@@ -67,6 +67,7 @@ struct InsightsView: View {
             }
             .background(BBColor.surface)
             .navigationTitle("Trends")
+            .accessibilityIdentifier("screen-trends")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ChildSwitcher(children: children, selectedChildID: $selectedChildID) }
             .refreshable { await sync.sync() }

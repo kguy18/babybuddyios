@@ -14,7 +14,7 @@ final class GrowthChartsTests: UITestCase {
         let settings = app.buttons["growth-settings"]
         reveal(settings)
         tap(settings)
-        toggle(app.switches["growth-units-confirmed"], to: "1")
+        toggle(app.switches["growth-units-confirmed"].switches.firstMatch, to: "1")
         back(from: "Growth settings")
 
         let weight = app.buttons["growth-details-weight"]
@@ -78,8 +78,8 @@ final class GrowthChartsTests: UITestCase {
 
     func testSwitchingChildrenDoesNotShowAnotherChildsGrowth() {
         launch(["BB_START_TAB": "trends", "BB_SEED_GROWTH": "1", "BB_SEED_SECOND_CHILD": "1"])
-        tap(app.buttons.labeled("Current child, Maya Guy"))
-        tap(app.buttons["Leo Guy"])
+        tap(app.buttons.labeled("Current child, Maya Rivers"))
+        tap(app.buttons["Leo Rivers"])
         let weight = app.buttons["growth-details-weight"]
         reveal(weight)
         tap(weight)

@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.filter.outputs.code }}
+      duo-ui: ${{ steps.filter.outputs.duo-ui }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,6 +35,15 @@ jobs:
             echo "code=true" >> "$GITHUB_OUTPUT"; echo "touches $CODE (and maybe more): building"
           else
             echo "code=false" >> "$GITHUB_OUTPUT"; echo "docs-only PR: skipping the macOS build"
+          fi
+          # The seven Duo UI shards run only when a PR changes what they test or how they run.
+          # A version bump, release notes or a tooling change gets `duo (unit)` and `duo (open)`.
+          APP=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
+                | grep -E '^(Sources|Widgets|UITests)/|^scripts/ui-test\.sh$|^\.github/workflows/pr\.yml$' | head -1)
+          if [ -n "$APP" ]; then
+            echo "duo-ui=true" >> "$GITHUB_OUTPUT"; echo "touches $APP (and maybe more): running the Duo UI shards"
+          else
+            echo "duo-ui=false" >> "$GITHUB_OUTPUT"; echo "no app or UI test change: skipping the Duo UI shards"
           fi
       # Sharding the UI suite means a class nobody assigned to a shard simply never runs, and a
       # green tick is exactly what that looks like. This is the guard: each sharded job (ui, duo)
@@ -164,11 +174,11 @@ jobs:
           - shard: logging
             classes: LoggingTests SickModeTests TodayTilesTests
           - shard: timers
-            classes: LiveActivityTests SmokeTests TimerTests FoldTests
+            classes: LiveActivityTests SmokeTests TimerTests FoldTests ActivityForecastUITests
           - shard: timeline
-            classes: TimelineTests DialogTests SyncTests ReassignChildTests
+            classes: TimelineTests DialogTests SyncTests ReassignChildTests GermanLocalizationTests PortugueseLocalizationTests
           - shard: settings
-            classes: NotificationTests SettingsTests FeedbackTests FeedbackAccountTests DashboardTests GermanLocalizationTests GrowthChartsTests
+            classes: NotificationTests SettingsTests FeedbackTests FeedbackAccountTests DashboardTests GrowthChartsTests
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/ios-setup
@@ -246,6 +256,10 @@ jobs:
   # Building takes this image about 12 minutes, so `duo (build)` builds the UI tests once and the
   # seven shards run that build. With a build each, the shards ran 28 minutes against the 30-minute
   # cap, and the whole suite in one job ran past 85.
+  #
+  # The shards are most of the Duo lane's runner time, so they run only on a PR that touches
+  # Sources/, Widgets/, UITests/, scripts/ui-test.sh or this file (`changes` sets `duo-ui`). Every
+  # other code PR still gets `duo (unit)` and `duo (open)`.
   duo-unit:
     name: duo (unit)
     needs: [changes, build-and-test]
@@ -333,7 +347,7 @@ jobs:
   duo:
     name: duo (${{ matrix.shard }})
     needs: [changes, duo-build]
-    if: ${{ !cancelled() && needs.duo-build.result == 'success' }}
+    if: ${{ !cancelled() && needs.duo-build.result == 'success' && needs.changes.outputs.duo-ui == 'true' }}
     runs-on: xcode-27
     timeout-minutes: 30
     strategy:
@@ -347,9 +361,9 @@ jobs:
           - shard: logging
             classes: LoggingTests
           - shard: settings
-            classes: SettingsTests NotificationTests DashboardTests GermanLocalizationTests GrowthChartsTests
+            classes: SettingsTests NotificationTests DashboardTests GermanLocalizationTests PortugueseLocalizationTests GrowthChartsTests
           - shard: dialogs
-            classes: DialogTests SyncTests ReassignChildTests
+            classes: DialogTests SyncTests ReassignChildTests ActivityForecastUITests
           - shard: timers
             classes: TimerTests LiveActivityTests SmokeTests
           - shard: timeline

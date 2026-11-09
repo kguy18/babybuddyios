@@ -60,10 +60,66 @@ final class CustomHeaderTests: XCTestCase {
         }
     }
 
-    func testAValueWithALineBreakIsRejected() {
-        XCTAssertThrowsError(try CustomHeader.validated([CustomHeader(name: "X-Gate", value: "a\r\nHost: evil")])) {
-            XCTAssertEqual($0 as? CustomHeader.Problem, .invalidValue("X-Gate"))
+    /// #241: a line break or a tab inside a pasted value can't be seen in a single-line field, so
+    /// it's removed rather than refused. A line break can't smuggle a second header in: there's
+    /// nothing left to separate it.
+    func testControlCharactersInsideAValueAreRemoved() throws {
+        let rows = try CustomHeader.validated([
+            CustomHeader(name: "X-Gate", value: "a\r\nHost: evil"),
+            CustomHeader(name: "X-Tab", value: "op\ten"),
+            CustomHeader(name: "X-Mixed", value: "o\u{0085}p\u{0}e\u{7F}n\n"),
+        ])
+        XCTAssertEqual(rows.map(\.value), ["aHost: evil", "open", "open"])
+    }
+
+    func testAnOrdinaryHeaderKeepsTheSpacesInsideItsValue() throws {
+        let rows = try CustomHeader.validated([CustomHeader(name: "X-Gate", value: " Bearer open ")])
+        XCTAssertEqual(rows, [CustomHeader(name: "X-Gate", value: "Bearer open")])
+    }
+
+    /// A service token never contains whitespace, so a space or line break that a wrapped copy
+    /// brought along comes out, whatever case the header name was saved in.
+    func testAServiceTokenLosesEveryWhitespaceInsideIt() throws {
+        let rows = try CustomHeader.validated([
+            CustomHeader(name: "CF-Access-Client-Id", value: "88bf3b6d\n86161464 f6509f72.access"),
+            CustomHeader(name: "cf-access-client-secret", value: " s3\tcr et\u{00A0}\n"),
+        ])
+        XCTAssertEqual(rows.map(\.value), ["88bf3b6d86161464f6509f72.access", "s3cret"])
+    }
+
+    /// #241: trimming drops a line break at either end of a value, but not a NUL or a DEL, so a
+    /// control character at the very end of an otherwise clean client ID survived Paste and failed
+    /// the old check while the field looked fine.
+    func testAControlCharacterAtTheEndOfAServiceTokenComesOut() {
+        for tail in ["\u{0}", "\u{7F}"] {
+            XCTAssertEqual(CustomHeader.cleaned(value: "88bf3b6d86161464f6509f72.access" + tail, for: "CF-Access-Client-Id"),
+                           "88bf3b6d86161464f6509f72.access")
         }
+    }
+
+    /// #241: the phones rejected a hand-typed ASCII client ID, and Foundation's
+    /// `CharacterSet.controlCharacters` is wrong on the iOS 26.5 simulator (it marks 24,735 plane-14
+    /// scalars that are neither Cc nor Cf as control), so cleaning goes by the standard library's
+    /// Unicode categories alone. Every printable ASCII character survives, and so does a scalar from
+    /// the range that set gets wrong.
+    func testCleaningKeepsEveryPrintableASCIICharacter() {
+        let printable = String(String.UnicodeScalarView((0x20...0x7E).map { Unicode.Scalar($0)! }))
+        XCTAssertEqual(CustomHeader.cleaned(value: printable, for: "X-Gate"),
+                       String(printable.dropFirst()), "only the leading space, at an end, goes")
+        XCTAssertEqual(CustomHeader.stripped(value: printable, for: "X-Gate"), printable)
+    }
+
+    func testCleaningKeepsAScalarFoundationMistakesForAControl() {
+        let value = "a\u{E0130}b"
+        XCTAssertEqual(CustomHeader.stripped(value: value, for: "X-Gate"), value)
+        XCTAssertEqual(CustomHeader.cleaned(value: value, for: "X-Gate"), value)
+    }
+
+    /// The same cleaning a value field runs as it changes: everything but the ends, which are
+    /// trimmed at save so a space being typed survives.
+    func testStrippingLeavesTheEndsOfAnOrdinaryValueAlone() {
+        XCTAssertEqual(CustomHeader.stripped(value: "Bearer \n", for: "X-Gate"), "Bearer ")
+        XCTAssertEqual(CustomHeader.stripped(value: "ab c ", for: "CF-Access-Client-Id"), "abc")
     }
 
     func testInvisibleFormatCharactersAreStripped() throws {
@@ -75,11 +131,11 @@ final class CustomHeaderTests: XCTestCase {
                               CustomHeader(name: "X-Gate", value: "open")])
     }
 
-    func testAnEmbeddedLineBreakIsStillRejectedAfterStripping() {
-        for value in ["\u{200B}a\nb", "a\u{FEFF}\rb", "a\u{0}b"] {
-            XCTAssertThrowsError(try CustomHeader.validated([CustomHeader(name: "X-Gate", value: value)])) {
-                XCTAssertEqual($0 as? CustomHeader.Problem, .invalidValue("X-Gate"))
-            }
+    /// A value that is nothing but hidden characters is a missing value, not a header with an
+    /// empty value.
+    func testAValueOfOnlyHiddenCharactersIsMissing() {
+        XCTAssertThrowsError(try CustomHeader.validated([CustomHeader(name: "X-Gate", value: "\u{200B}\n\t\r")])) {
+            XCTAssertEqual($0 as? CustomHeader.Problem, .missingValue("X-Gate"))
         }
     }
 
@@ -273,5 +329,41 @@ final class CustomHeaderTests: XCTestCase {
         XCTAssertEqual(AdvancedConfigurationSheet.steps(for: .unknown, host: "baby.example.com").count, 1)
         XCTAssertTrue(AdvancedConfigurationSheet.steps(for: .cloudflareAccess, host: "baby.example.com")[1]
             .contains("**baby.example.com**"))
+    }
+}
+
+/// #241: an attempt that fails before the probe must not keep the gate from the attempt before.
+/// Sign-in reopens Advanced configuration whenever a failed attempt left a gate behind, so a stale
+/// one put the sheet back over every validation error. `AppSession.probe` uses the shared session,
+/// so the stub is registered globally rather than installed on a session of its own.
+@MainActor
+final class StaleGateTests: XCTestCase {
+    override func setUp() {
+        _ = StubProtocol.install(["<html>Sign in at team.cloudflareaccess.com</html>"])
+        URLProtocol.registerClass(StubProtocol.self)
+    }
+
+    override func tearDown() { URLProtocol.unregisterClass(StubProtocol.self) }
+
+    func testAHeaderValidationFailureClearsTheGateFromTheTryBefore() async {
+        let session = AppSession()
+        let gated = await session.signIn(serverURL: "baby.example.com", token: "t")
+        XCTAssertFalse(gated)
+        XCTAssertEqual(session.lastGate, .cloudflareAccess)
+
+        let ok = await session.signIn(serverURL: "baby.example.com", token: "t",
+                                      headers: [CustomHeader(name: "", value: "x")])
+        XCTAssertFalse(ok)
+        XCTAssertNil(session.lastGate)
+        XCTAssertEqual(session.lastError, CustomHeader.Problem.missingName.message)
+    }
+
+    func testABadAddressClearsTheGateFromTheTryBefore() async {
+        let session = AppSession()
+        _ = await session.signIn(serverURL: "baby.example.com", token: "t")
+        XCTAssertEqual(session.lastGate, .cloudflareAccess)
+        let ok = await session.signIn(serverURL: "", token: "t")
+        XCTAssertFalse(ok)
+        XCTAssertNil(session.lastGate)
     }
 }

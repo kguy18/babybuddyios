@@ -23,8 +23,8 @@ An offline-first iOS client for a self-hosted [Baby Buddy](https://github.com/ba
 - **Publish Release** (`.github/workflows/publish-release.yml`, run by hand from `main`) publishes
   a version's draft GitHub Release on the commit of the build Apple shipped (its build tag),
   creating the `v<version>` tag there, rebuilds babybuddy.app, posts the notes to the feedback
-  site's changelog and sets the requests on the milestone to Shipped (AGENTS.md, "Feedback
-  requests"). It runs only once App Store
+  site's changelog, sets the requests on the milestone to Shipped (AGENTS.md, "Feedback
+  requests"), and closes the milestone. It runs only once App Store
   Connect reports the version `READY_FOR_DISTRIBUTION`. GitHub Releases carry notes and an App
   Store link, never a build. `node scripts/release.mjs status <version>` asks App Store Connect the
   same question locally, with `ASC_KEY_ID` and `ASC_ISSUER_ID` set.
@@ -80,6 +80,11 @@ release notes can be written from the milestone:
   and `build-and-test` doesn't wait for them, because a preview image can queue for a long time;
   they start once `build-and-test` is done, so they never hold a runner a required lane needs. A
   new UI test class goes in a shard of both `ui` and `duo`; the `changes` job fails until it does.
+- The seven Duo UI shards run only on a PR that touches `Sources/`, `Widgets/`, `UITests/`,
+  `scripts/ui-test.sh` or `pr.yml` (the `changes` job's `duo-ui` output). Any other code PR, such
+  as a version bump or a tooling change, still gets `duo (unit)` and `duo (open)`.
+- macOS jobs share one pool of five runners across both images, so a Duo job that started early
+  would hold a slot a required lane is waiting for. That is why the Duo jobs wait.
 - `release-notes` runs on every PR, docs-only ones included: `node scripts/release.mjs validate`
   checks that each version in `Docs/release-notes.md` has a non-empty `appstore` and `whatsnew`
   block and that the store text fits App Store Connect's 4,000 characters. It reports through
@@ -121,6 +126,9 @@ release notes can be written from the milestone:
   Apple ships a supported way to fold the simulator, and a new Xcode can break it. The Duo
   simulator is heavy on this Mac, so run one class or test locally
   (`scripts/ui-test.sh --duo-open -only-testing:BabyBuddyUITests/FoldTests`) and leave the lane to CI.
+- `UITests/Screenshots` holds the App Store screenshots. The global `/store-screenshots` skill runs
+  them through ascelerate and the `BabyBuddyScreenshots` scheme; no CI lane or `scripts/ui-test.sh`
+  run does. This repo is public, so their config, copy and final images stay out of it.
 - The keyboard covers the tab bar, so a tab tap with it up lands on a key: type `\n` first. An
   active search also hides the Timeline toolbar until its "Close" button ends it.
 - Notifications and Live Activities live outside the app, in SpringBoard: `UITestCase` has

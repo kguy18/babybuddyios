@@ -112,21 +112,28 @@ struct CustomHeaderFields: View {
                 removeButton(row.wrappedValue)
             }
             HStack(spacing: 8) {
+                // A password manager stores a service token as a login: the client ID is the
+                // username, the secret the password. Tagged, Password AutoFill fills each into its
+                // own field. The `onChange` cleaning below handles text that arrives any other way,
+                // typed or pasted, so a hidden tab or line break never sits in the field.
                 Group {
                     if preset.secret {
                         SecureField(preset.placeholder, text: row.value)
+                            .textContentType(.password)
                     } else {
                         TextField(preset.placeholder, text: row.value)
+                            .textContentType(.username)
                     }
                 }
-                .font(.system(size: 17))
+                .font(.body)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .accessibilityLabel(preset.label)
                 .focused($focus, equals: .value(row.wrappedValue.id))
                 .submitLabel(isLast(.value(row.wrappedValue.id)) ? .done : .next)
                 .onSubmit { advance(from: .value(row.wrappedValue.id)) }
-                pasteButton(into: row.value)
+                .onChange(of: row.wrappedValue.value) { clean(row) }
+                pasteButton(into: row)
             }
         }
     }
@@ -135,17 +142,23 @@ struct CustomHeaderFields: View {
         HStack(spacing: 10) {
             VStack(spacing: 10) {
                 TextField("Header name", text: row.name)
-                    .font(.system(size: 16).monospaced())
+                    // An empty content type opts the field out of AutoFill. Without it iOS takes
+                    // the text field above a password field for the username and offers to fill a
+                    // login's username in as the header name.
+                    .textContentType(UITextContentType(rawValue: ""))
+                    .font(.body.monospaced())
                     .focused($focus, equals: .name(row.wrappedValue.id))
                     .submitLabel(.next)
                     .onSubmit { advance(from: .name(row.wrappedValue.id)) }
                 HStack(spacing: 8) {
                     SecureField("Header value", text: row.value)
-                        .font(.system(size: 17))
+                        .textContentType(.password)
+                        .font(.body)
                         .focused($focus, equals: .value(row.wrappedValue.id))
                         .submitLabel(isLast(.value(row.wrappedValue.id)) ? .done : .next)
                         .onSubmit { advance(from: .value(row.wrappedValue.id)) }
-                    pasteButton(into: row.value)
+                        .onChange(of: row.wrappedValue.value) { clean(row) }
+                    pasteButton(into: row)
                 }
             }
             .textInputAutocapitalization(.never)
@@ -166,10 +179,19 @@ struct CustomHeaderFields: View {
         .accessibilityLabel("Remove header")
     }
 
-    private func pasteButton(into value: Binding<String>) -> some View {
+    /// Keeps a value free of the characters sign-in would drop anyway, so a line break or a tab
+    /// from a paste never sits invisibly in the field. The ends are trimmed at
+    /// save, not here, so a space being typed into an ordinary header's value survives.
+    private func clean(_ row: Binding<HeaderRow>) {
+        let typed = row.wrappedValue.value
+        let stripped = CustomHeader.stripped(value: typed, for: row.wrappedValue.name)
+        if stripped != typed { row.wrappedValue.value = stripped }
+    }
+
+    private func pasteButton(into row: Binding<HeaderRow>) -> some View {
         Button {
             if let clip = UIPasteboard.general.string {
-                value.wrappedValue = CustomHeader.withoutFormatCharacters(clip).trimmingCharacters(in: .whitespacesAndNewlines)
+                row.wrappedValue.value = CustomHeader.cleaned(value: clip, for: row.wrappedValue.name)
             }
         } label: {
             Label("Paste", systemImage: "doc.on.clipboard")
@@ -180,6 +202,8 @@ struct CustomHeaderFields: View {
                 .background(BBColor.brandTint, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
+        // "Paste" repeats down the sheet and on the sign-in screen behind it.
+        .accessibilityIdentifier("Paste \(row.wrappedValue.name)")
     }
 
     static let footnote = String(localized: "Sent with every request to your server, never to another address.")
@@ -196,6 +220,7 @@ struct AdvancedConfigurationSheet: View {
 
     @State private var draft: [HeaderRow]
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     init(rows: [HeaderRow], gate: AccessGate?, host: String, onSave: @escaping ([HeaderRow], Bool) -> Void) {
         self.gate = gate.flatMap { $0.acceptsHeaders ? $0 : nil }
@@ -226,14 +251,21 @@ struct AdvancedConfigurationSheet: View {
                         BBCard(cornerRadius: BBRadius.tile, padding: 0) {
                             CustomHeaderFields(rows: $draft, addTitle: draft.isEmpty ? String(localized: "Add header") : String(localized: "Add another header"))
                         }
+                        Text(CustomHeaderFields.footnote)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
                     }
+                    if typeSize.isAccessibilitySize { saveButton }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 20)
             }
             .background(BBColor.surface.ignoresSafeArea())
-            .safeAreaInset(edge: .bottom) { footer }
+            .safeAreaInset(edge: .bottom) {
+                if !typeSize.isAccessibilitySize { footer }
+            }
             .navigationTitle("Advanced configuration")
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
@@ -250,28 +282,28 @@ struct AdvancedConfigurationSheet: View {
         }
     }
 
+    /// Pinned under the content, except at accessibility sizes: there it would cover the sheet, so
+    /// Save scrolls with the content instead.
     private var footer: some View {
-        VStack(spacing: 8) {
-            Button {
-                onSave(draft, gate != nil)
-                dismiss()
-            } label: {
-                Label(gate == nil ? String(localized: "Save") : String(localized: "Save and try again"),
-                      systemImage: gate == nil ? "checkmark" : "arrow.clockwise")
-            }
-            .buttonStyle(.bbPrimary)
-            .disabled(gate != nil && !ready)
-            .opacity(gate != nil && !ready ? 0.5 : 1)
-            Text(CustomHeaderFields.footnote)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+        saveButton
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+            .background(BBColor.surface)
+            .overlay(alignment: .top) { Rectangle().fill(BBColor.fieldStroke).frame(height: 1) }
+    }
+
+    private var saveButton: some View {
+        Button {
+            onSave(draft, gate != nil)
+            dismiss()
+        } label: {
+            Label(gate == nil ? String(localized: "Save") : String(localized: "Save and try again"),
+                  systemImage: gate == nil ? "checkmark" : "arrow.clockwise")
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 12)
-        .padding(.bottom, 8)
-        .background(BBColor.surface)
-        .overlay(alignment: .top) { Rectangle().fill(BBColor.fieldStroke).frame(height: 1) }
+        .buttonStyle(.bbPrimary)
+        .disabled(gate != nil && !ready)
+        .opacity(gate != nil && !ready ? 0.5 : 1)
     }
 
     private func fixBox(_ gate: AccessGate) -> some View {
@@ -328,6 +360,7 @@ struct SignInTrace: View {
     let gate: AccessGate
     let host: String
     let ready: Bool
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     struct Hop: Equatable {
         enum Kind { case plain, stopped, gate, arrived }
@@ -409,20 +442,24 @@ struct SignInTrace: View {
                         .foregroundStyle(tint)
                 }
             VStack(alignment: .leading, spacing: 1) {
-                Text(hop.title).font(.body.weight(.semibold)).lineLimit(1)
+                Text(hop.title).font(.body.weight(.semibold)).lineLimit(2)
                 Text(hop.detail).font(.footnote).foregroundStyle(.secondary)
+                if hop.kind == .stopped, typeSize.isAccessibilitySize { stoppedPill }
             }
             Spacer(minLength: 4)
-            if hop.kind == .stopped {
-                Text("Stopped here")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(BBColor.danger)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 3)
-                    .background(BBColor.danger.opacity(0.12), in: Capsule())
-            }
+            if hop.kind == .stopped, !typeSize.isAccessibilitySize { stoppedPill }
         }
         .accessibilityElement(children: .combine)
+    }
+
+    private var stoppedPill: some View {
+        Text("Stopped here")
+            .font(.caption.weight(.bold))
+            .foregroundStyle(BBColor.danger)
+            .fixedSize()
+            .padding(.horizontal, 9)
+            .padding(.vertical, 3)
+            .background(BBColor.danger.opacity(0.12), in: Capsule())
     }
 }
 

@@ -124,6 +124,8 @@ targets:
       - path: Sources/Networking
       - path: Sources/Auth/KeychainStore.swift
       - path: Sources/Shared
+      - path: Sources/Resources/Forecast.xcstrings
+        buildPhase: resources
       - path: Sources/Analytics
     configFiles:
       Debug: Config/BabyBuddy.xcconfig
@@ -201,3 +203,14 @@ schemes:
     test:
       targets:
         - BabyBuddyUITests
+  # The App Store screenshots. ascelerate runs every test in the scheme, so this one holds only
+  # the screenshot test.
+  BabyBuddyScreenshots:
+    build:
+      targets:
+        BabyBuddy: all
+        BabyBuddyUITests: [test]
+    test:
+      targets:
+        - name: BabyBuddyUITests
+          selectedTests: [ScreenshotTests]

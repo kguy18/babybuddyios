@@ -5,8 +5,10 @@ import XCTest
 ///
 /// The stub (`BB_FEEDBACK_STUB`) stands in for Quackback: any email gets a code except one
 /// starting `busy@`, which hits the rate limit; the code `000000` and the password `wrong` are
-/// refused; anything else signs in. Its widget is signed in when the web view holds the session
-/// cookie the sign-in wrote, so these tests cover the hand-off too.
+/// refused; anything else signs in. Its widget is signed in when the app holds the session the
+/// sign-in wrote, so these tests cover the hand-off too. The stub keeps that session in memory;
+/// `FeedbackAccountTests.testSignInSurvivesARelaunchThroughWebKitsCookieStore` is the one test on
+/// WebKit's cookie store.
 final class FeedbackTests: UITestCase {
     /// Signed out, Get Help shows the sign-in in place of the chat, with Get Help's reason, and
     /// a code lands in the chat.
@@ -190,14 +192,16 @@ extension UITestCase {
         app.textFields["Code"].typeText("123456")
     }
 
-    /// How long the Feedback Account row can take to show. It waits on WebKit's cookie store, which
-    /// took from 8 to over 40 seconds after launch in a full local run, and over a minute on a cold
-    /// iPhone Duo simulator in CI.
+    /// How long the Feedback Account row can take to show when the stub keeps its session in
+    /// WebKit's cookie store (`BB_FEEDBACK_COOKIE_STORE=1`): the store's first read after launch
+    /// took from 8 to over 40 seconds in a full local run, and over a minute on a cold iPhone Duo
+    /// simulator in CI. Every other stubbed launch keeps the session in memory, and the row shows
+    /// at once.
     var cookieStoreTimeout: TimeInterval { 120 }
 
     /// Send Feedback ▸ Feedback Account, from its row.
     func openFeedbackAccount() {
-        tap(app.buttons.labeled("Feedback Account"), timeout: cookieStoreTimeout)
+        tap(app.buttons.labeled("Feedback Account"))
         expect(app.navigationBars["Feedback Account"])
     }
 }

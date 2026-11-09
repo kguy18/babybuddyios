@@ -3,7 +3,7 @@
 Trends previously queried sleep, feeding, changes, tummy time, pumping, temperature and
 medication. Weight, height and head circumference were already cached and synced, but were
 not part of that query or rendered as charts. This feature adds three native Swift Charts
-cards and read-only measurement details. It is independent of the German localization PR #206.
+cards and read-only measurement details.
 
 ## Data and units
 
@@ -83,10 +83,10 @@ It verifies complete ages 0–1856 for every table and selects columns by header
 
 ## Localization
 
-All 46 feature strings have English and German translations in the dedicated
-`Growth.xcstrings` table. Native number/date formatting follows the device locale.
-The feature does not modify the shared string catalog or require PR #206 to be merged.
-Other screens retain their upstream language behavior until that separate PR lands.
+The shared `Localizable.xcstrings` catalog contains English and German for all 46 growth
+strings. Common labels reuse existing entries, including their Brazilian Portuguese
+translations. Other growth strings follow the app's English fallback. Native number
+and date formatting follows the device locale.
 
 ## Verification
 
@@ -105,16 +105,12 @@ assertion harness. It needs Swift and Foundation, not XCTest or an iOS SDK. It c
 
 There are also 20 new XCTest methods, an extended sign-out cleanup test, and five new
 XCUITest methods for cards/details, units, periods, empty states, child switching and German.
-The UI class is included in the existing CI shard matrix.
+The UI class is included in both existing CI shard matrices.
 
-Local checks passed: the standalone core checks (55,988 assertions), 49 existing Node tests,
-release-note validation, string completeness, UI shard coverage, XcodeGen generation,
-project plist validation, Swift syntax parsing and `git diff --check`.
-
-**Not run locally:** an iOS app/widget build, hosted XCTest, XCUITest, simulator/device
-rendering, accessibility audit, or live-server integration. The machine has Apple Command
-Line Tools and Swift, but no full Xcode/iOS SDK; `xcodebuild -version` reports that Xcode is
-required. The Foundation harness does not verify SwiftUI/Charts compilation or rendering.
+Local verification covers the 55,988 core assertions, Node tests, release notes,
+catalogs, UI shard coverage, project generation, plist validation and Swift syntax.
+Use Xcode for the app and widget build, XCTest and the growth UI suite. See the
+[pull request](https://github.com/kguy18/babybuddyios/pull/207) for simulator test results.
 
 ## Maintainer device checklist
 

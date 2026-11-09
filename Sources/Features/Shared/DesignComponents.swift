@@ -129,9 +129,19 @@ struct RunningDot: View {
 
 /// A compact "today" stat: tinted glyph + label over a large tabular figure.
 struct MetricTile: View {
+    /// A line under the value. `spoken` is added to the tile's VoiceOver label.
+    struct Footer {
+        let label: String
+        let time: String
+        let spoken: String
+    }
+
     let kind: EntityKind
     let label: String
     let value: String
+    var footer: Footer?
+    /// Takes the row's height, so a tile without a footer matches the one beside it that has one.
+    var fillsRow = false
 
     var body: some View {
         BBCard(cornerRadius: BBRadius.tile, padding: 13) {
@@ -143,10 +153,23 @@ struct MetricTile: View {
                 }
                 Text(value).font(.title2.weight(.semibold)).monospacedDigit()
                     .minimumScaleFactor(0.7)
+                if let footer {
+                    VStack(spacing: 8) {
+                        Rectangle().fill(BBColor.divider).frame(height: 1)
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(footer.label).font(.caption).foregroundStyle(.secondary)
+                            Spacer(minLength: 0)
+                            Text(footer.time).font(.footnote.weight(.semibold)).monospacedDigit()
+                                .lineLimit(1).minimumScaleFactor(0.7)
+                        }
+                    }
+                    .padding(.top, 1)
+                }
             }
+            .frame(maxHeight: fillsRow ? .infinity : nil, alignment: .top)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(label), \(value)")
+        .accessibilityLabel(footer.map { "\(label), \(value), \($0.spoken)" } ?? "\(label), \(value)")
     }
 }
 
@@ -155,6 +178,7 @@ struct MetricTile: View {
 /// A single recent event: tinted tile, title + detail, and an absolute-over-relative time.
 struct EventRow: View {
     let entity: LocalEntity
+    private var recency: ActivityRecency { entity.activityRecency() }
     /// Watched so a temperature redraws in a unit picked in Settings.
     @AppStorage(TemperatureUnit.key, store: SharedDefaults.suite) private var unit: TemperatureUnit?
 
@@ -170,15 +194,18 @@ struct EventRow: View {
                 }
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(entity.timestamp.formatted(date: .omitted, time: .shortened))
+                    if let label = recency.rowLabel {
+                        Text(label).font(.caption2).foregroundStyle(.secondary)
+                    }
+                    Text(recency.date.formatted(date: .omitted, time: .shortened))
                         .font(.subheadline.weight(.semibold)).monospacedDigit()
-                    Text(entity.timestamp, format: .relative(presentation: .named))
+                    Text(recency.date, format: .relative(presentation: .named))
                         .font(.caption2).foregroundStyle(.tertiary)
                 }
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(EntityFormatting.accessibilityLabel(entity))
+        .accessibilityLabel(EntityFormatting.accessibilityLabel(entity, recency: recency))
     }
 }
 

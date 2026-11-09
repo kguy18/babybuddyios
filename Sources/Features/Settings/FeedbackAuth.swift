@@ -166,6 +166,14 @@ enum FeedbackAuth {
 @MainActor enum FeedbackSession {
     private static var store: WKHTTPCookieStore { WKWebsiteDataStore.default().httpCookieStore }
 
+    /// Under the UI-test stub the session lives in this process instead of WebKit's cookie store,
+    /// which takes seconds, and over a minute on a cold iPhone Duo simulator, to answer its first
+    /// read after launch. `BB_FEEDBACK_COOKIE_STORE=1` keeps the stub on the real store, for the one
+    /// test that checks a session outlives a relaunch.
+    private static let inMemory = FeedbackWidget.isStubbed
+        && ProcessInfo.processInfo.environment["BB_FEEDBACK_COOKIE_STORE"] != "1"
+    private static var memoryCookies: [HTTPCookie] = []
+
     /// Ephemeral, so it neither sends nor keeps cookies of its own, and it doesn't follow
     /// redirects, so a refusal arrives as the 3xx it is.
     private static let urlSession = URLSession(configuration: .ephemeral, delegate: NoRedirects(), delegateQueue: nil)
@@ -205,6 +213,7 @@ enum FeedbackAuth {
     /// Both cookie names, written before the widget reloads.
     static func save(_ session: FeedbackAuth.Session) async {
         feedbackTrace("saving session cookies")
+        if inMemory { memoryCookies = FeedbackAuth.cookies(for: session); return }
         for cookie in FeedbackAuth.cookies(for: session) {
             await store.setCookie(cookie)
             feedbackTrace("saved \(cookie.name)")
@@ -219,6 +228,7 @@ enum FeedbackAuth {
     }
 
     private static func storedSessionCookies() async -> [HTTPCookie] {
+        if inMemory { return memoryCookies }
         let host = FeedbackWidget.serverURL.host() ?? ""
         // Straight after launch, before WebKit has read its cookies from disk, `allCookies()` comes
         // back empty, which hid a saved session. Fetching the cookie records waits for that read.
@@ -229,6 +239,11 @@ enum FeedbackAuth {
         }
         feedbackTrace("cookie store: \(all.count) cookies, \(session.count) session")
         return session
+    }
+
+    private static func delete(_ cookies: [HTTPCookie]) async {
+        if inMemory { memoryCookies.removeAll(); return }
+        for cookie in cookies { await store.deleteCookie(cookie) }
     }
 
     static var isSignedIn: Bool {
@@ -261,7 +276,7 @@ enum FeedbackAuth {
             return .signedIn(email: email)
         case .ended:
             feedbackTrace("auth get session: ended, clearing the cookies")
-            for cookie in await sessionCookies() { await store.deleteCookie(cookie) }
+            await delete(await sessionCookies())
             return .signedOut
         case .unknown:
             feedbackTrace("auth get session: no answer")
@@ -273,7 +288,7 @@ enum FeedbackAuth {
     /// server says, so the next sheet opens signed out even offline.
     static func signOut() async {
         let cookies = await sessionCookies()
-        for cookie in cookies { await store.deleteCookie(cookie) }
+        await delete(cookies)
         if let value = cookies.first?.value { _ = await perform(.signOut(session: value)) }
     }
 
@@ -287,11 +302,15 @@ enum FeedbackAuth {
     static func resetForUITests() {
         let environment = ProcessInfo.processInfo.environment
         guard environment["BB_UITEST"] == "1", environment["BB_FEEDBACK_KEEP_SESSION"] != "1" else { return }
+        let stubSession = FeedbackAuth.Session(value: "stub.signature", expires: .now.addingTimeInterval(86_400))
+        if inMemory {
+            // A new process starts with no session, so there is nothing to clear.
+            if FeedbackWidget.stubMode == "signed-in" { memoryCookies = FeedbackAuth.cookies(for: stubSession) }
+            return
+        }
         uiTestReset = Task {
             for cookie in await storedSessionCookies() { await store.deleteCookie(cookie) }
-            if FeedbackWidget.stubMode == "signed-in" {
-                await save(FeedbackAuth.Session(value: "stub.signature", expires: .now.addingTimeInterval(86_400)))
-            }
+            if FeedbackWidget.stubMode == "signed-in" { await save(stubSession) }
         }
     }
 

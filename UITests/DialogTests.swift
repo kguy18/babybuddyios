@@ -161,6 +161,50 @@ final class DialogTests: UITestCase {
         XCTAssertFalse(app.buttons.labeled("Advanced configuration ·").exists, "Cancel kept the edits")
     }
 
+    /// #241: a Client ID copied from text that wrapped carries a line break the field can't show.
+    /// Paste drops it, and a space along with it, rather than refusing the value at Save.
+    /// `BB_PASTEBOARD` stands in for the copy: a write from this runner never reaches the app.
+    func testPastedServiceTokenLosesItsLineBreak() {
+        launch(["BB_GATE_PREVIEW": "cloudflareAccess", "BB_PASTEBOARD": "88bf3b6d8616\n1464f650 9f72.access\n"],
+               demo: false)
+        expect(app.navigationBars["Advanced configuration"])
+        // By identifier: "Paste" is also the API token's button on the sign-in screen behind the sheet.
+        tap(app.buttons["Paste CF-Access-Client-Id"])
+        expectValue(app.textFields["Client ID"], "88bf3b6d86161464f6509f72.access")
+    }
+
+    /// #241: a sign-in that fails before any request goes out shows its error on the sign-in
+    /// screen, once. Before, the gate from the try before was still recorded, so sign-in put
+    /// Advanced configuration straight back over the error, and Save and try again looped. The
+    /// address is left empty so the failure needs no server; a bad header fails the same way.
+    func testAValidationErrorDoesNotReopenAdvancedConfiguration() {
+        launch(["BB_GATE_PREVIEW": "cloudflareAccess"], demo: false)
+        let sheet = app.navigationBars["Advanced configuration"]
+        expect(sheet)
+        replaceText(app.textFields["Client ID"], with: "abc.access\n")
+        expect(app.secureTextFields["Client Secret"]).typeText("s3cret\n")
+        tap(app.buttons["Save and try again"])
+        expectGone(sheet)
+        expect(element(labeled: "That doesn't look like a valid server address"))
+        XCTAssertFalse(sheet.exists, "the error reopened Advanced configuration")
+    }
+
+    /// At the largest text size nothing is pinned over the sheet: Save and its note took half of it.
+    /// Both scroll with the content, and the fields grow with the text.
+    func testAdvancedConfigurationFitsTheLargestText() {
+        launch(["BB_GATE_PREVIEW": "cloudflareAccess"], demo: false, largestText: true)
+        expect(app.navigationBars["Advanced configuration"])
+        let field = expect(app.textFields["Client ID"])
+        let note = expect(app.staticTexts["Sent with every request to your server, never to another address."])
+        let save = expect(app.buttons["Save and try again"])
+        XCTAssertGreaterThan(note.frame.minY, field.frame.maxY, "The note should follow the fields")
+        XCTAssertGreaterThan(save.frame.minY, note.frame.maxY, "Save should follow the note")
+        XCTAssertGreaterThan(save.frame.maxY, app.windows.firstMatch.frame.maxY, "Save should scroll, not cover the sheet")
+        XCTAssertGreaterThan(field.frame.height, 40, "The field should grow with the text")
+        let stopped = app.staticTexts["Stopped here"]
+        XCTAssertGreaterThan(stopped.frame.width, stopped.frame.height, "\"Stopped here\" should fit on one line")
+    }
+
     /// #148: Settings lists the header names, and an edit that fails keeps the old set. A rejected
     /// name fails before the probe; the demo server's address would take a minute to time out.
     func testCustomHeaderEditInSettings() {

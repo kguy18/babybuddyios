@@ -78,9 +78,11 @@ on you.
 ## Feedback requests (Quackback)
 
 Feature requests and bug reports from users live on Quackback at
-https://feedback.babybuddy.app. An issue or PR belongs to a request when it has this line, one
-line per request, in the body of an issue or PR you opened, or in a comment you wrote on any
-issue (a comment on a PR counts only for Shipped):
+https://feedback.babybuddy.app. A request moves from Open to Planned, In Progress, Complete, and
+Shipped. Kurtis makes only the first move, to Planned, by hand, and the workflows make the rest.
+
+An issue or PR belongs to a request when it has this line, one line per request, in the body of an
+issue or PR you opened, or in a comment you wrote on any issue or PR:
 
 ```
 Quackback: post_01...
@@ -88,7 +90,12 @@ Quackback: post_01...
 
 The post ID is the `post=` value in the request's admin URL. Put the line on a line of its own;
 a mention inside a sentence doesn't count. To link a request to an issue a stranger opened,
-comment the line on it; never edit their body.
+comment the line on it; never edit their body. A PR also belongs to every request named by an
+issue it closes (`Closes #N`), when you opened the PR.
+
+`.github/workflows/quackback-planned.yml` runs every 15 minutes, and by hand. It opens a
+`feature-request` issue, with no milestone, for each request in Planned that no issue names yet,
+and skips the rest. It only reads Planned: a request that leaves Planned does nothing to its issue.
 
 `.github/workflows/quackback-status.yml` moves the request as the issue moves:
 
@@ -98,20 +105,30 @@ comment the line on it; never edit their body.
 - Closed as not planned: left alone. The job summary says so, and Kurtis decides what the request
   becomes.
 
+`.github/workflows/quackback-prs.yml` moves it as a PR moves:
+
+- Opened, reopened, edited, or ready for review, drafts included: **In Progress**, but only from
+  Open, Under Review, or Planned. A request already Complete or Shipped stays there.
+- Merged: **Complete** for the requests the PR's own lines name. The issues it closes go Complete
+  through their own close.
+- Closed without merging: back to **Planned**, but only from In Progress, and not while another
+  open PR links the request.
+
 Publish Release sets **Shipped** for every request named by an issue or PR on that version's
 milestone, after posting the version's `appstore` notes to the Quackback changelog as
-"Version <version>", dated with the GitHub Release. Shipped notifies the request's voters, and
-nothing moves a request back from Shipped.
+"Version <version>", dated with the GitHub Release, then closes the milestone. Shipped notifies
+the request's voters, and nothing moves a request back from Shipped.
 
-Only text by the owner or a collaborator counts: an issue body only if they opened the issue, and
-only their comments. A stranger's issue body is ignored, even on close. An unknown post ID
-fails the job. Quackback's own GitHub status sync stays off, so the two don't fight. The rules
-live in `scripts/quackback.mjs`, tested by `scripts/quackback.test.mjs`. The workflows read the
-admin key from the repo secret `QUACKBACK_API_KEY`.
+Only text by the owner, a collaborator, or this repo's own workflows (`github-actions[bot]`, which
+opens the Planned issues) counts: an issue or PR body only if one of them opened it, and only
+their comments. A stranger's body is ignored, even on close. An unknown post ID fails the job.
+Quackback's own GitHub status sync stays off, so the two don't fight. The rules live in
+`scripts/quackback.mjs`, tested by `scripts/quackback.test.mjs`. The workflows read the admin key
+from the repo secret `QUACKBACK_API_KEY`.
 
-To turn requests into a `feature-request` issue, run
+To turn requests into a `feature-request` issue by hand, run
 `node scripts/quackback.mjs open-issue <request>... [--to <issue>] [--milestone <version>] [--title "<text>"] [--dry-run]`.
-A request is a post ID, an admin URL or a public URL. It creates the issue as your `gh` login, so
+A request is a post ID, an admin URL, or a public URL. It creates the issue as your `gh` login, so
 the workflow trusts it, and stops if any issue already names a request, in its body or a comment.
 `--to` appends to an existing issue instead, or, when a stranger opened that issue, posts the
 requests as a new comment from you. Locally it reads the key from the login keychain
