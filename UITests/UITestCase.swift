@@ -229,6 +229,19 @@ class UITestCase: XCTestCase {
         tap(app.buttons[kind])
     }
 
+    /// Fails unless Home's scrolling content stops above the floating "+", which used to cover a
+    /// row's time and a running timer's Stop button. The pane is the tallest scroll view the "+"
+    /// sits under: on iPhone Duo's open display the timeline left of the fold is another.
+    func expectContentClearsAddButton(file: StaticString = #filePath, line: UInt = #line) {
+        let add = expect(app.buttons["Add"], file: file, line: line)
+        let pane = app.scrollViews.allElementsBoundByIndex
+            .filter { $0.frame.minX <= add.frame.midX && add.frame.midX <= $0.frame.maxX }
+            .max { $0.frame.height < $1.frame.height }
+        guard let pane else { return XCTFail("No scroll view above the + button", file: file, line: line) }
+        XCTAssertLessThanOrEqual(pane.frame.maxY, add.frame.minY + 1,
+                                 "Home's content should stop above the + button", file: file, line: line)
+    }
+
     /// Drags the open sheet's grabber to the top, for a sheet that opens at half height. A swipe on
     /// its content scrolls the content instead.
     func expandSheet() {

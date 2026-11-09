@@ -12,6 +12,7 @@ struct DashboardView: View {
     @Environment(PurchaseManager.self) private var purchases
     @Environment(AppLockManager.self) private var lock
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Binding var selectedChildID: Int
     @AppStorage(SharedDefaults.stalenessThresholdKey, store: SharedDefaults.suite)
     private var stalenessThresholdMinutes = SyncFreshness.defaultThresholdMinutes
@@ -133,6 +134,7 @@ struct DashboardView: View {
             }) {
                 AllActivitiesSheet(
                     showsSickMode: sickModeStart == nil,
+                    opensLarge: typeSize.isAccessibilitySize,
                     onPick: { kind in pendingAddKind = kind; showAllActivities = false },
                     onStartSickMode: {
                         sickMode.turnOn(selectedChildID, at: .now, source: .addSheet)
@@ -223,6 +225,9 @@ struct DashboardView: View {
 
     // MARK: Panes
 
+    /// The floating add button's height and its 16 pt margin, and a gap above it.
+    private static let addButtonBand: CGFloat = 58 + 16 + 8
+
     /// Home as a phone draws it. On iPhone Duo's open display it is the pane right of the fold,
     /// and in sick mode its running timers move to the side pane.
     private func mainPane(split: Bool) -> some View {
@@ -271,9 +276,11 @@ struct DashboardView: View {
             }
             .padding(.horizontal)
             .padding(.top, 8)
-            // Leave room so the last row can scroll clear of the floating add button.
-            .padding(.bottom, 88)
+            .padding(.bottom, 24)
         }
+        // The content stops above the floating add button rather than scrolling under it, where it
+        // covered a row's time or a timer's Stop button. Sick mode's Home is drawn in this pane too.
+        .padding(.bottom, Self.addButtonBand)
         // On this pane rather than the whole screen, so on the open display they stay off the fold.
         .overlay(alignment: .bottom) {
             UndoToastView().padding(.bottom, 84) // clear of the floating add button
@@ -504,7 +511,11 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 8) {
-                        if timer.stoppedAt == nil { RunningDot().accessibilityHidden(true) }
+                        // At the largest sizes the dot took a column of its own and squeezed the
+                        // title; the title says "running" anyway.
+                        if timer.stoppedAt == nil, !typeSize.isAccessibilitySize {
+                            RunningDot().accessibilityHidden(true)
+                        }
                         Text(timerTitle(timer))
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(timer.stoppedAt == nil ? BBColor.success : .secondary)
@@ -551,7 +562,8 @@ struct DashboardView: View {
         Button { startingTimer = true } label: {
             BBCard {
                 HStack(spacing: 12) {
-                    ActivityTile(kind: .timer, size: 40, glyph: 21)
+                    // Beside the tile, the largest sizes left the title a word per line.
+                    if !typeSize.isAccessibilitySize { ActivityTile(kind: .timer, size: 40, glyph: 21) }
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Start a timer").font(.headline)
                         Text("Feeding, sleep, tummy time…")
@@ -600,7 +612,8 @@ struct DashboardView: View {
 
     private func todayGrid(_ kinds: [EntityKind], now: Date, forecast: ForecastSnapshot?) -> some View {
         let today = childEntities.filter { Calendar.current.isDateInToday($0.timestamp) }
-        return LazyVGrid(columns: columns, spacing: 9) {
+        // Two columns at the largest sizes broke the labels a syllable per line.
+        return LazyVGrid(columns: typeSize.isAccessibilitySize ? [GridItem(.flexible())] : columns, spacing: 9) {
             ForEach(kinds) { kind in
                 metricLink(kind) {
                     MetricTile(kind: kind, label: TodayTiles.label(kind),
@@ -944,6 +957,9 @@ private struct QuickAddMenu: View {
     private func pill(_ text: String) -> some View {
         Text(text)
             .font(.subheadline.weight(.semibold))
+            .lineLimit(2)
+            .multilineTextAlignment(.trailing)
+            .fixedSize(horizontal: false, vertical: true) // wrap at the largest sizes, don't truncate
             .foregroundStyle(.primary)
             .padding(.horizontal, 14)
             .padding(.vertical, 9)
@@ -964,15 +980,34 @@ private struct AllActivitiesSheet: View {
     var showsSickMode: Bool
     var onPick: (EntityKind) -> Void
     var onStartSickMode: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private let logKinds: [EntityKind] = [.feeding, .change, .sleep, .tummyTime, .pumping, .note]
     private let measureKinds: [EntityKind] = [.weight, .height, .headCircumference, .temperature, .bmi, .medication]
     /// A wide sheet, on iPhone Duo's open display, fits each group on one row of six.
     @State private var wide = false
     /// Half height on a phone. The open display is short for its width, and a wide sheet opens
-    /// full height there so the sick mode row isn't cut off.
-    @State private var detent: PresentationDetent = .medium
-    private var columns: [GridItem] { Array(repeating: GridItem(.flexible()), count: wide ? 6 : 3) }
+    /// full height there so the sick mode row isn't cut off. So do the largest text sizes, and the
+    /// front display of iPhone Duo (see ``openTallEnough()``).
+    @State private var detent: PresentationDetent
+    /// The middle of the first Measure tile and the bottom of the visible sheet, in global
+    /// coordinates, for ``openTallEnough()``. Zero until measured.
+    @State private var measureMid: CGFloat = 0
+    @State private var visibleBottom: CGFloat = 0
+    @State private var checkedHeight = false
+    /// Fewer columns at the largest sizes, so the labels fit.
+    private var columns: [GridItem] {
+        let count = typeSize.isAccessibilitySize ? (wide ? 3 : 2) : (wide ? 6 : 3)
+        return Array(repeating: GridItem(.flexible()), count: count)
+    }
+
+    init(showsSickMode: Bool, opensLarge: Bool, onPick: @escaping (EntityKind) -> Void,
+         onStartSickMode: @escaping () -> Void) {
+        self.showsSickMode = showsSickMode
+        self.onPick = onPick
+        self.onStartSickMode = onStartSickMode
+        _detent = State(initialValue: opensLarge ? .large : .medium)
+    }
 
     var body: some View {
         NavigationStack {
@@ -986,6 +1021,8 @@ private struct AllActivitiesSheet: View {
             }
             .trackingWide($wide)
             .onChange(of: wide) { if wide { detent = .large } }
+            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { visibleBottom = $0 }
+            .task(id: visibleBottom) { await openTallEnough() }
             .background(BBColor.surface)
             .navigationTitle("Add Activity")
             .navigationBarTitleDisplayMode(.inline)
@@ -994,6 +1031,17 @@ private struct AllActivitiesSheet: View {
             }
         }
         .presentationDetents([.medium, .large], selection: $detent)
+    }
+
+    /// Opens the sheet full height when less than half of the first Measure row shows at half
+    /// height, as on iPhone Duo's front display, which is short for its width. Waits for the
+    /// presenting sheet to hold still, then decides once, as ``StopTimerSheet`` does.
+    private func openTallEnough() async {
+        guard !checkedHeight, visibleBottom > 0, measureMid > 0 else { return }
+        try? await Task.sleep(for: .milliseconds(300))
+        guard !Task.isCancelled, !checkedHeight else { return }
+        checkedHeight = true
+        if detent == .medium, measureMid > visibleBottom { detent = .large }
     }
 
     /// Board j2: starting sick mode by hand, for when there's no fever reading to offer it.
@@ -1025,11 +1073,15 @@ private struct AllActivitiesSheet: View {
                             ActivityTile(kind: kind, size: 56, glyph: 27)
                             Text(quickAddLabel(kind))
                                 .font(.caption).foregroundStyle(.secondary)
-                                .lineLimit(1)
+                                // Shrinks rather than wrap: two lines hyphenated "Tempera- / ture".
+                                .lineLimit(1).minimumScaleFactor(0.5)
                         }
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.plain)
+                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).midY } action: {
+                        if kind == measureKinds.first { measureMid = $0 }
+                    }
                 }
             }
         }

@@ -32,6 +32,7 @@ struct SickHomeView<Timers: View>: View {
     @AppStorage(MedicationReminderPolicy.enabledKey, store: SharedDefaults.suite) private var remindersEnabled = false
     @AppStorage(SickMode.checkHoursKey, store: SharedDefaults.suite) private var checkHours = SickMode.defaultCheckHours
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private let columns = [GridItem(.flexible(), spacing: 9), GridItem(.flexible(), spacing: 9)]
 
@@ -135,7 +136,8 @@ struct SickHomeView<Timers: View>: View {
         BBCard {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
-                    RunningDot(color: BBColor.danger).accessibilityHidden(true)
+                    // At the largest sizes the dot was left beside a wrapped title.
+                    if !typeSize.isAccessibilitySize { RunningDot(color: BBColor.danger).accessibilityHidden(true) }
                     Text("Sick mode · day \(SickMode.day(since: startedAt, now: now))")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(BBColor.danger)
@@ -164,7 +166,10 @@ struct SickHomeView<Timers: View>: View {
                             unit: unit, line: line, now: now)
                     }
                     Button(action: onLogTemperature) {
-                        Label { Text("Log temperature") } icon: { EntityKind.temperature.icon(17) }
+                        // Shrinks to one line at the largest sizes rather than hyphenate "temperature".
+                        Label { Text("Log temperature").lineLimit(1).minimumScaleFactor(0.5) } icon: {
+                            if !typeSize.isAccessibilitySize { EntityKind.temperature.icon(17) }
+                        }
                     }
                     .buttonStyle(.bbPrimary)
                 }
@@ -191,7 +196,9 @@ struct SickHomeView<Timers: View>: View {
 
     private func medicineSection(_ medicines: [SickMode.Medicine], clear: Bool, now: Date) -> some View {
         VStack(alignment: .leading, spacing: 9) {
-            HStack(alignment: .firstTextBaseline) {
+            // Stacked at the largest sizes, where side by side both broke mid-word.
+            (typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+                                          : AnyLayout(HStackLayout(alignment: .firstTextBaseline))) {
                 SectionHeader(String(localized: "Medicine"))
                 if !clear {
                     Text(remindersOn ? String(localized: "Reminders on") : String(localized: "Reminders off"))
@@ -214,7 +221,7 @@ struct SickHomeView<Timers: View>: View {
         let okSince: Date? = if case .okNow(let since) = medicine.phase { since } else { nil }
         return BBCard(cornerRadius: BBRadius.row, padding: 14) {
             VStack(alignment: .leading, spacing: okSince == nil ? 12 : 14) {
-                HStack(spacing: 12) {
+                rowLayout {
                     ActivityTile(kind: .medication, size: 40, glyph: 21, color: color)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(medicine.name).font(.headline)
@@ -283,6 +290,13 @@ struct SickHomeView<Timers: View>: View {
             .compactMap { $0 }.joined(separator: " · ")
     }
 
+    /// A medicine's tile, name and status in a row, or at the largest sizes one above the other:
+    /// in a row the name broke mid-word ("Ibupr / ofen").
+    private var rowLayout: AnyLayout {
+        typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                                     : AnyLayout(HStackLayout(spacing: 12))
+    }
+
     private static func doseCount(_ count: Int) -> String {
         String(localized: "\(count) doses in the last 24 hours")
     }
@@ -290,7 +304,7 @@ struct SickHomeView<Timers: View>: View {
     /// Once clear, a medicine is only a reminder of when it was last given.
     private func compactRow(_ medicine: SickMode.Medicine, now: Date) -> some View {
         BBCard(cornerRadius: BBRadius.row, padding: 13) {
-            HStack(spacing: 12) {
+            rowLayout {
                 ActivityTile(kind: .medication, size: 40, glyph: 21, color: colors.color(medicine.name).color)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(medicine.name).font(.subheadline.weight(.semibold))
@@ -312,7 +326,7 @@ struct SickHomeView<Timers: View>: View {
             .compactMap { $0.payloadObject["amount"] as? Double }.reduce(0, +)
         return VStack(alignment: .leading, spacing: 9) {
             SectionHeader(String(localized: "Today"))
-            LazyVGrid(columns: columns, spacing: 9) {
+            LazyVGrid(columns: typeSize.isAccessibilitySize ? [GridItem(.flexible())] : columns, spacing: 9) {
                 tile(.temperature, String(localized: "Highest"), SickMode.highestText(today, unit: unit))
                 tile(.medication, String(localized: "Doses"), "\(today.filter { $0.kind == .medication }.count)")
                 tile(.change, String(localized: "Wet diapers"),
@@ -343,18 +357,23 @@ struct SickHomeView<Timers: View>: View {
         var entity: LocalEntity?
     }
 
-    @ViewBuilder
+    /// With nothing done or due yet, the header and a line saying so: on the open display this is
+    /// all the side pane has, and it was blank.
     private func timelineSection(readings: [SickMode.Reading], medicines: [SickMode.Medicine], now: Date) -> some View {
         let items = timelineItems(readings: readings, medicines: medicines, now: now)
         let rows = items.due + items.past
-        if !rows.isEmpty {
-            VStack(alignment: .leading, spacing: 9) {
-                HStack(alignment: .firstTextBaseline) {
-                    SectionHeader(String(localized: "Timeline"))
-                    Button("See all", action: onSeeAll)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(BBColor.brandAccent)
-                }
+        return VStack(alignment: .leading, spacing: 9) {
+            HStack(alignment: .firstTextBaseline) {
+                SectionHeader(String(localized: "Timeline"))
+                Button("See all", action: onSeeAll)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(BBColor.brandAccent)
+            }
+            if rows.isEmpty {
+                Text("Nothing logged today")
+                    .font(.footnote).foregroundStyle(.secondary)
+                    .padding(.horizontal, 4)
+            } else {
                 BBCard(padding: 0) {
                     VStack(spacing: 0) {
                         ForEach(items.due) { item in
@@ -434,20 +453,24 @@ struct SickHomeView<Timers: View>: View {
         }
     }
 
+    /// At the largest sizes the time moves above the title: its 58 pt column can't hold it.
     private func row(_ item: Item, first: Bool, last: Bool) -> some View {
         let due = item.mark == .due
+        let stacked = typeSize.isAccessibilitySize
+        let time = Text(item.time.formatted(date: .omitted, time: .shortened))
+            .font(.footnote.weight(due ? .semibold : .regular)).monospacedDigit()
+            .foregroundStyle(due ? BBColor.brandAccent : Color.secondary)
+            .lineLimit(1).minimumScaleFactor(0.8)
         return HStack(alignment: .top, spacing: 12) {
-            Text(item.time.formatted(date: .omitted, time: .shortened))
-                .font(.system(size: 13, weight: due ? .semibold : .regular)).monospacedDigit()
-                .foregroundStyle(due ? BBColor.brandAccent : Color.secondary)
-                .lineLimit(1).minimumScaleFactor(0.8)
-                .frame(width: 58, alignment: .leading)
-                .padding(.top, 14)
+            if !stacked {
+                time.frame(width: 58, alignment: .leading).padding(.top, 14)
+            }
             dot(item).frame(width: 20).padding(.top, 14)
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
+                    if stacked { time }
                     Text(item.title)
-                        .font(.system(size: 15, weight: due ? .medium : .semibold))
+                        .font(.subheadline.weight(due ? .medium : .semibold))
                         .foregroundStyle(due ? Color.primary.opacity(0.8) : Color.primary)
                     if let detail = item.detail {
                         Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(2)
@@ -455,7 +478,7 @@ struct SickHomeView<Timers: View>: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 if let value = item.value {
-                    Text(value).font(.system(size: 15, weight: .semibold)).monospacedDigit()
+                    Text(value).font(.subheadline.weight(.semibold)).monospacedDigit()
                 }
             }
             .padding(.vertical, 12)
@@ -468,7 +491,7 @@ struct SickHomeView<Timers: View>: View {
                 Rectangle().fill(last ? Color.clear : BBColor.railLine)
             }
             .frame(width: 2)
-            .padding(.leading, 58 + 12 + 9)
+            .padding(.leading, (stacked ? 0 : 58 + 12) + 9)
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
@@ -492,7 +515,9 @@ struct SickHomeView<Timers: View>: View {
             Text("Now")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.white)
-                .frame(width: 58)
+                .fixedSize() // it wrapped to "No / w" at the largest sizes
+                .padding(.horizontal, 6)
+                .frame(minWidth: 58)
                 .padding(.vertical, 3)
                 .background(BBColor.primary, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             Rectangle().fill(BBColor.primary).frame(height: 2)

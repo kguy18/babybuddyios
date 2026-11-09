@@ -157,6 +157,24 @@ final class LoggingTests: UITestCase {
         expect(app.navigationBars["New Feeding"])
     }
 
+    /// At the largest text size the quick-add rows all show, and the Add Activity sheet opens full
+    /// height with two tiles to a row: at half height it showed one row, its labels cut to "Fee…".
+    func testAddActivityFitsTheLargestText() {
+        launch(largestText: true)
+        tap(app.buttons["Add"])
+        let window = app.windows.firstMatch.frame
+        for row in ["Start timer", "Tummy time"] {
+            XCTAssertTrue(window.contains(expect(app.buttons[row]).frame), "\(row) should be on screen")
+        }
+        tap(app.buttons.labeled("More…"))
+        expect(app.navigationBars["Add Activity"])
+        expectValue(expect(app.buttons["Sheet Grabber"]), "Expanded")
+        let feeding = expect(app.buttons["Feeding"]), diaper = expect(app.buttons["Diaper"])
+        XCTAssertEqual(feeding.frame.midY, diaper.frame.midY, accuracy: 1, "Diaper should sit beside Feeding")
+        XCTAssertGreaterThan(expect(app.buttons["Sleep"]).frame.minY, feeding.frame.maxY - 1,
+                             "Sleep should start the next row")
+    }
+
     /// A dose with a next-dose interval waits on Home and on its timeline row, and a second dose of
     /// the same medication warns without blocking (#118).
     func testMedicationNextDose() {
