@@ -19,10 +19,12 @@ final class ScreenshotTests: UITestCase {
         Shot(name: "05_timeline", environment: ["BB_START_TAB": "timeline"], waitFor: "screen-timeline"),
         Shot(name: "06_trends", environment: ["BB_START_TAB": "trends"], waitFor: "screen-trends"),
         Shot(name: "07_server", environment: ["BB_START_TAB": "settings"], waitFor: "screen-settings"),
+        // Estimates are off by default; this hook turns them on and seeds a regular routine.
+        Shot(name: "08_estimates", environment: ["BB_SEED_FORECAST": "1"], waitFor: "today-feeding"),
     ]
 
-    /// How many screens also go on iPhone Duo's folded display.
-    private let outerCount = 3
+    /// The screens that also go on iPhone Duo's folded display.
+    private let outerNames: Set = ["01_home", "02_sick", "03_timer", "08_estimates"]
 
     override func setUp() {
         super.setUp()
@@ -41,7 +43,7 @@ final class ScreenshotTests: UITestCase {
             // Folded first: every boot starts closed. The skill's manual path opens the simulator
             // by hand and sets this to capture only the open display.
             if environment["STORE_SCREENSHOTS_UNFOLDED_ONLY"] != "1" {
-                for shot in shots.prefix(outerCount) { capture(shot, suffix: "_outer") }
+                for shot in shots where outerNames.contains(shot.name) { capture(shot, suffix: "_outer") }
                 setHinge(.open)
             }
             app.terminate()
