@@ -30,20 +30,32 @@ The rest of the store listing (description, keywords, review information) lives 
 
 ```appstore
 #New
-- German and Brazilian Portuguese. The app, widgets, and Live Activities follow your iPhone's language. Anything else still shows in English.
+- German and Brazilian Portuguese. The app, widgets, and Live Activities follow your iPhone's language. Anything else still shows in English. Thanks to @Airwick95 & @thiago-s-medeiros for the translations!
 - iPhone Duo support. On the open display, Home shows today's timeline beside the usual Home, and tapping a record in the Timeline opens it for editing on the other side. The editor, Start Timer, and Stop Timer lay out in two columns, and the support card and sheet sit clear of the fold. Folding or unfolding keeps your place and any sheet you have open.
+- Activity estimates. Turn on Settings ▸ Appearance ▸ Activity estimates, and the Today tiles show when the next feeding, diaper change, or nap is likely, worked out from the last two weeks of records. While a sleep timer runs, the Sleep tile estimates when the baby wakes. When the records are too sparse or irregular, it shows nothing. Estimates are off until you turn them on. Thanks @Airwick95 for the contribution.
+
+#Improved
+- Home and the status widgets now show when a feeding or sleep finished, not when it started. After a nap, Home says Woke with the time it ended, and the widget counts how long the baby has been awake. Timeline and day totals still go by start time.
+- The editors, the Undo toast, and Advanced configuration fit the largest text sizes. Start and End stay whole, Undo gets a full-width button, and nothing pinned covers the Advanced configuration sheet.
+- Password managers fill a Cloudflare Access service token into the right fields, with the Client ID as the username and the Client Secret as the password.
 
 #Fixed
+- Cloudflare Access headers now correctly validate, the access entry sheet dismisses on retry correctly, and errors say what went wrong.
+- Service tokens and custom header values save even when they carry a hidden line break. 1.4.0 still refused some of them with "can't contain a line break or control character".
+- Stopping a timer while the app was syncing now stops it on your server too. Before, it kept running there until the next sync.
 - Sick mode comparisons such as "up since yesterday" no longer show a few English words in the middle of a translated sentence.
-- Signing in through Cloudflare Access with a service token no longer fails with "can't contain a line break or control character" on some iPhones, and the Advanced configuration sheet no longer comes back over the error.
 ```
 
 ```whatsnew
 #New
 - new | German and Portuguese | Baby Buddy now speaks Deutsch and Português (Brasil).
 - new | iPhone Duo support | Home and Timeline use both halves of the open display. For the lucky few with a Duo!
+- timer | Activity estimates | See when the next feed, change, or nap is likely. Turn it on in Settings.
+- widget | When it finished | Home and widgets show when a feed or nap ended, and how long since.
 #Fixed
-- Cloudflare service tokens no longer rejected as containing a control character
+- Stopping a timer mid-sync stops it on the server
+- Cloudflare Access is fixed and tokens and secrets can AutoFill from password managers
+- Editors and Undo fit the largest text size
 ```
 
 ## 1.4.0
