@@ -73,7 +73,7 @@ final class FoldTests: UITestCase {
         search.typeText("garden\n")
         expect(element(labeled: "Note, Looking out at the garden."))
         XCTAssertEqual(elements("label BEGINSWITH 'Feeding, '").count, 0, "The search should filter the list")
-        tap(search.buttons["Clear text"])
+        tap(app.buttons["Clear text"])
         expect(element(labeled: "Feeding, "))
 
         tap(pill)
@@ -85,6 +85,11 @@ final class FoldTests: UITestCase {
     /// as the Timeline tab does.
     func testDayTimelineOpensARecordBesideTheList() throws {
         try launchOpen()
+        // Log one now: soon after midnight the demo has no feedings today.
+        openEditor("Feeding")
+        let new = expect(app.navigationBars["New Feeding"])
+        tap(new.buttons["Save"])
+        expectGone(new)
         tap(expect(element(labeled: "Feedings, ")))
         let empty = expect(app.staticTexts["No activity open"])
         let row = elements("label BEGINSWITH 'Feeding, '").element(boundBy: 0)
