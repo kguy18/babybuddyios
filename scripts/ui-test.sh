@@ -101,11 +101,35 @@ if [ -n "$DUO_OPEN" ]; then
   # Unfold, then check the inner screen took over: duoctl drives private simulator interfaces, and
   # a run that stayed on the front display would only skip FoldTests.
   mkdir -p build
-  scripts/duoctl open
-  if ! scripts/duoctl state | python3 -c 'import json, sys; sys.exit(json.load(sys.stdin)["activeScreen"] != "inner")'; then
-    scripts/duoctl screenshot build/duo-open.png || true
-    echo "::error::duoctl open left the iPhone Duo on its front display"
-    exit 1
+  unfold() {
+    scripts/duoctl open \
+      && scripts/duoctl state | python3 -c 'import json, sys; sys.exit(json.load(sys.stdin)["activeScreen"] != "inner")'
+  }
+  # Once in CI, straight after bootstatus, duoctl answered "no display is active (is the simulator
+  # still booting?)": SpringBoard wasn't up yet. One more try after a pause covers that.
+  if ! unfold; then
+    echo "duoctl open didn't take; trying once more in 15 s"
+    sleep 15
+    if ! unfold; then
+      scripts/duoctl screenshot build/duo-open.png || true
+      echo "::error::duoctl open left the iPhone Duo on its front display"
+      exit 1
+    fi
+  fi
+fi
+
+# A Duo shard's first test paid the simulator's cold start on top of its own waits. With a
+# prebuilt app at hand, launch it once so its frameworks, WebKit among them, are warm before
+# xcodebuild's first launch. The tests reinstall it and BB_UITEST wipes what this launch wrote.
+if [ -n "${UI_TEST_XCTESTRUN:-}" ]; then
+  APP="$(dirname "$UI_TEST_XCTESTRUN")/Debug-iphonesimulator/BabyBuddy.app"
+  if [ -d "$APP" ]; then
+    xcrun simctl install "$UDID" "$APP"
+    SIMCTL_CHILD_BB_UITEST=1 xcrun simctl launch "$UDID" com.kurtisguy.BabyBuddy >/dev/null
+    sleep 10
+    xcrun simctl terminate "$UDID" com.kurtisguy.BabyBuddy >/dev/null 2>&1 || true
+  else
+    echo "no prebuilt app beside $UI_TEST_XCTESTRUN; skipping the warm-up launch"
   fi
 fi
 
@@ -114,7 +138,9 @@ set +e
 # Unsigned on purpose: the store and the keychain both fall back to app-only locations without the
 # App Group entitlement, which is all an in-app UI test touches.
 # Time allowances so a hung test fails itself rather than the run: a demo test takes ~30 s, and a
-# server one ~2 min (it signs in, then waits on the app's own sync).
+# server one ~2 min (it signs in, then waits on the app's own sync). On an iPhone Duo (CI's
+# xcode-27 preview image) a test takes 40 s to 2 min, and one slow wait pushed a retry past 300 s,
+# so that lane gets 420 and 600.
 # UI_TEST_XCTESTRUN runs tests already built with `build-for-testing` instead of building them, as
 # CI's iPhone Duo shards do with the one build they share.
 if [ -n "${UI_TEST_XCTESTRUN:-}" ]; then
@@ -122,11 +148,14 @@ if [ -n "${UI_TEST_XCTESTRUN:-}" ]; then
 else
   BUILD=(-project BabyBuddy.xcodeproj -scheme BabyBuddyUITests test)
 fi
+if [ -n "${UI_TEST_XCTESTRUN:-}" ] || xcrun simctl list devices "$UDID" --json | grep -q '"deviceTypeIdentifier" : ".*Duo"'; then
+  ALLOWANCE=(-default-test-execution-time-allowance 420 -maximum-test-execution-time-allowance 600)
+else
+  ALLOWANCE=(-default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 300)
+fi
 xcodebuild "${BUILD[@]}" -destination "id=$UDID" \
   -resultBundlePath "$RESULT" \
-  -test-timeouts-enabled YES \
-  -default-test-execution-time-allowance 240 \
-  -maximum-test-execution-time-allowance 300 \
+  -test-timeouts-enabled YES "${ALLOWANCE[@]}" \
   CODE_SIGNING_ALLOWED=NO -quiet "${LANE[@]}" "$@"
 STATUS=$?
 set -e
@@ -155,4 +184,34 @@ if total == 0:
 if skipped and sys.argv[1]:
     print("::error::UI tests skipped on the open display"); sys.exit(1)
 ' "$DUO_OPEN" || exit 1
+
+# CI passes -retry-tests-on-failure -test-iterations 2, and a test that passes on its second
+# attempt counts as passed: a flaky test hides behind a green run. List those here and, in CI, in
+# the job's step summary. A retry never fails the run.
+xcrun xcresulttool get test-results tests --path "$RESULT" --compact | python3 -c '
+import json, os, sys
+retried = []
+def walk(node, suite=None):
+    kind = node.get("nodeType")
+    if kind == "Test Suite":
+        suite = node.get("name")
+    elif kind == "Test Case":
+        runs = [c for c in node.get("children", []) if c.get("nodeType") == "Repetition"]
+        results = {run.get("result") for run in runs}
+        if "Failed" in results and "Passed" in results:
+            attempts = ", ".join("{} {}".format(run.get("name"), run.get("result").lower()) for run in runs)
+            retried.append("{}/{}: {}".format(suite, node.get("name"), attempts))
+    for child in node.get("children", []):
+        walk(child, suite)
+for node in json.load(sys.stdin)["testNodes"]:
+    walk(node)
+if retried:
+    print(f"Retried tests: {len(retried)} passed only on a later attempt")
+    for line in retried:
+        print("  RETRY " + line)
+    print(f"::warning::{len(retried)} UI tests passed only on a retry; see the step summary")
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+            summary.write("### Retried tests\n\n" + "".join(f"- {line}\n" for line in retried) + "\n")
+' || echo "::warning::could not read the result bundle for retried tests"
 exit $STATUS
