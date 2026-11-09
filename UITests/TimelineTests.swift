@@ -100,14 +100,21 @@ final class TimelineTests: UITestCase {
         expectGone(row)
     }
 
-    /// At the largest text a day's summary goes under the day, where beside it it was cut off, and
-    /// the Filters sheet opens at full height: at half height the date range was off the bottom.
-    func testDayHeadersAndFiltersAtTheLargestText() {
+    /// At the largest text a row's time goes under its title and a day's summary under the day:
+    /// side by side, both broke mid-word or were cut off. The Filters sheet opens at full height,
+    /// where at half height the date range was off the bottom.
+    func testRowsDayHeadersAndFiltersAtTheLargestText() {
         launch(["BB_START_TAB": "timeline"], largestText: true)
         let today = expect(app.staticTexts["Today"])
-        let summary = expect(app.staticTexts.matching(NSPredicate(
-            format: "label CONTAINS ' feeds' OR label CONTAINS ' diapers' OR label CONTAINS ' sleep'")).firstMatch)
+        // "1 feed · 1 diaper", "3 feeds · 2h sleep", "2 events": the first one is today's.
+        let summary = expect(app.staticTexts.matching(NSPredicate(format: "label CONTAINS ' feed' OR "
+            + "label CONTAINS ' diaper' OR label CONTAINS ' sleep' OR label CONTAINS ' event'")).firstMatch)
         XCTAssertGreaterThan(summary.frame.minY, today.frame.maxY - 1, "The summary should sit under the day")
+
+        let row = expect(elements("label BEGINSWITH 'Feeding, ' AND label CONTAINS 'tags: hungry, night'").firstMatch)
+        let title = expect(row.staticTexts["Feeding"])
+        let time = expect(row.staticTexts.matching(NSPredicate(format: "label CONTAINS ':'")).firstMatch)
+        XCTAssertGreaterThan(time.frame.minY, title.frame.maxY - 1, "The time should sit under the title")
 
         tap(app.buttons["Filters"])
         expect(app.navigationBars["Filters"])

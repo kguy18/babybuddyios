@@ -181,7 +181,8 @@ struct TimelineView: View {
                 Spacer()
                 filterButton.font(.title3)
             }
-            childPill
+            // Neutral, as in the navigation bar: in a pane the menu's label would take the tint.
+            ChildPill(children: children, selectedChildID: $selectedChildID).tint(.primary)
             searchField
         }
         .padding(.horizontal, 18)
@@ -207,36 +208,6 @@ struct TimelineView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
         .background(BBColor.controlFill, in: Capsule())
-    }
-
-    /// ``ChildSwitcher`` as a view, for the left pane: a menu with more than one child.
-    @ViewBuilder private var childPill: some View {
-        let child = children.first { $0.serverID == selectedChildID }
-        let name = child.flatMap(childName) ?? "Baby Buddy"
-        let label = HStack(spacing: 6) {
-            ChildAvatar(pictureURL: child?.payloadObject["picture"] as? String,
-                        initial: String(name.prefix(1)), size: 26)
-            Text(name).font(.headline).foregroundStyle(.primary)
-            if children.count > 1 { Image(systemName: "chevron.down").font(.caption2) }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Current child, \(name)")
-        if children.count > 1 {
-            Menu {
-                ForEach(children, id: \.serverID) { child in
-                    Button {
-                        if let id = child.serverID { selectedChildID = id }
-                    } label: {
-                        Label(childName(child) ?? String(localized: "Child"),
-                              systemImage: child.serverID == selectedChildID ? "checkmark" : "person.crop.circle")
-                    }
-                }
-            } label: {
-                label.accessibilityHint("Switch child")
-            }
-        } else {
-            label
-        }
     }
 
     /// Right of the fold: the open record's editor, or a prompt to pick one. A record that has
@@ -354,10 +325,7 @@ struct TimelineView: View {
     /// The selected child's display name, included in the search haystack so activity can be
     /// found by child even though the payload only carries the child's id.
     private var selectedChildName: String? {
-        children.first(where: { $0.serverID == selectedChildID }).flatMap(childName)
-    }
-
-    private func childName(_ child: LocalEntity) -> String? {
+        guard let child = children.first(where: { $0.serverID == selectedChildID }) else { return nil }
         let p = child.payloadObject
         let parts = [p["first_name"] as? String, p["last_name"] as? String]
             .compactMap { $0 }.filter { !$0.isEmpty }
