@@ -19,6 +19,8 @@ final class ScreenshotTests: UITestCase {
         Shot(name: "05_timeline", environment: ["BB_START_TAB": "timeline"], waitFor: "screen-timeline"),
         Shot(name: "06_trends", environment: ["BB_START_TAB": "trends"], waitFor: "screen-trends"),
         Shot(name: "07_server", environment: ["BB_START_TAB": "settings"], waitFor: "screen-settings"),
+        // Estimates are off by default; this hook turns them on and seeds a regular routine.
+        Shot(name: "08_estimates", environment: ["BB_SEED_FORECAST": "1"], waitFor: "today-feeding"),
     ]
 
     /// How many screens also go on iPhone Duo's folded display.
