@@ -112,15 +112,13 @@ final class SickModeTests: UITestCase {
         XCTAssertTrue(app.textFields.withValue("Ibuprofen").exists, "The name wasn't filled in")
     }
 
-    /// At the largest text size "Log temperature" stays on one line, where it hyphenated, and sick
-    /// mode's Home stops above the "+", which covered a countdown and a Stop button.
+    /// At the largest text size "Log temperature" stays on one line, where it hyphenated.
     func testSickHomeFitsTheLargestText() {
         launch(["BB_SEED_SICK": "1"], largestText: true)
         allowNotificationsIfAsked()
         expectSickHome()
         XCTAssertLessThan(expect(app.buttons["Log temperature"]).frame.height, 120,
                           "Log temperature should fit on one line")
-        expectContentClearsAddButton()
     }
 
     func testEndSickModeAndUndo() {

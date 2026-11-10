@@ -225,9 +225,6 @@ struct DashboardView: View {
 
     // MARK: Panes
 
-    /// The floating add button's height and its 16 pt margin, and a gap above it.
-    private static let addButtonBand: CGFloat = 58 + 16 + 8
-
     /// Home as a phone draws it. On iPhone Duo's open display it is the pane right of the fold,
     /// and in sick mode its running timers move to the side pane.
     private func mainPane(split: Bool) -> some View {
@@ -276,11 +273,23 @@ struct DashboardView: View {
             }
             .padding(.horizontal)
             .padding(.top, 8)
-            .padding(.bottom, 24)
+            // Leave room so the last row can scroll clear of the floating add button.
+            .padding(.bottom, split ? 24 : 88)
         }
-        // The content stops above the floating add button rather than scrolling under it, where it
-        // covered a row's time or a timer's Stop button. Sick mode's Home is drawn in this pane too.
-        .padding(.bottom, Self.addButtonBand)
+        // On the open display the + sits in the rail, beside the tabs, rather than over the pane:
+        // at the largest text it covered a row's time or a timer's Stop button.
+        .toolbar {
+            if split, !children.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        withAnimation(QuickAddMenu.spring) { quickAddOpen.toggle() }
+                    } label: {
+                        Image(systemName: quickAddOpen ? "xmark" : "plus")
+                    }
+                    .accessibilityLabel(quickAddOpen ? String(localized: "Close") : String(localized: "Add"))
+                }
+            }
+        }
         // On this pane rather than the whole screen, so on the open display they stay off the fold.
         .overlay(alignment: .bottom) {
             UndoToastView().padding(.bottom, 84) // clear of the floating add button
@@ -289,6 +298,7 @@ struct DashboardView: View {
             if !children.isEmpty {
                 QuickAddMenu(
                     isOpen: $quickAddOpen,
+                    showsButton: !split,
                     onStartTimer: { startingTimer = true },
                     onLog: { addKind = $0 },
                     onMore: { showAllActivities = true })
@@ -870,13 +880,15 @@ private func quickAddLabel(_ kind: EntityKind) -> String {
 /// over a "More…" row that opens the full activity list. The "+" morphs into an "×" while open.
 private struct QuickAddMenu: View {
     @Binding var isOpen: Bool
+    /// False on the open display, where the + is in the rail and the stack opens on its own.
+    var showsButton = true
     var onStartTimer: () -> Void
     var onLog: (EntityKind) -> Void
     var onMore: () -> Void
 
     /// The everyday record types surfaced directly in the stack; the rest live behind "More…".
     private let quickKinds: [EntityKind] = [.feeding, .change, .sleep, .tummyTime]
-    private let spring = Animation.spring(response: 0.32, dampingFraction: 0.82)
+    static let spring = Animation.spring(response: 0.32, dampingFraction: 0.82)
     private let tileSize: CGFloat = 46
     private var tileShape: RoundedRectangle { RoundedRectangle(cornerRadius: 46 * 0.29, style: .continuous) }
 
@@ -896,7 +908,7 @@ private struct QuickAddMenu: View {
                     }
                     moreRow
                 }
-                fab
+                if showsButton { fab }
             }
             .padding(.trailing, 20)
             .padding(.bottom, 16)
@@ -907,7 +919,7 @@ private struct QuickAddMenu: View {
     private var fab: some View {
         FloatingAddButton(rotated: isOpen,
                           accessibilityLabelText: isOpen ? String(localized: "Close") : String(localized: "Add")) {
-            withAnimation(spring) { isOpen.toggle() }
+            withAnimation(Self.spring) { isOpen.toggle() }
         }
     }
 
@@ -967,7 +979,7 @@ private struct QuickAddMenu: View {
             .shadow(color: .black.opacity(0.12), radius: 5, y: 2)
     }
 
-    private func close() { withAnimation(spring) { isOpen = false } }
+    private func close() { withAnimation(Self.spring) { isOpen = false } }
 }
 
 // MARK: - All activities sheet

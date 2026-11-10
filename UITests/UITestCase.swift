@@ -229,17 +229,21 @@ class UITestCase: XCTestCase {
         tap(app.buttons[kind])
     }
 
-    /// Fails unless Home's scrolling content stops above the floating "+", which used to cover a
-    /// row's time and a running timer's Stop button. The pane is the tallest scroll view the "+"
-    /// sits under: on iPhone Duo's open display the timeline left of the fold is another.
-    func expectContentClearsAddButton(file: StaticString = #filePath, line: UInt = #line) {
-        let add = expect(app.buttons["Add"], file: file, line: line)
-        let pane = app.scrollViews.allElementsBoundByIndex
-            .filter { $0.frame.minX <= add.frame.midX && add.frame.midX <= $0.frame.maxX }
-            .max { $0.frame.height < $1.frame.height }
-        guard let pane else { return XCTFail("No scroll view above the + button", file: file, line: line) }
-        XCTAssertLessThanOrEqual(pane.frame.maxY, add.frame.minY + 1,
-                                 "Home's content should stop above the + button", file: file, line: line)
+    /// Fails unless Home's "+" is in the rail on the open display, beside the tabs, and not over
+    /// the pane right of the fold, where at the largest text it covered a row's time and a running
+    /// timer's Stop button. With `BB_FOLD` on an ordinary iPhone there is no rail, and the "+" sits
+    /// in the navigation bar instead.
+    func expectAddButtonInRail(file: StaticString = #filePath, line: UInt = #line) {
+        let add = expect((hasRail ? app.toolbars : app.navigationBars).buttons["Add"], file: file, line: line)
+        XCTAssertEqual(app.buttons.matching(identifier: "Add").count, 1,
+                       "Only the rail should have a +", file: file, line: line)
+        // A navigation bar's button is above the content already; the pane's scroll view runs
+        // under the bar, so only the rail is checked against it.
+        guard hasRail else { return }
+        let pane = app.scrollViews.allElementsBoundByIndex.max { $0.frame.minX < $1.frame.minX }
+        guard let pane else { return XCTFail("No scroll view right of the fold", file: file, line: line) }
+        XCTAssertGreaterThanOrEqual(add.frame.minX, pane.frame.maxX - 1, "The + should sit right of the pane",
+                                    file: file, line: line)
     }
 
     /// Drags the open sheet's grabber to the top, for a sheet that opens at half height. A swipe on

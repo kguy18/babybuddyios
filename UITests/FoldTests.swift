@@ -85,10 +85,10 @@ final class FoldTests: UITestCase {
     }
 
     /// At the largest text size Add Activity takes two tiles to a row, not six, so the labels fit,
-    /// and Home's content stops above the "+".
+    /// and Home's "+" is in the rail, where it opens the quick-add stack.
     func testAddActivityTakesTwoColumnsAtTheLargestText() throws {
         try launchOpen(largestText: true)
-        expectContentClearsAddButton()
+        expectAddButtonInRail()
         tap(app.buttons["Add"])
         tap(app.buttons.labeled("More…"))
         expect(app.navigationBars["Add Activity"])
@@ -97,6 +97,14 @@ final class FoldTests: UITestCase {
                        "Diaper should sit beside Feeding")
         XCTAssertGreaterThan(expect(app.buttons["Sleep"]).frame.minY, feeding.frame.maxY - 1,
                              "Sleep should start the next row")
+    }
+
+    /// Sick mode's Home shares the pane, and its "+" is in the rail too.
+    func testSickHomeKeepsTheAddButtonInTheRail() throws {
+        try launchOpen(["BB_SEED_SICK": "1"], largestText: true)
+        allowNotificationsIfAsked()
+        expect(app.buttons["Log temperature"])
+        expectAddButtonInRail()
     }
 
     /// Each sheet takes two columns, or for Add Activity one row of six per group.
