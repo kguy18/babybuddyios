@@ -118,7 +118,18 @@ struct DashboardView: View {
             FoldSplitView {
                 sidePane
             } main: { split in
+                #if DEBUG
+                // `BB_HOME_SCROLL=today`: start with Today at the top, for the estimates screenshot.
+                ScrollViewReader { proxy in
+                    mainPane(split: split).task {
+                        guard ProcessInfo.processInfo.environment["BB_HOME_SCROLL"] == "today" else { return }
+                        try? await Task.sleep(for: .milliseconds(300))
+                        proxy.scrollTo("home-today", anchor: .top)
+                    }
+                }
+                #else
                 mainPane(split: split)
+                #endif
             }
             .background(BBColor.surface)
             .accessibilityIdentifier("screen-home")
@@ -275,19 +286,6 @@ struct DashboardView: View {
             .padding(.top, 8)
             // Leave room so the last row can scroll clear of the floating add button.
             .padding(.bottom, 88)
-            #if DEBUG
-            // `BB_HOME_SCROLL=today`: start with Today at the top, for the estimates screenshot.
-            .background {
-                if ProcessInfo.processInfo.environment["BB_HOME_SCROLL"] == "today" {
-                    ScrollViewReader { proxy in
-                        Color.clear.task {
-                            try? await Task.sleep(for: .milliseconds(300))
-                            proxy.scrollTo("home-today", anchor: .top)
-                        }
-                    }
-                }
-            }
-            #endif
         }
         // On this pane rather than the whole screen, so on the open display they stay off the fold.
         .overlay(alignment: .bottom) {
