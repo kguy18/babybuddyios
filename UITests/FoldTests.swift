@@ -84,19 +84,19 @@ final class FoldTests: UITestCase {
         XCTAssertGreaterThan(tags.frame.minY, when.frame.maxY, "Tags should sit under When")
     }
 
-    /// At the largest text size Add Activity takes three tiles to a row, not six, so the labels fit,
+    /// At the largest text size Add Activity takes two tiles to a row, not six, so the labels fit,
     /// and Home's content stops above the "+".
-    func testAddActivityTakesThreeColumnsAtTheLargestText() throws {
+    func testAddActivityTakesTwoColumnsAtTheLargestText() throws {
         try launchOpen(largestText: true)
         expectContentClearsAddButton()
         tap(app.buttons["Add"])
         tap(app.buttons.labeled("More…"))
         expect(app.navigationBars["Add Activity"])
         let feeding = expect(app.buttons["Feeding"])
-        XCTAssertEqual(expect(app.buttons["Sleep"]).frame.midY, feeding.frame.midY, accuracy: 1,
-                       "Sleep should sit beside Feeding")
-        XCTAssertGreaterThan(expect(app.buttons["Tummy time"]).frame.minY, feeding.frame.maxY - 1,
-                             "Tummy time should start the next row")
+        XCTAssertEqual(expect(app.buttons["Diaper"]).frame.midY, feeding.frame.midY, accuracy: 1,
+                       "Diaper should sit beside Feeding")
+        XCTAssertGreaterThan(expect(app.buttons["Sleep"]).frame.minY, feeding.frame.maxY - 1,
+                             "Sleep should start the next row")
     }
 
     /// Each sheet takes two columns, or for Add Activity one row of six per group.

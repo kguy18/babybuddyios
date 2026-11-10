@@ -167,7 +167,7 @@ struct SickHomeView<Timers: View>: View {
                     }
                     Button(action: onLogTemperature) {
                         // Shrinks to one line at the largest sizes rather than hyphenate "temperature".
-                        Label { Text("Log temperature").lineLimit(1).minimumScaleFactor(0.5) } icon: {
+                        Label { Text("Log temperature").lineLimit(1).minimumScaleFactor(0.8) } icon: {
                             if !typeSize.isAccessibilitySize { EntityKind.temperature.icon(17) }
                         }
                     }

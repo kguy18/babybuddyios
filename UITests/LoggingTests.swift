@@ -158,7 +158,7 @@ final class LoggingTests: UITestCase {
     }
 
     /// At the largest text size the quick-add rows all show, and the Add Activity sheet opens full
-    /// height with two tiles to a row: at half height it showed one row, its labels cut to "Fee…".
+    /// height with one tile to a row: at half height it showed one row, its labels cut to "Fee…".
     func testAddActivityFitsTheLargestText() {
         launch(largestText: true)
         tap(app.buttons["Add"])
@@ -170,9 +170,8 @@ final class LoggingTests: UITestCase {
         expect(app.navigationBars["Add Activity"])
         expectValue(expect(app.buttons["Sheet Grabber"]), "Expanded")
         let feeding = expect(app.buttons["Feeding"]), diaper = expect(app.buttons["Diaper"])
-        XCTAssertEqual(feeding.frame.midY, diaper.frame.midY, accuracy: 1, "Diaper should sit beside Feeding")
-        XCTAssertGreaterThan(expect(app.buttons["Sleep"]).frame.minY, feeding.frame.maxY - 1,
-                             "Sleep should start the next row")
+        XCTAssertEqual(diaper.frame.midX, feeding.frame.midX, accuracy: 1, "Diaper should sit under Feeding")
+        XCTAssertGreaterThan(diaper.frame.minY, feeding.frame.maxY - 1, "Diaper should sit under Feeding")
     }
 
     /// A dose with a next-dose interval waits on Home and on its timeline row, and a second dose of

@@ -997,7 +997,7 @@ private struct AllActivitiesSheet: View {
     @State private var checkedHeight = false
     /// Fewer columns at the largest sizes, so the labels fit.
     private var columns: [GridItem] {
-        let count = typeSize.isAccessibilitySize ? (wide ? 3 : 2) : (wide ? 6 : 3)
+        let count = typeSize.isAccessibilitySize ? (wide ? 2 : 1) : (wide ? 6 : 3)
         return Array(repeating: GridItem(.flexible()), count: count)
     }
 
@@ -1073,8 +1073,8 @@ private struct AllActivitiesSheet: View {
                             ActivityTile(kind: kind, size: 56, glyph: 27)
                             Text(quickAddLabel(kind))
                                 .font(.caption).foregroundStyle(.secondary)
-                                // Shrinks rather than wrap: two lines hyphenated "Tempera- / ture".
-                                .lineLimit(1).minimumScaleFactor(0.5)
+                                // Shrinks a little rather than wrap: two lines hyphenated "Tempera- / ture".
+                                .lineLimit(1).minimumScaleFactor(0.8)
                         }
                         .frame(maxWidth: .infinity)
                     }
