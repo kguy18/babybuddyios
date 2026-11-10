@@ -9,6 +9,7 @@ final class ScreenshotTests: UITestCase {
         let name: String
         var environment: [String: String] = [:]
         let waitFor: String
+        var opensWhatsNext = false
     }
 
     private let shots = [
@@ -19,6 +20,9 @@ final class ScreenshotTests: UITestCase {
         Shot(name: "05_timeline", environment: ["BB_START_TAB": "timeline"], waitFor: "screen-timeline"),
         Shot(name: "06_trends", environment: ["BB_START_TAB": "trends"], waitFor: "screen-trends"),
         Shot(name: "07_server", environment: ["BB_START_TAB": "settings"], waitFor: "screen-settings"),
+        // Turns estimates on with a regular routine, then opens What's next below Today.
+        Shot(name: "09_whats_next", environment: ["BB_SEED_FORECAST": "1"], waitFor: "whats-next-toggle",
+             opensWhatsNext: true),
     ]
 
     /// How many screens also go on iPhone Duo's folded display.
@@ -54,7 +58,21 @@ final class ScreenshotTests: UITestCase {
         launch(shot.environment.merging(pinnedClock()) { $1 }, language: nil)
         expect(app.descendants(matching: .any)[shot.waitFor].firstMatch, timeout: 30)
         dismissPermissionPrompt()
+        if shot.opensWhatsNext { openWhatsNext() }
         screenshot(shot.name + suffix)
+    }
+
+    /// Opens What's next, then drags Home up until the open section clears the tab bar by 24
+    /// points. A slow drag with a hold stops where it lets go, without a fling.
+    private func openWhatsNext() {
+        tap(app.buttons["whats-next-toggle"])
+        expect(app.descendants(matching: .any)["forecast-change"]) // its last row
+        let card = app.descendants(matching: .any)["whats-next"]
+        let overlap = card.frame.maxY - (tab("Home").frame.minY - 24)
+        guard overlap > 0 else { return }
+        let start = app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
+        start.press(forDuration: 0.1, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -overlap)),
+                    withVelocity: .slow, thenHoldForDuration: 0.5)
     }
 
     /// Sick mode can raise the notification prompt. Taps its second button, whatever its language.
