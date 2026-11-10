@@ -225,4 +225,54 @@ final class ActivityForecastTests: XCTestCase {
         }
         XCTAssertEqual(snapshot(records).cues.first?.state, .insufficient)
     }
+
+    // MARK: What's next
+
+    private func cue(_ kind: ForecastKind, at hour: Double, state: ForecastCue.State = .ready) -> ForecastCue {
+        let window = ForecastWindow(start: time(0, hour - 0.25), end: time(0, hour + 0.25))
+        let estimate = ForecastEstimate(kind: kind, window: window, anchor: time(0, 8),
+                                        observations: [3600, 3600, 3600, 3600], distinctDays: 3, medianSeconds: 3600)
+        return ForecastCue(kind: kind, state: state, estimate: estimate)
+    }
+
+    func testNapEstimateCarriesTheUsualNapLength() throws {
+        let nap = try XCTUnwrap(snapshot(sleepHistory(), now: time(0, 8)).cues.first { $0.kind == .nap })
+        let length = try XCTUnwrap(nap.estimate?.usualNapSeconds)
+        XCTAssertTrue(length.contains(3600), "Every logged nap lasted an hour")
+    }
+
+    func testClosedRowShowsTheSoonestEstimateOnlyWithoutTileFooters() {
+        let result = ForecastSnapshot(generatedAt: time(0, 9), cues: [
+            cue(.feeding, at: 12), cue(.nap, at: 10.5), cue(.change, at: 9.5, state: .elapsed),
+        ])
+        XCTAssertNil(result.closedRowEstimate(tilesShown: true), "The tiles already show a time each")
+        XCTAssertEqual(result.closedRowEstimate(tilesShown: false)?.kind, .nap,
+                       "The soonest ready estimate; an elapsed one doesn't count")
+        let nothingReady = ForecastSnapshot(generatedAt: time(0, 9), cues: [ForecastCue(kind: .feeding, state: .stale)])
+        XCTAssertNil(nothingReady.closedRowEstimate(tilesShown: false))
+    }
+
+    func testEveryRowShowsEvenWithoutAnEstimate() {
+        let sparse = snapshot([feed(0, 9)])
+        XCTAssertEqual(sparse.cues.map(\.kind), [.feeding, .nap, .change])
+        XCTAssertTrue(sparse.ready.isEmpty)
+        for cue in sparse.cues { XCTAssertFalse(cue.state.message.isEmpty, "\(cue.kind) says why it has no window") }
+        let sleeping = snapshot(sleepHistory(), now: time(0, 9.25),
+                                timers: [ForecastTimer(childID: 1, kind: .sleep, start: time(0, 9))])
+        XCTAssertEqual(sleeping.cues.map(\.kind), [.feeding, .nap, .wake, .change])
+    }
+
+    func testFirstTurnOnShowsTilesSectionAndWidget() throws {
+        let name = "forecast-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        let places = [ForecastPreferences.tilesKey, ForecastPreferences.sectionKey, ForecastPreferences.widgetKey]
+        XCTAssertFalse(places.contains { ForecastPreferences.shows($0, in: defaults) }, "Off until the master switch is on")
+        defaults.set(true, forKey: ForecastPreferences.enabledKey)
+        XCTAssertTrue(places.allSatisfy { ForecastPreferences.shows($0, in: defaults) })
+        XCTAssertFalse(defaults.bool(forKey: ForecastPreferences.sectionOpenKey), "The section starts closed")
+        defaults.set(false, forKey: ForecastPreferences.tilesKey)
+        XCTAssertFalse(ForecastPreferences.shows(ForecastPreferences.tilesKey, in: defaults))
+        XCTAssertTrue(ForecastPreferences.shows(ForecastPreferences.sectionKey, in: defaults))
+    }
 }

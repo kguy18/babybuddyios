@@ -1,6 +1,29 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "%1$@ around %2$@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ around %2$@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ gegen %2$@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ por volta de %2$@"
+          }
+        }
+      }
+    },
     "Activity estimates": {
       "extractionState": "manual",
       "localizations": {
@@ -24,6 +47,29 @@
         }
       }
     },
+    "An activity is in progress or waiting to be logged.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An activity is in progress or waiting to be logged."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine Aktivität läuft oder muss noch gespeichert werden."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uma atividade está em andamento ou aguardando registro."
+          }
+        }
+      }
+    },
     "Based on logged routines, not your baby's current needs. Follow your baby's cues and your care plan; do not wait for an estimate to feed or check a diaper.": {
       "extractionState": "manual",
       "localizations": {
@@ -43,6 +89,75 @@
           "stringUnit": {
             "state": "translated",
             "value": "Com base nas rotinas registradas, não nas necessidades atuais do seu bebê. Siga os sinais do seu bebê e o seu plano de cuidados; não espere uma estimativa para alimentar ou verificar a fralda."
+          }
+        }
+      }
+    },
+    "Check incomplete entries or sync conflicts.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check incomplete entries or sync conflicts."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prüfe unvollständige Einträge oder Synchronisierungskonflikte."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifique registros incompletos ou conflitos de sincronização."
+          }
+        }
+      }
+    },
+    "Days": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Days"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tage"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dias"
+          }
+        }
+      }
+    },
+    "Diaper": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diaper"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Windel"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fralda"
           }
         }
       }
@@ -116,6 +231,52 @@
         }
       }
     },
+    "Estimated window": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimated window"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geschätzter Zeitraum"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Janela estimada"
+          }
+        }
+      }
+    },
+    "Feeding": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feeding"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mahlzeit"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mamada"
+          }
+        }
+      }
+    },
     "Feeding intervals run from start to start. Nap intervals run from the end of one sleep to the start of a logged nap. Wake-up estimates use previous sleep durations when a sleep timer is running.": {
       "extractionState": "manual",
       "localizations": {
@@ -158,6 +319,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Como funciona"
+          }
+        }
+      }
+    },
+    "More similar entries across at least three days are needed.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More similar entries across at least three days are needed."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es werden mehr ähnliche Einträge an mindestens drei Tagen benötigt."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "São necessários mais registros semelhantes em pelo menos três dias."
           }
         }
       }
@@ -300,6 +484,29 @@
         }
       }
     },
+    "On the Today tiles": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On the Today tiles"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf den Heute-Kacheln"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nos blocos de Hoje"
+          }
+        }
+      }
+    },
     "Optional estimates on Home and the medium status widget. They use only the selected child's cached records, without a network request.": {
       "extractionState": "manual",
       "localizations": {
@@ -346,6 +553,52 @@
         }
       }
     },
+    "Recent intervals vary too much for a useful estimate.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent intervals vary too much for a useful estimate."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die letzten Abstände schwanken zu stark für eine hilfreiche Schätzung."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os intervalos recentes variam demais para uma estimativa útil."
+          }
+        }
+      }
+    },
+    "Refresh your records before using estimates.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh your records before using estimates."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktualisiere die Einträge, bevor du Schätzungen verwendest."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atualize seus registros antes de usar as estimativas."
+          }
+        }
+      }
+    },
     "Show activity estimates": {
       "extractionState": "manual",
       "localizations": {
@@ -369,6 +622,98 @@
         }
       }
     },
+    "Similar intervals": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Similar intervals"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ähnliche Abstände"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intervalos semelhantes"
+          }
+        }
+      }
+    },
+    "Status widget": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status widget"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status-Widget"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widget de status"
+          }
+        }
+      }
+    },
+    "The usual window has passed. There is no current estimate.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The usual window has passed. There is no current estimate."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der bisher übliche Zeitraum ist vorbei. Es gibt keine aktuelle Schätzung."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A janela habitual já passou. Não há estimativa atual."
+          }
+        }
+      }
+    },
+    "Tiles show one time each. What's next opens from Home with the full windows and how each was worked out.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiles show one time each. What's next opens from Home with the full windows and how each was worked out."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kacheln zeigen je eine Uhrzeit. „Was kommt als Nächstes?“ öffnet sich auf der Übersicht mit den vollständigen Zeiträumen und ihrer Herleitung."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os blocos mostram um horário cada. O que vem a seguir abre no Início com as janelas completas e como cada uma foi calculada."
+          }
+        }
+      }
+    },
     "Uses the last 14 days and up to ten similar intervals near the same time of day. At least four intervals across three days are required. Sparse, irregular, incomplete, or stale data produces no estimate.": {
       "extractionState": "manual",
       "localizations": {
@@ -388,6 +733,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Usa os últimos 14 dias e até dez intervalos semelhantes perto do mesmo horário. São necessários pelo menos quatro intervalos em três dias. Dados escassos, irregulares, incompletos ou desatualizados não geram estimativa."
+          }
+        }
+      }
+    },
+    "Usual nap length": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usual nap length"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bisher übliche Schlafdauer"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duração habitual da soneca"
           }
         }
       }
@@ -434,6 +802,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "acorda por volta de %@"
+          }
+        }
+      }
+    },
+    "What's next": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What's next"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was kommt als Nächstes?"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O que vem a seguir"
+          }
+        }
+      }
+    },
+    "What's next section": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What's next section"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bereich „Was kommt als Nächstes?“"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seção O que vem a seguir"
           }
         }
       }

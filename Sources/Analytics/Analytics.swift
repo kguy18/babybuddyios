@@ -351,6 +351,12 @@ extension Analytics {
         signal("Settings.changed", parameters: ["setting": setting, "enabled": String(enabled)])
     }
 
+    /// What's next on Home was opened or closed. Many closes against opens would say the
+    /// fuller detail isn't wanted there.
+    static func whatsNextToggled(open: Bool) {
+        signal("Forecast.whatsNextToggled", parameters: ["open": String(open)])
+    }
+
     /// The home-screen icon was switched. Carries the chosen design's stable name (an
     /// ``AppIconOption`` raw value) — which of six shipped artworks someone prefers, and nothing
     /// about them. Worth its own signal rather than a ``settingChanged(_:enabled:)`` boolean, since
