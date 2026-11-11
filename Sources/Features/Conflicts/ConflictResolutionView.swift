@@ -16,6 +16,8 @@ struct ConflictResolutionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var wide = false
+    @State private var foldPanes: FoldLayout.Panes?
+    private let contentPadding: CGFloat = 16
 
     let conflict: ConflictRecord
 
@@ -51,6 +53,16 @@ struct ConflictResolutionView: View {
             }
         }
         .trackingWide($wide)
+        .onGeometryChange(for: FoldLayout.Panes?.self) { geometry in
+            #if compiler(>=6.4)
+            if #available(iOS 27.1, *),
+               let fold = geometry.reservedRegions(kind: .division, options: .includeInactive)
+                .first(where: { $0.frame.height > $0.frame.width }) {
+                return FoldLayout.panes(width: geometry.size.width, fold: fold.frame)
+            }
+            #endif
+            return nil
+        } action: { foldPanes = $0 }
         .background(BBColor.surface)
         .navigationTitle("Resolve Conflict")
         .navigationBarTitleDisplayMode(.inline)
@@ -68,7 +80,7 @@ struct ConflictResolutionView: View {
         ScrollView {
             VStack(spacing: 16) {
                 if wide {
-                    SheetColumns(wide: wide) { headerCard } trailing: { modeControl }
+                    columns { headerCard } trailing: { modeControl }
                 } else {
                     headerCard
                     modeControl
@@ -85,7 +97,7 @@ struct ConflictResolutionView: View {
                     if !wide { matchInfoRow }
                 case .keepMine, .keepServer:
                     if wide {
-                        SheetColumns(wide: wide) { outcomeCard } trailing: { affectsLine }
+                        columns { outcomeCard } trailing: { affectsLine }
                     } else {
                         outcomeCard
                         affectsLine
@@ -93,16 +105,36 @@ struct ConflictResolutionView: View {
                 }
 
                 if wide {
-                    SheetColumns(wide: wide) {
+                    columns {
                         if mode == .merge { matchInfoRow }
                     } trailing: { actionArea }
                 } else {
                     actionArea.padding(.top, 2)
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, contentPadding)
             .padding(.top, 8)
             .padding(.bottom, 28)
+        }
+    }
+
+    /// Screen panes can be unequal because of the trailing rail. A centred sheet instead uses
+    /// the shared sheet columns when it is too narrow for full screen panes.
+    @ViewBuilder
+    private func columns<Leading: View, Trailing: View>(
+        spacing: CGFloat = 18, innerPadding: CGFloat = 0,
+        @ViewBuilder leading: @escaping () -> Leading, @ViewBuilder trailing: @escaping () -> Trailing
+    ) -> some View {
+        if let foldPanes, !typeSize.isAccessibilitySize {
+            let edge = contentPadding + innerPadding
+            HStack(alignment: .top, spacing: foldPanes.fold + edge * 2) {
+                VStack(alignment: .leading, spacing: spacing, content: leading)
+                    .frame(width: foldPanes.side - edge * 2, alignment: .leading)
+                VStack(alignment: .leading, spacing: spacing, content: trailing)
+                    .frame(width: foldPanes.main - edge * 2, alignment: .leading)
+            }
+        } else {
+            SheetColumns(wide: wide, spacing: spacing, leading: leading, trailing: trailing)
         }
     }
 
@@ -155,7 +187,7 @@ struct ConflictResolutionView: View {
                 }
                 .padding(.top, 2)
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, contentPadding)
             .padding(.top, 8)
             .padding(.bottom, 28)
         }
@@ -205,7 +237,7 @@ struct ConflictResolutionView: View {
     private var legend: some View {
         Group {
             if wide {
-                SheetColumns(wide: wide) { mineLegend } trailing: { serverLegend }
+                columns(innerPadding: 2) { mineLegend } trailing: { serverLegend }
             } else {
                 let layout = typeSize.isAccessibilitySize
                     ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
@@ -255,7 +287,7 @@ struct ConflictResolutionView: View {
     private var diffControlsRow: some View {
         Group {
             if wide {
-                SheetColumns(wide: wide, spacing: 8) { differenceCount } trailing: { bulkChoices }
+                columns(spacing: 8, innerPadding: 2) { differenceCount } trailing: { bulkChoices }
             } else if typeSize.isAccessibilitySize {
                 VStack(alignment: .leading, spacing: 8) {
                     differenceCount
@@ -297,7 +329,7 @@ struct ConflictResolutionView: View {
     private func fieldDiffRow(_ field: String) -> some View {
         VStack(alignment: .leading, spacing: 7) {
             if wide {
-                SheetColumns(wide: wide, spacing: 8) {
+                columns(spacing: 8) {
                     fieldLabel(field)
                     choiceCard(field: field, keepMine: true)
                 } trailing: {

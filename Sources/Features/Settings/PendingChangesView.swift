@@ -23,12 +23,19 @@ struct PendingChangesView: View {
     /// The stale-timer row awaiting "create without timer" confirmation. The original request may
     /// have already succeeded, so it warns about a possible duplicate first.
     @State private var creatingWithoutTimer: PendingMutation?
+    @State private var wide = false
     /// The row to scroll to and outline on appear — the editor's sync banner lands here.
     var highlight: UUID? = nil
 
     var body: some View {
         NavigationStack {
-            FoldSplitView { Color.clear } main: { _ in
+            HStack(spacing: 0) {
+                // The open display centres this sheet on the fold, with columns narrower than
+                // FoldSplitView's screen panes. Use the shared wide-sheet check for this queue.
+                if wide {
+                    Color.clear.frame(maxWidth: .infinity).accessibilityHidden(true)
+                    Color.clear.frame(width: FoldLayout.assumedFold).accessibilityHidden(true)
+                }
                 ScrollViewReader { proxy in
                     List {
                         ForEach(mutations) { mutation in
@@ -66,7 +73,9 @@ struct PendingChangesView: View {
                     }
                     .onAppear { if let highlight { proxy.scrollTo(highlight, anchor: .center) } }
                 }
+                .frame(maxWidth: .infinity)
             }
+            .trackingWide($wide)
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .background(BBColor.surface)

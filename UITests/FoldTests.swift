@@ -142,6 +142,9 @@ final class FoldTests: UITestCase {
         try launchOpen(["BB_START_TAB": "settings", "BB_SEED_PENDING": "1", "BB_OPEN_PENDING": "1"])
         let pending = expect(app.navigationBars["Pending Changes"])
         let title = expect(app.staticTexts["Added Pumping"])
+        let queue = expect(app.collectionViews.firstMatch)
+        XCTAssertGreaterThan(queue.frame.minX, app.windows.firstMatch.frame.midX,
+                             "The whole pending list should stay right of the fold")
         XCTAssertGreaterThan(title.frame.minX, app.windows.firstMatch.frame.midX,
                              "Pending rows should stay right of the fold")
         tap(pending.buttons["Done"])
@@ -167,6 +170,19 @@ final class FoldTests: UITestCase {
         XCTAssertTrue(server.isSelected)
         tap(app.buttons["Save merged feeding"])
         expect(app.staticTexts["No Conflicts"])
+
+        // Resolution also opens as a sheet. Its sizing must leave room for both fold panes.
+        try launchOpen(["BB_START_TAB": "settings", "BB_SEED_CONFLICT": "1", "BB_OPEN_CONFLICT": "1"])
+        expect(app.navigationBars["Resolve Conflict"])
+        let sheetMine = expect(app.buttons.labeled("Amount, Mine,"))
+        let sheetServer = expect(app.buttons.labeled("Amount, Server,"))
+        XCTAssertGreaterThanOrEqual(sheetServer.frame.minX - sheetMine.frame.maxX, 39)
+        XCTAssertEqual(sheetMine.frame.minY, sheetServer.frame.minY, accuracy: 1)
+        if !forced {
+            let middle = app.windows.firstMatch.frame.midX
+            XCTAssertLessThan(sheetMine.frame.maxX, middle, "The sheet's Mine card should end before the fold")
+            XCTAssertGreaterThan(sheetServer.frame.minX, middle, "The sheet's Server card should start after the fold")
+        }
     }
 
 }
