@@ -118,11 +118,16 @@ final class TimerTests: UITestCase {
     }
 
     func testStopTimerFitsTheLargestText() {
-        launch(largestText: true)
+        let environment = ProcessInfo.processInfo.environment["BB_FOLD"] == "1" ? ["BB_FOLD": "1"] : [:]
+        launch(environment, largestText: true)
         tap(app.buttons["Stop"])
         expect(app.navigationBars["Stop Timer"])
         let scroll = app.scrollViews["screen-stop-timer"]
         XCTAssertTrue(expect(app.staticTexts["stop-timer-activity"]).isHittable)
+        let started = expect(app.staticTexts["Started"])
+        let startTime = app.datePickers.firstMatch.buttons.firstMatch
+        XCTAssertGreaterThan(startTime.frame.minY, started.frame.maxY,
+                             "The start-time control should sit below its label at accessibility sizes")
         let feeding = app.buttons["Feeding"]
         reveal(feeding, in: scroll)
         tap(feeding)
@@ -135,11 +140,36 @@ final class TimerTests: UITestCase {
         XCTAssertGreaterThan(restart.frame.minY, resume.frame.maxY)
         XCTAssertGreaterThan(discard.frame.minY, restart.frame.maxY)
         for button in [log, resume, restart, discard] {
-            XCTAssertTrue(app.windows.firstMatch.frame.contains(button.frame), "Actions should fit inside the window")
+            revealAction(button, in: scroll)
+            XCTAssertTrue(button.isHittable, "\(button.label) should be reachable by scrolling")
+            let window = app.windows.firstMatch.frame
+            if !window.contains(button.frame) {
+                let tree = XCTAttachment(string: app.debugDescription)
+                tree.name = "Stop timer action frames"
+                add(tree)
+            }
+            XCTAssertTrue(window.contains(button.frame),
+                          "\(button.label) frame \(button.frame) should fit inside window \(window), scroll \(scroll.frame)")
         }
         tap(resume)
         expectGone(app.navigationBars["Stop Timer"])
         expect(element(labeled: "Tummy time running"))
+    }
+
+    /// Hittable can include a button clipped by the bottom of a short Duo display.
+    private func revealAction(_ button: XCUIElement, in scroll: XCUIElement) {
+        for _ in 0..<10 {
+            let viewport = scroll.frame.intersection(app.windows.firstMatch.frame)
+            if button.exists && button.isHittable {
+                let frame = button.frame
+                if frame.minY >= viewport.minY && frame.maxY <= viewport.maxY { return }
+                if frame.minY < viewport.minY {
+                    scroll.swipeDown()
+                    continue
+                }
+            }
+            scroll.swipeUp()
+        }
     }
 
     /// A nap noticed late: the timer starts 30 minutes back, so it has already run 30 minutes.

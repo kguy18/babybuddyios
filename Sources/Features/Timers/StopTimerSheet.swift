@@ -152,8 +152,9 @@ struct StopTimerSheet: View {
     }
 
     private var startedRow: some View {
-        HStack(spacing: 6) {
-            // Fixed: beside the picker on the front display it wrapped a few letters per line.
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(spacing: 6))
+        return layout {
             Text("Started").font(.caption).foregroundStyle(.secondary).fixedSize()
             DatePicker("Started", selection: Binding(get: { timer.timestamp }, set: setStartTime),
                        displayedComponents: .hourAndMinute)
