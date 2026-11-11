@@ -237,13 +237,11 @@ class UITestCase: XCTestCase {
         let add = expect((hasRail ? app.toolbars : app.navigationBars).buttons["Add"], file: file, line: line)
         XCTAssertEqual(app.buttons.matching(identifier: "Add").count, 1,
                        "Only the rail should have a +", file: file, line: line)
-        // A navigation bar's button is above the content already; the pane's scroll view runs
-        // under the bar, so only the rail is checked against it.
+        // A navigation bar's button is above the content already. In the rail the + shares the
+        // tabs' column; the pane's scroll view runs under the rail, so it can't mark the edge.
         guard hasRail else { return }
-        let pane = app.scrollViews.allElementsBoundByIndex.max { $0.frame.minX < $1.frame.minX }
-        guard let pane else { return XCTFail("No scroll view right of the fold", file: file, line: line) }
-        XCTAssertGreaterThanOrEqual(add.frame.minX, pane.frame.maxX - 1, "The + should sit right of the pane",
-                                    file: file, line: line)
+        XCTAssertEqual(add.frame.midX, expect(tab("Home"), file: file, line: line).frame.midX, accuracy: 8,
+                       "The + should sit in the rail, above the tabs", file: file, line: line)
     }
 
     /// Drags the open sheet's grabber to the top, for a sheet that opens at half height. A swipe on
