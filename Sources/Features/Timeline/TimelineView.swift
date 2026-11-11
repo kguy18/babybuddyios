@@ -76,9 +76,15 @@ struct TimelineView: View {
                                         prompt: String(localized: "Search notes, tags, type…"))
                     }
                 }
-                .navigationTitle(split ? "" : String(localized: "Timeline"))
+                .navigationTitle("Timeline")
                 .toolbar {
-                    if !split {
+                    if split {
+                        // The bar keeps its title, which names the screen to VoiceOver, but shows
+                        // nothing: in the middle of the bar it would sit on the fold.
+                        ToolbarItem(placement: .principal) {
+                            Color.clear.frame(width: 1, height: 1).accessibilityHidden(true)
+                        }
+                    } else {
                         ChildSwitcher(children: children, selectedChildID: $selectedChildID)
                         ToolbarItem(placement: .topBarTrailing) { filterButton }
                     }
