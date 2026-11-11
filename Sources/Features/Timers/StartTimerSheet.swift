@@ -25,9 +25,7 @@ struct StartTimerSheet: View {
     /// The convertible activities a timer can become — same set as the dashboard's convert menu.
     private let activities: [EntityKind] = [.feeding, .sleep, .tummyTime, .pumping]
 
-    private var columns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: 12), count: typeSize.isAccessibilitySize ? 1 : 2)
-    }
+    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
     var body: some View {
         NavigationStack {
@@ -35,12 +33,11 @@ struct StartTimerSheet: View {
                 // On iPhone Duo's open display: the activities left, the details and Start right.
                 SheetColumns(wide: wide) {
                     SectionHeader(String(localized: "Activity"))
-                    LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(activities) { kind in
-                            ActivityPickTile(kind: kind, isSelected: selected == kind) {
-                                selected = (selected == kind) ? nil : kind
-                            }
-                        }
+                    // Keep all four choices in the accessibility tree while the form scrolls.
+                    if typeSize.isAccessibilitySize {
+                        VStack(spacing: 12) { activityTiles }
+                    } else {
+                        LazyVGrid(columns: columns, spacing: 12) { activityTiles }
                     }
                 } trailing: {
                     detailsCard
@@ -68,6 +65,14 @@ struct StartTimerSheet: View {
                         .padding(.bottom, 6)
                         .background(BBColor.surface)
                 }
+            }
+        }
+    }
+
+    private var activityTiles: some View {
+        ForEach(activities) { kind in
+            ActivityPickTile(kind: kind, isSelected: selected == kind) {
+                selected = (selected == kind) ? nil : kind
             }
         }
     }

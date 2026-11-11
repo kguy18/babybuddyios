@@ -30,9 +30,7 @@ struct StopTimerSheet: View {
 
     /// The convertible activities — same set as the Start Timer grid.
     private let activities: [EntityKind] = [.feeding, .sleep, .tummyTime, .pumping]
-    private var columns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: 12), count: typeSize.isAccessibilitySize ? 1 : 2)
-    }
+    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
     init(timer: LocalEntity, onLog: @escaping (EntityKind) -> Void, onResume: @escaping () -> Void,
          onDiscard: @escaping () -> Void) {
@@ -50,16 +48,11 @@ struct StopTimerSheet: View {
                 SheetColumns(wide: wide) {
                     summaryCard
                     SectionHeader(String(localized: "Log as"))
-                    LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(activities) { kind in
-                            ActivityPickTile(kind: kind, isSelected: selected == kind) {
-                                selected = (selected == kind) ? nil : kind
-                            }
-                            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).midY } action: {
-                                guard kind == activities.first else { return }
-                                firstTileMid = $0
-                            }
-                        }
+                    // Keep all four choices in the accessibility tree while the form scrolls.
+                    if typeSize.isAccessibilitySize {
+                        VStack(spacing: 12) { activityTiles }
+                    } else {
+                        LazyVGrid(columns: columns, spacing: 12) { activityTiles }
                     }
                 } trailing: {
                     if wide || typeSize.isAccessibilitySize { actions }
@@ -107,6 +100,18 @@ struct StopTimerSheet: View {
         guard !Task.isCancelled, !checkedHeight else { return }
         checkedHeight = true
         if detent == .medium, firstTileMid > actionsTop { detent = .large }
+    }
+
+    private var activityTiles: some View {
+        ForEach(activities) { kind in
+            ActivityPickTile(kind: kind, isSelected: selected == kind) {
+                selected = (selected == kind) ? nil : kind
+            }
+            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).midY } action: {
+                guard kind == activities.first else { return }
+                firstTileMid = $0
+            }
+        }
     }
 
     // MARK: Summary
