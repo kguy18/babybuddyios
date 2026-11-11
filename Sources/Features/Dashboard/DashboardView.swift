@@ -118,7 +118,18 @@ struct DashboardView: View {
             FoldSplitView {
                 sidePane
             } main: { split in
+                #if DEBUG
+                // `BB_HOME_SCROLL=today`: start with Today at the top, for the estimates screenshot.
+                ScrollViewReader { proxy in
+                    mainPane(split: split).task {
+                        guard ProcessInfo.processInfo.environment["BB_HOME_SCROLL"] == "today" else { return }
+                        try? await Task.sleep(for: .milliseconds(300))
+                        proxy.scrollTo("home-today", anchor: .top)
+                    }
+                }
+                #else
                 mainPane(split: split)
+                #endif
             }
             .background(BBColor.surface)
             .accessibilityIdentifier("screen-home")
@@ -611,6 +622,7 @@ struct DashboardView: View {
                 SectionHeader(String(localized: "Today"))
                 todayGrid(kinds, now: now, forecast: forecast)
             }
+            .id("home-today")
         }
     }
 
