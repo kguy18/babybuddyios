@@ -48,7 +48,7 @@ final class FeedbackAccountTests: UITestCase {
 
         tap(app.buttons.labeled("Request a Feature"))
         let board = expect(app.navigationBars["Request a Feature"])
-        expect(board.buttons["Sign In"])
+        expect(board.buttons["Sign In"], timeout: widgetTimeout)
         tap(board.buttons["Close"])
         expectGone(board)
         XCTAssertFalse(app.buttons.labeled("Feedback Account").exists)
@@ -114,7 +114,7 @@ final class FeedbackAccountTests: UITestCase {
         XCTAssertFalse(app.buttons.labeled("Feedback Account").exists)
         tap(app.buttons.labeled("Request a Feature"))
         let board = expect(app.navigationBars["Request a Feature"])
-        tap(board.buttons["Sign In"])
+        tap(board.buttons["Sign In"], timeout: widgetTimeout)
         signInWithCode()
         expect(app.webViews.staticTexts["Stub widget: new-post"], timeout: 30)
         tap(board.buttons["Close"])

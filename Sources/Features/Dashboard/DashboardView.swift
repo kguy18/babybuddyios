@@ -72,6 +72,8 @@ struct DashboardView: View {
     // Settings ▸ Today tiles; `nil` until changed, which is the default four (``TodayTiles``).
     @AppStorage(TodayTiles.key, store: SharedDefaults.suite) private var todayTilesRaw: String?
     @AppStorage(ForecastPreferences.enabledKey, store: SharedDefaults.suite) private var showsEstimates = false
+    @AppStorage(ForecastPreferences.tilesKey, store: SharedDefaults.suite) private var estimatesOnTiles = true
+    @AppStorage(ForecastPreferences.sectionKey, store: SharedDefaults.suite) private var showsWhatsNext = true
 
     /// A request to convert a specific timer into a specific activity kind.
     private struct ConvertRequest: Identifiable {
@@ -116,7 +118,18 @@ struct DashboardView: View {
             FoldSplitView {
                 sidePane
             } main: { split in
+                #if DEBUG
+                // `BB_HOME_SCROLL=today`: start with Today at the top, for the estimates screenshot.
+                ScrollViewReader { proxy in
+                    mainPane(split: split).task {
+                        guard ProcessInfo.processInfo.environment["BB_HOME_SCROLL"] == "today" else { return }
+                        try? await Task.sleep(for: .milliseconds(300))
+                        proxy.scrollTo("home-today", anchor: .top)
+                    }
+                }
+                #else
                 mainPane(split: split)
+                #endif
             }
             .background(BBColor.surface)
             .accessibilityIdentifier("screen-home")
@@ -265,7 +278,7 @@ struct DashboardView: View {
                             onDismiss: { dismissNudge(.banner) })
                     }
 
-                    todaySection
+                    todayAndNext
                     if !latestEvents.isEmpty { latestSection }
                 }
             }
@@ -577,24 +590,39 @@ struct DashboardView: View {
 
     // MARK: Today
 
+    /// Today, then What's next when it's chosen. Both read one estimate snapshot, redrawn each
+    /// minute. Sick mode draws its own Home, so What's next never shows there.
+    @ViewBuilder private var todayAndNext: some View {
+        let tiles = showsEstimates && estimatesOnTiles
+        let section = showsEstimates && showsWhatsNext
+        if tiles || section {
+            SwiftUI.TimelineView(.periodic(from: .now, by: 60)) { timeline in
+                // A save can arrive between ticks. Its end time must not read as being in the
+                // future merely because the last scheduled date is a minute old.
+                let now = max(timeline.date, Date.now)
+                let forecast = ForecastCache.snapshot(
+                    allEntities, childID: selectedChildID, lastSync: sync.lastSyncDate, now: now)
+                VStack(spacing: 18) {
+                    todaySection(now: now, forecast: tiles ? forecast : nil)
+                    if section {
+                        WhatsNextSection(snapshot: forecast, tilesShown: tiles, now: now)
+                    }
+                }
+            }
+        } else {
+            todaySection(now: .now, forecast: nil)
+        }
+    }
+
     /// The tiles chosen in Settings ▸ Today tiles; with none chosen the section is left out.
-    @ViewBuilder private var todaySection: some View {
+    @ViewBuilder private func todaySection(now: Date, forecast: ForecastSnapshot?) -> some View {
         let kinds = TodayTiles.decode(todayTilesRaw)
         if !kinds.isEmpty {
             VStack(alignment: .leading, spacing: 9) {
                 SectionHeader(String(localized: "Today"))
-                if showsEstimates {
-                    SwiftUI.TimelineView(.periodic(from: .now, by: 60)) { timeline in
-                        // A save can arrive between ticks. Its end time must not read as being in
-                        // the future merely because the last scheduled date is a minute old.
-                        let now = max(timeline.date, Date.now)
-                        todayGrid(kinds, now: now, forecast: ForecastCache.snapshot(
-                            allEntities, childID: selectedChildID, lastSync: sync.lastSyncDate, now: now))
-                    }
-                } else {
-                    todayGrid(kinds, now: .now, forecast: nil)
-                }
+                todayGrid(kinds, now: now, forecast: forecast)
             }
+            .id("home-today")
         }
     }
 

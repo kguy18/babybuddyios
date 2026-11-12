@@ -61,6 +61,7 @@ let nap = run(sleeps, hour: 8).cues.first { $0.kind == .nap }!
 check(nap.state == .ready, "Regular nap pattern")
 check(nap.estimate?.anchor == time(0, 7), "Awake interval starts at sleep END")
 check(nap.estimate?.window.midpoint == time(0, 9), "Nap starts at observed wake interval")
+check(nap.estimate?.usualNapSeconds != nil, "Typical nap duration")
 let timer = ForecastTimer(childID: 1, kind: .sleep, start: time(0, 9))
 let sleeping = run(sleeps, hour: 9.25, timers: [timer])
 check(sleeping.cues.first { $0.kind == .wake }?.estimate?.window.midpoint == time(0, 10), "Wake estimate from sleep duration")

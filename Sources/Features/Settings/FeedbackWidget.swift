@@ -388,15 +388,19 @@ struct FeedbackWebView: UIViewRepresentable {
 
         /// Fails at once when the first network path reading says offline, otherwise after
         /// `readyTimeout` without a `ready`.
+        ///
+        /// Not under the UI-test stub, which has no network or server to wait for: a test run
+        /// offline must not fail on the path check, and on a cold iPhone Duo simulator WebKit alone
+        /// took more than `readyTimeout` to load the stub's page.
         func startWatching() {
+            guard !FeedbackWidget.isStubbed else { return }
             pathMonitor.pathUpdateHandler = { [weak self] path in
                 MainActor.assumeIsolated {
                     self?.pathMonitor.cancel()
                     if path.status != .satisfied { feedbackTrace("offline"); self?.fail() }
                 }
             }
-            // The stub needs no network, so a test run offline must not fail on the path check.
-            if !FeedbackWidget.isStubbed { pathMonitor.start(queue: .main) }
+            pathMonitor.start(queue: .main)
             readyTimer = Task { @MainActor [weak self] in
                 try? await Task.sleep(for: FeedbackWebView.readyTimeout)
                 guard !Task.isCancelled, let self, self.parent.phase == .loading else { return }
