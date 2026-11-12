@@ -36,7 +36,7 @@ jobs:
           else
             echo "code=false" >> "$GITHUB_OUTPUT"; echo "docs-only PR: skipping the macOS build"
           fi
-          # The seven Duo UI shards run only when a PR changes what they test or how they run.
+          # The eight Duo UI shards run only when a PR changes what they test or how they run.
           # A version bump, release notes or a tooling change gets `duo (unit)` and `duo (open)`.
           APP=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
                 | grep -E '^(Sources|Widgets|UITests)/|^scripts/ui-test\.sh$|^\.github/workflows/pr\.yml$' | head -1)
@@ -254,8 +254,9 @@ jobs:
   # the Duo: its simulator ignores the Home button.
   #
   # Building takes this image about 12 minutes, so `duo (build)` builds the UI tests once and the
-  # seven shards run that build. With a build each, the shards ran 28 minutes against the 30-minute
-  # cap, and the whole suite in one job ran past 85.
+  # eight shards run that build. With a build each, the shards ran 28 minutes against the 30-minute
+  # cap, and the whole suite in one job ran past 85. A shard spends 7 to 10 minutes on setup and the
+  # simulator's erase and boot before its first test, so each one holds about 13 minutes of tests.
   #
   # The shards are most of the Duo lane's runner time, so they run only on a PR that touches
   # Sources/, Widgets/, UITests/, scripts/ui-test.sh or this file (`changes` sets `duo-ui`). Every
@@ -355,19 +356,21 @@ jobs:
       matrix:
         include:
           - shard: feedback
-            classes: FeedbackTests
+            classes: FeedbackTests TodayTilesTests
           - shard: account
-            classes: FeedbackAccountTests TodayTilesTests
+            classes: FeedbackAccountTests SmokeTests FoldTests
           - shard: logging
             classes: LoggingTests
           - shard: settings
-            classes: SettingsTests NotificationTests DashboardTests GermanLocalizationTests PortugueseLocalizationTests
+            classes: SettingsTests NotificationTests GermanLocalizationTests
           - shard: dialogs
-            classes: DialogTests SyncTests ReassignChildTests ActivityForecastUITests
+            classes: DialogTests SyncTests
+          - shard: forecast
+            classes: ActivityForecastUITests DashboardTests
           - shard: timers
-            classes: TimerTests LiveActivityTests SmokeTests
+            classes: TimerTests LiveActivityTests ReassignChildTests
           - shard: timeline
-            classes: TimelineTests SickModeTests FoldTests
+            classes: TimelineTests SickModeTests PortugueseLocalizationTests
     steps:
       - uses: actions/checkout@v4
       # Clone the image's iPhone Duo (device type and runtime) into a device of our own name, which
