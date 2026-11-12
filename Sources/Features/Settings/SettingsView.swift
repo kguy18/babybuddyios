@@ -43,6 +43,7 @@ struct SettingsView: View {
     // Mirrors MedicationReminderPolicy.isEnabled.
     @AppStorage(MedicationReminderPolicy.enabledKey, store: SharedDefaults.suite) private var doseRemindersEnabled = false
     @AppStorage(UndoToastCenter.enabledKey) private var undoToastEnabled = true
+    @AppStorage(DailyRhythmPreferences.visibleKey) private var showDailyRhythm = true
     @AppStorage(TodayTiles.key, store: SharedDefaults.suite) private var todayTilesRaw: String?
     // Sick mode (see ``SickMode``): the keys and defaults are the ones it reads.
     @State private var sickMode = SickModeStore.shared
@@ -560,6 +561,10 @@ struct SettingsView: View {
     /// ``PurchaseManager``. Devices that can't switch icons get no icon row.
     private var appearanceCard: some View {
         card {
+            SettingsRow(symbol: "clock", tint: BBColor.sleep, title: String(localized: "Daily rhythm in Trends")) {
+                Toggle("Daily rhythm in Trends", isOn: $showDailyRhythm).labelsHidden().tint(BBColor.primary)
+            }
+            rowDivider
             NavigationLink {
                 TodayTilesView()
             } label: {
