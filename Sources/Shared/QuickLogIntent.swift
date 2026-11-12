@@ -33,12 +33,20 @@ struct QuickLogIntent: AppIntent {
         let context = container.mainContext
 
         // create() already fires Analytics.activityLogged for non-timer kinds, so don't double-log.
-        let entity = LocalRepository(context: context).create(
+        guard let entity = LocalRepository(context: context).create(
             kind: action.kind, payload: action.payload(childID: child, now: .now), source: .intent)
-        if let entity { await TimerPush.pushCreate(localID: entity.localID, in: context) }
+        else { throw QuickLogSaveError() }
+        // create() is best-effort. Confirm persistence before recording a success receipt.
+        do { try context.save() } catch { throw QuickLogSaveError() }
+        QuickLogFeedback.record(action: action, entityID: entity.localID, childID: child, now: .now)
+        await TimerPush.pushCreate(localID: entity.localID, in: context)
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
     }
+}
+
+struct QuickLogSaveError: Error, CustomLocalizedStringResourceConvertible {
+    var localizedStringResource: LocalizedStringResource { "Could not save this entry. Open Baby Buddy and try again." }
 }
 
 /// Thrown by ``QuickLogIntent`` when no child is selected — a diaper change requires one, so
