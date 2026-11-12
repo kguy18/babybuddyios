@@ -156,6 +156,9 @@ enum DemoData {
         }
         ForecastPreferences.enabled = true
         SharedDefaults.lastSyncDate = now
+        if ProcessInfo.processInfo.environment["BB_FORECAST_OPEN"] == "1" {
+            UserDefaults.standard.set(true, forKey: ForecastPreferences.sectionOpenKey)
+        }
     }
 
     /// `BB_SEED_SECOND_CHILD=1`: a second child with no records of her own, so the Editor's Baby

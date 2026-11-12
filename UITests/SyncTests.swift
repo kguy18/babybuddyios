@@ -73,4 +73,78 @@ final class SyncTests: UITestCase {
         back(from: "Conflicts")
         expect(app.staticTexts["All clear"])
     }
+
+    func testPendingChangesAtLargestText() {
+        launch(["BB_START_TAB": "settings", "BB_SEED_PENDING": "1", "BB_OPEN_PENDING": "1"], largestText: true)
+        expect(app.navigationBars["Pending Changes"])
+        let title = expect(app.staticTexts["Added Pumping"])
+        let time = expect(app.staticTexts["queue-time-Added Pumping"])
+        XCTAssertGreaterThanOrEqual(time.frame.minY, title.frame.maxY - 1,
+                                    "The timestamp should sit below the title")
+        XCTAssertEqual(time.frame.minX, title.frame.minX, accuracy: 1,
+                       "The timestamp should align with the title")
+
+        let create = app.buttons["Create without timer"]
+        for _ in 0..<8 {
+            if create.exists && create.isHittable { break }
+            app.collectionViews.firstMatch.swipeUp()
+        }
+        tap(create)
+        let prompt = expect(app.alerts["Create without the timer?"])
+        tap(prompt.buttons["Cancel"])
+        expectGone(prompt)
+        XCTAssertTrue(create.exists, "Cancel should keep the queued timer conversion")
+    }
+
+    func testConflictResolutionAtLargestText() {
+        launch(["BB_START_TAB": "settings", "BB_SEED_CONFLICT": "1"], largestText: true)
+        tap(app.buttons.labeled("Conflicts"))
+        expect(app.navigationBars["Conflicts"])
+        let row = expect(app.buttons.labeled("Feeding"))
+        XCTAssertTrue(row.label.contains("Changed on the server and on this device"))
+        XCTAssertGreaterThan(row.frame.height, 100, "The inbox explanation should wrap")
+        tap(row)
+        expect(app.navigationBars["Resolve Conflict"])
+        let mine = expect(app.buttons["Keep mine"])
+        let server = expect(app.buttons["Keep server"])
+        let merge = expect(app.buttons["Merge"])
+        XCTAssertGreaterThanOrEqual(server.frame.minY, mine.frame.maxY - 1)
+        XCTAssertGreaterThanOrEqual(merge.frame.minY, server.frame.maxY - 1)
+        tap(mine)
+        XCTAssertTrue(mine.isSelected)
+        tap(server)
+        XCTAssertTrue(server.isSelected)
+        tap(merge)
+        XCTAssertTrue(merge.isSelected)
+
+        let mineTime = app.staticTexts["Mine"]
+        let serverTime = app.staticTexts["Server"]
+        app.scrollViews.firstMatch.swipeUp()
+        expect(mineTime)
+        expect(serverTime)
+        XCTAssertGreaterThan(serverTime.frame.minY, mineTime.frame.maxY - 1,
+                             "The Mine and Server times should stack")
+
+        let localAmount = app.buttons.labeled("Amount, Mine,")
+        let serverAmount = app.buttons.labeled("Amount, Server,")
+        for _ in 0..<5 {
+            if serverAmount.exists && serverAmount.isHittable { break }
+            app.scrollViews.firstMatch.swipeUp()
+        }
+        expect(localAmount)
+        expect(serverAmount)
+        XCTAssertGreaterThanOrEqual(serverAmount.frame.minY, localAmount.frame.maxY - 1,
+                                    "The field choices should stack")
+        tap(app.buttons["All server"])
+        XCTAssertTrue(serverAmount.isSelected)
+        XCTAssertFalse(localAmount.isSelected)
+        let save = app.buttons["Save merged feeding"]
+        for _ in 0..<8 {
+            if save.exists && save.isHittable { break }
+            app.scrollViews.firstMatch.swipeUp()
+        }
+        tap(save)
+        expect(app.staticTexts["No Conflicts"])
+    }
+
 }
