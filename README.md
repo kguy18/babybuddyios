@@ -70,6 +70,17 @@ multiple children run through all of it.
 | 🔒 **Locked down** | Credentials stay in your Keychain, with an optional Face ID, Touch ID or passcode lock. |
 | 🎨 **Six app icons** | Swap the Home Screen icon under **Settings → Appearance → App Icon**. |
 
+## Languages
+
+Baby Buddy Companion is available in several languages thanks to the work of community
+translators. The app follows your iPhone's language. Text that comes from your server, such as
+server error messages, stays in the language set in your Baby Buddy user settings. See
+[Docs/Localization.md](Docs/Localization.md) for how to add or update a translation.
+
+### Available languages
+
+:brazil: Brazilian Portuguese, :us: English (base), :de: German
+
 ## Your baby's records stay with you
 
 Baby tracking data syncs only between the app and your

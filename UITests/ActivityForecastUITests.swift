@@ -1,6 +1,7 @@
 import XCTest
 
-/// Estimates on the Today tiles: a footer on the Feedings, Sleep, and Diapers tiles, off by default.
+/// Estimates on the Today tiles (a footer on the Feedings, Sleep, and Diapers tiles) and in What's
+/// next below them, off by default.
 /// `BB_SEED_FORECAST=1` turns them on and seeds a routine that makes all three ready at any hour.
 final class ActivityForecastUITests: UITestCase {
     private func tile(_ kind: String) -> XCUIElement {
@@ -90,6 +91,64 @@ final class ActivityForecastUITests: UITestCase {
         tap(expect(tile("feeding")))
         back(from: "Feeding · Today")
         expectLabel(of: tile("feeding"), contains: ", next around ")
+    }
+
+    // MARK: What's next
+
+    private var whatsNext: XCUIElement { app.buttons["whats-next-toggle"] }
+    private func row(_ kind: String) -> XCUIElement { app.descendants(matching: .any)["forecast-\(kind)"] }
+
+    func testWhatsNextOpensWithEveryRowAndStaysOpen() {
+        launch(["BB_SEED_FORECAST": "1"])
+        expect(whatsNext)
+        XCTAssertFalse(row("feeding").exists, "Closed on first turn-on")
+        XCTAssertEqual(whatsNext.value as? String ?? "", "", "The tiles show the times, so the closed row adds none")
+
+        tap(whatsNext)
+        expectLabel(of: row("feeding"), contains: "Similar intervals")
+        expect(row("nap"))
+        expect(row("change"))
+        expect(app.staticTexts.labeled("Based on logged routines"))
+
+        tap(tab("Settings"))
+        tap(tab("Home"))
+        expect(row("feeding"))
+        tap(whatsNext)
+        expectGone(row("feeding"))
+    }
+
+    func testSettingsChooseWhereEstimatesShow() {
+        launch(["BB_SEED_FORECAST": "1"])
+        tap(tab("Settings"))
+        // Tab switches below keep this screen pushed, so its switches stay reachable.
+        let enabled = estimatesSwitch(row: "Activity estimates")
+        let tiles = app.switches["forecast-tiles"].switches.firstMatch
+        expectValue(tiles, "1")
+        expectValue(app.switches["forecast-section"].switches.firstMatch, "1")
+        expectValue(app.switches["forecast-widget"].switches.firstMatch, "1")
+
+        toggle(tiles, to: "0")
+        tap(tab("Home"))
+        XCTAssertFalse(expect(tile("feeding")).label.contains("around"))
+        expect(whatsNext, matching: NSPredicate(format: "value CONTAINS %@", " around "), timeout: 10,
+               describedAs: "to show the soonest estimate")
+        tap(whatsNext)
+        expect(row("feeding"))
+
+        tap(tab("Settings"))
+        toggle(app.switches["forecast-section"].switches.firstMatch, to: "0")
+        toggle(enabled, to: "0")
+        expectGone(app.switches["forecast-tiles"])
+        tap(tab("Home"))
+        expect(tile("feeding"))
+        XCTAssertFalse(whatsNext.exists)
+    }
+
+    func testWhatsNextHidesInSickMode() {
+        launch(["BB_SEED_FORECAST": "1", "BB_SEED_SICK": "1"])
+        allowNotificationsIfAsked()
+        expect(app.buttons["End sick mode"])
+        XCTAssertFalse(whatsNext.exists)
     }
 
     func testDisclaimerLivesInSettings() {

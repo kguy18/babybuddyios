@@ -28,9 +28,22 @@ enum ForecastCache {
 }
 
 enum ForecastPreferences {
+    /// The master switch, off until turned on.
     static let enabledKey = "activityForecastEnabled"
+    /// Where estimates show once the master switch is on. Each is on until changed.
+    static let tilesKey = "activityForecastTiles"
+    static let sectionKey = "activityForecastSection"
+    static let widgetKey = "activityForecastWidget"
+    /// Whether What's next is open. In standard defaults, so each device keeps its own; closed
+    /// until opened.
+    static let sectionOpenKey = "activityForecastSectionOpen"
+
     static var enabled: Bool {
         get { SharedDefaults.suite.bool(forKey: enabledKey) }
         set { SharedDefaults.suite.set(newValue, forKey: enabledKey) }
+    }
+    /// Whether estimates show in the place `key` names: the master switch, then that choice.
+    static func shows(_ key: String, in defaults: UserDefaults = SharedDefaults.suite) -> Bool {
+        defaults.bool(forKey: enabledKey) && defaults.object(forKey: key) as? Bool ?? true
     }
 }

@@ -85,6 +85,9 @@ Pass these via `SIMCTL_CHILD_<NAME>` environment variables to `xcrun simctl laun
 | `BB_SEED_PENDING=1` | Also seed queued, blocked and photo changes for Pending Changes (into an empty store) |
 | `BB_SEED_SICK=1\|clear` | Also seed a day and a half of fever, two medicines, wet diapers and feeds, with sick mode on (into an empty store). `clear` moves the fever and doses 30 hours back, so Home asks to end sick mode |
 | `BB_SEED_SECOND_CHILD=1` | Also seed a second child with no records of her own, so the Editor's Baby picker and the ChildSwitcher have somewhere to reassign/switch to (into an empty store) |
+| `BB_SEED_FORECAST=1` | Replace Maya's feedings, naps, and diaper changes with a regular three-hour routine and turn Activity estimates on, so every Today tile shows an estimate at any hour (into an empty store). The screenshot test uses it for `08_estimates`, with `BB_FORECAST_OPEN=1` and `BB_HOME_SCROLL=today` |
+| `BB_FORECAST_OPEN=1` | With `BB_SEED_FORECAST=1`, open What's next on Home |
+| `BB_HOME_SCROLL=today` | Scroll Home so the Today section starts at the top of the screen |
 | `BB_TEMP_UNIT=c\|f` | Stand in for the region's temperature unit, until one is picked in Settings |
 | `BB_START_TAB=timeline\|trends\|settings` | Open on a specific tab |
 | `BB_OPEN=timer\|feeding\|change\|…` | Auto-present Start Timer or a new-entry editor |
