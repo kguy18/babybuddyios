@@ -114,6 +114,8 @@ struct InsightsView: View {
                 .chartYAxisLabel("Hours")
                 .modifier(DayAxis(period: period))
                 .frame(height: chartHeight)
+                .modifier(ChartValueDetails(values: series.map { TrendValue(date: $0.day, text: EntityFormatting.spokenDuration($0.hours * 3600)) },
+                                            identifier: "sleep"))
             } else {
                 emptyChart(String(localized: "No sleep logged"))
             }
@@ -143,6 +145,8 @@ struct InsightsView: View {
                     .chartYAxis { AxisMarks(values: .automatic(desiredCount: 4)) }
                     .modifier(DayAxis(period: period))
                     .frame(height: chartHeight)
+                    .modifier(ChartValueDetails(values: series.map { TrendValue(date: $0.day, text: String(localized: "\($0.count) feedings")) },
+                                                identifier: "feeding-count"))
 
                     if hasAmounts {
                         Divider().overlay(BBColor.divider)
@@ -159,6 +163,8 @@ struct InsightsView: View {
                         }
                         .modifier(DayAxis(period: period))
                         .frame(height: chartHeight * 0.8)
+                        .modifier(ChartValueDetails(values: series.map { TrendValue(date: $0.day, text: "\(TrendValue.amount($0.totalAmount)) mL") },
+                                                    identifier: "feeding-amount"))
                     }
                 }
             } else {
@@ -205,6 +211,8 @@ struct InsightsView: View {
                 .modifier(DayAxis(period: period))
                 .chartLegend(position: .bottom, spacing: 8)
                 .frame(height: chartHeight)
+                .modifier(ChartValueDetails(values: series.map { TrendValue(date: $0.day, text: String(localized: "\($0.wet) wet · \($0.solid) solid")) },
+                                            identifier: "diapers"))
             } else {
                 emptyChart(String(localized: "No diaper changes logged"))
             }
@@ -232,6 +240,8 @@ struct InsightsView: View {
                 .chartYAxisLabel("Minutes")
                 .modifier(DayAxis(period: period))
                 .frame(height: chartHeight)
+                .modifier(ChartValueDetails(values: series.map { TrendValue(date: $0.day, text: EntityFormatting.spokenDuration($0.minutes * 60)) },
+                                            identifier: "tummy"))
             } else {
                 emptyChart(String(localized: "No tummy time logged"))
             }
@@ -261,6 +271,8 @@ struct InsightsView: View {
                     .chartYAxisLabel("ml")
                     .modifier(DayAxis(period: period))
                     .frame(height: chartHeight)
+                    .modifier(ChartValueDetails(values: series.map { TrendValue(date: $0.day, text: "\(TrendValue.amount($0.totalAmount)) mL") },
+                                                identifier: "pumping-amount"))
 
                     Divider().overlay(BBColor.divider)
                     Text("Sessions")
@@ -277,6 +289,8 @@ struct InsightsView: View {
                     .chartYAxis { AxisMarks(values: .automatic(desiredCount: 4)) }
                     .modifier(DayAxis(period: period))
                     .frame(height: chartHeight * 0.8)
+                    .modifier(ChartValueDetails(values: series.map { TrendValue(date: $0.day, text: String(localized: "\($0.count) sessions")) },
+                                                identifier: "pumping-count"))
                 }
             } else {
                 emptyChart(String(localized: "No pumping logged"))
@@ -346,6 +360,8 @@ struct InsightsView: View {
                         }
                     }
                     .frame(height: chartHeight)
+                    .modifier(ChartValueDetails(values: readings.map { TrendValue(date: $0.time, text: "\(TrendValue.amount($0.value)) \(unit.symbol)", recordID: $0.entity.localID) },
+                                                identifier: "temperature", daily: false))
 
                     Text("Fever line at \(unit.format(feverLine))")
                         .font(.caption).foregroundStyle(.secondary)
