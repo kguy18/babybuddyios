@@ -66,7 +66,7 @@ struct StatusProvider: TimelineProvider {
         let context = ModelContext(container)
         let entities = (try? context.fetch(FetchDescriptor<LocalEntity>())) ?? []
         let child = SharedDefaults.selectedChildID
-        let forecast = ForecastPreferences.enabled ? child.map {
+        let forecast = ForecastPreferences.shows(ForecastPreferences.widgetKey) ? child.map {
             ForecastCache.snapshot(entities, childID: $0, lastSync: SharedDefaults.lastSyncDate, now: now)
         } : nil
         return StatusEntry(date: now, status: ChildStatus.compute(from: entities, childID: child, now: now), forecast: forecast)
