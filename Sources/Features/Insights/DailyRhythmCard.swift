@@ -16,9 +16,9 @@ struct DailyRhythmCard: View {
         let days = rows
         BBCard {
             VStack(alignment: .leading, spacing: 12) {
-                Label("Daily rhythm", systemImage: "clock").font(.headline)
+                Label(DailyRhythmPreferences.text("Daily rhythm"), systemImage: "clock").font(.headline)
                 if days.allSatisfy({ $0.sleeps.isEmpty && $0.feedings.isEmpty }) {
-                    ContentUnavailableView("No sleep or feedings logged", systemImage: "chart.bar.xaxis")
+                    ContentUnavailableView(DailyRhythmPreferences.text("No sleep or feedings logged"), systemImage: "chart.bar.xaxis")
                 } else {
                     chart(days)
                     HStack(spacing: 16) {
@@ -26,9 +26,9 @@ struct DailyRhythmCard: View {
                         Label("Feedings", systemImage: "circle.fill").foregroundStyle(BBColor.feeding)
                     }
                     .font(.caption)
-                    Text("Local clock time. Sleep is split at midnight and clock changes; feedings mark their start.")
+                    Text(DailyRhythmPreferences.text("Local clock time. Sleep is split at midnight and clock changes; feedings mark their start."))
                         .font(.caption).foregroundStyle(.secondary)
-                    Menu("Show daily details", systemImage: "list.bullet") {
+                    Menu(DailyRhythmPreferences.text("Show daily details"), systemImage: "list.bullet") {
                         ForEach(days) { day in
                             Button(day.day.formatted(date: .abbreviated, time: .omitted)) { selected = day }
                                 .accessibilityIdentifier(day.id == days.last?.id ? "rhythm-today" : "rhythm-day-\(day.axisID)")

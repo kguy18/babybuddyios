@@ -2,6 +2,9 @@ import Foundation
 
 enum DailyRhythmPreferences {
     static let visibleKey = "showDailyRhythm"
+    static func text(_ key: String.LocalizationValue) -> String {
+        String(localized: key, table: "DailyRhythm")
+    }
 }
 
 struct RhythmSleep: Identifiable {
