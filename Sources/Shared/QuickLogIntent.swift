@@ -46,7 +46,9 @@ struct QuickLogIntent: AppIntent {
 }
 
 struct QuickLogSaveError: Error, CustomLocalizedStringResourceConvertible {
-    var localizedStringResource: LocalizedStringResource { "Could not save this entry. Open Baby Buddy and try again." }
+    var localizedStringResource: LocalizedStringResource {
+        LocalizedStringResource("Could not save this entry. Open Baby Buddy and try again.", table: "QuickLogFeedback")
+    }
 }
 
 /// Thrown by ``QuickLogIntent`` when no child is selected — a diaper change requires one, so

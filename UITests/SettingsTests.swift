@@ -1,16 +1,6 @@
 import XCTest
 
 final class SettingsTests: UITestCase {
-    func testQuickLogConfirmationSetting() {
-        launch(["BB_START_TAB": "settings"])
-        let confirmation = app.switches["Quick log confirmation"]
-        expectValue(confirmation, "1")
-        toggle(confirmation, to: "0")
-        tap(tab("Home"))
-        tap(tab("Settings"))
-        expectValue(confirmation, "0")
-    }
-
     /// Nothing is for sale without a purchase backend, and the sheet says so rather than offering
     /// amounts that can't be bought (#58). Supporters see their status (#57).
     func testSupporterSheet() {
@@ -151,6 +141,16 @@ final class SettingsTests: UITestCase {
         tap(app.buttons["Save Diaper Change"])
         expectGone(bar)
         XCTAssertFalse(app.otherElements["Logged Diaper Change"].waitForExistence(timeout: 3))
+    }
+
+    func testQuickLogConfirmationSetting() {
+        launch(["BB_START_TAB": "settings"])
+        let confirmation = app.switches["Quick log confirmation"]
+        expectValue(confirmation, "1")
+        toggle(confirmation, to: "0")
+        tap(tab("Home"))
+        tap(tab("Settings"))
+        expectValue(confirmation, "0")
     }
 
     // MARK: Helpers

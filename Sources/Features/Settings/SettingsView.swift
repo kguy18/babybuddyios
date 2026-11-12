@@ -607,8 +607,8 @@ struct SettingsView: View {
     private var quickFeedCard: some View {
         card {
             SettingsRow(symbol: "checkmark.circle", tint: BBColor.feeding,
-                        title: String(localized: "Quick log confirmation")) {
-                Toggle("Quick log confirmation", isOn: $quickLogConfirmation).labelsHidden().tint(BBColor.primary)
+                        title: String(localized: "Quick log confirmation", table: "QuickLogFeedback")) {
+                Toggle(String(localized: "Quick log confirmation", table: "QuickLogFeedback"), isOn: $quickLogConfirmation).labelsHidden().tint(BBColor.primary)
                     .onChange(of: quickLogConfirmation) { _, _ in
                         WidgetCenter.shared.reloadTimelines(ofKind: "BabyBuddyQuickLog")
                     }

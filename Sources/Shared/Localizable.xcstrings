@@ -553,29 +553,6 @@
         }
       }
     },
-    "%@, saved on device": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@, saved on device"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@, auf diesem Gerät gespeichert"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@, salvo neste dispositivo"
-          }
-        }
-      }
-    },
     "%@, start timer": {
       "extractionState": "manual",
       "localizations": {
@@ -5381,29 +5358,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Copiar detalhes do app"
-          }
-        }
-      }
-    },
-    "Could not save this entry. Open Baby Buddy and try again.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Could not save this entry. Open Baby Buddy and try again."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Der Eintrag konnte nicht gespeichert werden. Öffne Baby Buddy und versuche es erneut."
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Não foi possível salvar este registro. Abra o Baby Buddy e tente novamente."
           }
         }
       }
@@ -12438,29 +12392,6 @@
         }
       }
     },
-    "Quick log confirmation": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Quick log confirmation"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bestätigung im Schnellerfassungs-Widget"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Confirmação no widget de registro rápido"
-          }
-        }
-      }
-    },
     "Quick start timer": {
       "extractionState": "manual",
       "localizations": {
@@ -13331,29 +13262,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Salvar registro mesclado (%@)"
-          }
-        }
-      }
-    },
-    "Saved on device": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Saved on device"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Auf Gerät gespeichert"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Salvo no dispositivo"
           }
         }
       }

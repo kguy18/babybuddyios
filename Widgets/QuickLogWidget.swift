@@ -64,7 +64,7 @@ struct QuickLogView: View {
     private var panel: some View {
         VStack(spacing: 7) {
             HStack(spacing: 4) {
-                Text(entry.receipt == nil ? String(localized: "Quick log") : String(localized: "Saved on device"))
+                Text(entry.receipt == nil ? String(localized: "Quick log") : String(localized: "Saved on device", table: "QuickLogFeedback"))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.secondary)
                     .lineLimit(1).minimumScaleFactor(0.8)
@@ -107,7 +107,7 @@ struct QuickLogView: View {
             .foregroundStyle(tint)
             .invalidatableContent()
         }
-        .accessibilityLabel(saved ? String(localized: "\(action.title), saved on device") : action.title)
+        .accessibilityLabel(saved ? String(localized: "\(action.title), saved on device", table: "QuickLogFeedback") : action.title)
         .buttonStyle(.plain)
     }
 }
