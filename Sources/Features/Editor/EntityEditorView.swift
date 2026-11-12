@@ -54,6 +54,9 @@ struct EntityEditorView: View {
         self.onClose = onClose
         _kind = State(initialValue: kind)
         _selectedChildID = State(initialValue: childID)
+        let feeding = FeedingDefaults.choices()
+        _feedingType = State(initialValue: feeding.type)
+        _feedingMethod = State(initialValue: feeding.method)
     }
 
     // Common fields
@@ -950,6 +953,9 @@ struct EntityEditorView: View {
         }
         if let pickedImageData, let target {
             repo.enqueueImageUpload(for: target, imageData: pickedImageData)
+        }
+        if target != nil, kind == .feeding, entity == nil {
+            FeedingDefaults.remember(type: feedingType, method: feedingMethod)
         }
         Task { await sync.sync() }
         // Converting a source timer ends the Live Activity for that timer; a plain log is a no-op.
