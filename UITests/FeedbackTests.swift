@@ -199,6 +199,11 @@ extension UITestCase {
     /// at once.
     var cookieStoreTimeout: TimeInterval { 120 }
 
+    /// How long a feedback sheet's first page can take to show under the stub. Nothing waits on a
+    /// server, but WebKit starts its first page of the launch then, which took 5 seconds on a cold
+    /// iPhone Duo simulator locally and over 8 in CI.
+    var widgetTimeout: TimeInterval { 30 }
+
     /// Send Feedback ▸ Feedback Account, from its row.
     func openFeedbackAccount() {
         tap(app.buttons.labeled("Feedback Account"))
