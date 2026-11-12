@@ -233,16 +233,19 @@ struct TimelineView: View {
     private var emptyState: some View {
         if isFilteringOrSearching {
             ContentUnavailableView {
-                // The icon would push the Clear button under the keyboard.
+                // The icon would push the Clear button under the keyboard. A bare Text gets the
+                // title's size but not its weight, which only a Label gets.
                 if typeSize.isAccessibilitySize {
-                    Text("No Results")
+                    Text("No Results").bold()
                 } else {
                     Label("No Results", systemImage: "magnifyingglass")
                 }
             } description: {
                 Text("No activity matches your search and filters.")
             } actions: {
+                // Borderless keeps the tint: in a list row a plain button takes the row's style.
                 Button("Clear Search & Filters") { clearAllFilters() }
+                    .buttonStyle(.borderless)
             }
         } else {
             ContentUnavailableView("No Activity", systemImage: "list.bullet",

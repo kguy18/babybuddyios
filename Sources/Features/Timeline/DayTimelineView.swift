@@ -100,6 +100,9 @@ struct DayTimelineView: View {
             if events.isEmpty {
                 // Under the header rather than over the list, where it drew across the header.
                 emptyState
+                    // Without it the row is sized too short at the largest text, and the title
+                    // is cut off on one line instead of wrapping.
+                    .fixedSize(horizontal: false, vertical: true)
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
             }
