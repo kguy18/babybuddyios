@@ -75,12 +75,12 @@ release notes can be written from the milestone:
 - Docs-only PRs (`*.md`, `Docs/`) skip the macOS job. Any other path builds.
 - The `duo` jobs run the unit tests and the UI tests on an iPhone Duo simulator (iOS 27.1) on
   GitHub's preview `xcode-27` image, and print the Xcode and Swift versions they used.
-  `duo (build)` builds the UI tests once and seven shards of whole classes run that build
+  `duo (build)` builds the UI tests once and eight shards of whole classes run that build
   (`UI_TEST_XCTESTRUN` in `scripts/ui-test.sh`), each under the 30-minute cap. They aren't required
   and `build-and-test` doesn't wait for them, because a preview image can queue for a long time;
   they start once `build-and-test` is done, so they never hold a runner a required lane needs. A
   new UI test class goes in a shard of both `ui` and `duo`; the `changes` job fails until it does.
-- The seven Duo UI shards run only on a PR that touches `Sources/`, `Widgets/`, `UITests/`,
+- The eight Duo UI shards run only on a PR that touches `Sources/`, `Widgets/`, `UITests/`,
   `scripts/ui-test.sh` or `pr.yml` (the `changes` job's `duo-ui` output). Any other code PR, such
   as a version bump or a tooling change, still gets `duo (unit)` and `duo (open)`.
 - macOS jobs share one pool of five runners across both images, so a Duo job that started early
