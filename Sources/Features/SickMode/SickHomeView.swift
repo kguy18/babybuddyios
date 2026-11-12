@@ -166,9 +166,15 @@ struct SickHomeView<Timers: View>: View {
                             unit: unit, line: line, now: now)
                     }
                     Button(action: onLogTemperature) {
-                        // Shrinks to one line at the largest sizes rather than hyphenate "temperature".
-                        Label { Text("Log temperature").lineLimit(1).minimumScaleFactor(0.8) } icon: {
-                            if !typeSize.isAccessibilitySize { EntityKind.temperature.icon(17) }
+                        // Where icon and label don't fit side by side, the icon goes above and the
+                        // label shrinks to one line, rather than hyphenate "temperature". The open
+                        // Duo's pane at the largest size needs about 0.72.
+                        ViewThatFits(in: .horizontal) {
+                            Label { Text("Log temperature").lineLimit(1) } icon: { EntityKind.temperature.icon(17) }
+                            VStack(spacing: 4) {
+                                EntityKind.temperature.icon(17)
+                                Text("Log temperature").lineLimit(1).minimumScaleFactor(0.6)
+                            }
                         }
                     }
                     .buttonStyle(.bbPrimary)
