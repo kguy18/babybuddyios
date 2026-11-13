@@ -55,6 +55,20 @@ final class DashboardTests: UITestCase {
         expect(app.navigationBars["Feeding · Today"])
     }
 
+    /// At the largest text size the Today tiles take a row each: two to a row broke their labels a
+    /// syllable per line.
+    func testHomeFitsTheLargestText() {
+        launch(largestText: true)
+        let feedings = app.descendants(matching: .any)["today-feeding"]
+        let sleep = app.descendants(matching: .any)["today-sleep"]
+        for _ in 0..<6 where !sleep.isHittable { app.scrollViews.firstMatch.swipeUp() }
+        expect(sleep)
+        XCTAssertEqual(sleep.frame.minX, feedings.frame.minX, accuracy: 1, "Sleep should sit under Feedings")
+        XCTAssertGreaterThan(sleep.frame.minY, feedings.frame.maxY - 1, "Sleep should sit under Feedings")
+        XCTAssertGreaterThan(feedings.frame.width, app.windows.firstMatch.frame.width * 0.6,
+                             "A tile should take the pane's width")
+    }
+
     /// Latest shows the newest record of every kind, occasional ones included: the seeded note and
     /// weigh-in, and a dose as soon as it is logged.
     func testLatestShowsEveryKind() {
