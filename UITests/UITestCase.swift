@@ -229,6 +229,21 @@ class UITestCase: XCTestCase {
         tap(app.buttons[kind])
     }
 
+    /// Fails unless Home's "+" is in the rail on the open display, beside the tabs, and not over
+    /// the pane right of the fold, where at the largest text it covered a row's time and a running
+    /// timer's Stop button. With `BB_FOLD` on an ordinary iPhone there is no rail, and the "+" sits
+    /// in the navigation bar instead.
+    func expectAddButtonInRail(file: StaticString = #filePath, line: UInt = #line) {
+        let add = expect((hasRail ? app.toolbars : app.navigationBars).buttons["Add"], file: file, line: line)
+        XCTAssertEqual(app.buttons.matching(identifier: "Add").count, 1,
+                       "Only the rail should have a +", file: file, line: line)
+        // A navigation bar's button is above the content already. In the rail the + shares the
+        // tabs' column; the pane's scroll view runs under the rail, so it can't mark the edge.
+        guard hasRail else { return }
+        XCTAssertEqual(add.frame.midX, expect(tab("Home"), file: file, line: line).frame.midX, accuracy: 8,
+                       "The + should sit in the rail, above the tabs", file: file, line: line)
+    }
+
     /// Drags the open sheet's grabber to the top, for a sheet that opens at half height. A swipe on
     /// its content scrolls the content instead.
     func expandSheet() {
