@@ -35,6 +35,10 @@ final class SignOutWipeTests: XCTestCase {
                                       basePayload: feeding.payload))
         try context.save()
         SharedDefaults.selectedChildID = 1
+        var growth = GrowthProfile()
+        growth.showWHO = true
+        growth.dueDate = "2025-01-01"
+        GrowthProfileStore.write(growth, childID: 1)
 
         let filename = try XCTUnwrap(
             try context.fetch(FetchDescriptor<PendingImageUpload>()).first?.filename)
@@ -49,6 +53,7 @@ final class SignOutWipeTests: XCTestCase {
         XCTAssertTrue(try context.fetch(FetchDescriptor<ConflictRecord>()).isEmpty)
         XCTAssertFalse(FileManager.default.fileExists(atPath: ImageUploadStore.url(for: filename).path))
         XCTAssertNil(SharedDefaults.selectedChildID)
+        XCTAssertEqual(GrowthProfileStore.read(childID: 1), GrowthProfile())
     }
 
     /// The same server typed with a trailing slash or different casing must *not* count as a
