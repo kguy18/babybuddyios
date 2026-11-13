@@ -52,6 +52,8 @@ struct SettingsView: View {
     @AppStorage(SickMode.suggestKey, store: SharedDefaults.suite) private var suggestsSickMode = true
     @AppStorage(SickMode.checkHoursKey, store: SharedDefaults.suite) private var checkHours = SickMode.defaultCheckHours
 
+    @AppStorage(DailyRhythmPreferences.visibleKey) private var showDailyRhythm = true
+
     @State private var debugConflict: ConflictRecord?
     @State private var debugIcons = false
     @State private var showingAppIcons = false
@@ -560,6 +562,10 @@ struct SettingsView: View {
     /// ``PurchaseManager``. Devices that can't switch icons get no icon row.
     private var appearanceCard: some View {
         card {
+            SettingsRow(symbol: "clock", tint: BBColor.sleep, title: DailyRhythmPreferences.text("Daily rhythm in Trends")) {
+                Toggle(DailyRhythmPreferences.text("Daily rhythm in Trends"), isOn: $showDailyRhythm).labelsHidden().tint(BBColor.primary)
+            }
+            rowDivider
             NavigationLink {
                 TodayTilesView()
             } label: {
