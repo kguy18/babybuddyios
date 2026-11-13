@@ -79,6 +79,62 @@ final class FoldTests: UITestCase {
         XCTAssertTrue(row.exists, "Cancel should keep the record")
     }
 
+    /// The search field and the child pill sit in the list's pane: in the navigation bar they ran
+    /// across the fold. Both still work there.
+    func testTimelineSearchAndChildPillSitLeftOfTheFold() throws {
+        try launchOpen(["BB_START_TAB": "timeline", "BB_SEED_SECOND_CHILD": "1"])
+        let middle = app.windows.firstMatch.frame.midX
+        let search = expect(app.textFields["Search notes, tags, type…"])
+        let pill = expect(app.buttons.labeled("Current child, Maya"))
+        XCTAssertLessThanOrEqual(search.frame.maxX, middle, "The search field should end left of the fold")
+        XCTAssertLessThanOrEqual(pill.frame.maxX, middle, "The child pill should end left of the fold")
+        XCTAssertFalse(app.searchFields.firstMatch.exists, "The navigation bar should have no search field")
+
+        tap(search)
+        search.typeText("garden\n")
+        expect(element(labeled: "Note, Looking out at the garden."))
+        XCTAssertEqual(elements("label BEGINSWITH 'Feeding, '").count, 0, "The search should filter the list")
+        tap(app.buttons["Clear text"])
+        expect(element(labeled: "Feeding, "))
+
+        tap(pill)
+        tap(app.buttons["Leo Rivers"])
+        expect(app.buttons.labeled("Current child, Leo"))
+    }
+
+    /// A Today tile's day keeps its list left of the fold and opens the tapped record right of it,
+    /// as the Timeline tab does.
+    func testDayTimelineOpensARecordBesideTheList() throws {
+        try launchOpen()
+        // Log one now: soon after midnight the demo has no feedings today.
+        openEditor("Feeding")
+        let new = expect(app.navigationBars["New Feeding"])
+        tap(new.buttons["Save"])
+        expectGone(new)
+        tap(expect(element(labeled: "Feedings, ")))
+        let empty = expect(app.staticTexts["No activity open"])
+        let row = elements("label BEGINSWITH 'Feeding, '").element(boundBy: 0)
+        tap(row)
+        let editorSave = expect(app.buttons["Save Feeding"])
+        XCTAssertGreaterThan(editorSave.frame.minX, row.frame.maxX - 1, "The editor should open right of the list")
+        tap(app.buttons["Save"])
+        expect(empty)
+    }
+
+    /// Home's day pane says nothing is logged under its header: drawn over the pane, the empty
+    /// state's icon covered the header's counts.
+    func testHomeEmptyStateSitsUnderTheHeader() throws {
+        try launchOpen(["BB_SEED_SECOND_CHILD": "1"], largestText: true)
+        let avatar = app.buttons.labeled("Current child, Maya")
+        let leo = app.buttons.labeled("Leo")
+        tap(avatar)
+        if !leo.waitForExistence(timeout: 3), avatar.isHittable { avatar.tap() }
+        tap(leo)
+        let nothing = expect(app.staticTexts["Nothing logged today"])
+        let header = expect(elements("label BEGINSWITH 'Today, '").firstMatch)
+        XCTAssertGreaterThan(nothing.frame.minY, header.frame.maxY - 1, "The empty state should sit under the header")
+    }
+
     /// The support nudge comes up at the bottom of the pane right of the fold rather than as a card
     /// centred across it, and still takes no for an answer.
     func testSupportNudgeSitsRightOfTheFold() {
