@@ -12,6 +12,8 @@ struct StopTimerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     let timer: LocalEntity
     let onLog: (EntityKind) -> Void
     let onResume: () -> Void
@@ -43,26 +45,21 @@ struct StopTimerSheet: View {
         NavigationStack {
             ScrollView {
                 // On iPhone Duo's open display: what happened left, what to do with it right.
-                HStack(alignment: .top, spacing: 14) {
-                    VStack(alignment: .leading, spacing: 18) {
-                        summaryCard
-                        SectionHeader(String(localized: "Log as"))
-                        LazyVGrid(columns: columns, spacing: 12) {
-                            ForEach(activities) { kind in
-                                ActivityPickTile(kind: kind, isSelected: selected == kind) {
-                                    selected = (selected == kind) ? nil : kind
-                                }
-                                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).midY } action: {
-                                    guard kind == activities.first else { return }
-                                    firstTileMid = $0
-                                }
-                            }
-                        }
+                SheetColumns(wide: wide) {
+                    summaryCard
+                    SectionHeader(String(localized: "Log as"))
+                    // Keep all four choices in the accessibility tree while the form scrolls.
+                    if typeSize.isAccessibilitySize {
+                        VStack(spacing: 12) { activityTiles }
+                    } else {
+                        LazyVGrid(columns: columns, spacing: 12) { activityTiles }
                     }
-                    if wide { actions.frame(maxWidth: .infinity) }
+                } trailing: {
+                    if wide || typeSize.isAccessibilitySize { actions }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
+                .padding(.bottom, typeSize.isAccessibilitySize ? 16 : 0)
             }
             .trackingWide($wide)
             // The open display: the tiles fill the left column, and half height cuts them off.
@@ -70,12 +67,13 @@ struct StopTimerSheet: View {
             .task(id: actionsTop) { await openTallEnough() }
             .background(BBColor.surface)
             .navigationTitle("Stop Timer")
+            .accessibilityIdentifier("screen-stop-timer")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
             }
             .safeAreaInset(edge: .bottom) {
-                if !wide {
+                if !wide && !typeSize.isAccessibilitySize {
                     actions
                         .padding(.horizontal, 16)
                         .padding(.top, 10)
@@ -85,7 +83,10 @@ struct StopTimerSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large], selection: $detent)
+        .presentationDetents(typeSize.isAccessibilitySize ? [.large] : [.medium, .large], selection: $detent)
+        .onChange(of: typeSize, initial: true) {
+            if typeSize.isAccessibilitySize { detent = .large }
+        }
     }
 
     /// Opens the sheet full height when less than half of the first row of "Log as" tiles shows at
@@ -99,6 +100,18 @@ struct StopTimerSheet: View {
         guard !Task.isCancelled, !checkedHeight else { return }
         checkedHeight = true
         if detent == .medium, firstTileMid > actionsTop { detent = .large }
+    }
+
+    private var activityTiles: some View {
+        ForEach(activities) { kind in
+            ActivityPickTile(kind: kind, isSelected: selected == kind) {
+                selected = (selected == kind) ? nil : kind
+            }
+            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).midY } action: {
+                guard kind == activities.first else { return }
+                firstTileMid = $0
+            }
+        }
     }
 
     // MARK: Summary
@@ -144,8 +157,9 @@ struct StopTimerSheet: View {
     }
 
     private var startedRow: some View {
-        HStack(spacing: 6) {
-            // Fixed: beside the picker on the front display it wrapped a few letters per line.
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(spacing: 6))
+        return layout {
             Text("Started").font(.caption).foregroundStyle(.secondary).fixedSize()
             DatePicker("Started", selection: Binding(get: { timer.timestamp }, set: setStartTime),
                        displayedComponents: .hourAndMinute)
@@ -198,22 +212,38 @@ struct StopTimerSheet: View {
                 .disabled(selected == nil)
                 .opacity(selected == nil ? 0.5 : 1)
 
-            let layout = wide ? AnyLayout(VStackLayout(spacing: 14)) : AnyLayout(HStackLayout())
-            layout {
-                Button("Resume timer") { onResume() }
-                    .foregroundStyle(BBColor.brandAccent)
-                if !wide { Spacer() }
-                // Started by mistake: it runs on from now instead of the original start.
-                Button("Restart from now") { setStart(.now); onResume() }
-                    .foregroundStyle(BBColor.brandAccent)
-                if !wide { Spacer() }
-                Button("Discard timer", role: .destructive) { onDiscard() }
-                    .foregroundStyle(BBColor.danger)
+            Group {
+                if wide || typeSize.isAccessibilitySize {
+                    VStack(spacing: 14) { secondaryActions }
+                } else {
+                    ViewThatFits(in: .horizontal) {
+                        HStack {
+                            Button("Resume timer") { onResume() }
+                                .foregroundStyle(BBColor.brandAccent)
+                            Spacer(minLength: 12)
+                            Button("Restart from now") { setStart(.now); onResume() }
+                                .foregroundStyle(BBColor.brandAccent)
+                            Spacer(minLength: 12)
+                            Button("Discard timer", role: .destructive) { onDiscard() }
+                                .foregroundStyle(BBColor.danger)
+                        }
+                        VStack(spacing: 14) { secondaryActions }
+                    }
+                }
             }
             .font(.subheadline.weight(.medium))
-            .lineLimit(1).minimumScaleFactor(0.8)
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.vertical, 4)
         }
+    }
+
+    @ViewBuilder private var secondaryActions: some View {
+        Button("Resume timer") { onResume() }
+            .foregroundStyle(BBColor.brandAccent)
+        Button("Restart from now") { setStart(.now); onResume() }
+            .foregroundStyle(BBColor.brandAccent)
+        Button("Discard timer", role: .destructive) { onDiscard() }
+            .foregroundStyle(BBColor.danger)
     }
 
     private var logTitle: String {

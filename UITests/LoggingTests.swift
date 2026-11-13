@@ -279,6 +279,45 @@ final class LoggingTests: UITestCase {
         XCTAssertFalse(element(labeled: "Warning. Overlaps").exists)
     }
 
+    func testFeedingTypeMenuAtTheLargestText() {
+        launch(largestText: true)
+        openEditor("Feeding")
+        expect(app.navigationBars["New Feeding"])
+        let picker = app.buttons["Breast Milk"]
+        reveal(picker, in: app.scrollViews["screen-editor"])
+        tap(picker)
+        tap(app.buttons["Fortified Breast Milk"])
+        XCTAssertTrue(app.buttons["Fortified Breast Milk"].exists)
+        let save = app.buttons["Save Feeding"]
+        reveal(save, in: app.scrollViews["screen-editor"])
+        tap(save)
+        expectGone(app.navigationBars["New Feeding"])
+        expect(elements("label BEGINSWITH 'Feeding, Fortified Breast Milk'").firstMatch)
+    }
+
+    func testMedicationDosageStacksAtTheLargestText() {
+        launch(largestText: true)
+        openEditor("Medication")
+        expect(app.navigationBars["New Medication"])
+        let scroll = app.scrollViews["screen-editor"]
+        let name = app.textFields["Name"]
+        reveal(name, in: scroll)
+        tap(name)
+        name.typeText("Test medicine\n")
+        let dosage = app.textFields["0"]
+        reveal(dosage, in: scroll)
+        let unit = app.textFields["Unit"]
+        reveal(unit, in: scroll)
+        XCTAssertGreaterThan(unit.frame.minY, dosage.frame.maxY, "The dosage unit should sit below its value")
+        XCTAssertGreaterThan(unit.frame.width, scroll.frame.width * 0.6, "The unit should use the card width")
+        replaceText(unit, with: "mL\n")
+        let save = app.buttons["Save Medication"]
+        reveal(save, in: scroll)
+        tap(save)
+        expectGone(app.navigationBars["New Medication"])
+        expect(elements("label BEGINSWITH 'Medication, Test medicine'").firstMatch)
+    }
+
     /// At the largest text size a label sits above its date pills, where beside them it squeezed to
     /// a letter per line, and the warning above Save grows with the text, where it stayed at 14 pt.
     func testEditorFitsTheLargestText() {

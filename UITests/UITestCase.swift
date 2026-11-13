@@ -218,15 +218,29 @@ class UITestCase: XCTestCase {
         tap(app.buttons["PopoverDismissRegion"])
     }
 
+    /// Scrolls a sheet until a control is visible, with a bound so a missing control fails.
+    func reveal(_ element: XCUIElement, in scrollView: XCUIElement,
+                file: StaticString = #filePath, line: UInt = #line) {
+        for _ in 0..<10 {
+            if element.exists && element.isHittable { return }
+            scrollView.swipeUp()
+        }
+        XCTAssertTrue(element.isHittable, "The control should be reachable by scrolling", file: file, line: line)
+    }
+
     /// Home ▸ "+" ▸ More… ▸ `kind`. Not the quick-add rows: those log in one tap once #78 lands.
     func openEditor(_ kind: String) {
         tap(app.buttons["Add"])
         tap(app.buttons.labeled("More…"))
         expect(app.navigationBars["Add Activity"])
         // On iPhone Duo's short front display the sheet opens at half height, and the grid hasn't
-        // drawn the tiles below it yet. A swipe up on the grid draws them.
-        if !app.buttons[kind].waitForExistence(timeout: 2) { app.buttons["Feeding"].swipeUp() }
-        tap(app.buttons[kind])
+        // drawn the tiles below it yet. At the largest text it is one tile to a row, so a tile such
+        // as Medication can take a few swipes up to reach.
+        let tile = app.buttons[kind]
+        if !tile.waitForExistence(timeout: 2) || !tile.isHittable {
+            reveal(tile, in: app.scrollViews["screen-add-activity"])
+        }
+        tap(tile)
     }
 
     /// Fails unless Home's "+" is in the rail on the open display, beside the tabs, and not over
