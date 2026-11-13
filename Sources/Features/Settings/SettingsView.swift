@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import WidgetKit
 
 /// Server/account, offline-first sync status, app lock, and sign-out — styled to the Baby
 /// Buddy design system: a child-profile masthead over grouped white ``BBCard`` sections, each
@@ -43,6 +44,7 @@ struct SettingsView: View {
     // Mirrors MedicationReminderPolicy.isEnabled.
     @AppStorage(MedicationReminderPolicy.enabledKey, store: SharedDefaults.suite) private var doseRemindersEnabled = false
     @AppStorage(UndoToastCenter.enabledKey) private var undoToastEnabled = true
+    @AppStorage(QuickLogFeedback.enabledKey, store: SharedDefaults.suite) private var quickLogConfirmation = true
     @AppStorage(TodayTiles.key, store: SharedDefaults.suite) private var todayTilesRaw: String?
     // Sick mode (see ``SickMode``): the keys and defaults are the ones it reads.
     @State private var sickMode = SickModeStore.shared
@@ -604,6 +606,14 @@ struct SettingsView: View {
     /// Baby Buddy API, so all choices are offered.
     private var quickFeedCard: some View {
         card {
+            SettingsRow(symbol: "checkmark.circle", tint: BBColor.feeding,
+                        title: String(localized: "Quick log confirmation", table: "QuickLogFeedback")) {
+                Toggle(String(localized: "Quick log confirmation", table: "QuickLogFeedback"), isOn: $quickLogConfirmation).labelsHidden().tint(BBColor.primary)
+                    .onChange(of: quickLogConfirmation) { _, _ in
+                        WidgetCenter.shared.reloadTimelines(ofKind: "BabyBuddyQuickLog")
+                    }
+            }
+            rowDivider
             SettingsRow(symbol: "drop.fill", tint: BBColor.feeding, title: String(localized: "Feeding type")) {
                 Menu {
                     Picker("Feeding type", selection: $quickFeedType) {
