@@ -3459,6 +3459,29 @@
         }
       }
     },
+    "App defaults": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App defaults"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App-Vorgaben"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Padrões do app"
+          }
+        }
+      }
+    },
     "App details copied": {
       "extractionState": "manual",
       "localizations": {
@@ -7397,6 +7420,29 @@
         }
       }
     },
+    "Feeding defaults": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feeding defaults"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mahlzeiten-Vorgaben"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Padrões de alimentação"
+          }
+        }
+      }
+    },
     "Feeding finished %@": {
       "extractionState": "manual",
       "localizations": {
@@ -9172,6 +9218,29 @@
         }
       }
     },
+    "Last saved choices": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last saved choices"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zuletzt gespeicherte Auswahl"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Últimas opções salvas"
+          }
+        }
+      }
+    },
     "Last sync time": {
       "extractionState": "manual",
       "localizations": {
@@ -10115,6 +10184,29 @@
         }
       }
     },
+    "My defaults": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "My defaults"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meine Vorgaben"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meus padrões"
+          }
+        }
+      }
+    },
     "Name": {
       "extractionState": "manual",
       "localizations": {
@@ -10226,6 +10318,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Adicionar %@"
+          }
+        }
+      }
+    },
+    "New feedings start with these choices. You can change them before saving.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New feedings start with these choices. You can change them before saving."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neue Mahlzeiten werden mit dieser Auswahl vorbelegt. Du kannst sie vor dem Speichern ändern."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Novas alimentações começam com estas opções. Você pode alterá-las antes de salvar."
           }
         }
       }
@@ -12162,6 +12277,29 @@
         }
       }
     },
+    "Prefill new feedings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prefill new feedings"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neue Mahlzeiten vorbelegen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preencher novas alimentações"
+          }
+        }
+      }
+    },
     "Privacy Policy": {
       "extractionState": "manual",
       "localizations": {
@@ -13285,6 +13423,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Salvar registro mesclado (%@)"
+          }
+        }
+      }
+    },
+    "Saving a new feeding updates these choices. Amounts and times are not remembered.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saving a new feeding updates these choices. Amounts and times are not remembered."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beim Speichern einer neuen Mahlzeit wird diese Auswahl aktualisiert. Mengen und Zeiten werden nicht übernommen."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salvar uma nova alimentação atualiza estas opções. Quantidades e horários não são reutilizados."
           }
         }
       }
@@ -16670,6 +16831,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Não há uma API do Baby Buddy nesse endereço. Verifique a URL do servidor."
+          }
+        }
+      }
+    },
+    "These choices apply on this device. Quick log widget settings are separate.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These choices apply on this device. Quick log widget settings are separate."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Auswahl gilt auf diesem Gerät. Für das Schnellerfassungs-Widget gelten eigene Einstellungen."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estas opções se aplicam neste dispositivo. O widget de registro rápido tem configurações próprias."
           }
         }
       }

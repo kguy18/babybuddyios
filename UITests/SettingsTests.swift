@@ -1,6 +1,58 @@
 import XCTest
 
 final class SettingsTests: UITestCase {
+    func testFeedingDefaultsAndRememberedChoices() {
+        launch(["BB_START_TAB": "settings"])
+        tap(app.buttons["feeding-defaults-settings"])
+        expect(app.navigationBars["Feeding defaults"])
+        tap(app.buttons["feeding-defaults-mode"])
+        tap(app.buttons["My defaults"])
+        tap(app.buttons["feeding-defaults-type"])
+        tap(app.buttons["Formula"])
+        tap(app.buttons["feeding-defaults-method"])
+        tap(app.buttons["Bottle"])
+        back(from: "Feeding defaults")
+        tap(tab("Home"))
+        openEditor("Feeding")
+        var bar = expect(app.navigationBars["New Feeding"])
+        XCTAssertTrue(app.buttons["Formula"].isSelected)
+        expect(app.buttons.labeled("Bottle"))
+        tap(bar.buttons["Cancel"])
+        expectGone(bar)
+
+        tap(tab("Settings"))
+        tap(app.buttons["feeding-defaults-settings"])
+        tap(app.buttons["feeding-defaults-mode"])
+        tap(app.buttons["Last saved choices"])
+        back(from: "Feeding defaults")
+        tap(tab("Home"))
+        openEditor("Feeding")
+        bar = expect(app.navigationBars["New Feeding"])
+        tap(app.buttons["Breast"])
+        tap(bar.buttons["Save"])
+        expectGone(bar)
+        openEditor("Feeding")
+        bar = expect(app.navigationBars["New Feeding"])
+        XCTAssertTrue(app.buttons["Breast"].isSelected)
+        tap(app.buttons["Formula"])
+        tap(bar.buttons["Cancel"])
+        expectGone(bar)
+        openEditor("Feeding")
+        expect(app.navigationBars["New Feeding"])
+        XCTAssertTrue(app.buttons["Breast"].isSelected, "Cancel must not replace remembered choices")
+    }
+
+    func testGermanFeedingDefaults() {
+        launch(["BB_START_TAB": "settings"], language: "de", locale: "de_DE")
+        tap(app.buttons["feeding-defaults-settings"])
+        expect(app.navigationBars["Mahlzeiten-Vorgaben"])
+        tap(app.buttons["feeding-defaults-mode"])
+        expect(app.buttons["Zuletzt gespeicherte Auswahl"])
+        tap(app.buttons["Meine Vorgaben"])
+        expect(app.buttons["feeding-defaults-type"])
+        expect(app.buttons["feeding-defaults-method"])
+    }
+
     /// Nothing is for sale without a purchase backend, and the sheet says so rather than offering
     /// amounts that can't be bought (#58). Supporters see their status (#57).
     func testSupporterSheet() {
