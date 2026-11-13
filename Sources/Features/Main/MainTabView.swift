@@ -165,6 +165,19 @@ struct ChildSwitcher: ToolbarContent {
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .principal) {
+            ChildPill(children: children, selectedChildID: $selectedChildID)
+        }
+    }
+}
+
+/// The current child's avatar and name, a menu to switch children when there's more than one.
+/// ``ChildSwitcher`` puts it in the navigation bar; a pane can place it itself.
+struct ChildPill: View {
+    let children: [LocalEntity]
+    @Binding var selectedChildID: Int
+
+    var body: some View {
+        Group {
             if children.count > 1 {
                 Menu {
                     ForEach(children, id: \.serverID) { child in

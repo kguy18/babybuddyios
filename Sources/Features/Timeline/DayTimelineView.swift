@@ -26,6 +26,8 @@ struct DayTimelineView: View {
     private var blockedMutations: [PendingMutation]
     @State private var editing: LocalEntity?
     @State private var adding = false
+    /// The record open right of the fold on iPhone Duo's open display.
+    @State private var selected: LocalEntity?
 
     init(kind: EntityKind?, childID: Int, day: Date = .now, onEdit: ((LocalEntity) -> Void)? = nil) {
         self.kind = kind
@@ -52,22 +54,70 @@ struct DayTimelineView: View {
     }
 
     var body: some View {
+        Group {
+            if kind == nil {
+                list(split: false)
+            } else {
+                // On iPhone Duo's open display the list goes left of the fold and the tapped record
+                // opens right of it, as on the Timeline tab.
+                FoldSplitView {
+                    list(split: true)
+                } main: { split in
+                    Group {
+                        if split { detailPane } else { list(split: false) }
+                    }
+                    // Folding the phone with a record open carries it into the editor sheet.
+                    .onChange(of: split) { _, split in
+                        if !split, let selected {
+                            editing = selected
+                            self.selected = nil
+                        }
+                    }
+                }
+            }
+        }
+        .background(BBColor.surface)
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $editing) { entity in
+            EntityEditorView(kind: entity.kind, childID: childID, entity: entity)
+        }
+        .sheet(isPresented: $adding) {
+            // Log a new event of this view's kind.
+            if let kind { EntityEditorView(kind: kind, childID: childID) }
+        }
+    }
+
+    /// The rows. `split` is the open display's left pane, where a tap opens the record right of
+    /// the fold and the open record's row is highlighted.
+    private func list(split: Bool) -> some View {
         List {
             if kind == nil {
                 paneHeader
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
             }
+            if events.isEmpty {
+                // Under the header rather than over the list, where it drew across the header.
+                emptyState
+                    // Without it the row is sized too short at the largest text, and the title
+                    // is cut off on one line instead of wrapping.
+                    .fixedSize(horizontal: false, vertical: true)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+            }
             ForEach(Array(events.enumerated()), id: \.element.localID) { index, entity in
+                let isOpen = split && selected?.localID == entity.localID
                 TimelineRailRow(entity: entity,
                                 connectsDown: index < events.count - 1,
                                 tagColors: tagColors,
                                 blocked: blockedMutations.contains { $0.localID == entity.localID })
+                    .accessibilityAddTraits(isOpen ? .isSelected : [])
                     .listRowInsets(EdgeInsets())
                     .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
+                    .listRowBackground(isOpen ? BBColor.brandTint : Color.clear)
                     .contentShape(Rectangle())
-                    .onTapGesture { edit(entity) }
+                    .onTapGesture { open(entity, split: split) }
                     .swipeActions(edge: .leading, allowsFullSwipe: true) {
                         Button { repeatEvent(entity) } label: {
                             Label("Repeat", systemImage: "arrow.clockwise")
@@ -79,7 +129,7 @@ struct DayTimelineView: View {
                             Label("Delete", systemImage: "trash")
                         }
                         .tint(BBColor.danger)
-                        Button { edit(entity) } label: {
+                        Button { open(entity, split: split) } label: {
                             Label("Edit", systemImage: "pencil")
                         }
                         .tint(BBColor.primary)
@@ -94,19 +144,7 @@ struct DayTimelineView: View {
         }
         // Leave room so the last row can scroll clear of the floating add button.
         .contentMargins(.bottom, kind == nil ? 0 : 88, for: .scrollContent)
-        .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.inline)
         .refreshable { await sync.sync() }
-        .sheet(item: $editing) { entity in
-            EntityEditorView(kind: entity.kind, childID: childID, entity: entity)
-        }
-        .sheet(isPresented: $adding) {
-            // Log a new event of this view's kind.
-            if let kind { EntityEditorView(kind: kind, childID: childID) }
-        }
-        .overlay {
-            if events.isEmpty { emptyState }
-        }
         .overlay(alignment: .bottomTrailing) {
             if let kind {
                 FloatingAddButton(accessibilityLabelText: String(localized: "Add \(kind.displayName)")) {
@@ -118,8 +156,25 @@ struct DayTimelineView: View {
         }
     }
 
+    private func open(_ entity: LocalEntity, split: Bool) {
+        if split { selected = entity } else { edit(entity) }
+    }
+
     private func edit(_ entity: LocalEntity) {
         if let onEdit { onEdit(entity) } else { editing = entity }
+    }
+
+    /// Right of the fold: the open record's editor, or a prompt to pick one. A record that has
+    /// gone, deleted here or by a sync, closes its editor.
+    @ViewBuilder private var detailPane: some View {
+        if let selected, events.contains(where: { $0.localID == selected.localID }) {
+            EntityEditorView(kind: selected.kind, childID: childID, entity: selected,
+                             onClose: { self.selected = nil })
+                .id(selected.localID)
+        } else {
+            ContentUnavailableView("No activity open", systemImage: "list.bullet",
+                                   description: Text("Tap an activity on the left to edit it here."))
+        }
     }
 
     /// Empty for the pane, which sits on Home's own screen.
@@ -160,6 +215,7 @@ struct DayTimelineView: View {
     // MARK: Mutations
 
     private func delete(_ entity: LocalEntity) {
+        if selected?.localID == entity.localID { selected = nil }
         LocalRepository(context: context).delete(entity)
         Task { await sync.sync() }
     }

@@ -4925,6 +4925,29 @@
         }
       }
     },
+    "Clear text": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear text"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text löschen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Limpar texto"
+          }
+        }
+      }
+    },
     "Client ID": {
       "extractionState": "manual",
       "localizations": {
