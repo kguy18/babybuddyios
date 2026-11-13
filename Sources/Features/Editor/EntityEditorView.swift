@@ -535,6 +535,22 @@ struct EntityEditorView: View {
     private var medicationDetails: some View {
         BBCard(cornerRadius: BBRadius.tile) {
             VStack(alignment: .leading, spacing: 16) {
+                if !isEditing, !previousMedications.isEmpty {
+                    Menu {
+                        ForEach(previousMedications) { medication in
+                            Button(medication.payloadObject["name"] as? String ?? "") {
+                                populateMedication(medication.payloadObject)
+                            }
+                        }
+                    } label: {
+                        Label("Use previous medication", systemImage: "clock.arrow.circlepath")
+                            .font(.subheadline)
+                            .foregroundStyle(BBColor.brandAccent)
+                    }
+                    Text("Uses the last recorded dose for this child. Check the details before saving.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 fieldLabeled(String(localized: "Name")) { plainField(String(localized: "Name"), text: $medName) }
                 fieldLabeled(String(localized: "Dosage")) {
                     HStack(spacing: 10) {
@@ -554,6 +570,14 @@ struct EntityEditorView: View {
                 }
             }
         }
+    }
+
+    private var previousMedications: [LocalEntity] {
+        MedicationReminderPolicy.latestDoses(medications.filter { $0.childID == selectedChildID })
+            .filter {
+                $0.syncState != .conflicted &&
+                    !MedicationReminderPolicy.normalizedName($0.payloadObject["name"] as? String).isEmpty
+            }
     }
 
     // MARK: Field building blocks
@@ -913,9 +937,21 @@ struct EntityEditorView: View {
         milestone = p["milestone"] as? String ?? ""
         noteText = p["note"] as? String ?? ""
         imageURL = (p["image"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        populateMedication(p)
+        for key in ["weight", "height", "head_circumference", "bmi", "temperature"] {
+            if let v = p[key] as? Double { value = trimmed(v) }
+        }
+        // A reading logged on a phone in the other unit opens in this one, as it's shown everywhere.
+        if let t = p["temperature"] as? Double, unit.unit(ofStored: t) != unit { value = trimmed(unit.reading(t)) }
+    }
+
+    private func populateMedication(_ p: [String: Any]) {
         medName = p["name"] as? String ?? ""
-        if let d = p["dosage"] as? Double { dosage = trimmed(d) }
-        dosageUnit = p["dosage_unit"] as? String ?? dosageUnit
+        dosage = (p["dosage"] as? Double).map(trimmed) ?? ""
+        dosageUnit = p["dosage_unit"] as? String ?? ""
+        doseInterval = .none
+        customDoseHours = ""
+        customDoseMinutes = ""
         if let raw = p["next_dose_interval"] as? String, let seconds = APIDuration.parse(raw), seconds > 0 {
             if MedicationReminderPolicy.choices.contains(seconds) {
                 doseInterval = .preset(seconds)
@@ -925,11 +961,6 @@ struct EntityEditorView: View {
                 customDoseMinutes = String(Int(seconds) % 3600 / 60)
             }
         }
-        for key in ["weight", "height", "head_circumference", "bmi", "temperature"] {
-            if let v = p[key] as? Double { value = trimmed(v) }
-        }
-        // A reading logged on a phone in the other unit opens in this one, as it's shown everywhere.
-        if let t = p["temperature"] as? Double, unit.unit(ofStored: t) != unit { value = trimmed(unit.reading(t)) }
     }
 
     private func save() {

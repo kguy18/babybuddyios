@@ -17726,6 +17726,29 @@
         }
       }
     },
+    "Use previous medication": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use previous medication"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorheriges Medikament übernehmen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usar remédio anterior"
+          }
+        }
+      }
+    },
     "Use server version": {
       "extractionState": "manual",
       "localizations": {
@@ -17745,6 +17768,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Usar a versão do servidor"
+          }
+        }
+      }
+    },
+    "Uses the last recorded dose for this child. Check the details before saving.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uses the last recorded dose for this child. Check the details before saving."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Übernimmt die zuletzt erfasste Dosis für dieses Kind. Prüfe die Angaben vor dem Speichern."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usa a última dose registrada para esta criança. Confira os dados antes de salvar."
           }
         }
       }

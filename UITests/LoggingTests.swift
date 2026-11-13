@@ -181,9 +181,13 @@ final class LoggingTests: UITestCase {
         openEditor("Medication")
         var bar = expect(app.navigationBars["New Medication"])
         XCTAssertFalse(bar.buttons["Save"].isEnabled, "A dose needs a name")
+        XCTAssertFalse(app.buttons["Use previous medication"].exists)
         let name = app.textFields["Name"]
         name.tap()
         name.typeText("Tylenol")
+        let amount = app.textFields["0"]
+        tap(amount)
+        amount.typeText("2.5")
         tap(app.buttons.labeled("None")) // "Next dose after"
         tap(app.buttons["4h"])
         tap(bar.buttons["Save"])
@@ -197,9 +201,12 @@ final class LoggingTests: UITestCase {
 
         openEditor("Medication")
         bar = expect(app.navigationBars["New Medication"])
-        let again = app.textFields["Name"]
-        again.tap()
-        again.typeText("Tylenol")
+        tap(app.buttons["Use previous medication"])
+        tap(app.buttons["Tylenol"])
+        expectValue(app.textFields["Name"], "Tylenol")
+        expectValue(app.textFields["0"], "2.5")
+        expectValue(app.textFields["Unit"], "mg")
+        expect(app.buttons.labeled("4h"))
         expect(element(labeled: "Warning. Tylenol was last given at"))
         XCTAssertTrue(bar.buttons["Save"].isEnabled, "The warning mustn't block the dose")
         tap(bar.buttons["Cancel"])
@@ -208,6 +215,48 @@ final class LoggingTests: UITestCase {
         tap(waiting)
         expect(app.navigationBars["Edit Medication"])
         XCTAssertTrue(app.buttons.labeled("4h").exists, "The dose should reopen with its interval")
+    }
+
+    func testMedicationReuseInGerman() {
+        launch(["BB_SEED_SICK": "1"], language: "de", locale: "de_DE")
+        let allow = springboard.buttons.matching(NSPredicate(format: "label IN %@", ["Allow", "Erlauben"])).firstMatch
+        if allow.waitForExistence(timeout: 5) { allow.tap() }
+        tap(app.buttons["Hinzufügen"])
+        tap(app.buttons.labeled("Mehr …"))
+        expect(app.navigationBars["Aktivität hinzufügen"])
+        let medication = app.buttons["Medikament"]
+        if !medication.waitForExistence(timeout: 2) { app.buttons["Mahlzeit"].swipeUp() }
+        tap(medication)
+        let editor = expect(app.navigationBars["Medikament hinzufügen"])
+        tap(app.buttons["Vorheriges Medikament übernehmen"])
+        tap(app.buttons["Ibuprofen"])
+        expectValue(app.textFields["Name"], "Ibuprofen")
+        expectValue(app.textFields["0"], "5")
+        expectValue(app.textFields["Einheit"], "mL")
+        expect(app.buttons.labeled("6 Std."))
+        revealSheetBar("Medikament hinzufügen")
+        tap(editor.buttons["Speichern"])
+        expectGone(editor)
+        tap(tab("Verlauf"))
+        expect(elements("label BEGINSWITH 'Medikament, Ibuprofen'").firstMatch)
+    }
+
+    func testMedicationReuseFollowsSelectedChild() {
+        launch(["BB_SEED_SICK": "1", "BB_SEED_SECOND_CHILD": "1"])
+        allowNotificationsIfAsked()
+        openEditor("Medication")
+        let editor = expect(app.navigationBars["New Medication"])
+        expect(app.buttons["Use previous medication"])
+        tap(editor.buttons["Cancel"])
+        expectGone(editor)
+
+        tap(app.buttons.labeled("Current child, Maya"))
+        tap(app.buttons["Leo Rivers"])
+        expect(app.buttons.labeled("Current child, Leo"))
+        openEditor("Medication")
+        expect(app.navigationBars["New Medication"])
+        XCTAssertFalse(app.buttons["Use previous medication"].exists)
+        XCTAssertFalse(app.buttons.labeled("Ibuprofen").exists)
     }
 
     /// Baby Buddy refuses a record dated in the future, and the editor says so before the save
