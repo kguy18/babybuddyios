@@ -1059,6 +1059,7 @@ private struct AllActivitiesSheet: View {
                 }
                 .padding()
             }
+            .accessibilityIdentifier("screen-add-activity")
             .trackingWide($wide)
             .onChange(of: wide) { if wide { detent = .large } }
             .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { visibleBottom = $0 }
