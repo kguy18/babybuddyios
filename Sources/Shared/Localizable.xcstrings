@@ -139,6 +139,29 @@
         }
       }
     },
+    "%@ drops": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ drops"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ Tropfen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ gotas"
+          }
+        }
+      }
+    },
     "%@ from this device · %lld from server": {
       "extractionState": "manual",
       "localizations": {
@@ -388,6 +411,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ de sono"
+          }
+        }
+      }
+    },
+    "%@ tablets": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ tablets"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ Tabletten"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ comprimidos"
           }
         }
       }
@@ -1074,6 +1120,59 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld doses nas últimas 24 horas"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld drops": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld drop"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld drops"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Tropfen"
+          }
+        },
+        "pt-BR": {
+          "variations": {
+            "plural": {
+              "zero": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld gotas"
+                }
+              },
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld gota"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld gotas"
                 }
               }
             }
@@ -2015,6 +2114,71 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld trocas com cocô"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld tablets": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld tablet"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld tablets"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Tablette"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Tabletten"
+                }
+              }
+            }
+          }
+        },
+        "pt-BR": {
+          "variations": {
+            "plural": {
+              "zero": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld comprimidos"
+                }
+              },
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld comprimido"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld comprimidos"
                 }
               }
             }
@@ -2995,6 +3159,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Adicionar outro cabeçalho"
+          }
+        }
+      }
+    },
+    "Add custom unit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add custom unit"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eigene Einheit hinzufügen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adicionar unidade personalizada"
           }
         }
       }
@@ -6466,6 +6653,29 @@
         }
       }
     },
+    "Drops": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drops"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tropfen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gotas"
+          }
+        }
+      }
+    },
     "Dry": {
       "extractionState": "manual",
       "localizations": {
@@ -6830,6 +7040,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Digite o código"
+          }
+        }
+      }
+    },
+    "Enter a unit such as IU.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a unit such as IU."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gib eine Einheit wie IE ein."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Digite uma unidade, como UI."
           }
         }
       }
@@ -10916,6 +11149,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nenhum tempo de bruços registrado"
+          }
+        }
+      }
+    },
+    "No unit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No unit"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ohne Einheit"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sem unidade"
           }
         }
       }
@@ -15681,6 +15937,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sincronizando…"
+          }
+        }
+      }
+    },
+    "Tablets": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tablets"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tabletten"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comprimidos"
           }
         }
       }

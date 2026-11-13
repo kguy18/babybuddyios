@@ -9,6 +9,7 @@ import PhotosUI
 struct EntityEditorView: View {
     @Environment(\.modelContext) private var context
     @Environment(SyncEngine.self) private var sync
+    @Environment(AppSession.self) private var session
     @Environment(LiveActivityManager.self) private var liveActivity
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
@@ -91,7 +92,11 @@ struct EntityEditorView: View {
     // Medication
     @State private var medName = ""
     @State private var dosage = ""
-    @State private var dosageUnit = "mg"
+    @State private var dosageUnit = MedicationDoseUnit.unspecified.rawValue
+    @State private var customMedicationUnitLimit: Int?
+    @State private var showingCustomMedicationUnit = false
+    @State private var newMedicationUnit = ""
+    @AppStorage("customMedicationUnits") private var savedMedicationUnits = Data()
     @State private var doseInterval: DoseInterval = .none
     @State private var customDoseHours = ""
     @State private var customDoseMinutes = ""
@@ -178,6 +183,12 @@ struct EntityEditorView: View {
         }
         .onAppear(perform: populate)
         .onAppear(perform: loadBlockedMutation)
+        .task(id: kind == .medication ? session.config : nil) {
+            customMedicationUnitLimit = nil
+            guard kind == .medication else { return }
+            let limit = await session.customMedicationUnitLimit()
+            if !Task.isCancelled { customMedicationUnitLimit = limit }
+        }
         .sheet(isPresented: $showingPending) {
             PendingChangesView(highlight: blockedMutation?.localID)
         }
@@ -537,9 +548,22 @@ struct EntityEditorView: View {
             VStack(alignment: .leading, spacing: 16) {
                 fieldLabeled(String(localized: "Name")) { plainField(String(localized: "Name"), text: $medName) }
                 fieldLabeled(String(localized: "Dosage")) {
-                    HStack(spacing: 10) {
+                    let layout = typeSize.isAccessibilitySize
+                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(spacing: 10))
+                    layout {
                         numericField(text: $dosage, unit: nil)
-                        plainField(String(localized: "Unit"), text: $dosageUnit).frame(width: 92)
+                        menuField(options: MedicationDoseUnit.options(including: dosageUnit, custom: customMedicationUnits),
+                                  selection: $dosageUnit, label: MedicationDoseUnit.label(for:))
+                            .accessibilityLabel("Dosage unit")
+                            .accessibilityValue(MedicationDoseUnit.label(for: dosageUnit))
+                    }
+                    if customMedicationUnitLimit != nil {
+                        Button("Add custom unit", systemImage: "plus") {
+                            newMedicationUnit = ""
+                            showingCustomMedicationUnit = true
+                        }
+                        .font(.footnote)
+                        .tint(BBColor.brandAccent)
                     }
                 }
                 fieldLabeled(String(localized: "Next dose after")) {
@@ -553,6 +577,49 @@ struct EntityEditorView: View {
                     }
                 }
             }
+        }
+        .alert("Add custom unit", isPresented: $showingCustomMedicationUnit) {
+            TextField("Unit", text: $newMedicationUnit)
+                .autocorrectionDisabled()
+            Button("Cancel", role: .cancel) {}
+            Button("Add", action: addCustomMedicationUnit).disabled(validCustomMedicationUnit == nil)
+        } message: {
+            Text("Enter a unit such as IU.")
+        }
+    }
+
+    private var medicationUnitServerKey: String? {
+        session.config.map { AppSession.serverKey(for: $0.baseURL) }
+    }
+
+    private var medicationUnitsByServer: [String: [String]] {
+        (try? JSONDecoder().decode([String: [String]].self, from: savedMedicationUnits)) ?? [:]
+    }
+
+    private var customMedicationUnits: [String] {
+        guard let limit = customMedicationUnitLimit, let server = medicationUnitServerKey else { return [] }
+        return (medicationUnitsByServer[server] ?? []).filter { MedicationDoseUnit.customValue($0, limit: limit) == $0 }
+    }
+
+    private var validCustomMedicationUnit: String? {
+        customMedicationUnitLimit.flatMap { MedicationDoseUnit.customValue(newMedicationUnit, limit: $0) }
+    }
+
+    private func addCustomMedicationUnit() {
+        guard let unit = validCustomMedicationUnit, let server = medicationUnitServerKey else { return }
+        if MedicationDoseUnit(rawValue: unit) != nil {
+            dosageUnit = unit
+            return
+        }
+        if let existing = customMedicationUnits.first(where: { $0.caseInsensitiveCompare(unit) == .orderedSame }) {
+            dosageUnit = existing
+            return
+        }
+        var units = medicationUnitsByServer
+        units[server, default: []].append(unit)
+        if let data = try? JSONEncoder().encode(units) {
+            savedMedicationUnits = data
+            dosageUnit = unit
         }
     }
 
@@ -915,7 +982,9 @@ struct EntityEditorView: View {
         imageURL = (p["image"] as? String).flatMap { $0.isEmpty ? nil : $0 }
         medName = p["name"] as? String ?? ""
         if let d = p["dosage"] as? Double { dosage = trimmed(d) }
-        dosageUnit = p["dosage_unit"] as? String ?? dosageUnit
+        if let rawUnit = p["dosage_unit"] as? String {
+            dosageUnit = MedicationDoseUnit.editorValue(rawUnit)
+        }
         if let raw = p["next_dose_interval"] as? String, let seconds = APIDuration.parse(raw), seconds > 0 {
             if MedicationReminderPolicy.choices.contains(seconds) {
                 doseInterval = .preset(seconds)

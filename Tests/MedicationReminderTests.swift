@@ -29,6 +29,25 @@ final class MedicationReminderTests: XCTestCase {
         XCTAssertNil(APIDuration.parse(""))
     }
 
+    func testOnlyWritableStringMedicationFieldsAdvertiseCustomUnits() async throws {
+        let session = StubProtocol.install([
+            #"{"actions":{"POST":{"dosage_unit":{"type":"choice","read_only":false}}}}"#,
+            #"{"actions":{"POST":{"dosage_unit":{"type":"string","read_only":true,"max_length":20}}}}"#,
+            #"{"actions":{"POST":{"dosage_unit":{"type":"string","read_only":false,"max_length":20}}}}"#,
+        ])
+        let client = APIClient(config: ServerConfig(baseURL: URL(string: "https://example.test")!,
+                                                   token: "fixture"), session: session)
+        let fixed = try await client.customMedicationUnitLimit()
+        let readOnly = try await client.customMedicationUnitLimit()
+        let custom = try await client.customMedicationUnitLimit()
+        XCTAssertNil(fixed)
+        XCTAssertNil(readOnly)
+        XCTAssertEqual(custom, 20)
+        XCTAssertEqual(StubProtocol.requests.map(\.httpMethod), Array(repeating: "OPTIONS", count: 3))
+        XCTAssertEqual(StubProtocol.requestedURLs.map(\.absoluteString),
+                       Array(repeating: "https://example.test/api/medication/", count: 3))
+    }
+
     func testDurationFormatsLikeTheServer() {
         XCTAssertEqual(APIDuration.string(from: 5400), "01:30:00")
         XCTAssertEqual(APIDuration.string(from: 86_400), "1 00:00:00")
