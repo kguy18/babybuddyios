@@ -68,8 +68,11 @@ release notes can be written from the milestone:
 - CI runs `xcodegen generate` then `xcodebuild ... test CODE_SIGNING_ALLOWED=NO` against the
   newest available iPhone simulator. The scheme builds the widget as a dependency, so an
   app-only import added to `Sources/Shared` or `Sources/Persistence` fails there.
-- Then, if the unit tests pass, the UI tests (`scripts/ui-test.sh`, below) with one retry per
-  test. A failed run uploads `UITests.xcresult`, with a screenshot of each failure.
+- Beside the unit tests, the UI tests (`scripts/ui-test.sh`, below) with one retry per test, in
+  six `ui` shards of whole classes balanced by measured time, each about 25 minutes against a
+  40-minute cap. A failed shard uploads `UITests.xcresult`, with a screenshot of each failure.
+- The `server` lane runs one PR at a time: its job sits in a `demo-server` concurrency group with
+  `queue: max`, because every run signs into the same demo server.
 - Both run unsigned on purpose: without the App Group the store and the keychain fall back to
   app-only locations, which is all the app itself needs. Only Home Screen widgets need signing.
 - Docs-only PRs (`*.md`, `Docs/`) skip the macOS job. Any other path builds.
