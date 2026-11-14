@@ -98,6 +98,9 @@ final class FeedbackTests: UITestCase {
         openSendFeedback()
         tap(app.buttons.labeled("Request a Feature"))
         let board = expect(app.navigationBars["Request a Feature"])
+        // The stub page can take a while to render on CI's iPhone Duo: once it failed twice in a row
+        // with the sheet's spinner still up after the default 10 s.
+        expect(app.webViews.staticTexts["Stub widget: new-post"], timeout: 30)
         tap(app.webViews.links["Sign in to post"])
         tap(app.buttons["Use a password instead"])
         tap(app.textFields["Email"])

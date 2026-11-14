@@ -10,14 +10,25 @@ final class FoldTests: UITestCase {
     /// Whether the runner forces the open layouts with `BB_FOLD=1` rather than running on the open display.
     private let forced = ProcessInfo.processInfo.environment["BB_FOLD"] == "1"
 
+    /// The window width the first test measured. The display can't change during a run, so the
+    /// tests after it skip without a launch of their own: on CI's iPhone Duo front display each
+    /// launch-and-skip took 20 s to 3 min, which put the shard holding this class past its cap.
+    private static var measuredWidth: CGFloat?
+
     /// Launches with `environment` on the open display's layouts: forced with `BB_FOLD` when the
     /// runner asks for it, and otherwise only on the open display itself, skipping anywhere else.
     /// The app's window tells: 951 pt wide open, against 466 folded and at most 440 on other
     /// iPhones. SpringBoard's frame doesn't, as it still reads the front display's on an open Duo.
     private func launchOpen(_ environment: [String: String] = [:], largestText: Bool = false) throws {
+        if !forced, let width = Self.measuredWidth { try skipUnlessOpen(width) }
         launch(forced ? environment.merging(["BB_FOLD": "1"]) { $1 } : environment, largestText: largestText)
         guard !forced else { return }
         let width = app.windows.firstMatch.frame.width
+        Self.measuredWidth = width
+        try skipUnlessOpen(width)
+    }
+
+    private func skipUnlessOpen(_ width: CGFloat) throws {
         try XCTSkipUnless(width >= 900, "Needs iPhone Duo's open display (scripts/ui-test.sh --duo-open) or "
                           + "TEST_RUNNER_BB_FOLD=1; this window is \(Int(width)) pt wide")
     }
