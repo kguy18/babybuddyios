@@ -115,13 +115,18 @@ final class ServerTests: ServerTestCase {
     /// Regression: #145 — a create that named its timer let the server replace the end with the
     /// moment the request arrived. The End chosen in the convert editor is the one saved.
     func testConvertedTimerKeepsEditedEnd() async throws {
-        let target = Date().addingTimeInterval(-10 * 60)
-        guard Calendar.current.isDateInToday(target) else {
-            throw XCTSkip("Ten minutes ago was yesterday; the End row's date button would need changing too")
-        }
         let child = try await api.firstChild()
+        // The feeding runs from the timer's start to the End chosen below, and the server refuses
+        // one that overlaps another feeding. The owner's device and other runs log to this server
+        // too, so a fixed window such as the last hour isn't always free.
+        let slot = try await api.freeSlot("feedings", child: child.id, length: 10 * 60...50 * 60,
+                                          before: Date().addingTimeInterval(-10 * 60))
+        let target = slot.end
+        guard Calendar.current.isDateInToday(slot.start) else {
+            throw XCTSkip("No free feeding time earlier today; the End row's date button would need changing too")
+        }
         let timer = try await api.create("timers", [
-            "child": child.id, "name": marker, "start": Date().addingTimeInterval(-60 * 60).apiTime,
+            "child": child.id, "name": marker, "start": slot.start.apiTime,
         ])
         let timerID = try XCTUnwrap(timer["id"] as? Int)
 

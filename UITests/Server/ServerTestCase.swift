@@ -83,8 +83,14 @@ class ServerTestCase: UITestCase {
         token.tap()
         token.typeText(api.token)
         tap(app.buttons["Connect"])
-        // The first pull brings the server's history down before the tabs appear.
-        expect(tab("Home"), timeout: 60)
+        // The first pull brings the server's history down before the tabs appear. The demo server's
+        // 30 days (about 1,000 records in November 2026) download in a few seconds, so a miss here
+        // means sign-in stalled or the server answered with an error. CI never uploads this lane's
+        // result bundle, because it records the typed token, so the failure says what showed.
+        if !tab("Home").waitForExistence(timeout: 60) {
+            let shown = app.staticTexts.allElementsBoundByIndex.map(\.label).filter { !$0.isEmpty }
+            XCTFail("Expected the Home tab after connecting. On screen: \(shown.joined(separator: " | "))")
+        }
     }
 
     /// Pull to refresh on the Timeline, then find a record by its marker. The app syncs on its own

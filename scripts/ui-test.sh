@@ -105,17 +105,19 @@ if [ -n "$DUO_OPEN" ]; then
     scripts/duoctl open \
       && scripts/duoctl state | python3 -c 'import json, sys; sys.exit(json.load(sys.stdin)["activeScreen"] != "inner")'
   }
-  # Once in CI, straight after bootstatus, duoctl answered "no display is active (is the simulator
-  # still booting?)": SpringBoard wasn't up yet. One more try after a pause covers that.
-  if ! unfold; then
-    echo "duoctl open didn't take; trying once more in 15 s"
-    sleep 15
-    if ! unfold; then
+  # Straight after bootstatus, duoctl sometimes answers "no display is active (is the simulator
+  # still booting?)": SpringBoard isn't up yet. On CI one retry after 15 s was once enough and once
+  # not (still no display 30 s on), so keep trying for two minutes.
+  for ATTEMPT in 1 2 3 4 5 6 7 8; do
+    unfold && break
+    if [ "$ATTEMPT" = 8 ]; then
       scripts/duoctl screenshot build/duo-open.png || true
       echo "::error::duoctl open left the iPhone Duo on its front display"
       exit 1
     fi
-  fi
+    echo "duoctl open didn't take (attempt $ATTEMPT of 8); trying again in 15 s"
+    sleep 15
+  done
 fi
 
 # A Duo shard's first test paid the simulator's cold start on top of its own waits. With a
