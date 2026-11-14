@@ -150,16 +150,21 @@ jobs:
           sys.exit(0 if d.get("failedTests", 1) == 0 and d.get("totalTestCount", 0) > 0 else 1)
           '
 
-  # The XCUITest suite, split four ways. Each shard is a whole test class or three: xcodebuild has
+  # The XCUITest suite, split six ways. Each shard is a whole test class or several: xcodebuild has
   # no sharding of its own, and a class is the smallest unit `-only-testing` addresses that doesn't
   # need a generated list kept in step with the source.
   #
-  # The grouping is balanced by measured duration, not by test count — DashboardTests is two tests
-  # and 95 seconds, TimerTests is three and the same. Re-measure from a result bundle
-  # (`xcresulttool get test-results tests`) if the balance drifts.
+  # The grouping is balanced by measured duration, not by test count: DashboardTests is seven tests
+  # and about 4.5 minutes, TimerTests is eight and twice that. A shard spends about 7.5 minutes on
+  # setup, the build and the simulator's boot before its first test, so each one holds about 15
+  # minutes of tests and the job lands near 23 to 25 minutes, against the 40-minute cap. With four
+  # shards they ran 28 to 35 minutes and one hit 41. Re-measure from a result bundle
+  # (`xcresulttool get test-results tests`), or the time between launch lines in a job log, if the
+  # balance drifts.
   #
-  # Four shards, not more: LoggingTests alone is ~21% of the suite, so it is the floor no split of
-  # whole classes can beat. A fifth shard would shave nothing off the critical path.
+  # LoggingTests alone is about 12.5 minutes of tests, so it is the floor no split of whole classes
+  # can beat. More shards would also queue: GitHub gives this repository five macOS runners, and
+  # unit, server and the ui shards already want eight.
   ui:
     name: ui (${{ matrix.shard }})
     needs: changes
@@ -167,18 +172,22 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 40
     strategy:
-      # One shard failing shouldn't hide the results of the other three.
+      # One shard failing shouldn't hide the results of the others.
       fail-fast: false
       matrix:
         include:
           - shard: logging
-            classes: LoggingTests SickModeTests TodayTilesTests
+            classes: LoggingTests TodayTilesTests
           - shard: timers
-            classes: LiveActivityTests SmokeTests TimerTests FoldTests ActivityForecastUITests
-          - shard: timeline
-            classes: TimelineTests DialogTests SyncTests ReassignChildTests GermanLocalizationTests PortugueseLocalizationTests
+            classes: TimerTests SmokeTests FoldTests NotificationTests
           - shard: settings
-            classes: NotificationTests SettingsTests FeedbackTests FeedbackAccountTests DashboardTests
+            classes: SettingsTests FeedbackAccountTests GermanLocalizationTests
+          - shard: forecast
+            classes: ActivityForecastUITests DashboardTests LiveActivityTests ReassignChildTests
+          - shard: feedback
+            classes: FeedbackTests SickModeTests PortugueseLocalizationTests
+          - shard: timeline
+            classes: DialogTests TimelineTests SyncTests
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/ios-setup
@@ -213,10 +222,15 @@ jobs:
   # server App Review also uses. Its own cap, so a hang in the network fails this job rather than
   # eating an hour.
   #
-  # Deliberately NOT sharded, and never to be: all six tests sign into one shared server, so two of
+  # Deliberately NOT sharded, and never to be: all eight tests sign into one shared server, so two of
   # them running at once would see each other's records. One test's teardown could delete the sleep
   # another test's Repeat is meant to overlap, for example. The tests skip themselves
   # if the server is unreachable, and the summary raises a warning when they do.
+  #
+  # For the same reason only one PR's server job runs at a time: the `demo-server` group spans
+  # every PR and branch. `queue: max` lets the others wait their turn; with the default queue, a
+  # third PR's job would cancel the second's pending one and fail its `build-and-test`. A new push
+  # to a PR still cancels that PR's own waiting job through the workflow's concurrency group.
   #
   # Its result bundle is deliberately NOT uploaded: this repository is public, and XCUITest records
   # typed text — including the token the sign-in types.
@@ -226,6 +240,9 @@ jobs:
     if: needs.changes.outputs.code == 'true'
     runs-on: macos-26
     timeout-minutes: 30
+    concurrency:
+      group: demo-server
+      queue: max
     env:
       # A fork's PR gets no secrets, and `secrets` can't be read from a step's `if` — so the lane's
       # condition rides on this instead, and skips there rather than failing the job.
@@ -467,7 +484,7 @@ jobs:
           retention-days: 7
 
   # The ruleset on main requires a check called `build-and-test`, which used to be the single macOS
-  # job. Rather than teach the ruleset four shard names — which would strand it again the next time
+  # job. Rather than teach the ruleset each shard name — which would strand it again the next time
   # the split changes — that name lives on here as an aggregator over the lanes. It is the only
   # place the shard layout is coupled to a repository setting, and now it isn't.
   #
