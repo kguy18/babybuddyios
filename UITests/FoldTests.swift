@@ -139,6 +139,10 @@ final class FoldTests: UITestCase {
     /// centred across it, and still takes no for an answer.
     func testSupportNudgeSitsRightOfTheFold() {
         launch(["BB_NUDGE": "gentle", "BB_FOLD": "1"])
+        // The demo's running timer asks for notification permission on a freshly erased simulator.
+        // While that prompt is up the app isn't active, so the Dashboard never offers the nudge;
+        // answering it makes the app active again, which checks once more.
+        allowNotificationsIfAsked()
         let support = expect(app.buttons["Become a Supporter"])
         let later = expect(app.buttons["Maybe later"])
         let window = app.windows.firstMatch.frame

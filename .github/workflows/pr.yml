@@ -155,14 +155,14 @@ jobs:
   # need a generated list kept in step with the source.
   #
   # The grouping is balanced by measured duration, not by test count: DashboardTests is seven tests
-  # and about 4.5 minutes, TimerTests is eight and twice that. A shard spends about 7.5 minutes on
-  # setup, the build and the simulator's boot before its first test, so each one holds about 15
-  # minutes of tests and the job lands near 23 to 25 minutes, against the 40-minute cap. With four
+  # and under 4 minutes, ActivityForecastUITests is eleven and 8. A shard spends 6 to 11 minutes on
+  # setup, the build and the simulator's boot before its first test, so each one holds 13 to 15
+  # minutes of tests and the job lands near 20 to 26 minutes, against the 40-minute cap. With four
   # shards they ran 28 to 35 minutes and one hit 41. Re-measure from a result bundle
-  # (`xcresulttool get test-results tests`), or the time between launch lines in a job log, if the
-  # balance drifts.
+  # (`xcresulttool get test-results tests`), or the time between launch lines in a job log (about one per
+  # test, classes and tests in alphabetical order), if the balance drifts.
   #
-  # LoggingTests alone is about 12.5 minutes of tests, so it is the floor no split of whole classes
+  # LoggingTests alone is about 11 minutes of tests, so it is the floor no split of whole classes
   # can beat. More shards would also queue: GitHub gives this repository five macOS runners, and
   # unit, server and the ui shards already want eight.
   ui:
@@ -177,15 +177,15 @@ jobs:
       matrix:
         include:
           - shard: logging
-            classes: LoggingTests TodayTilesTests
+            classes: LoggingTests TodayTilesTests ReassignChildTests
           - shard: timers
-            classes: TimerTests SmokeTests FoldTests NotificationTests
+            classes: TimerTests SmokeTests NotificationTests GermanLocalizationTests
           - shard: settings
-            classes: SettingsTests FeedbackAccountTests GermanLocalizationTests
+            classes: SettingsTests FeedbackAccountTests FoldTests
           - shard: forecast
-            classes: ActivityForecastUITests DashboardTests LiveActivityTests ReassignChildTests
+            classes: ActivityForecastUITests LiveActivityTests PortugueseLocalizationTests
           - shard: feedback
-            classes: FeedbackTests SickModeTests PortugueseLocalizationTests
+            classes: FeedbackTests SickModeTests DashboardTests
           - shard: timeline
             classes: DialogTests TimelineTests SyncTests
     steps:
