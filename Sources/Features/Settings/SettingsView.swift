@@ -106,6 +106,17 @@ struct SettingsView: View {
 
                     sectioned(String(localized: "Appearance")) { appearanceCard }
 
+                    sectioned(String(localized: "Feedings")) {
+                        card {
+                            NavigationLink { FeedingDefaultsView() } label: {
+                                SettingsRow(symbol: "slider.horizontal.3", tint: BBColor.feeding,
+                                            title: String(localized: "Feeding defaults")) { disclosure }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("feeding-defaults-settings")
+                        }
+                    }
+
                     sectioned(String(localized: "Quick Log")) {
                         quickFeedCard
                         Text("Defaults for the one-tap Feeding tile in the Quick Log widget.")
