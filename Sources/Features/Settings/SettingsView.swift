@@ -14,6 +14,7 @@ struct SettingsView: View {
     @Environment(LiveActivityManager.self) private var liveActivity
     @Environment(AppIconManager.self) private var icons
     @Environment(\.modelContext) private var context
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     @State private var photoItem: PhotosPickerItem?
 
@@ -67,71 +68,22 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    masthead
-
-                    sectioned(String(localized: "Support the app")) {
-                        supporterCard
-                        Text("Everything in the app is free. Supporting is optional and helps fund development.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 4)
-                            .padding(.top, 2)
+            // On iPhone Duo's open display the account and sync sections go left of the fold and
+            // the app's own settings right of it. Everywhere else it is one list.
+            FoldSplitView {
+                ScrollView { pane { accountSections } }
+            } main: { split in
+                ScrollView {
+                    pane {
+                        if !split { accountSections }
+                        appSections
                     }
-
-                    sectioned(String(localized: "Server")) { serverCard }
-
-                    sectioned(String(localized: "Security")) {
-                        securityCard
-                        if !lock.biometryAvailable {
-                            Text("Set up Face ID, Touch ID, or a device passcode to enable app lock.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 4)
-                                .padding(.top, 2)
-                        }
-                    }
-
-                    sectioned(String(localized: "Sick mode")) { sickModeCard }
-
-                    sectioned(String(localized: "Notifications")) {
-                        notificationsCard
-                        Text("Each phone schedules its own medication reminders from synced doses, so pull to refresh before giving a dose in case someone else just logged one.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 4)
-                            .padding(.top, 2)
-                    }
-
-                    sectioned(String(localized: "Appearance")) { appearanceCard }
-
-                    sectioned(String(localized: "Quick Log")) {
-                        quickFeedCard
-                        Text("Defaults for the one-tap Feeding tile in the Quick Log widget.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 4)
-                            .padding(.top, 2)
-                    }
-
-                    sectioned(String(localized: "Feedback")) { feedbackCard }
-
-                    #if DEBUG
-                    sectioned(String(localized: "Developer")) { developerCard }
-                    #endif
-
-                    signOutCard.padding(.top, 4)
-
-                    acknowledgementsFooter
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 28)
+                // "Sick mode ended" and its Undo, when it's ended from here. On this pane rather
+                // than the whole screen, so on the open display it stays off the fold.
+                .overlay(alignment: .bottom) { UndoToastView().padding(.bottom, 12) }
             }
             .background(BBColor.surface)
-            // "Sick mode ended" and its Undo, when it's ended from here.
-            .overlay(alignment: .bottom) { UndoToastView().padding(.bottom, 12) }
             .navigationTitle("Settings")
             .accessibilityIdentifier("screen-settings")
             .fullScreenCover(isPresented: $showingSignOut) {
@@ -183,13 +135,79 @@ struct SettingsView: View {
         }
     }
 
+    private func pane<V: View>(@ViewBuilder _ content: () -> V) -> some View {
+        VStack(alignment: .leading, spacing: 18, content: content)
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 28)
+    }
+
+    /// The child, supporting the app, and this phone's link to the server.
+    @ViewBuilder private var accountSections: some View {
+        masthead
+
+        sectioned(String(localized: "Support the app")) {
+            supporterCard
+            footnote("Everything in the app is free. Supporting is optional and helps fund development.")
+        }
+
+        sectioned(String(localized: "Server")) { serverCard }
+
+        sectioned(String(localized: "Security")) {
+            securityCard
+            if !lock.biometryAvailable {
+                footnote("Set up Face ID, Touch ID, or a device passcode to enable app lock.")
+            }
+        }
+
+        sectioned(String(localized: "Sick mode")) { sickModeCard }
+    }
+
+    /// How the app behaves on this phone, feedback, and signing out.
+    @ViewBuilder private var appSections: some View {
+        sectioned(String(localized: "Notifications")) {
+            notificationsCard
+            footnote("Each phone schedules its own medication reminders from synced doses, so pull to refresh before giving a dose in case someone else just logged one.")
+        }
+
+        sectioned(String(localized: "Appearance")) { appearanceCard }
+
+        sectioned(String(localized: "Quick Log")) {
+            quickFeedCard
+            footnote("Defaults for the one-tap Feeding tile in the Quick Log widget.")
+        }
+
+        sectioned(String(localized: "Feedback")) { feedbackCard }
+
+        #if DEBUG
+        sectioned(String(localized: "Developer")) { developerCard }
+        #endif
+
+        signOutCard.padding(.top, 4)
+
+        acknowledgementsFooter
+    }
+
+    private func footnote(_ text: LocalizedStringKey) -> some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 4)
+            .padding(.top, 2)
+    }
+
     // MARK: Masthead
 
     /// Child-profile card: avatar + name + age, with a "Switch" affordance when there's more
     /// than one child (reuses the shared `selectedChildID` so every tab follows the choice).
     private var masthead: some View {
-        BBCard(cornerRadius: BBRadius.tile, padding: 14) {
-            HStack(spacing: 13) {
+        // At accessibility sizes the name and age get the card's whole width, under the photo:
+        // beside it and "Switch" they broke mid-word.
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+            : AnyLayout(HStackLayout(spacing: 13))
+        return BBCard(cornerRadius: BBRadius.tile, padding: 14) {
+            layout {
                 PhotosPicker(selection: $photoItem, matching: .images) {
                     ChildAvatar(
                         pictureURL: currentChild?.payloadObject["picture"] as? String,
@@ -208,12 +226,12 @@ struct SettingsView: View {
                 .accessibilityLabel("Child photo")
                 .accessibilityHint("Change photo")
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(childDisplayName).font(.system(size: 17, weight: .semibold))
+                    Text(childDisplayName).font(.headline)
                     if let subtitle = childSubtitle {
                         Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
                     }
                 }
-                Spacer(minLength: 8)
+                if !typeSize.isAccessibilitySize { Spacer(minLength: 8) }
                 switchControl
             }
         }
@@ -412,7 +430,7 @@ struct SettingsView: View {
                 // Only a real change is stored, so tapping the region's own unit keeps "from your region".
                 BBSegmentedControl(selection: Binding(get: { unit }, set: { if $0 != unit { storedUnit = $0 } }),
                                    options: TemperatureUnit.allCases) { $0.symbol }
-                    .frame(width: 96)
+                    .frame(width: typeSize.isAccessibilitySize ? 200 : 96)
             }
             rowDivider
             NavigationLink { FeverLineView() } label: {
@@ -482,10 +500,11 @@ struct SettingsView: View {
     private func smallButton(_ title: String, tinted: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(tinted ? BBColor.brandAccent : Color.primary)
                 .padding(.horizontal, 14)
-                .frame(height: 34)
+                .padding(.vertical, 7)
+                .frame(minHeight: 34)
                 .background(tinted ? BBColor.brandTint : BBColor.controlFill,
                             in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
@@ -854,10 +873,10 @@ struct SettingsView: View {
                 HStack(spacing: 7) {
                     Spacer()
                     Image(systemName: "rectangle.portrait.and.arrow.right")
-                        .font(.system(size: 16, weight: .semibold))
-                    Text("Sign out").font(.system(size: 16, weight: .semibold))
+                    Text("Sign out")
                     Spacer()
                 }
+                .font(.callout.weight(.semibold))
                 .foregroundStyle(BBColor.danger)
             }
         }
@@ -981,6 +1000,8 @@ struct SettingsView: View {
 
 /// One grouped-settings row: a small tinted glyph tile, a title, and trailing content
 /// (a value, a status, a toggle, or a chevron). Mirrors ``ActivityTile``'s tint wash.
+/// When the trailing content doesn't fit beside the title, as at accessibility text sizes, it
+/// goes under the title instead, where it isn't truncated or wrapped mid-word.
 struct SettingsRow<Trailing: View>: View {
     @Environment(\.colorScheme) private var scheme
     let symbol: String
@@ -992,34 +1013,55 @@ struct SettingsRow<Trailing: View>: View {
     let title: String
     var subtitle: String? = nil
     @ViewBuilder var trailing: () -> Trailing
+    // Scaled with the text, but capped: at the largest sizes a 30 pt tile would pass 90 pt.
+    @ScaledMetric(relativeTo: .callout) private var tileSize: CGFloat = 30
 
     var body: some View {
-        HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(tint.opacity(scheme == .dark ? 0.22 : 0.15))
-                .frame(width: 30, height: 30)
-                .overlay {
-                    if symbolIsAsset {
-                        Image(symbol)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 16, height: 16)
-                            .foregroundStyle(glyphColor ?? tint)
-                            .accessibilityHidden(true)
-                    } else {
-                        Image(systemName: symbol)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(glyphColor ?? tint)
-                    }
-                }
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.system(size: 16))
-                if let subtitle { Text(subtitle).font(.caption).foregroundStyle(.secondary) }
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                tile
+                titles
+                Spacer(minLength: 8)
+                trailing()
             }
-            Spacer(minLength: 8)
-            trailing()
+            HStack(alignment: .top, spacing: 12) {
+                tile
+                VStack(alignment: .leading, spacing: 6) {
+                    titles
+                    trailing()
+                }
+                Spacer(minLength: 0)
+            }
         }
         .padding(.vertical, 11)
         .contentShape(Rectangle())
+    }
+
+    private var tile: some View {
+        let side = min(tileSize, 44)
+        return RoundedRectangle(cornerRadius: 9, style: .continuous)
+            .fill(tint.opacity(scheme == .dark ? 0.22 : 0.15))
+            .frame(width: side, height: side)
+            .overlay {
+                if symbolIsAsset {
+                    Image(symbol)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: side * 0.53, height: side * 0.53)
+                        .foregroundStyle(glyphColor ?? tint)
+                        .accessibilityHidden(true)
+                } else {
+                    Image(systemName: symbol)
+                        .font(.system(size: side / 2, weight: .semibold))
+                        .foregroundStyle(glyphColor ?? tint)
+                }
+            }
+    }
+
+    private var titles: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title).font(.callout)
+            if let subtitle { Text(subtitle).font(.caption).foregroundStyle(.secondary) }
+        }
     }
 }

@@ -283,6 +283,31 @@ final class FoldTests: UITestCase {
         expect(element(labeled: "Sleep running"))
     }
 
+    /// Settings puts the account and sync sections left of the fold and the app's own settings
+    /// right of it, so no row runs across the fold.
+    func testSettingsSplitsAtTheFold() throws {
+        try launchOpen(["BB_START_TAB": "settings"])
+        let server = expect(app.staticTexts["SERVER"])
+        let notifications = expect(app.staticTexts["NOTIFICATIONS"])
+        XCTAssertGreaterThan(notifications.frame.minX, server.frame.minX + 100,
+                             "Notifications should start the right pane")
+        XCTAssertLessThan(notifications.frame.minY, expect(app.staticTexts["SICK MODE"]).frame.minY,
+                          "Notifications should sit at the top of its pane, not under Sick mode")
+        if !forced {
+            let middle = app.windows.firstMatch.frame.midX
+            XCTAssertLessThanOrEqual(expect(app.staticTexts["Stale after"]).frame.maxX, middle,
+                                     "The Server card should end left of the fold")
+            XCTAssertGreaterThanOrEqual(notifications.frame.minX, middle,
+                                        "Notifications should start right of the fold")
+        }
+        // Both panes still work: a menu on the left, a switch on the right.
+        tap(app.buttons["30 min"])
+        tap(app.buttons["15 min"])
+        expect(app.buttons["15 min"])
+        let undo = expect(app.switches["Undo after logging"])
+        XCTAssertGreaterThan(undo.frame.minX, server.frame.minX + 100)
+    }
+
     func testSyncScreensKeepContentBesideTheFold() throws {
         try launchOpen(["BB_START_TAB": "settings", "BB_SEED_PENDING": "1", "BB_OPEN_PENDING": "1"])
         let pending = expect(app.navigationBars["Pending Changes"])
