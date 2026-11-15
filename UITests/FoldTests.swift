@@ -33,6 +33,57 @@ final class FoldTests: UITestCase {
                           + "TEST_RUNNER_BB_FOLD=1; this window is \(Int(width)) pt wide")
     }
 
+    func testFeedbackKeepsTheNoteBesideTheActions() throws {
+        try checkFeedbackPanes(largestText: false)
+    }
+
+    func testFeedbackKeepsTheNoteBesideTheActionsAtLargestText() throws {
+        try checkFeedbackPanes(largestText: true)
+    }
+
+    private func checkFeedbackPanes(largestText: Bool) throws {
+        try launchOpen(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out"], largestText: largestText)
+        openSendFeedback()
+        let note = expect(element(labeled: "Hi, I'm Kurtis."))
+        let request = expect(app.buttons.labeled("Request a Feature"))
+        let noteFrame = note.frame
+        let requestFrame = request.frame
+        captureFeedbackInventory()
+        XCTAssertGreaterThan(requestFrame.minX, noteFrame.maxX, "Actions should sit beside the note")
+        XCTAssertGreaterThan(requestFrame.minX, app.windows.firstMatch.frame.midX)
+        XCTAssertLessThan(noteFrame.maxX, app.windows.firstMatch.frame.midX)
+        tap(app.buttons.labeled("Request a Feature"))
+        let board = expect(app.navigationBars["Request a Feature"])
+        expect(app.webViews.staticTexts["Stub widget: new-post"], timeout: 30)
+        tap(board.buttons["Close"])
+        expectGone(board)
+    }
+
+    func testCustomHeadersStayBesideTheFold() throws {
+        try checkCustomHeaderPane(largestText: false)
+    }
+
+    func testCustomHeadersStayBesideTheFoldAtLargestText() throws {
+        try checkCustomHeaderPane(largestText: true)
+    }
+
+    private func checkCustomHeaderPane(largestText: Bool) throws {
+        try launchOpen(["BB_START_TAB": "settings"], largestText: largestText)
+        tap(app.buttons.labeled("Custom headers"))
+        expect(app.navigationBars["Custom headers"])
+        let add = expect(app.buttons["Add header"])
+        let footer = expect(app.staticTexts.labeled("Only for a server behind an access gate"))
+        captureInventoryScreen("settings-custom-headers")
+        let middle = app.windows.firstMatch.frame.midX
+        XCTAssertGreaterThan(add.frame.minX, middle, "The header card should stay right of the fold")
+        XCTAssertGreaterThan(footer.frame.minX, middle, "The footer should stay with the header card")
+        tap(add)
+        let name = expect(app.textFields["Header name"])
+        XCTAssertGreaterThan(name.frame.minX, middle, "Added fields should stay in the same pane")
+        tap(app.buttons["Remove header"])
+        expectGone(name)
+    }
+
     /// The tapped record opens right of the list, ready to edit, with Save, Repeat and Delete in the
     /// toolbar. Each of them closes the pane again.
     func testTimelineOpensARecordBesideTheList() throws {

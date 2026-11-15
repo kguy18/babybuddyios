@@ -18,21 +18,32 @@ struct SendFeedbackView: View {
     @State private var account: FeedbackSession.Account?
     @State private var showingAccount = false
     @Environment(\.openURL) private var openURL
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     /// The note's "supporters like you" link: the app's own supporter link, caught by the note's
     /// `openURL` handler so the sheet opens over this screen.
     private static let supporterLink = URL(string: "babybuddy://supporter")!
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 14) {
+        FoldSplitView {
+            ScrollView {
                 note
-                actionsCard
-                moreCard
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 16)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 16)
+        } main: { split in
+            ScrollView {
+                VStack(spacing: 14) {
+                    if !split && !typeSize.isAccessibilitySize { note }
+                    actionsCard
+                    moreCard
+                    if !split && typeSize.isAccessibilitySize { note }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 16)
+            }
         }
         .background(BBColor.surface)
         .navigationTitle("Send Feedback")
