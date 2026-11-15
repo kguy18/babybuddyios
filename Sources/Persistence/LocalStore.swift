@@ -54,6 +54,7 @@ enum LocalStore {
         try? context.save()
         try? FileManager.default.removeItem(at: ImageUploadStore.directory)
         // A server-assigned child id points at nothing once the records are gone.
+        QuickLogFeedback.clear()
         SharedDefaults.selectedChildID = nil
     }
 

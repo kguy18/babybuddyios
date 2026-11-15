@@ -9,7 +9,7 @@ import SwiftUI
 /// type/method set in Settings, `start = end = now`) — since those defaults won't suit every
 /// family it's both editable and surfaced as its own distinct tile rather than blended into the
 /// diaper set. `kind` keeps the intent general across both record types.
-enum QuickLogAction: String, AppEnum, CaseIterable {
+enum QuickLogAction: String, AppEnum, CaseIterable, Codable {
     case wetDiaper, solidDiaper, wetAndSolidDiaper, quickFeed
 
     static var typeDisplayRepresentation: TypeDisplayRepresentation { "Quick Log" }

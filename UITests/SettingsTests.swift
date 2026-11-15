@@ -143,6 +143,16 @@ final class SettingsTests: UITestCase {
         XCTAssertFalse(app.otherElements["Logged Diaper Change"].waitForExistence(timeout: 3))
     }
 
+    func testQuickLogConfirmationSetting() {
+        launch(["BB_START_TAB": "settings"])
+        let confirmation = app.switches["Quick log confirmation"]
+        expectValue(confirmation, "1")
+        toggle(confirmation, to: "0")
+        tap(tab("Home"))
+        tap(tab("Settings"))
+        expectValue(confirmation, "0")
+    }
+
     // MARK: Helpers
 
     /// A tile in the icon grid. Each one is a button inside a button, so the query has to pick the
