@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-# Runs the XCUITest suite (scheme BabyBuddyUITests) on a dedicated simulator that is erased,
-# booted, and shut down again around every run. Same command CI runs; extra xcodebuild arguments
-# pass straight through.
+# Runs the XCUITest suite (scheme BabyBuddyUITests) on a simulator of its own. Same command CI runs;
+# extra xcodebuild arguments pass straight through.
+#
+# With simlock installed (scripts/simlock.sh), and outside CI, the run leases a fresh slim simulator
+# from it and releases it at the end: an iPhone 17 Pro, or an iPhone Duo for --duo-open. What follows
+# about a named device, erased, booted and shut down around every run, is the path without simlock,
+# which CI takes.
 #
 #   scripts/ui-test.sh [xcodebuild args]
 #   scripts/ui-test.sh -only-testing:BabyBuddyUITests/DialogTests/testSignOutCard
@@ -62,6 +66,23 @@ elif [ "${1:-}" = "--duo-open" ]; then
   esac
 fi
 
+SIMCTL=(xcrun simctl)
+XCODEBUILD_SET=()
+source scripts/simlock.sh
+if simlock_wanted; then
+  if [ -n "$DUO_OPEN" ]; then
+    simlock_lease "iPhone Duo" 27.2
+    # duoctl looks for the simulator in Xcode's device set only.
+    if [ -n "$DEVICE_SET" ]; then
+      echo "::error::simlock keeps its devices in a set of its own, where duoctl can't reach them; run \`simlock config set drivers.ios.deviceSet default\` (AGENTS.md, Simulators)" >&2
+      exit 1
+    fi
+  else
+    simlock_lease "iPhone 17 Pro" 26.5
+  fi
+else
+# No simlock, as on CI: find or create the named device, then erase and boot it. Left unindented so
+# this path reads as it did before simlock.
 UDID=$(xcrun simctl list devices available --json | python3 -c '
 import json, sys
 for devs in json.load(sys.stdin)["devices"].values():
@@ -95,6 +116,7 @@ xcrun simctl shutdown "$UDID" >/dev/null 2>&1 || true
 xcrun simctl erase "$UDID"
 xcrun simctl boot "$UDID"
 xcrun simctl bootstatus "$UDID" -b >/dev/null
+fi
 
 if [ -n "$DUO_OPEN" ]; then
   export DUOCTL_UDID="$UDID"
@@ -126,10 +148,10 @@ fi
 if [ -n "${UI_TEST_XCTESTRUN:-}" ]; then
   APP="$(dirname "$UI_TEST_XCTESTRUN")/Debug-iphonesimulator/BabyBuddy.app"
   if [ -d "$APP" ]; then
-    xcrun simctl install "$UDID" "$APP"
-    SIMCTL_CHILD_BB_UITEST=1 xcrun simctl launch "$UDID" com.kurtisguy.BabyBuddy >/dev/null
+    "${SIMCTL[@]}" install "$UDID" "$APP"
+    SIMCTL_CHILD_BB_UITEST=1 "${SIMCTL[@]}" launch "$UDID" com.kurtisguy.BabyBuddy >/dev/null
     sleep 10
-    xcrun simctl terminate "$UDID" com.kurtisguy.BabyBuddy >/dev/null 2>&1 || true
+    "${SIMCTL[@]}" terminate "$UDID" com.kurtisguy.BabyBuddy >/dev/null 2>&1 || true
   else
     echo "no prebuilt app beside $UI_TEST_XCTESTRUN; skipping the warm-up launch"
   fi
@@ -150,12 +172,13 @@ if [ -n "${UI_TEST_XCTESTRUN:-}" ]; then
 else
   BUILD=(-project BabyBuddy.xcodeproj -scheme BabyBuddyUITests test)
 fi
-if [ -n "${UI_TEST_XCTESTRUN:-}" ] || xcrun simctl list devices "$UDID" --json | grep -q '"deviceTypeIdentifier" : ".*Duo"'; then
+if [ -n "${UI_TEST_XCTESTRUN:-}" ] || [ -n "$DUO_OPEN" ] \
+  || "${SIMCTL[@]}" list devices "$UDID" --json | grep -q '"deviceTypeIdentifier" : ".*Duo"'; then
   ALLOWANCE=(-default-test-execution-time-allowance 420 -maximum-test-execution-time-allowance 600)
 else
   ALLOWANCE=(-default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 300)
 fi
-xcodebuild "${BUILD[@]}" -destination "id=$UDID" \
+xcodebuild "${BUILD[@]}" -destination "id=$UDID" ${XCODEBUILD_SET[@]+"${XCODEBUILD_SET[@]}"} \
   -resultBundlePath "$RESULT" \
   -test-timeouts-enabled YES "${ALLOWANCE[@]}" \
   CODE_SIGNING_ALLOWED=NO -quiet "${LANE[@]}" "$@"

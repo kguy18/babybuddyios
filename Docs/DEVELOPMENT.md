@@ -8,14 +8,17 @@ This file covers what you need once the project builds.
 ```bash
 xcodegen generate
 xcodebuild -project BabyBuddy.xcodeproj -scheme BabyBuddy \
-  -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-  CODE_SIGNING_ALLOWED=NO build
+  -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+scripts/unit-test.sh
 ```
 
-Swap `build` for `test` to run the unit tests.
+Both test scripts, `scripts/unit-test.sh` and `scripts/ui-test.sh`, pick the simulator for you. With
+[simlock](https://github.com/callstackincubator/simlock) installed they lease a fresh one from it and
+release it afterwards, so parallel runs never share a device (setup in AGENTS.md, "Simulators").
+Without it, or with `UI_TEST_NO_SIMLOCK=1`, the unit tests run on an iPhone 17 Pro and the UI tests
+on a named simulator of their own.
 
-The UI tests (XCUITest, `UITests/`) have their own scheme and a script that runs them on a
-dedicated simulator, erased first — the same command CI runs:
+The UI tests (XCUITest, `UITests/`) have their own scheme and script, the same command CI runs:
 
 ```bash
 scripts/ui-test.sh
@@ -36,8 +39,8 @@ Use a token for a user of your own, on a server whose data you don't mind test r
 and disappearing from; the tests clean up after themselves but they do write.
 
 A third lane runs on iPhone Duo's open display, which XCUITest can't reach by itself. It needs Xcode
-27.1 or later with the iPhone Duo simulator. The script clones that simulator as "BabyBuddy UI Tests
-Duo", unfolds it with [duoctl](https://github.com/skarol/duoctl) and stops unless the inner screen
+27.1 or later with the iPhone Duo simulator. The script leases an iPhone Duo from simlock, or without
+it clones that simulator as "BabyBuddy UI Tests Duo", then unfolds it with [duoctl](https://github.com/skarol/duoctl) and stops unless the inner screen
 took over. With no `-only-testing` it runs `FoldTests` and `SmokeTests`; on a failure it saves the
 open display to `build/duo-open.png`:
 
