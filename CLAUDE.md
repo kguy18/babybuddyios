@@ -79,13 +79,13 @@ release notes can be written from the milestone:
 - The `duo` jobs run the unit tests and the UI tests on an iPhone Duo simulator (iOS 27.1) on
   GitHub's preview `xcode-27` image, and print the Xcode and Swift versions they used.
   `duo (build)` builds the UI tests once and eight shards of whole classes run that build
-  (`UI_TEST_XCTESTRUN` in `scripts/ui-test.sh`), each under the 30-minute cap. They aren't required
+  (`UI_TEST_XCTESTRUN` in `scripts/ui-test.sh`), each under a 40-minute cap. They aren't required
   and `build-and-test` doesn't wait for them, because a preview image can queue for a long time;
   they start once `build-and-test` is done, so they never hold a runner a required lane needs. A
   new UI test class goes in a shard of both `ui` and `duo`; the `changes` job fails until it does.
 - The eight Duo UI shards run only on a PR that touches `Sources/`, `Widgets/`, `UITests/`,
   `scripts/ui-test.sh` or `pr.yml` (the `changes` job's `duo-ui` output). Any other code PR, such
-  as a version bump or a tooling change, still gets `duo (unit)` and `duo (open)`.
+  as a version bump or a tooling change, still gets `duo (unit)` and both `duo (open …)` jobs.
 - macOS jobs share one pool of five runners across both images, so a Duo job that started early
   would hold a slot a required lane is waiting for. That is why the Duo jobs wait.
 - `release-notes` runs on every PR, docs-only ones included: `node scripts/release.mjs validate`
@@ -99,8 +99,9 @@ release notes can be written from the milestone:
 - **Every user-visible change adds or updates a UI test** in `UITests/`, or its PR says why not
   (a widget, a purchase, the camera, nothing visible). Home Screen widgets aren't UI-tested — driving
   SpringBoard is too brittle — so their logic lives in unit tests.
-- Run them with `scripts/ui-test.sh` — the same command CI runs, on its own simulator ("BabyBuddy
-  UI Tests"), erased first. Extra `xcodebuild` arguments pass through, e.g.
+- Run them with `scripts/ui-test.sh`, the same command CI runs. Locally it leases a fresh slim
+  simulator from simlock (AGENTS.md, "Simulators"); on CI, or without simlock, it uses its own
+  named simulator ("BabyBuddy UI Tests"), erased first. Extra `xcodebuild` arguments pass through, e.g.
   `-only-testing:BabyBuddyUITests/DialogTests`. They have their own scheme, `BabyBuddyUITests`, so
   `xcodebuild test` on `BabyBuddy` stays unit-only.
 - Tests subclass `UITestCase` and `launch()` a clean install: `BB_UITEST=1` wipes the store, both
@@ -123,7 +124,8 @@ release notes can be written from the milestone:
   Home button.
 - XCUITest can't unfold a Duo. `scripts/ui-test.sh --duo-open` unfolds one with duoctl
   (`scripts/duoctl`, pinned to one upstream commit), fails unless the inner screen took over, and
-  runs `FoldTests` and `SmokeTests` there; CI runs it as `duo (open)`. `FoldTests` skip on any other
+  runs `FoldTests` and `SmokeTests` there; CI runs it as `duo (open fold)` and `duo (open smoke)`,
+  one class each. `FoldTests` skip on any other
   display unless the runner sets `TEST_RUNNER_BB_FOLD=1`, which forces the open layouts on any
   simulator through `BB_FOLD`. duoctl drives private simulator interfaces: it is a stopgap until
   Apple ships a supported way to fold the simulator, and a new Xcode can break it. The Duo

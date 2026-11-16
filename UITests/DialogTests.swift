@@ -233,6 +233,123 @@ final class DialogTests: UITestCase {
         expect(app.textFields["Your server URL or IP address"])
     }
 
+    func testOnboardingFitsTheLargestText() {
+        launch(demo: false, largestText: true)
+        let title = expect(app.staticTexts["Baby Buddy"])
+        XCTAssertGreaterThan(title.frame.height, 50, "The welcome title should scale")
+        let divider = expect(app.staticTexts["or enter details"])
+        XCTAssertGreaterThan(divider.frame.width, divider.frame.height, "The divider should have room for words")
+        let url = expect(app.textFields["Your server URL or IP address"])
+        XCTAssertGreaterThan(url.frame.height, 40, "The URL should scale with its label")
+        replaceText(url, with: "127.0.0.1:2\n")
+        let token = expect(app.secureTextFields["Paste your API token"])
+        XCTAssertGreaterThan(token.frame.height, 40, "The token should scale with its label")
+        token.typeText("abc")
+        let filled = XCTAttachment(screenshot: app.screenshot())
+        filled.name = "onboarding-filled"
+        filled.lifetime = .keepAlways
+        add(filled)
+        token.typeText("\n")
+        expect(app.staticTexts["Couldn't connect"])
+        let retry = expect(app.buttons["Try again"])
+        XCTAssertTrue(retry.isEnabled)
+        XCTAssertEqual(url.value as? String, "127.0.0.1:2", "A failed connection should keep the URL")
+        let error = XCTAttachment(screenshot: app.screenshot())
+        error.name = "onboarding-connect-error"
+        error.lifetime = .keepAlways
+        add(error)
+    }
+
+    func testScannerFitsTheLargestText() {
+        launch(["BB_SCANNER_PREVIEW": "1"], demo: false, largestText: true)
+        let title = expect(app.staticTexts["Scan QR code"].firstMatch)
+        XCTAssertGreaterThan(title.frame.height, 40, "The scanner title should scale")
+        let heading = expect(app.staticTexts["Point at the QR code"])
+        let instructions = expect(app.staticTexts["Open User → Add a Device on your Baby Buddy site to show your login code."])
+        let manual = expect(app.buttons["Enter details manually"])
+        XCTAssertGreaterThan(heading.frame.minY, title.frame.maxY, "The viewfinder should clear the header")
+        XCTAssertGreaterThan(manual.frame.minY, instructions.frame.maxY, "Manual entry should follow the instructions")
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "qr-scanner-preview"
+        shot.lifetime = .keepAlways
+        add(shot)
+        tap(manual)
+        expectGone(heading)
+        expect(app.staticTexts["Connect to your self-hosted server"])
+    }
+
+    func testDeniedScannerCanScrollToManualEntryAtTheLargestText() {
+        launch(demo: false, largestText: true)
+        tap(app.buttons.labeled("Scan QR code"))
+        refuseCameraIfAsked()
+        expect(app.staticTexts["Camera Access Needed"])
+        let settings = expect(app.buttons["Open Settings"])
+        let manual = expect(app.buttons["Enter details manually"])
+        XCTAssertGreaterThan(manual.frame.minY, settings.frame.maxY)
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "onboarding-scan-qr-no-camera"
+        shot.lifetime = .keepAlways
+        add(shot)
+        tap(manual)
+        expectGone(app.staticTexts["Camera Access Needed"])
+        expect(app.staticTexts["Connect to your self-hosted server"])
+    }
+
+    /// Opt-in evidence capture. The same test runs against main and the fix, without layout assertions.
+    func testOnboardingInventoryScreenshots() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["BB_CAPTURE_INVENTORY"] == "1",
+                          "Only run while capturing the onboarding inventory")
+        let large = ProcessInfo.processInfo.environment["BB_CAPTURE_DEFAULT"] != "1"
+        func capture(_ name: String) {
+            if large {
+                let shot = XCTAttachment(screenshot: app.screenshot())
+                shot.name = name
+                shot.lifetime = .keepAlways
+                add(shot)
+            } else {
+                for (index, screen) in XCUIScreen.screens.enumerated() {
+                    let shot = XCTAttachment(screenshot: screen.screenshot())
+                    shot.name = "\(name)-display-\(index)"
+                    shot.lifetime = .keepAlways
+                    add(shot)
+                }
+            }
+        }
+        launch(demo: false, largestText: large)
+        capture("onboarding")
+        app.swipeUp()
+        capture("onboarding-scrolled")
+        replaceText(app.textFields["Your server URL or IP address"], with: "127.0.0.1:2\n")
+        let token = expect(app.secureTextFields["Paste your API token"])
+        token.typeText("abc")
+        capture("onboarding-filled")
+        token.typeText("\n")
+        tap(app.staticTexts["Couldn't connect"])
+        capture("onboarding-connect-error")
+
+        launch(["BB_SCANNER_PREVIEW": "1"], demo: false, largestText: large)
+        expect(app.staticTexts["Point at the QR code"])
+        capture("qr-scanner-preview")
+        app.swipeUp()
+        app.swipeUp()
+        capture("qr-scanner-preview-scrolled")
+
+        launch(demo: false, largestText: large)
+        tap(app.buttons.labeled("Scan QR code"))
+        refuseCameraIfAsked()
+        expect(app.staticTexts["Camera Access Needed"])
+        capture("onboarding-scan-qr-no-camera")
+        app.swipeUp()
+        app.swipeUp()
+        capture("onboarding-scan-qr-no-camera-scrolled")
+    }
+
+    private func refuseCameraIfAsked() {
+        if app.staticTexts["Camera Access Needed"].exists { return }
+        let refuse = springboard.alerts.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Don")).firstMatch
+        if refuse.waitForExistence(timeout: 15) { refuse.tap() }
+    }
+
     /// The sign-out card, which its modal trait exposes as an alert. Its buttons are queried inside
     /// it: the Settings row behind the clear cover is also a "Sign out" button, and still in the tree.
     private var signOutCard: XCUIElement {

@@ -181,11 +181,4 @@ final class SmokeTests: UITestCase {
         expect(app.staticTexts["No sleep logged"])
         attachScreen("trends-second-child-empty")
     }
-
-    private func attachScreen(_ name: String) {
-        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        shot.name = name
-        shot.lifetime = .keepAlways
-        add(shot)
-    }
 }
