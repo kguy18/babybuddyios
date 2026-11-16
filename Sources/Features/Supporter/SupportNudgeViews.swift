@@ -100,8 +100,7 @@ struct SupportGentleAskCard: View {
         VStack(spacing: 0) {
             if scrollingCopy {
                 ScrollView {
-                    copy
-                    reminder.padding(.top, 7)
+                    VStack(spacing: 7) { copy; reminder }
                 }
                 .scrollBounceBehavior(.basedOnSize)
                 .scrollIndicatorsFlash(onAppear: true)

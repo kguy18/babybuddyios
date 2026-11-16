@@ -61,6 +61,7 @@ final class SettingsTests: UITestCase {
 
         tap(whatsNew)
         expect(app.staticTexts["What's New"])
+        attachScreen("settings-whats-new-default")
         tap(app.buttons["Done"])
         expectGone(app.staticTexts["Version 1.1.0"])
     }
@@ -102,6 +103,7 @@ final class SettingsTests: UITestCase {
         let sheet = expect(app.navigationBars["Acknowledgements"])
         expect(app.staticTexts["Based on Baby Buddy"])
         expect(app.buttons.labeled("github.com/babybuddy/babybuddy"))
+        attachScreen("settings-acknowledgements-default")
         tap(sheet.buttons["Done"])
         expectGone(sheet)
     }
