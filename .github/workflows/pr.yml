@@ -452,7 +452,8 @@ jobs:
     needs: [changes, duo-build]
     if: ${{ !cancelled() && needs.duo-build.result == 'success' }}
     runs-on: xcode-27
-    timeout-minutes: 30
+    # The boot alone takes 4 to 8 minutes here, and the tests about 20.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
