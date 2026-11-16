@@ -145,6 +145,27 @@ final class SettingsTests: UITestCase {
         XCTAssertFalse(app.otherElements["Logged Diaper Change"].waitForExistence(timeout: 3))
     }
 
+    /// At the largest text size a row's title grows with the text, and a value that doesn't fit
+    /// beside it goes under it rather than truncating. The child's name and age get the card's
+    /// width, under the photo.
+    func testRowsStackAtTheLargestText() {
+        launch(["BB_START_TAB": "settings", "BB_SEED_PENDING": "1"], largestText: true)
+        let photo = expect(app.buttons["Child photo"])
+        XCTAssertGreaterThan(expect(app.staticTexts["Maya"]).frame.minY, photo.frame.maxY - 1,
+                             "The name should sit under the photo")
+
+        let server = expect(app.staticTexts["Server"])
+        XCTAssertGreaterThan(server.frame.height, 40, "The row title should grow with the text")
+        XCTAssertGreaterThan(expect(app.staticTexts["demo.local"]).frame.minY, server.frame.maxY - 1,
+                             "The server's address should sit under its title")
+        let stale = expect(app.staticTexts["Stale after"])
+        XCTAssertGreaterThan(expect(app.buttons["30 min"]).frame.minY, stale.frame.maxY - 1,
+                             "The menu should sit under its title")
+        let unit = expect(app.staticTexts["Temperature unit"])
+        XCTAssertGreaterThan(expect(app.buttons["°F"]).frame.minY, unit.frame.maxY - 1,
+                             "The unit control should sit under its title")
+    }
+
     // MARK: Helpers
 
     /// A tile in the icon grid. Each one is a button inside a button, so the query has to pick the
