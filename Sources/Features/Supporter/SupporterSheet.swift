@@ -34,6 +34,7 @@ struct SupporterSheet: View {
     @State private var selection: TipTier?
     /// Supporters land on the thank-you; the amounts appear only if they ask to tip again.
     @State private var showingAmounts = false
+    @State private var wide = false
 
     var body: some View {
         FittedSheet {
@@ -42,6 +43,7 @@ struct SupporterSheet: View {
                 .padding(.top, 10)
                 .padding(.bottom, 30)
         }
+        .trackingWide($wide)
         .task {
             // An offering fetch that failed at launch would otherwise be sticky for the whole session,
             // leaving the sheet with nothing to offer until the app is relaunched. Retrying as it opens
@@ -80,37 +82,46 @@ struct SupporterSheet: View {
 
     // MARK: - Content
 
+    /// On iPhone Duo's open display the sheet sits across the fold: the ask left of it, the amounts
+    /// and buttons right of it.
     private var content: some View {
-        VStack(spacing: 0) {
-            hero
-
-            Text(purchases.isSupporter ? SupporterCopy.thankYouTitle : copy.askTitle)
-                .font(.system(size: 20, weight: .semibold))
-                .padding(.top, 14)
-
-            Text(purchases.isSupporter ? SupporterCopy.thankYouBody : copy.askBody)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .padding(.top, 7)
-
-            if showsAmounts {
-                amounts
-                tipButton
-            } else if canTip {
-                // A supporter has already tipped, so the amounts stay folded away behind a quieter
-                // button — the thank-you is the point of the screen for them, not another ask.
-                tipAgainButton
-            } else {
-                unavailableNotice
-            }
-
-            errorMessage
-            quietButton
-            if showsAmounts { fineprint }
-            footer
+        SheetColumns(wide: wide, spacing: 0) {
+            VStack(spacing: 0) { pitch }.frame(maxWidth: .infinity)
+        } trailing: {
+            VStack(spacing: 0) { actions }.frame(maxWidth: .infinity)
         }
         .multilineTextAlignment(.center)
-        .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder private var pitch: some View {
+        hero
+
+        Text(purchases.isSupporter ? SupporterCopy.thankYouTitle : copy.askTitle)
+            .font(.title3.weight(.semibold))
+            .padding(.top, 14)
+
+        Text(purchases.isSupporter ? SupporterCopy.thankYouBody : copy.askBody)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .padding(.top, 7)
+    }
+
+    @ViewBuilder private var actions: some View {
+        if showsAmounts {
+            amounts
+            tipButton
+        } else if canTip {
+            // A supporter has already tipped, so the amounts stay folded away behind a quieter
+            // button — the thank-you is the point of the screen for them, not another ask.
+            tipAgainButton
+        } else {
+            unavailableNotice
+        }
+
+        errorMessage
+        quietButton
+        if showsAmounts { fineprint }
+        footer
     }
 
     /// Whether there is actually something to buy. Being configured isn't enough: the offering has to

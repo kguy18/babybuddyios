@@ -7,20 +7,24 @@ import SwiftUI
 struct AcknowledgementsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @State private var wide = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                // iPhone Duo's open display: the credit and the long font licence left of the fold,
+                // the other licences right of it, in the same order as one column.
+                SheetColumns(wide: wide, spacing: 16) {
                     aboutCard
-                    ForEach(Acknowledgement.all) { notice in
-                        noticeCard(notice)
-                    }
+                    ForEach(Acknowledgement.all.prefix(1)) { noticeCard($0) }
+                } trailing: {
+                    ForEach(Acknowledgement.all.dropFirst()) { noticeCard($0) }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 28)
             }
+            .trackingWide($wide)
             .background(BBColor.surface)
             .navigationTitle("Acknowledgements")
             .navigationBarTitleDisplayMode(.inline)
@@ -39,7 +43,7 @@ struct AcknowledgementsView: View {
         BBCard(cornerRadius: BBRadius.tile) {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Based on Baby Buddy")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.headline)
                 Text("Baby Buddy for iOS is an unofficial client for the open-source Baby Buddy baby-tracking server, and is not affiliated with that project. Thanks to its maintainers and contributors.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -53,10 +57,10 @@ struct AcknowledgementsView: View {
         Button { openURL(AcknowledgementLinks.babyBuddyRepo) } label: {
             HStack(spacing: 6) {
                 Image(systemName: "chevron.left.forwardslash.chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
+                    .imageScale(.small)
                 Text("github.com/babybuddy/babybuddy")
                 Image(systemName: "arrow.up.right")
-                    .font(.system(size: 11, weight: .semibold))
+                    .imageScale(.small)
                     .foregroundStyle(.tertiary)
             }
             .font(.subheadline.weight(.medium))
@@ -74,12 +78,12 @@ struct AcknowledgementsView: View {
         BBCard(cornerRadius: BBRadius.tile) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(notice.title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.headline)
                 Text(notice.license)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(BBColor.brandAccent)
                 Text(notice.text)
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(.caption2.monospaced())
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
