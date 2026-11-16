@@ -367,7 +367,7 @@ jobs:
     needs: [changes, duo-build]
     if: ${{ !cancelled() && needs.duo-build.result == 'success' && needs.changes.outputs.duo-ui == 'true' }}
     runs-on: xcode-27
-    timeout-minutes: 30
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:

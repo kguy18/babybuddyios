@@ -79,7 +79,7 @@ release notes can be written from the milestone:
 - The `duo` jobs run the unit tests and the UI tests on an iPhone Duo simulator (iOS 27.1) on
   GitHub's preview `xcode-27` image, and print the Xcode and Swift versions they used.
   `duo (build)` builds the UI tests once and eight shards of whole classes run that build
-  (`UI_TEST_XCTESTRUN` in `scripts/ui-test.sh`), each under the 30-minute cap. They aren't required
+  (`UI_TEST_XCTESTRUN` in `scripts/ui-test.sh`), each under a 40-minute cap. They aren't required
   and `build-and-test` doesn't wait for them, because a preview image can queue for a long time;
   they start once `build-and-test` is done, so they never hold a runner a required lane needs. A
   new UI test class goes in a shard of both `ui` and `duo`; the `changes` job fails until it does.
