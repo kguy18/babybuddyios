@@ -281,7 +281,7 @@ final class DialogTests: UITestCase {
     func testDeniedScannerCanScrollToManualEntryAtTheLargestText() {
         launch(demo: false, largestText: true)
         tap(app.buttons.labeled("Scan QR code"))
-        // Without a camera, the scanner should show its fallback without a permission request.
+        refuseCameraIfAsked()
         expect(app.staticTexts["Camera Access Needed"])
         let settings = expect(app.buttons["Open Settings"])
         let manual = expect(app.buttons["Enter details manually"])
@@ -327,13 +327,18 @@ final class DialogTests: UITestCase {
 
         launch(demo: false, largestText: large)
         tap(app.buttons.labeled("Scan QR code"))
-        // Main can remain on its permission spinner on a camera-less simulator.
-        // Capture that result too so the evidence records what this build actually shows.
-        _ = app.staticTexts["Camera Access Needed"].waitForExistence(timeout: 20)
+        refuseCameraIfAsked()
+        expect(app.staticTexts["Camera Access Needed"])
         capture("onboarding-scan-qr-no-camera")
         app.swipeUp()
         app.swipeUp()
         capture("onboarding-scan-qr-no-camera-scrolled")
+    }
+
+    private func refuseCameraIfAsked() {
+        if app.staticTexts["Camera Access Needed"].exists { return }
+        let refuse = springboard.alerts.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Don")).firstMatch
+        if refuse.waitForExistence(timeout: 15) { refuse.tap() }
     }
 
     /// The sign-out card, which its modal trait exposes as an alert. Its buttons are queried inside

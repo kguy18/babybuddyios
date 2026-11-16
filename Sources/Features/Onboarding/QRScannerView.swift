@@ -12,12 +12,7 @@ struct QRScannerSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var typeSize
-    #if targetEnvironment(simulator)
-    // The simulator has no camera, and its permission request can remain pending.
-    @State private var status = AVAuthorizationStatus.denied
-    #else
     @State private var status = AVCaptureDevice.authorizationStatus(for: .video)
-    #endif
     @State private var torchOn = false
     @State private var didSucceed = false
     @State private var scanLineDown = false
