@@ -16,6 +16,9 @@ struct InsightsView: View {
     @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "child" }, sort: \.timestamp)
     private var children: [LocalEntity]
     @State private var period: ChartPeriod = .week
+    @Environment(\.dynamicTypeSize) private var typeSize
+    /// The panes either side of the fold on iPhone Duo's open display, or nil for one column.
+    @State private var foldPanes: FoldLayout.Panes?
     @State private var colors = MedicineColorStore.shared
     // Watched so the temperature card follows Settings ▸ Sick mode; the keys and defaults are the
     // ones ``SickMode`` reads.
@@ -43,14 +46,8 @@ struct InsightsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
-                    BBSegmentedControl(selection: $period,
-                                       options: ChartPeriod.allCases,
-                                       label: \.accessibilityLabel)
-                        // `.contain` first: a label on the bare control is stamped onto every
-                        // segment, which read all three to VoiceOver as "Time period".
-                        .accessibilityElement(children: .contain)
-                        .accessibilityLabel("Time period")
+                cardLayout {
+                    periodPicker
 
                     sleepCard
                     feedingCard
@@ -63,6 +60,9 @@ struct InsightsView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 24)
             }
+            .onGeometryChange(for: FoldLayout.Panes?.self) { geometry in
+                FoldLayout.panes(width: geometry.size.width, fold: Self.fold(in: geometry))
+            } action: { foldPanes = $0 }
             .background(BBColor.surface)
             .navigationTitle("Trends")
             .accessibilityIdentifier("screen-trends")
@@ -90,6 +90,44 @@ struct InsightsView: View {
                         description: Text("Add a child in Baby Buddy to see trends."))
                 }
             }
+        }
+    }
+
+    /// One column, or on the open display a column each side of the fold: one column across it
+    /// ran the fold through every chart.
+    private var cardLayout: AnyLayout {
+        foldPanes.map { AnyLayout(FoldColumns(panes: $0, margin: 16, spacing: 16)) }
+            ?? AnyLayout(VStackLayout(spacing: 16))
+    }
+
+    /// The fold, from the system's reserved regions, as ``FoldSplitView`` finds it.
+    private static func fold(in geometry: GeometryProxy) -> CGRect? {
+        #if compiler(>=6.4)
+        if #available(iOS 27.1, *) {
+            return geometry.reservedRegions(kind: .division, options: .includeInactive)
+                .first { $0.frame.height > $0.frame.width }?.frame
+        }
+        #endif
+        return nil
+    }
+
+    @ViewBuilder private var periodPicker: some View {
+        if typeSize.isAccessibilitySize {
+            // At these sizes the three segments truncate ("7 da…"), so a menu names the chosen one
+            // in full.
+            Picker("Time period", selection: $period) {
+                ForEach(ChartPeriod.allCases) { Text($0.accessibilityLabel).tag($0) }
+            }
+            .pickerStyle(.menu)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            BBSegmentedControl(selection: $period,
+                               options: ChartPeriod.allCases,
+                               label: \.accessibilityLabel)
+                // `.contain` first: a label on the bare control is stamped onto every
+                // segment, which read all three to VoiceOver as "Time period".
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Time period")
         }
     }
 
@@ -327,6 +365,7 @@ struct InsightsView: View {
                         }
                     }
                     .chartYAxisLabel(unit.symbol)
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     // Charts would otherwise anchor the axis at 0 and flatten a fever into a
                     // straight line. The margins are the sick card's, so both read the same shape.
                     .chartYScale(domain: temperatureDomain(readings))
@@ -352,15 +391,24 @@ struct InsightsView: View {
                     ForEach(aggregator.doseTallies(doses)) { tally in
                         HStack(spacing: 7) {
                             Circle().fill(colors.color(tally.id).color).frame(width: 8, height: 8)
-                            Text(tally.name).font(.caption.weight(.medium))
-                            Text("\(tally.count) doses")
-                                .font(.caption).foregroundStyle(.secondary)
+                            // Beside the count a long name broke mid-word ("Aceta / minophe") at
+                            // accessibility sizes, so there the count goes under it.
+                            tallyLayout {
+                                Text(tally.name).font(.caption.weight(.medium))
+                                Text("\(tally.count) doses")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
                         }
                         .accessibilityElement(children: .combine)
                     }
                 }
             }
         }
+    }
+
+    private var tallyLayout: AnyLayout {
+        typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+            : AnyLayout(HStackLayout(spacing: 7))
     }
 
     private var unit: TemperatureUnit { storedUnit ?? .region }
@@ -428,9 +476,11 @@ struct InsightsView: View {
                 .font(.title2).foregroundStyle(.tertiary)
             Text(message)
                 .font(.subheadline).foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: chartHeight)
+        // At least a chart's height, so it can grow when the message wraps at large text.
+        .frame(minHeight: chartHeight)
     }
 }
 
@@ -442,22 +492,73 @@ private struct ChartCard<Content: View>: View {
     let icon: EntityKind
     let summary: String?
     @ViewBuilder let content: () -> Content
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         BBCard {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 9) {
-                    ActivityTile(kind: icon, size: 30, glyph: 17)
-                    Text(title).font(.headline)
-                    Spacer(minLength: 8)
-                    if let summary {
-                        Text(summary)
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.secondary)
+                if typeSize.isAccessibilitySize {
+                    // Beside the summary the title broke mid-word ("Slee / p"), so at these sizes
+                    // the summary goes under it, and the tile goes, as it does on Home.
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(title).font(.headline)
+                        summaryText
+                    }
+                } else {
+                    HStack(spacing: 9) {
+                        ActivityTile(kind: icon, size: 30, glyph: 17)
+                        Text(title).font(.headline)
+                        Spacer(minLength: 8)
+                        summaryText
                     }
                 }
                 content()
             }
+        }
+    }
+
+    @ViewBuilder private var summaryText: some View {
+        if let summary {
+            Text(summary)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+// MARK: - Fold columns
+
+/// The cards on iPhone Duo's open display: a column each side of the fold, each card going under
+/// whichever column is shorter so far, so neither runs far past the other. The container sits
+/// `margin` in from each edge of the screen, and each column keeps that margin from the fold too.
+private struct FoldColumns: Layout {
+    let panes: FoldLayout.Panes
+    let margin: CGFloat
+    let spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let height = frames(subviews).map(\.maxY).max() ?? 0
+        return CGSize(width: proposal.width ?? panes.side + panes.fold + panes.main - 2 * margin, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for (subview, frame) in zip(subviews, frames(subviews)) {
+            subview.place(at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY),
+                          proposal: ProposedViewSize(frame.size))
+        }
+    }
+
+    private func frames(_ subviews: Subviews) -> [CGRect] {
+        let columns: [(x: CGFloat, width: CGFloat)] = [(x: 0, width: panes.side - 2 * margin),
+                                                       (x: panes.side + panes.fold, width: panes.main - 2 * margin)]
+        var bottoms: [CGFloat] = [-spacing, -spacing]
+        return subviews.map { subview in
+            let index = bottoms[0] <= bottoms[1] ? 0 : 1
+            let column = columns[index]
+            let height = subview.sizeThatFits(ProposedViewSize(width: column.width, height: nil)).height
+            let frame = CGRect(x: column.x, y: bottoms[index] + spacing, width: column.width, height: height)
+            bottoms[index] = frame.maxY
+            return frame
         }
     }
 }
@@ -481,6 +582,9 @@ private struct DayAxis: ViewModifier {
                 }
             }
         }
+        // Past this size the axis labels piled on top of each other ("15 10 5 0") in the chart's
+        // fixed height. Each chart's values are in its marks' VoiceOver labels.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
     private var stride: Int {

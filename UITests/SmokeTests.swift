@@ -143,4 +143,49 @@ final class SmokeTests: UITestCase {
         // and six doses, each of which has to carry its own label and value.
         try audit()
     }
+
+    /// Trends at the largest text, in the states the iPhone Duo inventory found broken: the three
+    /// period segments truncated ("7 da…"), so the period is a menu there, and each card's summary
+    /// sits under its title, which broke mid-word ("Slee / p") beside it. Each state is attached
+    /// as a screenshot.
+    func testTrendsAtTheLargestText() {
+        launch(["BB_START_TAB": "trends", "BB_SEED_SICK": "1", "BB_SEED_SECOND_CHILD": "1"], largestText: true)
+        allowNotificationsIfAsked()
+        let sleep = expect(app.staticTexts["Sleep"])
+        let average = expect(elements("label BEGINSWITH 'Avg ' AND label ENDSWITH 'h / day'").firstMatch)
+        XCTAssertGreaterThanOrEqual(average.frame.minY, sleep.frame.maxY - 1, "The summary should sit under the title")
+        attachScreen("trends-tab")
+        app.swipeUp()
+        attachScreen("trends-tab-scrolled")
+        app.swipeUp()
+        attachScreen("trends-tab-scrolled-2")
+        let feverLine = app.staticTexts["Fever line at 100.4°F"]
+        for _ in 0..<6 where !feverLine.isHittable { app.swipeUp() }
+        expect(app.staticTexts["Peak 102.8°F"])
+        attachScreen("trends-temperature")
+
+        for _ in 0..<8 { app.swipeDown() }
+        tap(app.buttons.labeled("Time period, 7 days"))
+        tap(app.buttons["30 days"])
+        expect(app.buttons.labeled("Time period, 30 days"))
+        attachScreen("trends-30-days")
+        for card in ["Sleep", "Feedings", "Diapers", "Tummy Time", "Pumping", "Temperature"] {
+            XCTAssertTrue(app.staticTexts[card].exists, "\(card) card missing at 30 days")
+        }
+
+        let avatar = app.buttons.labeled("Current child, Maya")
+        let leo = app.buttons.labeled("Leo")
+        tap(avatar)
+        if !leo.waitForExistence(timeout: 3), avatar.isHittable { avatar.tap() }
+        tap(leo)
+        expect(app.staticTexts["No sleep logged"])
+        attachScreen("trends-second-child-empty")
+    }
+
+    private func attachScreen(_ name: String) {
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = name
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
 }
