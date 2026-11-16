@@ -328,6 +328,20 @@ final class FoldTests: UITestCase {
         expect(element(labeled: "Sleep running"))
     }
 
+    /// Trends lays its cards in a column each side of the fold, which ran through every chart when
+    /// they were one column across it. The period control still switches them all.
+    func testTrendsCardsSitEitherSideOfTheFold() throws {
+        try launchOpen(["BB_START_TAB": "trends"])
+        let middle = app.windows.firstMatch.frame.midX
+        let sleep = expect(app.staticTexts["Sleep"])
+        let feedings = expect(app.staticTexts["Feedings"])
+        XCTAssertGreaterThan(sleep.frame.minX, middle, "Sleep should sit right of the fold")
+        XCTAssertLessThan(feedings.frame.maxX, middle, "Feedings should sit left of the fold")
+        tap(app.buttons["30 days"])
+        XCTAssertTrue(app.buttons["30 days"].isSelected, "30 days should read as selected")
+        XCTAssertGreaterThan(app.staticTexts["Sleep"].frame.minX, middle, "Sleep should stay right of the fold")
+    }
+
     /// Settings puts the account and sync sections left of the fold and the app's own settings
     /// right of it, so no row runs across the fold.
     func testSettingsSplitsAtTheFold() throws {
