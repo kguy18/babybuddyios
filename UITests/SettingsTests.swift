@@ -61,6 +61,7 @@ final class SettingsTests: UITestCase {
 
         tap(whatsNew)
         expect(app.staticTexts["What's New"])
+        attachScreen("settings-whats-new-default")
         tap(app.buttons["Done"])
         expectGone(app.staticTexts["Version 1.1.0"])
     }
@@ -102,6 +103,7 @@ final class SettingsTests: UITestCase {
         let sheet = expect(app.navigationBars["Acknowledgements"])
         expect(app.staticTexts["Based on Baby Buddy"])
         expect(app.buttons.labeled("github.com/babybuddy/babybuddy"))
+        attachScreen("settings-acknowledgements-default")
         tap(sheet.buttons["Done"])
         expectGone(sheet)
     }
@@ -150,5 +152,31 @@ final class SettingsTests: UITestCase {
     /// resolved and would answer `isSelected` from before the grid drew.
     private func iconTile(_ name: String) -> XCUIElement {
         app.buttons.matching(NSPredicate(format: "label == %@", name)).element(boundBy: 0)
+    }
+
+    /// At the largest text the Settings sheets still open and close, with their headings and
+    /// licence text scaled along with the rest.
+    func testSheetsAtTheLargestText() {
+        launch(["BB_START_TAB": "settings"], largestText: true)
+
+        tap(app.buttons.labeled("What's New"))
+        let done = expect(app.buttons["Done"]) // the Settings row reads "What's New" as well
+        attachScreen("settings-whats-new")
+        tap(done)
+        expectGone(done)
+
+        tap(app.buttons["Acknowledgements"])
+        let sheet = expect(app.navigationBars["Acknowledgements"])
+        expect(app.staticTexts["Based on Baby Buddy"])
+        attachScreen("settings-acknowledgements")
+        tap(sheet.buttons["Done"])
+        expectGone(sheet)
+
+        tap(app.buttons.labeled("Baby Buddy App Supporter"))
+        expect(app.staticTexts["Support Baby Buddy Companion"])
+        attachScreen("settings-supporter-sheet")
+        reveal(app.buttons["Maybe later"], in: app.scrollViews.firstMatch)
+        tap(app.buttons["Maybe later"])
+        expectGone(app.staticTexts["Support Baby Buddy Companion"])
     }
 }
