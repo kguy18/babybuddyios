@@ -172,11 +172,13 @@ final class FeedbackTests: UITestCase {
         tap(app.buttons.labeled("Get Help"))
         let help = expect(app.navigationBars["Get Help"])
         expect(app.buttons["Send Code"])
+        revealSheetBar("Get Help")
         tap(help.buttons["Close"])
         expectGone(help)
         tap(app.buttons.labeled("Roadmap and Updates"))
         let roadmap = expect(app.navigationBars["Roadmap and Updates"])
         expect(app.webViews.staticTexts["Stub widget: home"], timeout: 30)
+        revealSheetBar("Roadmap and Updates")
         tap(roadmap.buttons["Close"])
         expectGone(roadmap)
     }
