@@ -130,12 +130,29 @@ if [ -n "$DUO_OPEN" ]; then
   # Straight after bootstatus, duoctl sometimes answers "no display is active (is the simulator
   # still booting?)": SpringBoard isn't up yet. On CI one retry after 15 s was once enough and once
   # not (still no display 30 s on), so keep trying for two minutes.
+  # duoctl reads the active screen from devicectl; print what devicectl and launchd report.
+  displays() {
+    xcrun devicectl device info displays -d "$UDID" --json-output - 2>/dev/null | python3 -c '
+import json, sys
+for d in json.load(sys.stdin)["result"]["displays"]:
+    print("  {}: active={} backlight={}".format(d.get("name"), d.get("active"), d.get("backlightState")))' || true
+    xcrun simctl spawn "$UDID" launchctl list | grep -E 'SpringBoard|backboardd' || true
+  }
   for ATTEMPT in 1 2 3 4 5 6 7 8; do
     unfold && break
+    displays
     if [ "$ATTEMPT" = 8 ]; then
-      scripts/duoctl screenshot build/duo-open.png || true
+      scripts/duoctl screenshot build/duo-open.png || xcrun simctl io "$UDID" screenshot build/duo-open.png || true
       echo "::error::duoctl open left the iPhone Duo on its front display"
       exit 1
+    fi
+    # A boot that still has no active screen a minute on doesn't recover by waiting; boot it again.
+    if [ "$ATTEMPT" = 4 ]; then
+      echo "no active screen after attempt 4; rebooting the iPhone Duo"
+      xcrun simctl shutdown "$UDID"
+      xcrun simctl boot "$UDID"
+      xcrun simctl bootstatus "$UDID" -b >/dev/null
+      continue
     fi
     echo "duoctl open didn't take (attempt $ATTEMPT of 8); trying again in 15 s"
     sleep 15
