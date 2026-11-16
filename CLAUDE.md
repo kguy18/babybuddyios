@@ -99,8 +99,9 @@ release notes can be written from the milestone:
 - **Every user-visible change adds or updates a UI test** in `UITests/`, or its PR says why not
   (a widget, a purchase, the camera, nothing visible). Home Screen widgets aren't UI-tested — driving
   SpringBoard is too brittle — so their logic lives in unit tests.
-- Run them with `scripts/ui-test.sh` — the same command CI runs, on its own simulator ("BabyBuddy
-  UI Tests"), erased first. Extra `xcodebuild` arguments pass through, e.g.
+- Run them with `scripts/ui-test.sh`, the same command CI runs. Locally it leases a fresh slim
+  simulator from simlock (AGENTS.md, "Simulators"); on CI, or without simlock, it uses its own
+  named simulator ("BabyBuddy UI Tests"), erased first. Extra `xcodebuild` arguments pass through, e.g.
   `-only-testing:BabyBuddyUITests/DialogTests`. They have their own scheme, `BabyBuddyUITests`, so
   `xcodebuild test` on `BabyBuddy` stays unit-only.
 - Tests subclass `UITestCase` and `launch()` a clean install: `BB_UITEST=1` wipes the store, both
