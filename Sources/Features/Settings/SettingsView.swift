@@ -463,7 +463,8 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             rowDivider
             NavigationLink { MedicineColorsView() } label: {
-                SettingsRow(symbol: "pills.fill", tint: MedicineColor.purple.color, title: String(localized: "Medicine colors")) {
+                SettingsRow(symbol: "pills.fill", tint: MedicineColor.purple.color, title: String(localized: "Medicine colors"),
+                            trailingBeside: true) {
                     HStack(spacing: 6) {
                         HStack(spacing: 3) {
                             ForEach(medicineColors.assigned.prefix(6), id: \.self) { name in
@@ -594,7 +595,7 @@ struct SettingsView: View {
             rowDivider
             NavigationLink { ForecastSettingsView() } label: {
                 SettingsRow(symbol: "clock.arrow.circlepath", tint: BBColor.brand,
-                            title: forecastText("Activity estimates")) { disclosure }
+                            title: forecastText("Activity estimates"), trailingBeside: true) { disclosure }
             }
             .buttonStyle(.plain)
             if icons.isSupported {
@@ -801,7 +802,8 @@ struct SettingsView: View {
     private var feedbackCard: some View {
         card {
             NavigationLink { SendFeedbackView() } label: {
-                SettingsRow(symbol: "bubble.left", tint: BBColor.brand, title: String(localized: "Send Feedback")) {
+                SettingsRow(symbol: "bubble.left", tint: BBColor.brand, title: String(localized: "Send Feedback"),
+                            trailingBeside: true) {
                     disclosure
                 }
             }
@@ -811,7 +813,8 @@ struct SettingsView: View {
 
             Link(destination: Self.sourceCodeURL) {
                 SettingsRow(symbol: "GitHubMark", symbolIsAsset: true, tint: BBColor.note,
-                            glyphColor: .primary, title: String(localized: "Source Code on GitHub")) {
+                            glyphColor: .primary, title: String(localized: "Source Code on GitHub"),
+                            trailingBeside: true) {
                     Image(systemName: "arrow.up.right")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.tertiary)
@@ -822,7 +825,8 @@ struct SettingsView: View {
             rowDivider
 
             Link(destination: Self.reviewURL) {
-                SettingsRow(symbol: "star", tint: BBColor.warning, title: String(localized: "Rate on the App Store")) {
+                SettingsRow(symbol: "star", tint: BBColor.warning, title: String(localized: "Rate on the App Store"),
+                            trailingBeside: true) {
                     disclosure
                 }
             }
@@ -1012,29 +1016,42 @@ struct SettingsRow<Trailing: View>: View {
     var glyphColor: Color? = nil
     let title: String
     var subtitle: String? = nil
+    /// Keeps the trailing content beside the title at every size, for a bare chevron, which means
+    /// nothing on a line of its own. The title wraps instead.
+    var trailingBeside = false
     @ViewBuilder var trailing: () -> Trailing
     // Scaled with the text, but capped: at the largest sizes a 30 pt tile would pass 90 pt.
     @ScaledMetric(relativeTo: .callout) private var tileSize: CGFloat = 30
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 12) {
-                tile
-                titles
-                Spacer(minLength: 8)
-                trailing()
-            }
-            HStack(alignment: .top, spacing: 12) {
-                tile
-                VStack(alignment: .leading, spacing: 6) {
-                    titles
-                    trailing()
+        Group {
+            if trailingBeside {
+                inline
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    inline
+                    HStack(alignment: .top, spacing: 12) {
+                        tile
+                        VStack(alignment: .leading, spacing: 6) {
+                            titles
+                            trailing()
+                        }
+                        Spacer(minLength: 0)
+                    }
                 }
-                Spacer(minLength: 0)
             }
         }
         .padding(.vertical, 11)
         .contentShape(Rectangle())
+    }
+
+    private var inline: some View {
+        HStack(spacing: 12) {
+            tile
+            titles
+            Spacer(minLength: 8)
+            trailing()
+        }
     }
 
     private var tile: some View {
