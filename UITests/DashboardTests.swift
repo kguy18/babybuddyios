@@ -125,4 +125,25 @@ final class DashboardTests: UITestCase {
         tap(app.buttons["Dismiss"])
         expectGone(banner)
     }
+
+    /// At the largest text the nudges' copy scrolls, but their buttons stay in view: the gentle
+    /// ask's in its card, the milestone's pinned under the sheet's copy.
+    func testSupportNudgeButtonsStayInViewAtTheLargestText() {
+        launch(["BB_NUDGE": "gentle"], largestText: true)
+        allowNotificationsIfAsked()
+        XCTAssertTrue(expect(app.buttons["Become a Supporter"]).isHittable, "Become a Supporter should be in view")
+        XCTAssertTrue(expect(app.buttons["Maybe later"]).isHittable, "Maybe later should be in view")
+        attachScreen("nudge-gentle")
+        tap(app.buttons["Maybe later"])
+        expectGone(app.buttons["Maybe later"])
+
+        launch(["BB_NUDGE": "milestone"], largestText: true)
+        allowNotificationsIfAsked()
+        XCTAssertTrue(expect(app.buttons["Become a Supporter"]).isHittable, "Become a Supporter should be in view")
+        XCTAssertTrue(expect(app.buttons["Not now"]).isHittable, "Not now should be in view")
+        attachScreen("nudge-milestone")
+        tap(app.buttons["Become a Supporter"])
+        expect(app.staticTexts["Support Baby Buddy Companion"])
+        attachScreen("supporter-sheet-from-nudge")
+    }
 }

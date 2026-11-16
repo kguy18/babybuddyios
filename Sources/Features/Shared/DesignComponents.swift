@@ -320,46 +320,50 @@ struct FloatingAddButton: View {
 /// The detent follows the laid-out content height, so a short sheet doesn't leave half a screen of
 /// empty card below it. `.medium` covers the first frame only, before the measurement lands; content
 /// taller than the sheet (large Dynamic Type) scrolls, and the system clamps an over-tall
-/// measurement to the maximum sheet height for us. Callers supply their own padding.
-struct FittedSheet<Content: View>: View {
-    /// The laid-out content height, measured from inside.
+/// measurement to the maximum sheet height for us. `actions` stay pinned under the scrolling
+/// content, so they are in view however long it runs. Callers supply their own padding.
+struct FittedSheet<Content: View, Actions: View>: View {
+    /// The laid-out heights of the content and the pinned actions, measured from inside.
     @State private var contentHeight: CGFloat = 0
+    @State private var actionsHeight: CGFloat = 0
+    /// The sheet's own height, which stops short of `height` once the system clamps it.
+    @State private var sheetHeight: CGFloat = 0
     /// The detent the sheet is at, moved along with the height. Changing only the set of detents
     /// can leave an open sheet where it was on iPhone Duo (iOS 27), e.g. when the tips load in.
     @State private var detent: PresentationDetent = .medium
     @ViewBuilder var content: () -> Content
+    @ViewBuilder var actions: () -> Actions
+
+    private var height: CGFloat { contentHeight + actionsHeight }
+    /// Whether the content runs past the sheet, which then fills the screen. 20 pt of slack, so
+    /// rounding at a detent that fits never reads as overflowing.
+    private var overflows: Bool { sheetHeight > 0 && height > sheetHeight + 20 }
 
     var body: some View {
         ScrollView {
-            content().background { heightReader }
+            content().onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
         }
         // Content taller than the detent scrolls; anything shorter doesn't.
         .scrollBounceBehavior(.basedOnSize)
+        .scrollIndicatorsFlash(onAppear: true)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            actions().onGeometryChange(for: CGFloat.self) { $0.size.height } action: { actionsHeight = $0 }
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sheetHeight = $0 }
         // iPhone Duo's front display insets the trailing edge for its rail, and the sheet would
-        // centre its content in what's left. A phone's sheet has no side insets.
-        .ignoresSafeArea(.container, edges: .horizontal)
-        .presentationDetents(contentHeight > 0 ? [.height(contentHeight)] : [.medium], selection: $detent)
+        // centre its content in what's left. A phone's sheet has no side insets. A sheet that fills
+        // the screen keeps out of the rail, though: the clock sits at its top.
+        .ignoresSafeArea(.container, edges: overflows ? [] : .horizontal)
+        .presentationDetents(height > 0 ? [.height(height)] : [.medium], selection: $detent)
         .presentationDragIndicator(.visible)
         .presentationBackground(BBColor.card)
-        .onPreferenceChange(FittedSheetHeightKey.self) { height in
-            contentHeight = height
-            detent = height > 0 ? .height(height) : .medium
-        }
-    }
-
-    private var heightReader: some View {
-        GeometryReader { proxy in
-            Color.clear.preference(key: FittedSheetHeightKey.self, value: proxy.size.height)
-        }
+        .onChange(of: height) { detent = height > 0 ? .height(height) : .medium }
     }
 }
 
-/// Carries a ``FittedSheet``'s laid-out content height up to the sheet, so the detent can match it.
-/// At file scope because a generic type can hold no static storage of its own.
-private struct FittedSheetHeightKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
+extension FittedSheet where Actions == EmptyView {
+    init(@ViewBuilder content: @escaping () -> Content) {
+        self.init(content: content, actions: { EmptyView() })
     }
 }
 

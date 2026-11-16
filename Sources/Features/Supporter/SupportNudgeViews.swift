@@ -16,6 +16,7 @@ import SwiftUI
 struct SupportGentleAskCard: View {
     var onSupport: () -> Void
     var onDismiss: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     /// About half the card's width — big enough for the wave to read, small enough that he tops the
     /// card rather than competing with it.
@@ -49,22 +50,34 @@ struct SupportGentleAskCard: View {
         }
     }
 
-    /// At accessibility text sizes the card is taller than the screen. `minHeight` keeps it in
-    /// place while it fits and lets it scroll once it doesn't — without this the body copy is
+    /// At accessibility text sizes the card can be taller than the screen. Its copy then scrolls
+    /// inside it, under the buttons, so they stay in view; without the scroll the body copy is
     /// silently truncated mid-sentence, which is the one thing a card of copy can't afford.
+    /// `minHeight` keeps a card that fits in place.
     private func scrolling(alignment: Alignment, horizontalPadding: CGFloat) -> some View {
         GeometryReader { proxy in
-            ScrollView {
-                peekingCard
-                    .padding(.horizontal, horizontalPadding)
-                    .padding(.vertical, 24)
-                    .frame(minHeight: proxy.size.height, alignment: alignment)
+            if typeSize.isAccessibilitySize {
+                ViewThatFits(in: .vertical) {
+                    card(scrollingCopy: false)
+                    card(scrollingCopy: true)
+                }
+                .padding(.horizontal, horizontalPadding)
+                .padding(.vertical, 24)
+                .frame(width: proxy.size.width, height: proxy.size.height, alignment: alignment)
+            } else {
+                ScrollView {
+                    peekingCard
+                        .padding(.horizontal, horizontalPadding)
+                        .padding(.vertical, 24)
+                        .frame(minHeight: proxy.size.height, alignment: alignment)
+                }
+                .scrollBounceBehavior(.basedOnSize)
             }
-            .scrollBounceBehavior(.basedOnSize)
         }
     }
 
-    /// Baby Buddy leaning on the card, waving over its top edge.
+    /// Baby Buddy leaning on the card, waving over its top edge. Only at standard text sizes: at
+    /// accessibility sizes the card needs his room for its copy.
     ///
     /// A negative `VStack` spacing does the whole trick: it pulls the card up over his flat bottom
     /// edge, and because the card is laid out *after* him it also draws on top — so he is genuinely
@@ -79,22 +92,22 @@ struct SupportGentleAskCard: View {
                 .scaledToFit()
                 .frame(width: mascotWidth, height: mascotWidth * mascotAspect)
                 .accessibilityHidden(true) // charm, not information
-            card
+            card(scrollingCopy: false)
         }
     }
 
-    private var card: some View {
+    private func card(scrollingCopy: Bool) -> some View {
         VStack(spacing: 0) {
-            // Non-breaking spaces through the app's name: the title is two lines at default type on
-            // a narrow card, and the break belongs after "Enjoying" rather than inside the name (the
-            // mockup pins the same pair together for the same reason).
-            Text("Enjoying Baby\u{00a0}Buddy\u{00a0}Companion?")
-                .font(.system(size: 20, weight: .semibold))
-
-            Text("Every feature is free — no locks, no subscriptions. If the app has earned a place in your routine, you can chip in to keep it growing.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .padding(.top, 7)
+            if scrollingCopy {
+                ScrollView {
+                    copy
+                    reminder.padding(.top, 7)
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollIndicatorsFlash(onAppear: true)
+            } else {
+                copy
+            }
 
             Button("Become a Supporter", action: onSupport)
                 .buttonStyle(.bbPrimary)
@@ -102,10 +115,7 @@ struct SupportGentleAskCard: View {
 
             QuietNudgeButton(title: String(localized: "Maybe later"), action: onDismiss)
 
-            // The line that makes the whole thing fair: the ask is opt-out, and says so.
-            Text("Reminders can be turned off in Settings.")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            if !scrollingCopy { reminder }
         }
         .multilineTextAlignment(.center)
         .padding(.horizontal, 22)
@@ -115,6 +125,32 @@ struct SupportGentleAskCard: View {
         .shadow(color: .black.opacity(0.30), radius: 24, y: 10)
         // Trap VoiceOver inside the card, so the dimmed Dashboard behind it isn't still swipeable.
         .accessibilityAddTraits(.isModal)
+    }
+
+    /// The line that makes the whole thing fair: the ask is opt-out, and says so.
+    private var reminder: some View {
+        Text("Reminders can be turned off in Settings.")
+            .font(.caption)
+            .foregroundStyle(.tertiary)
+    }
+
+    private var copy: some View {
+        // Non-breaking spaces through the app's name: the title is two lines at default type on
+        // a narrow card, and the break belongs after "Enjoying" rather than inside the name (the
+        // mockup pins the same pair together for the same reason). At accessibility sizes the name
+        // is wider than the card, so the words wrap freely, and the title stops growing at the
+        // size where "Companion?" still fits on a line.
+        let title = String(localized: "Enjoying Baby\u{00a0}Buddy\u{00a0}Companion?")
+        return VStack(spacing: 0) {
+            Text(typeSize.isAccessibilitySize ? title.replacingOccurrences(of: "\u{00a0}", with: " ") : title)
+                .font(.title3.weight(.semibold))
+                .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+
+            Text("Every feature is free — no locks, no subscriptions. If the app has earned a place in your routine, you can chip in to keep it growing.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .padding(.top, 7)
+        }
     }
 }
 
@@ -129,48 +165,71 @@ struct SupportMilestoneSheet: View {
     let count: Int
     var onSupport: () -> Void
     var onDismiss: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var wide = false
+
+    /// Whether the sheet is in two columns, on iPhone Duo's open display. ``SheetColumns`` keeps
+    /// one at accessibility text sizes.
+    private var twoColumns: Bool { wide && !typeSize.isAccessibilitySize }
 
     var body: some View {
+        // In one column the buttons are pinned under the copy, so a long read at large text sizes
+        // scrolls behind them. In two they sit in the right column, next to the copy.
         FittedSheet {
-            content
-                .padding(.horizontal, 22)
-                .padding(.top, 10)
-                .padding(.bottom, 24)
-                .overlay(alignment: .top) { Confetti() }
+            SheetColumns(wide: wide, spacing: 0) {
+                VStack(spacing: 0) { headline }.frame(maxWidth: .infinity)
+            } trailing: {
+                VStack(spacing: 0) {
+                    perks
+                    if twoColumns { buttons }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 22)
+            .padding(.top, 10)
+            .padding(.bottom, twoColumns ? 24 : 0)
+            .overlay(alignment: .top) { Confetti() }
+        } actions: {
+            if !twoColumns {
+                buttons
+                    .padding(.horizontal, 22)
+                    .padding(.bottom, 24)
+                    .background(BBColor.card)
+            }
         }
+        .trackingWide($wide)
     }
 
-    private var content: some View {
+    @ViewBuilder private var headline: some View {
+        SupporterBadge(systemImage: "sparkles")
+
+        Text("Milestone")
+            .font(.caption2.weight(.semibold))
+            .kerning(0.6)
+            .textCase(.uppercase)
+            .foregroundStyle(.secondary)
+            .padding(.top, 14)
+
+        Text("\(count) activities logged")
+            .font(.title3.weight(.semibold))
+            .monospacedDigit()
+            .padding(.top, 4)
+
+        Text("Baby Buddy Companion has been there for every one of them. It's free for everyone — supporters are what keep it that way.")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .padding(.top, 7)
+    }
+
+    private var buttons: some View {
         VStack(spacing: 0) {
-            SupporterBadge(systemImage: "sparkles")
-
-            Text("Milestone")
-                .font(.caption2.weight(.semibold))
-                .kerning(0.6)
-                .textCase(.uppercase)
-                .foregroundStyle(.secondary)
-                .padding(.top, 14)
-
-            Text("\(count) activities logged")
-                .font(.system(size: 20, weight: .semibold))
-                .monospacedDigit()
-                .padding(.top, 4)
-
-            Text("Baby Buddy Companion has been there for every one of them. It's free for everyone — supporters are what keep it that way.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .padding(.top, 7)
-
-            perks
-
             Button("Become a Supporter", action: onSupport)
                 .buttonStyle(.bbPrimary)
                 .padding(.top, 20)
 
             QuietNudgeButton(title: String(localized: "Not now"), action: onDismiss)
         }
-        .multilineTextAlignment(.center)
-        .frame(maxWidth: .infinity)
     }
 
     /// What supporting will eventually get you. Nothing here is gated today, and the header says

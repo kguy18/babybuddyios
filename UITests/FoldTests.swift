@@ -166,6 +166,51 @@ final class FoldTests: UITestCase {
         expectGone(later)
     }
 
+    /// The What's New card after an update puts its heading and buttons left of the fold and the
+    /// release list right of it.
+    func testWhatsNewSplitsAtTheFold() throws {
+        try launchOpen(["BB_WHATSNEW_UPGRADE": "1"])
+        // The demo's running timer asks for notification permission on a freshly erased simulator,
+        // and the prompt would take the tap on Continue.
+        allowNotificationsIfAsked()
+        let midX = app.windows.firstMatch.frame.midX
+        XCTAssertLessThan(expect(app.buttons["Continue"]).frame.maxX, midX, "Continue should sit left of the fold")
+        XCTAssertGreaterThan(expect(app.scrollViews.firstMatch).frame.minX, midX,
+                             "The release list should sit right of the fold")
+        tap(app.buttons["Continue"])
+        expectGone(app.buttons["Continue"])
+    }
+
+    /// Acknowledgements: the credit left of the fold, the other licences right of it.
+    func testAcknowledgementsSplitAtTheFold() throws {
+        try launchOpen(["BB_START_TAB": "settings"])
+        tap(app.buttons["Acknowledgements"])
+        let midX = app.windows.firstMatch.frame.midX
+        XCTAssertLessThan(expect(app.staticTexts["Based on Baby Buddy"]).frame.maxX, midX,
+                          "The credit should sit left of the fold")
+        XCTAssertGreaterThan(expect(app.staticTexts["Baby Buddy"]).frame.minX, midX,
+                             "Baby Buddy's licence should sit right of the fold")
+    }
+
+    /// The milestone sheet and the supporter sheet it opens each put the ask left of the fold and
+    /// the buttons right of it.
+    func testSupportSheetsSplitAtTheFold() throws {
+        try launchOpen(["BB_NUDGE": "milestone"])
+        allowNotificationsIfAsked()
+        let midX = app.windows.firstMatch.frame.midX
+        XCTAssertLessThan(expect(elements("label CONTAINS 'activities logged'").firstMatch).frame.maxX, midX,
+                          "The milestone should sit left of the fold")
+        let support = expect(app.buttons["Become a Supporter"])
+        XCTAssertGreaterThan(support.frame.minX, midX, "Become a Supporter should sit right of the fold")
+        XCTAssertGreaterThan(expect(app.buttons["Not now"]).frame.minX, midX, "Not now should sit right of the fold")
+
+        tap(support)
+        XCTAssertLessThan(expect(app.staticTexts["Support Baby Buddy Companion"]).frame.maxX, midX,
+                          "The ask should sit left of the fold")
+        XCTAssertGreaterThan(expect(app.buttons["Maybe later"]).frame.minX, midX,
+                             "Maybe later should sit right of the fold")
+    }
+
     /// Two columns can't hold the largest text, so the editor keeps to one, wide as the sheet.
     func testEditorKeepsOneColumnAtTheLargestText() throws {
         try launchOpen(largestText: true)

@@ -22,17 +22,32 @@ struct WhatsNewView: View {
     /// read. Presenting the tip sheet over this view doesn't disturb it.
     @State private var continued = false
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var wide = false
+
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(spacing: 0) {
-                    masthead
-                    card.padding(.horizontal, 16).padding(.top, 24)
+        // iPhone Duo's open display: the heading and buttons left of the fold, the list right of
+        // it. The launch card is a full-screen cover, which FoldSplitView splits at the fold. From
+        // Settings it is a sheet centred on the fold, too narrow for those panes, so it splits in
+        // half, and keeps one column at accessibility text sizes as the other sheets do.
+        FoldSplitView {
+            sidePane
+        } main: { split in
+            if split {
+                list
+            } else if wide && !typeSize.isAccessibilitySize {
+                HStack(spacing: FoldLayout.assumedFold) {
+                    sidePane.frame(maxWidth: .infinity)
+                    list.frame(maxWidth: .infinity)
                 }
-                .padding(.bottom, 16)
+            } else {
+                VStack(spacing: 0) {
+                    list(withMasthead: true)
+                    footer
+                }
             }
-            footer
         }
+        .trackingWide($wide)
         .background(BBColor.surface)
         .onAppear { Analytics.whatsNewShown(source: source) }
         // `showingSupporter` is part of the guard, not just `continued`: SwiftUI is inconsistent
@@ -54,6 +69,30 @@ struct WhatsNewView: View {
 
     // MARK: Pieces
 
+    private var sidePane: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            masthead
+            Spacer(minLength: 0)
+            footer
+        }
+    }
+
+    private var list: some View { list(withMasthead: false) }
+
+    /// The release items, scrolling. The indicator flashes as it opens, so a list that runs past
+    /// the buttons at large text sizes shows that it scrolls.
+    private func list(withMasthead: Bool) -> some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                if withMasthead { masthead }
+                card.padding(.horizontal, 16).padding(.top, 24)
+            }
+            .padding(.bottom, 16)
+        }
+        .scrollIndicatorsFlash(onAppear: true)
+    }
+
     private var masthead: some View {
         VStack(spacing: 0) {
             RoundedRectangle(cornerRadius: 17, style: .continuous)
@@ -65,10 +104,10 @@ struct WhatsNewView: View {
                         .foregroundStyle(BBColor.brandAccent)
                 }
             Text("What's New")
-                .font(.system(size: 28, weight: .semibold))
+                .font(.title.weight(.semibold))
                 .padding(.top, 15)
             Text("Version \(note.version)")
-                .font(.system(size: 12.5, weight: .semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(BBColor.brandAccent)
                 .padding(.horizontal, 11)
                 .padding(.vertical, 5)
@@ -107,10 +146,10 @@ struct WhatsNewView: View {
                         .foregroundStyle(item.icon.tint)
                 }
             VStack(alignment: .leading, spacing: 3) {
-                Text(NSLocalizedString(item.title, comment: "Bundled release note title")).font(.system(size: 15.5, weight: .semibold))
+                Text(NSLocalizedString(item.title, comment: "Bundled release note title")).font(.subheadline.weight(.semibold))
                 if !item.body.isEmpty {
                     Text(NSLocalizedString(item.body, comment: "Bundled release note body"))
-                        .font(.system(size: 13))
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -136,11 +175,11 @@ struct WhatsNewView: View {
     private func fixedRow(_ text: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "checkmark")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.footnote.weight(.semibold))
                 .foregroundStyle(BBColor.success)
                 .padding(.top, 1)
             Text(NSLocalizedString(text, comment: "Bundled release note fix"))
-                .font(.system(size: 13))
+                .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
@@ -168,7 +207,7 @@ struct WhatsNewView: View {
                 showingSupporter = true
             } label: {
                 Label("Support development", systemImage: "heart.fill")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(BBColor.brandAccent)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 11)
