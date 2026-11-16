@@ -321,6 +321,9 @@ final class DialogTests: UITestCase {
         launch(["BB_SCANNER_PREVIEW": "1"], demo: false, largestText: large)
         expect(app.staticTexts["Point at the QR code"])
         capture("qr-scanner-preview")
+        app.swipeUp()
+        app.swipeUp()
+        capture("qr-scanner-preview-scrolled")
 
         launch(demo: false, largestText: large)
         tap(app.buttons.labeled("Scan QR code"))
@@ -328,6 +331,9 @@ final class DialogTests: UITestCase {
         // Capture that result too so the evidence records what this build actually shows.
         _ = app.staticTexts["Camera Access Needed"].waitForExistence(timeout: 20)
         capture("onboarding-scan-qr-no-camera")
+        app.swipeUp()
+        app.swipeUp()
+        capture("onboarding-scan-qr-no-camera-scrolled")
     }
 
     /// The sign-out card, which its modal trait exposes as an alert. Its buttons are queried inside
