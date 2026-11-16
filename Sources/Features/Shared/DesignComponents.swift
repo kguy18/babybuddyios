@@ -347,7 +347,11 @@ struct FittedSheet<Content: View, Actions: View>: View {
         .scrollBounceBehavior(.basedOnSize)
         .scrollIndicatorsFlash(onAppear: true)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            actions().onGeometryChange(for: CGFloat.self) { $0.size.height } action: { actionsHeight = $0; fit() }
+            // Measured at its own height: an empty view on its own reports all the height it is
+            // offered, and the detent would grow to match it.
+            VStack(spacing: 0) { actions() }
+                .fixedSize(horizontal: false, vertical: true)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { actionsHeight = $0; fit() }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sheetHeight = $0 }
         // iPhone Duo's front display insets the trailing edge for its rail, and the sheet would
