@@ -7,6 +7,7 @@ import UIKit
 /// we validate it with a probe request. The connect/connecting/error states all live here.
 struct OnboardingView: View {
     @Environment(AppSession.self) private var session
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     @State private var serverURL = ""
     @State private var token = ""
@@ -53,27 +54,41 @@ struct OnboardingView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                masthead
-                qrHeroCard
-                divider
-                if hasError { errorBanner }
-                manualCard
-                supplemental
-                advancedButton
-                primaryButton
-                helpLink
+        FoldSplitView {
+            ScrollView {
+                VStack(spacing: 0) {
+                    masthead
+                    qrHeroCard
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 34)
+                .padding(.bottom, 28)
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 34)
-            .padding(.bottom, 28)
-            .frame(maxWidth: 480)
-            .frame(maxWidth: .infinity)
+        } main: { split in
+            ScrollView {
+                VStack(spacing: 0) {
+                    if !split {
+                        masthead
+                        qrHeroCard
+                    }
+                    divider
+                    if hasError { errorBanner }
+                    manualCard
+                    supplemental
+                    advancedButton
+                    primaryButton
+                    helpLink
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 34)
+                .padding(.bottom, 28)
+                .frame(maxWidth: 480)
+                .frame(maxWidth: .infinity)
+            }
         }
         .background(BBColor.surface.ignoresSafeArea())
         .scrollDismissesKeyboard(.interactively)
-        .sheet(isPresented: $showScanner, onDismiss: {
+        .fullScreenCover(isPresented: $showScanner, onDismiss: {
             if let request = advancedAfterScanner {
                 advancedAfterScanner = nil
                 advanced = request
@@ -129,9 +144,11 @@ struct OnboardingView: View {
                 }
                 .padding(.bottom, 14)
             Text("Baby Buddy")
-                .font(.system(size: 26, weight: .semibold))
+                .font(.title.weight(.semibold))
+                .multilineTextAlignment(.center)
             Text("Connect to your self-hosted server")
                 .font(.subheadline)
+                .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
                 .padding(.top, 3)
         }
@@ -148,17 +165,19 @@ struct OnboardingView: View {
             showScanner = true
         } label: {
             HStack(spacing: 14) {
-                RoundedRectangle(cornerRadius: 13, style: .continuous)
-                    .fill(.white.opacity(0.18))
-                    .frame(width: 46, height: 46)
-                    .overlay {
-                        Image(systemName: "qrcode")
-                            .font(.system(size: 24, weight: .regular))
-                            .foregroundStyle(.white)
-                    }
+                if !typeSize.isAccessibilitySize {
+                    RoundedRectangle(cornerRadius: 13, style: .continuous)
+                        .fill(.white.opacity(0.18))
+                        .frame(width: 46, height: 46)
+                        .overlay {
+                            Image(systemName: "qrcode")
+                                .font(.system(size: 24, weight: .regular))
+                                .foregroundStyle(.white)
+                        }
+                }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Scan QR code")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.headline)
                         .foregroundStyle(.white)
                     Text("Fastest way · go to User → Add\u{00A0}a\u{00A0}Device and scan the code")
                         .font(.caption)
@@ -183,12 +202,14 @@ struct OnboardingView: View {
 
     private var divider: some View {
         HStack(spacing: 12) {
-            line
+            if !typeSize.isAccessibilitySize { line }
             Text("or enter details")
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
-            line
+                .fixedSize(horizontal: false, vertical: true)
+            if !typeSize.isAccessibilitySize { line }
         }
+        .frame(maxWidth: .infinity)
         .padding(.horizontal, 6)
         .padding(.bottom, 16)
     }
@@ -204,10 +225,10 @@ struct OnboardingView: View {
             VStack(spacing: 0) {
                 fieldRow(label: String(localized: "Server URL")) {
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 15))
+                        .font(.body)
                         .foregroundStyle(!hasError && urlLooksValid ? BBColor.success : Color.secondary)
                     TextField("Your server URL or IP address", text: $serverURL)
-                        .font(.system(size: 15))
+                        .font(.body)
                         .textContentType(.URL)
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
@@ -219,17 +240,23 @@ struct OnboardingView: View {
                 Rectangle().fill(BBColor.divider).frame(height: 1)
                 fieldRow(label: String(localized: "API token")) {
                     Image(systemName: "key.fill")
-                        .font(.system(size: 15))
+                        .font(.body)
                         .foregroundStyle(.secondary)
                     SecureField("Paste your API token", text: $token)
-                        .font(.system(size: 15))
+                        .font(.body)
                         .textContentType(.password)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .focused($focusedField, equals: .token)
                         .submitLabel(.go)
                         .onSubmit { if canSubmit { submit() } }
+                    if !typeSize.isAccessibilitySize { pasteButton }
+                }
+                if typeSize.isAccessibilitySize {
                     pasteButton
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.horizontal, 15)
+                        .padding(.bottom, 12)
                 }
             }
         }
@@ -262,14 +289,15 @@ struct OnboardingView: View {
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: "doc.on.clipboard")
-                    .font(.system(size: 13))
+                    .font(.caption)
                 Text("Paste")
-                    .font(.system(size: 12.5, weight: .semibold))
+                    .font(.caption.weight(.semibold))
             }
             .foregroundStyle(BBColor.brandAccent)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
             .background(BBColor.brandTint, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .frame(minHeight: 44)
         }
         .buttonStyle(.plain)
     }

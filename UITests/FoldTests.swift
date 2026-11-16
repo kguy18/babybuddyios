@@ -19,9 +19,9 @@ final class FoldTests: UITestCase {
     /// runner asks for it, and otherwise only on the open display itself, skipping anywhere else.
     /// The app's window tells: 951 pt wide open, against 466 folded and at most 440 on other
     /// iPhones. SpringBoard's frame doesn't, as it still reads the front display's on an open Duo.
-    private func launchOpen(_ environment: [String: String] = [:], largestText: Bool = false) throws {
+    private func launchOpen(_ environment: [String: String] = [:], largestText: Bool = false, demo: Bool = true) throws {
         if !forced, let width = Self.measuredWidth { try skipUnlessOpen(width) }
-        launch(forced ? environment.merging(["BB_FOLD": "1"]) { $1 } : environment, largestText: largestText)
+        launch(forced ? environment.merging(["BB_FOLD": "1"]) { $1 } : environment, demo: demo, largestText: largestText)
         guard !forced else { return }
         let width = app.windows.firstMatch.frame.width
         Self.measuredWidth = width
@@ -373,6 +373,26 @@ final class FoldTests: UITestCase {
             XCTAssertLessThan(sheetMine.frame.maxX, middle, "The sheet's Mine card should end before the fold")
             XCTAssertGreaterThan(sheetServer.frame.minX, middle, "The sheet's Server card should start after the fold")
         }
+    }
+
+    func testOnboardingAndScannerKeepContentBesideTheFold() throws {
+        try launchOpen(demo: false)
+        let welcome = expect(app.staticTexts["Baby Buddy"])
+        let url = expect(app.textFields["Your server URL or IP address"])
+        XCTAssertGreaterThan(url.frame.minX, welcome.frame.maxX, "The manual form should sit right of the welcome")
+        if !forced {
+            XCTAssertLessThan(welcome.frame.maxX, app.windows.firstMatch.frame.midX)
+            XCTAssertGreaterThan(url.frame.minX, app.windows.firstMatch.frame.midX)
+        }
+        try launchOpen(["BB_SCANNER_PREVIEW": "1"], demo: false)
+        let instructions = expect(app.staticTexts["Point at the QR code"])
+        let manual = expect(app.buttons["Enter details manually"])
+        XCTAssertLessThan(instructions.frame.maxX, app.windows.firstMatch.frame.midX,
+                          "Scanner instructions should stay left of the viewfinder")
+        XCTAssertLessThan(manual.frame.maxX, app.windows.firstMatch.frame.midX)
+        tap(manual)
+        expectGone(instructions)
+        expect(app.textFields["Your server URL or IP address"])
     }
 
 }
