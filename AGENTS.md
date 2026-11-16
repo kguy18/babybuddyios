@@ -75,6 +75,26 @@ on you.
     the goal milestone. See `docs/agents/project-status.md`.
 <!-- baseline:end -->
 
+## Simulators
+
+Several agents run tests on this Mac at once, and it has 16 GB. Get a simulator only by running
+`scripts/unit-test.sh` or `scripts/ui-test.sh` (any lane). With simlock installed they lease a fresh
+slim device from it and release it when they finish, so nobody shares or leaks one. Never run
+`xcrun simctl create`, `boot` or `erase` yourself, and never pass a hand-picked
+`-destination 'platform=iOS Simulator,name=...'`.
+
+One-time setup on the Mac:
+
+```bash
+npm i -g simlock
+simlock config set drivers.ios.deviceSet default   # duoctl and -destination id= need Xcode's set
+simlock config set warmPool.enabled false          # the warm pool boots spare devices, a Duo among them
+```
+
+Run one iPhone Duo at a time (`scripts/ui-test.sh --duo-open`): check
+`xcrun simctl list devices booted` first. `simlock list --leases` shows what is held;
+`UI_TEST_NO_SIMLOCK=1` runs the scripts the old way, as CI does.
+
 ## Feedback requests (Quackback)
 
 Feature requests and bug reports from users live on Quackback at
