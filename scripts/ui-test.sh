@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-# Runs the XCUITest suite (scheme BabyBuddyUITests) on a dedicated simulator that is erased,
-# booted, and shut down again around every run. Same command CI runs; extra xcodebuild arguments
-# pass straight through.
+# Runs the XCUITest suite (scheme BabyBuddyUITests) on a simulator of its own. Same command CI runs;
+# extra xcodebuild arguments pass straight through.
+#
+# With simlock installed (scripts/simlock.sh), and outside CI, the run leases a fresh slim simulator
+# from it and releases it at the end: an iPhone 17 Pro, or an iPhone Duo for --duo-open. What follows
+# about a named device, erased, booted and shut down around every run, is the path without simlock,
+# which CI takes.
 #
 #   scripts/ui-test.sh [xcodebuild args]
 #   scripts/ui-test.sh -only-testing:BabyBuddyUITests/DialogTests/testSignOutCard
@@ -62,6 +66,23 @@ elif [ "${1:-}" = "--duo-open" ]; then
   esac
 fi
 
+SIMCTL=(xcrun simctl)
+XCODEBUILD_SET=()
+source scripts/simlock.sh
+if simlock_wanted; then
+  if [ -n "$DUO_OPEN" ]; then
+    simlock_lease "iPhone Duo" 27.2
+    # duoctl looks for the simulator in Xcode's device set only.
+    if [ -n "$DEVICE_SET" ]; then
+      echo "::error::simlock keeps its devices in a set of its own, where duoctl can't reach them; run \`simlock config set drivers.ios.deviceSet default\` (AGENTS.md, Simulators)" >&2
+      exit 1
+    fi
+  else
+    simlock_lease "iPhone 17 Pro" 26.5
+  fi
+else
+# No simlock, as on CI: find or create the named device, then erase and boot it. Left unindented so
+# this path reads as it did before simlock.
 UDID=$(xcrun simctl list devices available --json | python3 -c '
 import json, sys
 for devs in json.load(sys.stdin)["devices"].values():
@@ -95,6 +116,7 @@ xcrun simctl shutdown "$UDID" >/dev/null 2>&1 || true
 xcrun simctl erase "$UDID"
 xcrun simctl boot "$UDID"
 xcrun simctl bootstatus "$UDID" -b >/dev/null
+fi
 
 if [ -n "$DUO_OPEN" ]; then
   export DUOCTL_UDID="$UDID"
@@ -108,12 +130,29 @@ if [ -n "$DUO_OPEN" ]; then
   # Straight after bootstatus, duoctl sometimes answers "no display is active (is the simulator
   # still booting?)": SpringBoard isn't up yet. On CI one retry after 15 s was once enough and once
   # not (still no display 30 s on), so keep trying for two minutes.
+  # duoctl reads the active screen from devicectl; print what devicectl and launchd report.
+  displays() {
+    xcrun devicectl device info displays -d "$UDID" --json-output - 2>/dev/null | python3 -c '
+import json, sys
+for d in json.load(sys.stdin)["result"]["displays"]:
+    print("  {}: active={} backlight={}".format(d.get("name"), d.get("active"), d.get("backlightState")))' || true
+    xcrun simctl spawn "$UDID" launchctl list | grep -E 'SpringBoard|backboardd' || true
+  }
   for ATTEMPT in 1 2 3 4 5 6 7 8; do
     unfold && break
+    displays
     if [ "$ATTEMPT" = 8 ]; then
-      scripts/duoctl screenshot build/duo-open.png || true
+      scripts/duoctl screenshot build/duo-open.png || xcrun simctl io "$UDID" screenshot build/duo-open.png || true
       echo "::error::duoctl open left the iPhone Duo on its front display"
       exit 1
+    fi
+    # A boot that still has no active screen a minute on doesn't recover by waiting; boot it again.
+    if [ "$ATTEMPT" = 4 ]; then
+      echo "no active screen after attempt 4; rebooting the iPhone Duo"
+      xcrun simctl shutdown "$UDID"
+      xcrun simctl boot "$UDID"
+      xcrun simctl bootstatus "$UDID" -b >/dev/null
+      continue
     fi
     echo "duoctl open didn't take (attempt $ATTEMPT of 8); trying again in 15 s"
     sleep 15
@@ -126,10 +165,10 @@ fi
 if [ -n "${UI_TEST_XCTESTRUN:-}" ]; then
   APP="$(dirname "$UI_TEST_XCTESTRUN")/Debug-iphonesimulator/BabyBuddy.app"
   if [ -d "$APP" ]; then
-    xcrun simctl install "$UDID" "$APP"
-    SIMCTL_CHILD_BB_UITEST=1 xcrun simctl launch "$UDID" com.kurtisguy.BabyBuddy >/dev/null
+    "${SIMCTL[@]}" install "$UDID" "$APP"
+    SIMCTL_CHILD_BB_UITEST=1 "${SIMCTL[@]}" launch "$UDID" com.kurtisguy.BabyBuddy >/dev/null
     sleep 10
-    xcrun simctl terminate "$UDID" com.kurtisguy.BabyBuddy >/dev/null 2>&1 || true
+    "${SIMCTL[@]}" terminate "$UDID" com.kurtisguy.BabyBuddy >/dev/null 2>&1 || true
   else
     echo "no prebuilt app beside $UI_TEST_XCTESTRUN; skipping the warm-up launch"
   fi
@@ -150,12 +189,13 @@ if [ -n "${UI_TEST_XCTESTRUN:-}" ]; then
 else
   BUILD=(-project BabyBuddy.xcodeproj -scheme BabyBuddyUITests test)
 fi
-if [ -n "${UI_TEST_XCTESTRUN:-}" ] || xcrun simctl list devices "$UDID" --json | grep -q '"deviceTypeIdentifier" : ".*Duo"'; then
+if [ -n "${UI_TEST_XCTESTRUN:-}" ] || [ -n "$DUO_OPEN" ] \
+  || "${SIMCTL[@]}" list devices "$UDID" --json | grep -q '"deviceTypeIdentifier" : ".*Duo"'; then
   ALLOWANCE=(-default-test-execution-time-allowance 420 -maximum-test-execution-time-allowance 600)
 else
   ALLOWANCE=(-default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 300)
 fi
-xcodebuild "${BUILD[@]}" -destination "id=$UDID" \
+xcodebuild "${BUILD[@]}" -destination "id=$UDID" ${XCODEBUILD_SET[@]+"${XCODEBUILD_SET[@]}"} \
   -resultBundlePath "$RESULT" \
   -test-timeouts-enabled YES "${ALLOWANCE[@]}" \
   CODE_SIGNING_ALLOWED=NO -quiet "${LANE[@]}" "$@"
