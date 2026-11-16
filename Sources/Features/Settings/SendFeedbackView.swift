@@ -147,7 +147,7 @@ struct SendFeedbackView: View {
                     Rectangle().fill(BBColor.divider).frame(height: 0.5)
                     Button { showingAccount = true } label: {
                         SettingsRow(symbol: "person", tint: BBColor.note, title: String(localized: "Feedback Account"),
-                                    subtitle: email) { chevron }
+                                    subtitle: email, trailingBeside: true) { chevron }
                     }
                     .buttonStyle(.plain)
                 }
@@ -161,7 +161,8 @@ struct SendFeedbackView: View {
             Analytics.feedbackWidgetOpened(view: widget.analyticsView)
             feedback = widget
         } label: {
-            SettingsRow(symbol: symbol, tint: tint, title: widget.title, subtitle: subtitle) { chevron }
+            SettingsRow(symbol: symbol, tint: tint, title: widget.title, subtitle: subtitle,
+                        trailingBeside: true) { chevron }
         }
         .buttonStyle(.plain)
     }

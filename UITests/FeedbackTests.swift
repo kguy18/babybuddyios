@@ -185,7 +185,7 @@ final class FeedbackTests: UITestCase {
         launch(["BB_START_TAB": "settings"], largestText: true)
         tap(app.buttons.labeled("Custom headers"))
         expect(app.navigationBars["Custom headers"])
-        captureInventoryScreen("settings-custom-headers")
+        attachScreen("settings-custom-headers")
         let add = expect(app.buttons["Add header"])
         XCTAssertTrue(add.isHittable)
         tap(add)
@@ -213,19 +213,12 @@ final class FeedbackTests: UITestCase {
 
 /// Ways into the feedback sheets that FeedbackTests and FeedbackAccountTests share.
 extension UITestCase {
-    func captureInventoryScreen(_ name: String) {
-        let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        add(attachment)
-    }
-
     func captureFeedbackInventory() {
-        captureInventoryScreen("settings-send-feedback")
+        attachScreen("settings-send-feedback")
         // Scroll the note pane on the open display and the single column on a folded phone.
         let scroll = app.scrollViews.containing(.staticText, identifier: "I do read everything and try to reply to everyone.").firstMatch
         expect(scroll).swipeUp()
-        captureInventoryScreen("settings-send-feedback-scrolled")
+        attachScreen("settings-send-feedback-scrolled")
         scroll.swipeDown()
     }
 

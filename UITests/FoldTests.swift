@@ -73,7 +73,7 @@ final class FoldTests: UITestCase {
         expect(app.navigationBars["Custom headers"])
         let add = expect(app.buttons["Add header"])
         let footer = expect(app.staticTexts.labeled("Only for a server behind an access gate"))
-        captureInventoryScreen("settings-custom-headers")
+        attachScreen("settings-custom-headers")
         let middle = app.windows.firstMatch.frame.midX
         XCTAssertGreaterThan(add.frame.minX, middle, "The header card should stay right of the fold")
         XCTAssertGreaterThan(footer.frame.minX, middle, "The footer should stay with the header card")
