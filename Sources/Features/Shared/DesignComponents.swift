@@ -341,13 +341,13 @@ struct FittedSheet<Content: View, Actions: View>: View {
 
     var body: some View {
         ScrollView {
-            content().onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+            content().onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0; fit() }
         }
         // Content taller than the detent scrolls; anything shorter doesn't.
         .scrollBounceBehavior(.basedOnSize)
         .scrollIndicatorsFlash(onAppear: true)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            actions().onGeometryChange(for: CGFloat.self) { $0.size.height } action: { actionsHeight = $0 }
+            actions().onGeometryChange(for: CGFloat.self) { $0.size.height } action: { actionsHeight = $0; fit() }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sheetHeight = $0 }
         // iPhone Duo's front display insets the trailing edge for its rail, and the sheet would
@@ -357,7 +357,12 @@ struct FittedSheet<Content: View, Actions: View>: View {
         .presentationDetents(height > 0 ? [.height(height)] : [.medium], selection: $detent)
         .presentationDragIndicator(.visible)
         .presentationBackground(BBColor.card)
-        .onChange(of: height) { detent = height > 0 ? .height(height) : .medium }
+    }
+
+    /// Moves the detent in the same update as the height, so the selection is always one of the
+    /// detents offered.
+    private func fit() {
+        detent = height > 0 ? .height(height) : .medium
     }
 }
 

@@ -42,8 +42,10 @@ struct WhatsNewView: View {
                 }
             } else {
                 VStack(spacing: 0) {
-                    list(withMasthead: true)
-                    footer
+                    // At accessibility sizes the support link scrolls with the list, so the
+                    // footer keeps to the one button and leaves the list room.
+                    list(withMasthead: true, withSupport: typeSize.isAccessibilitySize)
+                    footer(withSupport: !typeSize.isAccessibilitySize)
                 }
             }
         }
@@ -74,19 +76,20 @@ struct WhatsNewView: View {
             Spacer(minLength: 0)
             masthead
             Spacer(minLength: 0)
-            footer
+            footer()
         }
     }
 
-    private var list: some View { list(withMasthead: false) }
+    private var list: some View { list(withMasthead: false, withSupport: false) }
 
     /// The release items, scrolling. The indicator flashes as it opens, so a list that runs past
     /// the buttons at large text sizes shows that it scrolls.
-    private func list(withMasthead: Bool) -> some View {
+    private func list(withMasthead: Bool, withSupport: Bool) -> some View {
         ScrollView {
             VStack(spacing: 0) {
                 if withMasthead { masthead }
                 card.padding(.horizontal, 16).padding(.top, 24)
+                if withSupport { supportButton.padding(.horizontal, 20).padding(.top, 8) }
             }
             .padding(.bottom, 16)
         }
@@ -189,7 +192,7 @@ struct WhatsNewView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private var footer: some View {
+    private func footer(withSupport: Bool = true) -> some View {
         VStack(spacing: 8) {
             Button(dismissTitle) {
                 continued = true
@@ -199,26 +202,32 @@ struct WhatsNewView: View {
             }
             .buttonStyle(.bbPrimary)
 
-            Button {
-                Analytics.whatsNewSupporterTapped(source: source)
-                // Opening the supporter sheet from here takes the nudge policy's slot; the card
-                // on its own does not.
-                SupportNudgeStore.shared.snoozeNudges()
-                showingSupporter = true
-            } label: {
-                Label("Support development", systemImage: "heart.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(BBColor.brandAccent)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 11)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
+            if withSupport { supportButton }
         }
         .padding(.horizontal, 20)
         .padding(.top, 10)
         .padding(.bottom, 30)
         .background(BBColor.surface)
+    }
+
+    private var supportButton: some View {
+        Button {
+            Analytics.whatsNewSupporterTapped(source: source)
+            // Opening the supporter sheet from here takes the nudge policy's slot; the card
+            // on its own does not.
+            SupportNudgeStore.shared.snoozeNudges()
+            showingSupporter = true
+        } label: {
+            Label("Support development", systemImage: "heart.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(BBColor.brandAccent)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 11)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        // Past this size "development" is wider than the phone.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
 
     private var divider: some View {
