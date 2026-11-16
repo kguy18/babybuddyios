@@ -301,10 +301,19 @@ final class DialogTests: UITestCase {
                           "Only run while capturing the onboarding inventory")
         let large = ProcessInfo.processInfo.environment["BB_CAPTURE_DEFAULT"] != "1"
         func capture(_ name: String) {
-            let shot = XCTAttachment(screenshot: app.screenshot())
-            shot.name = name
-            shot.lifetime = .keepAlways
-            add(shot)
+            if large {
+                let shot = XCTAttachment(screenshot: app.screenshot())
+                shot.name = name
+                shot.lifetime = .keepAlways
+                add(shot)
+            } else {
+                for (index, screen) in XCUIScreen.screens.enumerated() {
+                    let shot = XCTAttachment(screenshot: screen.screenshot())
+                    shot.name = "\(name)-display-\(index)"
+                    shot.lifetime = .keepAlways
+                    add(shot)
+                }
+            }
         }
         launch(demo: false, largestText: large)
         capture("onboarding")
