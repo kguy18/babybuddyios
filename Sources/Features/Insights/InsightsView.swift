@@ -16,14 +16,14 @@ struct InsightsView: View {
     @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "child" }, sort: \.timestamp)
     private var children: [LocalEntity]
     @State private var period: ChartPeriod = .week
-    @Environment(\.dynamicTypeSize) private var typeSize
-    /// The panes either side of the fold on iPhone Duo's open display, or nil for one column.
-    @State private var foldPanes: FoldLayout.Panes?
     @State private var colors = MedicineColorStore.shared
     // Watched so the temperature card follows Settings ▸ Sick mode; the keys and defaults are the
     // ones ``SickMode`` reads.
     @AppStorage(TemperatureUnit.key, store: SharedDefaults.suite) private var storedUnit: TemperatureUnit?
     @AppStorage(SickMode.feverLineKey, store: SharedDefaults.suite) private var feverLineCelsius = SickMode.defaultFeverLine
+    @Environment(\.dynamicTypeSize) private var typeSize
+    /// The panes either side of the fold on iPhone Duo's open display, or nil for one column.
+    @State private var foldPanes: FoldLayout.Panes?
 
     private let aggregator = ChartAggregator()
 
