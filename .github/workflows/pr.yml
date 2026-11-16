@@ -37,7 +37,7 @@ jobs:
             echo "code=false" >> "$GITHUB_OUTPUT"; echo "docs-only PR: skipping the macOS build"
           fi
           # The eight Duo UI shards run only when a PR changes what they test or how they run.
-          # A version bump, release notes or a tooling change gets `duo (unit)` and `duo (open)`.
+          # A version bump, release notes or a tooling change gets `duo (unit)` and the two `duo (open …)` jobs.
           APP=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
                 | grep -E '^(Sources|Widgets|UITests)/|^scripts/ui-test\.sh$|^\.github/workflows/pr\.yml$' | head -1)
           if [ -n "$APP" ]; then
@@ -267,7 +267,7 @@ jobs:
   #
   # The UI tests run on the Duo's front display, where the tabs and the main screen's bar buttons
   # sit in a trailing rail (`UITestCase.hasRail`). XCUITest can't unfold it, so FoldTests skip
-  # there and run in `duo (open)`, which unfolds it with duoctl. Tests that leave the app skip on
+  # there and run in `duo (open fold)`, which unfolds it with duoctl. Tests that leave the app skip on
   # the Duo: its simulator ignores the Home button.
   #
   # Building takes this image about 12 minutes, so `duo (build)` builds the UI tests once and the
@@ -277,7 +277,7 @@ jobs:
   #
   # The shards are most of the Duo lane's runner time, so they run only on a PR that touches
   # Sources/, Widgets/, UITests/, scripts/ui-test.sh or this file (`changes` sets `duo-ui`). Every
-  # other code PR still gets `duo (unit)` and `duo (open)`.
+  # other code PR still gets `duo (unit)` and the two `duo (open …)` jobs.
   duo-unit:
     name: duo (unit)
     needs: [changes, build-and-test]
@@ -367,7 +367,7 @@ jobs:
     needs: [changes, duo-build]
     if: ${{ !cancelled() && needs.duo-build.result == 'success' && needs.changes.outputs.duo-ui == 'true' }}
     runs-on: xcode-27
-    timeout-minutes: 30
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -445,13 +445,22 @@ jobs:
 
   # The Duo's open display, the only place FoldTests run: `scripts/ui-test.sh --duo-open` unfolds
   # the simulator with duoctl (pinned in scripts/duoctl), fails unless the inner screen took over,
-  # then runs FoldTests and SmokeTests there without BB_FOLD. duoctl drives private simulator
-  # interfaces, so a new Xcode on this image can break this job without a change of ours.
+  # then runs FoldTests and SmokeTests there without BB_FOLD, one class per shard so neither
+  # nears the cap. duoctl drives private simulator interfaces, so a new Xcode on this image can
+  # break this job without a change of ours.
   duo-open:
-    name: duo (open)
+    name: duo (open ${{ matrix.shard }})
     needs: [changes, duo-build]
     if: ${{ !cancelled() && needs.duo-build.result == 'success' }}
     runs-on: xcode-27
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: fold
+            class: FoldTests
+          - shard: smoke
+            class: SmokeTests
     # The boot alone takes 4 to 8 minutes here, and the tests about 20.
     timeout-minutes: 45
     steps:
@@ -472,12 +481,12 @@ jobs:
           mkdir -p build/DerivedData/Build
           tar -C build/DerivedData/Build -xzf build/duo-products.tgz
           export UI_TEST_XCTESTRUN=$(ls build/DerivedData/Build/Products/*.xctestrun | head -1)
-          scripts/ui-test.sh --duo-open -retry-tests-on-failure -test-iterations 2
+          scripts/ui-test.sh --duo-open -only-testing:BabyBuddyUITests/${{ matrix.class }} -retry-tests-on-failure -test-iterations 2
       - name: Upload the result bundle and a screenshot
         if: ${{ !cancelled() && steps.ui.outcome == 'failure' }}
         uses: actions/upload-artifact@v4
         with:
-          name: Duo-open
+          name: Duo-open-${{ matrix.shard }}
           path: |
             build/UITests-duo-open.xcresult
             build/duo-open.png
