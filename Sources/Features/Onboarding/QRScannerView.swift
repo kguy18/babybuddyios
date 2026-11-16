@@ -2,15 +2,16 @@ import SwiftUI
 import AVFoundation
 import UIKit
 
-/// Full-bleed camera QR scanner presented as a sheet during onboarding. Reports the first
+/// Full-screen camera QR scanner presented during onboarding. Reports the first
 /// decoded QR string via ``onScan`` and dismisses itself. The scanner keeps its own dark
 /// treatment regardless of the system appearance. Camera-permission states are handled inline
 /// so the user is never dropped onto a black screen with no explanation; a "manual entry"
-/// fallback is always visible.
+/// fallback is always available.
 struct QRScannerSheet: View {
     var onScan: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var status = AVCaptureDevice.authorizationStatus(for: .video)
     @State private var torchOn = false
     @State private var didSucceed = false
@@ -58,10 +59,38 @@ struct QRScannerSheet: View {
     // MARK: Live scanner
 
     private var scanner: some View {
-        ZStack {
-            cameraLayer
-            reticleBlock
-            chrome
+        FoldSplitView {
+            VStack(spacing: 0) {
+                scannerHeader
+                ScrollView {
+                    VStack(spacing: 24) {
+                        instructions
+                        manualEntryButton
+                    }
+                    .padding(24)
+                }
+            }
+        } main: { split in
+            ZStack {
+                cameraLayer
+                if split {
+                    reticle
+                } else {
+                    VStack(spacing: 0) {
+                        scannerHeader
+                        ScrollView {
+                            VStack(spacing: 24) {
+                                reticle
+                                instructions
+                                manualEntryButton
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 24)
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -74,22 +103,17 @@ struct QRScannerSheet: View {
         }
     }
 
-    /// Reticle + helper copy, centered as a block slightly above true center.
-    private var reticleBlock: some View {
-        VStack(spacing: 30) {
-            reticle
-            VStack(spacing: 6) {
-                Text("Point at the QR code")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
-                Text("Open User → Add a Device on your Baby Buddy site to show your login code.")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.6))
-                    .multilineTextAlignment(.center)
-            }
-            .padding(.horizontal, 40)
+    private var instructions: some View {
+        VStack(spacing: 6) {
+            Text("Point at the QR code")
+                .font(.headline)
+                .foregroundStyle(.white)
+            Text("Open User → Add a Device on your Baby Buddy site to show your login code.")
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.6))
         }
-        .offset(y: -24)
+        .multilineTextAlignment(.center)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private var reticle: some View {
@@ -113,6 +137,7 @@ struct QRScannerSheet: View {
             }
         }
         .frame(width: 224, height: 224)
+        .accessibilityHidden(true)
         .onAppear {
             withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
                 scanLineDown = true
@@ -120,64 +145,93 @@ struct QRScannerSheet: View {
         }
     }
 
-    // MARK: Chrome (top bar + manual-entry fallback)
+    // MARK: Scanner controls
 
-    private var chrome: some View {
-        VStack {
-            HStack {
-                circleButton(systemImage: "xmark") { dismiss() }
-                Spacer()
-                Text("Scan QR code")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-                Spacer()
-                circleButton(systemImage: "bolt.fill", isActive: torchOn) { torchOn.toggle() }
-            }
-            Spacer()
-            Button { dismiss() } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "keyboard")
-                    Text("Enter details manually")
-                }
-                .font(.system(size: 14, weight: .semibold))
+    private var scannerHeader: some View {
+        HStack(spacing: 12) {
+            circleButton(systemImage: "xmark", label: "Close scanner") { dismiss() }
+            Text("Scan QR code")
+                .font(.headline)
                 .foregroundStyle(.white)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 11)
-                .background(.white.opacity(0.12), in: Capsule())
-            }
-            .buttonStyle(.plain)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity)
+            circleButton(systemImage: "bolt.fill", label: "Flashlight", isActive: torchOn) { torchOn.toggle() }
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
+        .background(.black.opacity(0.6))
     }
 
-    private func circleButton(systemImage: String, isActive: Bool = false, action: @escaping () -> Void) -> some View {
+    private var manualEntryButton: some View {
+        Button { dismiss() } label: {
+            Label("Enter details manually", systemImage: "keyboard")
+                .font(.subheadline.weight(.semibold))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .frame(minHeight: 44)
+                .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: BBRadius.control))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func circleButton(systemImage: String, label: LocalizedStringKey, isActive: Bool = false,
+                              action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: 19, weight: .medium))
+                .font(.title3.weight(.medium))
                 .foregroundStyle(isActive ? Color.black : .white)
-                .frame(width: 38, height: 38)
+                .frame(width: 44, height: 44)
                 .background(isActive ? AnyShapeStyle(BBColor.brand) : AnyShapeStyle(.white.opacity(0.12)), in: Circle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityValue(systemImage == "bolt.fill" ? (isActive ? Text("On") : Text("Off")) : Text(""))
     }
 
     // MARK: Permission denied
 
     private var deniedView: some View {
-        ContentUnavailableView {
-            Label("Camera Access Needed", systemImage: "camera.fill")
-        } description: {
-            Text("Allow camera access in Settings to scan your Baby Buddy login QR code, or enter your server details manually.")
-        } actions: {
-            if let url = URL(string: UIApplication.openSettingsURLString) {
-                Button("Open Settings") { UIApplication.shared.open(url) }
-                    .buttonStyle(.borderedProminent)
-                    .tint(BBColor.primary)
+        FoldSplitView {
+            ScrollView {
+                deniedExplanation.padding(24)
             }
-            Button("Enter details manually") { dismiss() }
-                .foregroundStyle(BBColor.brandAccent)
+        } main: { split in
+            ScrollView {
+                VStack(spacing: 24) {
+                    if !split { deniedExplanation }
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        Button("Open Settings") { UIApplication.shared.open(url) }
+                            .buttonStyle(.bbPrimary)
+                    }
+                    manualEntryButton
+                }
+                .frame(maxWidth: .infinity)
+                .padding(24)
+            }
         }
+    }
+
+    private var deniedExplanation: some View {
+        VStack(spacing: 16) {
+            if !typeSize.isAccessibilitySize {
+                Image(systemName: "camera.fill")
+                    .font(.largeTitle)
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+            }
+            Text("Camera Access Needed")
+                .font(.title2.weight(.semibold))
+            Text("Allow camera access in Settings to scan your Baby Buddy login QR code, or enter your server details manually.")
+                .font(.body)
+                .foregroundStyle(.secondary)
+        }
+        .multilineTextAlignment(.center)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: Decode → success flash → dismiss

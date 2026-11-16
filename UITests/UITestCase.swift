@@ -188,6 +188,14 @@ class UITestCase: XCTestCase {
         XCTFail(message, file: file, line: line)
     }
 
+    /// Keeps a screenshot of the app in the result bundle, passing or not, named `name`.
+    func attachScreen(_ name: String) {
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = name
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+
     /// Waits for and taps.
     func tap(_ element: XCUIElement, timeout: TimeInterval = 10, file: StaticString = #filePath, line: UInt = #line) {
         expect(element, timeout: timeout, file: file, line: line).tap()
