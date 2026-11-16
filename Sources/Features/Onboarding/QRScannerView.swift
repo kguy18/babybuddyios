@@ -6,13 +6,18 @@ import UIKit
 /// decoded QR string via ``onScan`` and dismisses itself. The scanner keeps its own dark
 /// treatment regardless of the system appearance. Camera-permission states are handled inline
 /// so the user is never dropped onto a black screen with no explanation; a "manual entry"
-/// fallback is always visible.
+/// fallback is always available.
 struct QRScannerSheet: View {
     var onScan: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var typeSize
+    #if targetEnvironment(simulator)
+    // The simulator has no camera, and its permission request can remain pending.
+    @State private var status = AVAuthorizationStatus.denied
+    #else
     @State private var status = AVCaptureDevice.authorizationStatus(for: .video)
+    #endif
     @State private var torchOn = false
     @State private var didSucceed = false
     @State private var scanLineDown = false
@@ -47,10 +52,6 @@ struct QRScannerSheet: View {
                 Color.black.ignoresSafeArea()
                     .overlay { ProgressView().tint(.white) }
                     .task {
-                        guard AVCaptureDevice.default(for: .video) != nil else {
-                            status = .denied
-                            return
-                        }
                         let granted = await AVCaptureDevice.requestAccess(for: .video)
                         status = granted ? .authorized : .denied
                     }
