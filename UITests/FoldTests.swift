@@ -78,7 +78,7 @@ final class FoldTests: UITestCase {
     func testDeleteConfirmationStaysInThePaneAtTheLargestText() throws {
         try launchOpen(["BB_START_TAB": "timeline"], largestText: true)
         let row = elements("label BEGINSWITH 'Feeding, ' AND label CONTAINS 'tags: hungry, night'").firstMatch
-        reveal(row, in: expect(app.collectionViews.firstMatch))
+        reveal(row, in: expect(app.collectionViews.firstMatch), below: app.textFields["Search notes, tags, type…"])
         tap(row)
         tap(app.buttons["Delete"])
         let confirmation = expect(app.otherElements["Delete this feeding?"])

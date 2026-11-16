@@ -227,13 +227,31 @@ class UITestCase: XCTestCase {
     }
 
     /// Scrolls a sheet until a control is visible, with a bound so a missing control fails.
-    func reveal(_ element: XCUIElement, in scrollView: XCUIElement,
+    ///
+    /// Pass `header` for a view pinned over the top of the list, such as the Timeline pane's search
+    /// field on the open iPhone Duo. XCUITest calls a row under it hittable, and a tap on the row's
+    /// centre then lands on the header: one swipe once flung a feeding up under the search field,
+    /// and the tap focused the field instead of opening the feeding. With a header it scrolls in
+    /// short drags that stop dead, and stops while the row's top is still below the header.
+    func reveal(_ element: XCUIElement, in scrollView: XCUIElement, below header: XCUIElement? = nil,
                 file: StaticString = #filePath, line: UInt = #line) {
-        for _ in 0..<10 {
-            if element.exists && element.isHittable { return }
-            scrollView.swipeUp()
+        func clear() -> Bool {
+            guard element.exists && element.isHittable else { return false }
+            guard let header else { return true }
+            return element.frame.minY >= header.frame.maxY
         }
-        XCTAssertTrue(element.isHittable, "The control should be reachable by scrolling", file: file, line: line)
+        for _ in 0..<10 {
+            if clear() { return }
+            if header == nil {
+                scrollView.swipeUp()
+            } else {
+                scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85))
+                    .press(forDuration: 0.05,
+                           thenDragTo: scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55)),
+                           withVelocity: .slow, thenHoldForDuration: 0.2)
+            }
+        }
+        XCTAssertTrue(clear(), "The control should be reachable by scrolling", file: file, line: line)
     }
 
     /// Home ▸ "+" ▸ More… ▸ `kind`. Not the quick-add rows: those log in one tap once #78 lands.

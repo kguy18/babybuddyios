@@ -72,8 +72,7 @@ final class NotificationTests: UITestCase {
 
         // The medication switch is its own, and doesn't bring the threshold rows with it.
         let doses = app.switches["Medication reminders"]
-        tap(doses)
-        expectValue(doses, "1")
+        toggle(doses, to: "1")
         for row in rows { XCTAssertFalse(app.staticTexts[row].exists, "\(row) came back with doses") }
     }
 
