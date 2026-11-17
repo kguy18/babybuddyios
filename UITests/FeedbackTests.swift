@@ -157,6 +157,47 @@ final class FeedbackTests: UITestCase {
     }
 
 
+    func testFeedbackActionsPrecedeTheNoteAtLargestText() {
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out"], largestText: true)
+        openSendFeedback()
+        let request = expect(app.buttons.labeled("Request a Feature"))
+        let note = element(labeled: "Hi, I'm Kurtis.")
+        let requestFrame = request.frame
+        let noteFrame = note.frame
+        let requestIsVisible = request.isHittable && app.windows.firstMatch.frame.contains(requestFrame)
+        captureFeedbackInventory()
+        XCTAssertTrue(requestIsVisible, "Request a Feature should be visible before scrolling")
+        XCTAssertLessThan(requestFrame.maxY, noteFrame.minY, "Feedback actions should precede the long note")
+
+        tap(app.buttons.labeled("Get Help"))
+        let help = expect(app.navigationBars["Get Help"])
+        expect(app.buttons["Send Code"])
+        revealSheetBar("Get Help")
+        tap(help.buttons["Close"])
+        expectGone(help)
+        tap(app.buttons.labeled("Roadmap and Updates"))
+        let roadmap = expect(app.navigationBars["Roadmap and Updates"])
+        expect(app.webViews.staticTexts["Stub widget: home"], timeout: 30)
+        revealSheetBar("Roadmap and Updates")
+        tap(roadmap.buttons["Close"])
+        expectGone(roadmap)
+    }
+
+    func testCustomHeadersCanAddAndRemoveAtLargestText() {
+        launch(["BB_START_TAB": "settings"], largestText: true)
+        tap(app.buttons.labeled("Custom headers"))
+        expect(app.navigationBars["Custom headers"])
+        attachScreen("settings-custom-headers")
+        let add = expect(app.buttons["Add header"])
+        XCTAssertTrue(add.isHittable)
+        tap(add)
+        expect(app.textFields["Header name"])
+        expect(app.secureTextFields["Header value"])
+        tap(app.buttons["Remove header"])
+        expectGone(app.textFields["Header name"])
+        XCTAssertTrue(add.isHittable, "The empty state should return after removal")
+    }
+
     /// With the feedback server unreachable, Request a Feature offers email, and that leads to the
     /// mail flow (`DialogTests.testContactSupportAlertHasCancel` covers it from Get Help).
     func testFeatureRequestFallsBackToMail() {
@@ -174,6 +215,15 @@ final class FeedbackTests: UITestCase {
 
 /// Ways into the feedback sheets that FeedbackTests and FeedbackAccountTests share.
 extension UITestCase {
+    func captureFeedbackInventory() {
+        attachScreen("settings-send-feedback")
+        // Scroll the note pane on the open display and the single column on a folded phone.
+        let scroll = app.scrollViews.containing(.staticText, identifier: "I do read everything and try to reply to everyone.").firstMatch
+        expect(scroll).swipeUp()
+        attachScreen("settings-send-feedback-scrolled")
+        scroll.swipeDown()
+    }
+
     func openGetHelpSignedOut() {
         launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out"])
         openSendFeedback()

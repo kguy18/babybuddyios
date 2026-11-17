@@ -475,6 +475,26 @@ struct CustomHeadersView: View {
     private var saved: [CustomHeader] { session.config?.headers ?? [] }
 
     var body: some View {
+        FoldSplitView { Color.clear } main: { _ in
+            headerForm
+        }
+        .background(BBColor.surface.ignoresSafeArea())
+        .navigationTitle("Custom headers")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                if isSaving {
+                    ProgressView()
+                } else {
+                    Button("Save") { save() }
+                        .disabled(rows.map(\.header) == saved)
+                }
+            }
+        }
+        .onAppear { rows = saved.map(HeaderRow.init) }
+    }
+
+    private var headerForm: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
                 BBCard(cornerRadius: BBRadius.tile, padding: 0) {
@@ -496,20 +516,6 @@ struct CustomHeadersView: View {
             .padding(.top, 8)
             .padding(.bottom, 28)
         }
-        .background(BBColor.surface.ignoresSafeArea())
-        .navigationTitle("Custom headers")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                if isSaving {
-                    ProgressView()
-                } else {
-                    Button("Save") { save() }
-                        .disabled(rows.map(\.header) == saved)
-                }
-            }
-        }
-        .onAppear { rows = saved.map(HeaderRow.init) }
     }
 
     private func save() {
