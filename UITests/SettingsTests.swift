@@ -134,8 +134,7 @@ final class SettingsTests: UITestCase {
         let undo = app.switches["Undo after logging"]
         expect(undo)
         XCTAssertEqual(undo.value as? String, "1")
-        undo.tap()
-        XCTAssertEqual(undo.value as? String, "0")
+        toggle(undo, to: "0")
 
         tap(tab("Home"))
         openEditor("Diaper")
