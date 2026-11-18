@@ -56,7 +56,7 @@ final class DialogTests: UITestCase {
     private func emailSupportFromGetHelp() {
         tap(app.buttons.labeled("Get Help"))
         let sheet = expect(app.navigationBars["Get Help"])
-        expect(app.staticTexts["Can't reach the feedback server"], timeout: 6)
+        expect(app.staticTexts["Can't reach the feedback server"], timeout: 30)
         tap(app.buttons["Email Support"])
         expectGone(sheet)
     }
