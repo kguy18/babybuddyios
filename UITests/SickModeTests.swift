@@ -137,22 +137,86 @@ final class SickModeTests: UITestCase {
         expectSickHome()
     }
 
+    func testSickModeChoicesAtLargestText() {
+        launch(["BB_START_TAB": "settings", "BB_TEMP_UNIT": "f"], largestText: true)
+        tap(app.buttons.labeled("Fever line"))
+        expect(app.navigationBars["Fever line"])
+        let fever = expect(app.buttons["99.5°F"])
+        attachSickSettingsScreen("settings-fever-line")
+        let feverHeight = fever.frame.height
+        tap(fever)
+        XCTAssertTrue(fever.isSelected)
+        back(from: "Fever line")
+
+        tap(app.buttons.labeled("Temperature checks"))
+        expect(app.navigationBars["Temperature checks"])
+        let off = expect(app.buttons["Off"])
+        attachSickSettingsScreen("settings-temperature-checks")
+        XCTAssertGreaterThan(feverHeight, 55)
+        XCTAssertGreaterThan(off.frame.height, 55)
+        tap(off)
+        XCTAssertTrue(off.isSelected)
+    }
+
+    func testMedicineColorsWithoutMedicinesAtLargestText() {
+        launch(["BB_START_TAB": "settings"], largestText: true)
+        tap(app.buttons["Medicine colors"])
+        expect(app.navigationBars["Medicine colors"])
+        let next = expect(element(labeled: "Next new medicine"))
+        attachSickSettingsScreen("settings-medicine-colors")
+        XCTAssertTrue(next.label.contains("Red"))
+        expect(app.buttons["Reset to server colors"])
+    }
+
     func testChangingAColorWarnsFirst() {
-        launch(["BB_SEED_SICK": "1", "BB_START_TAB": "settings"])
+        checkChangingAColor(largestText: false)
+    }
+
+    func testChangingAColorWarnsFirstAtLargestText() {
+        checkChangingAColor(largestText: true)
+    }
+
+    private func checkChangingAColor(largestText: Bool) {
+        launch(["BB_SEED_SICK": "1", "BB_START_TAB": "settings"], largestText: largestText)
         allowNotificationsIfAsked()
         tap(app.buttons["Medicine colors"])
         expect(app.navigationBars["Medicine colors"])
         let ibuprofen = app.buttons.labeled("Ibuprofen")
         expect(ibuprofen)
         XCTAssertTrue(ibuprofen.label.contains("Purple · from your server"), ibuprofen.label)
+        if largestText { attachSickSettingsScreen("settings-medicine-colors-sick") }
 
         tap(ibuprofen)
-        tap(app.buttons["Pink"])
+        let pink = expect(app.buttons["Pink"])
+        if largestText {
+            reveal(pink, in: app.scrollViews.firstMatch)
+            attachSickSettingsScreen("settings-medicine-color-picker")
+        }
+        tap(pink)
         expect(app.staticTexts["Only on this phone"])
-        tap(app.buttons["Cancel"])
+        let cancel = expect(app.buttons["Cancel"])
+        let use = expect(app.buttons["Use pink"])
+        if largestText {
+            attachSickSettingsScreen("alert-medicine-color-change")
+            let change = expect(element(labeled: "Ibuprofen: Purple to Pink"))
+            XCTAssertTrue(change.isHittable)
+            let explanation = app.staticTexts.labeled("Your server gave ibuprofen purple")
+            reveal(explanation, in: app.alerts["Color changes only on this phone"].scrollViews.firstMatch)
+            XCTAssertGreaterThan(use.frame.minY, cancel.frame.maxY)
+            XCTAssertTrue(use.isHittable)
+        }
+        tap(cancel)
         expectGone(app.staticTexts["Only on this phone"])
         XCTAssertTrue(app.buttons.labeled("Ibuprofen").label.contains("Purple · from your server"))
         XCTAssertTrue(app.buttons["Purple"].isSelected, "Cancel changed the color")
+
+        if largestText {
+            tap(pink)
+            tap(use)
+            expectGone(app.staticTexts["Only on this phone"])
+            XCTAssertTrue(app.buttons.labeled("Ibuprofen").label.contains("Pink · this phone only"))
+            XCTAssertTrue(pink.isSelected)
+        }
     }
 
     func testCelsiusPhone() {
@@ -170,5 +234,20 @@ final class SickModeTests: UITestCase {
         expectGone(bar)
         expect(element(labeled: "Temperature, 38.5°C"))
         expect(element(labeled: "38.5°C is over the fever line"))
+    }
+}
+
+extension UITestCase {
+    /// On an open Duo, the app screenshot can read the dark front display.
+    func attachSickSettingsScreen(_ name: String) {
+        guard app.windows.firstMatch.frame.width >= 900, XCUIScreen.screens.count > 1,
+              let innerScreen = XCUIScreen.screens.last else {
+            attachScreen(name)
+            return
+        }
+        let shot = XCTAttachment(screenshot: innerScreen.screenshot())
+        shot.name = name
+        shot.lifetime = .keepAlways
+        add(shot)
     }
 }

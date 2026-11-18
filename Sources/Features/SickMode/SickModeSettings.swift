@@ -50,6 +50,13 @@ private struct ChoiceList<Value: Hashable>: View {
     let footer: String
 
     var body: some View {
+        FoldSplitView { Color.clear } main: { _ in choices }
+            .background(BBColor.surface)
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var choices: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
                 BBCard(cornerRadius: BBRadius.tile, padding: 0) {
@@ -58,12 +65,13 @@ private struct ChoiceList<Value: Hashable>: View {
                             if index > 0 { Rectangle().fill(BBColor.divider).frame(height: 0.5) }
                             Button { selection = option } label: {
                                 HStack {
-                                    Text(label(option)).font(.system(size: 16))
+                                    Text(label(option)).font(.body)
                                     Spacer()
                                     if option == selection {
                                         Image(systemName: "checkmark")
-                                            .font(.system(size: 15, weight: .semibold))
+                                            .font(.body.weight(.semibold))
                                             .foregroundStyle(BBColor.brandAccent)
+                                            .accessibilityHidden(true)
                                     }
                                 }
                                 .padding(.vertical, 13)
@@ -81,9 +89,6 @@ private struct ChoiceList<Value: Hashable>: View {
             }
             .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 28)
         }
-        .background(BBColor.surface)
-        .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -92,6 +97,7 @@ private struct ChoiceList<Value: Hashable>: View {
 /// Settings ▸ Sick mode ▸ Medicine colors (board j5): each medicine's color and where it came from,
 /// with swatches to change it on this phone. A pick other than the server's color asks first.
 struct MedicineColorsView: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var store = MedicineColorStore.shared
     @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "medication" },
            sort: \LocalEntity.timestamp, order: .reverse)
@@ -107,6 +113,19 @@ struct MedicineColorsView: View {
     }
 
     var body: some View {
+        FoldSplitView { Color.clear } main: { _ in colorList }
+            .background(BBColor.surface)
+            .navigationTitle("Medicine colors")
+            .navigationBarTitleDisplayMode(.inline)
+            .fullScreenCover(item: $pending) { pick in
+                MedicineColorWarning(name: pick.name, server: store.serverColor(pick.name), picked: pick.color,
+                                     onCancel: { present(nil) },
+                                     onUse: { store.set(pick.color, for: pick.name); present(nil) })
+                    .presentationBackground(.clear)
+            }
+    }
+
+    private var colorList: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 8) {
@@ -130,15 +149,6 @@ struct MedicineColorsView: View {
                     .buttonStyle(.bbTinted)
             }
             .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 28)
-        }
-        .background(BBColor.surface)
-        .navigationTitle("Medicine colors")
-        .navigationBarTitleDisplayMode(.inline)
-        .fullScreenCover(item: $pending) { pick in
-            MedicineColorWarning(name: pick.name, server: store.serverColor(pick.name), picked: pick.color,
-                                 onCancel: { present(nil) },
-                                 onUse: { store.set(pick.color, for: pick.name); present(nil) })
-                .presentationBackground(.clear)
         }
     }
 
@@ -166,8 +176,11 @@ struct MedicineColorsView: View {
             SettingsRow(symbol: "pills.fill", tint: shown(name).color, title: name,
                         subtitle: String(localized: "\(color.name) · \(store.isOverridden(name) ? String(localized: "this phone only") : String(localized: "from your server"))")) {
                 Image(systemName: expanded == name ? "chevron.up" : "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.footnote.weight(.semibold))
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                    .frame(width: 20)
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
         }
         .buttonStyle(.plain)
@@ -176,7 +189,8 @@ struct MedicineColorsView: View {
 
     private func swatches(_ name: String) -> some View {
         let selected = shown(name)
-        return HStack(spacing: 0) {
+        let column = GridItem(.adaptive(minimum: 44, maximum: 44), spacing: 4)
+        return LazyVGrid(columns: [column], alignment: .leading, spacing: 4) {
             ForEach(MedicineColor.allCases) { color in
                 Button { pick(color, for: name) } label: {
                     ZStack {
@@ -184,7 +198,8 @@ struct MedicineColorsView: View {
                         Circle().fill(color.color).frame(width: 32, height: 32)
                         if color == selected {
                             Image(systemName: "checkmark")
-                                .font(.system(size: 13, weight: .bold))
+                                .font(.footnote.weight(.bold))
+                                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                                 .foregroundStyle(.white)
                         }
                     }
@@ -194,7 +209,6 @@ struct MedicineColorsView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(color.name)
                 .accessibilityAddTraits(color == selected ? .isSelected : [])
-                if color != MedicineColor.allCases.last { Spacer(minLength: 0) }
             }
         }
         .padding(.bottom, 14)
@@ -202,13 +216,19 @@ struct MedicineColorsView: View {
 
     /// The row that says what the next medicine to appear will get.
     private var nextRow: some View {
-        HStack(spacing: 12) {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+            : AnyLayout(HStackLayout(spacing: 8))
+        return HStack(spacing: 12) {
             RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .strokeBorder(store.next.color, style: StrokeStyle(lineWidth: 2, dash: [4, 3]))
                 .frame(width: 30, height: 30)
-            Text("Next new medicine").font(.system(size: 16)).foregroundStyle(.secondary)
-            Spacer(minLength: 8)
-            Text(store.next.name).font(.subheadline).foregroundStyle(.secondary)
+            layout {
+                Text("Next new medicine").font(.callout)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(store.next.name).font(.subheadline)
+            }
+            .foregroundStyle(.secondary)
         }
         .padding(.vertical, 11)
         .accessibilityElement(children: .combine)
@@ -232,8 +252,7 @@ struct MedicineColorsView: View {
     }
 }
 
-/// Board j6: a color other than the server's changes on this phone only. A centred card in a clear
-/// cover, like ``SignOutDialog``, because `confirmationDialog` loses its Cancel on iOS 26.
+/// Warns that a color override applies only on this phone.
 struct MedicineColorWarning: View {
     let name: String
     let server: MedicineColor
@@ -242,66 +261,75 @@ struct MedicineColorWarning: View {
     let onUse: () -> Void
 
     @Environment(\.colorScheme) private var scheme
-    @State private var shown = false
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        ZStack {
-            Color.black.opacity(scheme == .dark ? 0.55 : 0.42)
-                .ignoresSafeArea()
-                .onTapGesture { onCancel() }
-            card
-                .padding(.horizontal, 30)
-                .scaleEffect(shown ? 1 : 0.94)
-                .opacity(shown ? 1 : 0)
-        }
-        .onAppear { withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) { shown = true } }
-    }
-
-    private var card: some View {
-        BBCard(padding: 20) {
+        SettingsDialogCard(label: String(localized: "Color changes only on this phone"), onCancel: onCancel) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 13) {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(picked.color.opacity(scheme == .dark ? 0.22 : 0.15))
-                        .frame(width: 46, height: 46)
-                        .overlay {
-                            Image(systemName: "paintbrush.pointed.fill")
-                                .font(.system(size: 21, weight: .semibold))
-                                .foregroundStyle(picked.color)
-                        }
-                    Text("Only on this phone").font(.system(size: 21, weight: .semibold))
+                    if !typeSize.isAccessibilitySize {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(picked.color.opacity(scheme == .dark ? 0.22 : 0.15))
+                            .frame(width: 46, height: 46)
+                            .overlay {
+                                Image(systemName: "paintbrush.pointed.fill")
+                                    .font(.title3.weight(.semibold))
+                                    .foregroundStyle(picked.color)
+                                    .accessibilityHidden(true)
+                            }
+                    }
+                    Text("Only on this phone").font(.title3.weight(.semibold))
                 }
-                HStack(spacing: 10) {
-                    Circle().fill(server.color).frame(width: 14, height: 14)
-                    Text(name).lineLimit(1)
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.tertiary)
-                    Circle().fill(picked.color).frame(width: 14, height: 14)
-                    Text(picked.name)
-                    Spacer(minLength: 0)
-                }
-                .font(.system(size: 15, weight: .medium))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 11)
-                .background(BBColor.nested, in: RoundedRectangle(cornerRadius: BBRadius.control, style: .continuous))
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(name): \(server.name) to \(picked.name)")
+                colorChange
                 Text("Your server gave \(name.lowercased()) \(server.name.lowercased()), and other phones keep showing it that way. To match, change it on each phone.")
-                    .font(.system(size: 15))
+                    .font(.body)
                     .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: 10) {
-                    Button("Cancel", action: onCancel).buttonStyle(.bbNeutral)
-                    Button("Use \(picked.name.lowercased())", action: onUse).buttonStyle(.bbPrimary)
+            }
+        } actions: {
+            Button("Cancel", action: onCancel).buttonStyle(.bbNeutral)
+            Button("Use \(picked.name.lowercased())", action: onUse).buttonStyle(.bbPrimary)
+        }
+    }
+
+    private var colorChange: some View {
+        Group {
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(name)
+                    HStack(spacing: 8) {
+                        colorDot(server)
+                        colorArrow
+                        colorDot(picked)
+                        Text(picked.name)
+                    }
                 }
-                .padding(.top, 2)
+            } else {
+                HStack(spacing: 10) {
+                    colorDot(server)
+                    Text(name)
+                    colorArrow
+                    colorDot(picked)
+                    Text(picked.name)
+                }
             }
         }
-        .shadow(color: .black.opacity(scheme == .dark ? 0.5 : 0.18), radius: 24, y: 12)
-        // `.contain` first: a label on a plain container is stamped onto every child.
-        .accessibilityElement(children: .contain)
-        .accessibilityAddTraits(.isModal)
-        .accessibilityLabel("Color changes only on this phone")
+        .font(.subheadline.weight(.medium))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 11)
+        .background(BBColor.nested, in: RoundedRectangle(cornerRadius: BBRadius.control, style: .continuous))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(name): \(server.name) to \(picked.name)")
+    }
+
+    private var colorArrow: some View {
+        Image(systemName: "arrow.right")
+            .font(.footnote.weight(.semibold))
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+            .foregroundStyle(.tertiary)
+    }
+
+    private func colorDot(_ color: MedicineColor) -> some View {
+        Circle().fill(color.color).frame(width: 14, height: 14)
     }
 }
