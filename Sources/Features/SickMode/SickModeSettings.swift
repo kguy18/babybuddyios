@@ -174,10 +174,11 @@ struct MedicineColorsView: View {
             withAnimation(.snappy(duration: 0.2)) { expanded = expanded == name ? nil : name }
         } label: {
             SettingsRow(symbol: "pills.fill", tint: shown(name).color, title: name,
-                        subtitle: String(localized: "\(color.name) · \(store.isOverridden(name) ? String(localized: "this phone only") : String(localized: "from your server"))"),
-                        trailingBeside: true) {
+                        subtitle: String(localized: "\(color.name) · \(store.isOverridden(name) ? String(localized: "this phone only") : String(localized: "from your server"))")) {
                 Image(systemName: expanded == name ? "chevron.up" : "chevron.right")
                     .font(.footnote.weight(.semibold))
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                    .frame(width: 20)
                     .foregroundStyle(.tertiary)
                     .accessibilityHidden(true)
             }
