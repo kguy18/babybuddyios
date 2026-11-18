@@ -55,7 +55,17 @@ final class FeedbackTests: UITestCase {
         attachScreen("feedback-get-help-offline")
         reveal(email, in: scroll)
         tap(email)
-        tap(app.alerts["Contact Support"].buttons["Cancel"])
+        expectGone(app.navigationBars["Get Help"])
+        let alert = expect(app.alerts["Contact Support"])
+        let cancel = alert.buttons["Cancel"]
+        // At the largest text, iOS scrolls the alert's buttons. Tapping Cancel offscreen
+        // makes XCTest treat the alert as an interruption and try the same tap again.
+        if !cancel.isHittable {
+            let actions = expect(alert.scrollViews.containing(.button, identifier: "Cancel").firstMatch)
+            reveal(cancel, in: actions)
+        }
+        tap(cancel)
+        expectGone(alert)
     }
 
     /// Signed in, Get Help opens straight to the chat: no sign-in, no Sign In. A device showed a
