@@ -267,16 +267,17 @@ struct MedicineColorWarning: View {
         SettingsDialogCard(label: String(localized: "Color changes only on this phone"), onCancel: onCancel) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 13) {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(picked.color.opacity(scheme == .dark ? 0.22 : 0.15))
-                        .frame(width: 46, height: 46)
-                        .overlay {
-                            Image(systemName: "paintbrush.pointed.fill")
-                                .font(.title3.weight(.semibold))
-                                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                                .foregroundStyle(picked.color)
-                                .accessibilityHidden(true)
-                        }
+                    if !typeSize.isAccessibilitySize {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(picked.color.opacity(scheme == .dark ? 0.22 : 0.15))
+                            .frame(width: 46, height: 46)
+                            .overlay {
+                                Image(systemName: "paintbrush.pointed.fill")
+                                    .font(.title3.weight(.semibold))
+                                    .foregroundStyle(picked.color)
+                                    .accessibilityHidden(true)
+                            }
+                    }
                     Text("Only on this phone").font(.title3.weight(.semibold))
                 }
                 colorChange
@@ -291,15 +292,26 @@ struct MedicineColorWarning: View {
     }
 
     private var colorChange: some View {
-        let layout = typeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
-            : AnyLayout(HStackLayout(spacing: 10))
-        return layout {
-            colorLabel(server, name: name)
-            Image(systemName: typeSize.isAccessibilitySize ? "arrow.down" : "arrow.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tertiary)
-            colorLabel(picked, name: picked.name)
+        Group {
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(name)
+                    HStack(spacing: 8) {
+                        colorDot(server)
+                        colorArrow
+                        colorDot(picked)
+                        Text(picked.name)
+                    }
+                }
+            } else {
+                HStack(spacing: 10) {
+                    colorDot(server)
+                    Text(name)
+                    colorArrow
+                    colorDot(picked)
+                    Text(picked.name)
+                }
+            }
         }
         .font(.subheadline.weight(.medium))
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -310,10 +322,14 @@ struct MedicineColorWarning: View {
         .accessibilityLabel("\(name): \(server.name) to \(picked.name)")
     }
 
-    private func colorLabel(_ color: MedicineColor, name: String) -> some View {
-        HStack(spacing: 8) {
-            Circle().fill(color.color).frame(width: 14, height: 14)
-            Text(name)
-        }
+    private var colorArrow: some View {
+        Image(systemName: "arrow.right")
+            .font(.footnote.weight(.semibold))
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+            .foregroundStyle(.tertiary)
+    }
+
+    private func colorDot(_ color: MedicineColor) -> some View {
+        Circle().fill(color.color).frame(width: 14, height: 14)
     }
 }

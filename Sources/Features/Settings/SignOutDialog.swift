@@ -42,8 +42,10 @@ struct SignOutDialog: View {
     /// The server being left, drawn as the row Settings already shows it in.
     private var serverRow: some View {
         HStack(spacing: 10) {
-            glyphTile(size: 26, radius: 8, symbol: "cloud", font: .footnote,
-                      tint: BBColor.brand, color: BBColor.brandAccent)
+            if !typeSize.isAccessibilitySize {
+                glyphTile(size: 26, radius: 8, symbol: "cloud", font: .footnote,
+                          tint: BBColor.brand, color: BBColor.brandAccent)
+            }
             Circle().fill(BBColor.success).frame(width: 7, height: 7)
             Text(host).font(.subheadline.weight(.medium))
                 .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
