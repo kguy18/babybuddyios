@@ -84,6 +84,34 @@ final class FoldTests: UITestCase {
         expectGone(name)
     }
 
+    func testSickModeSettingsAndDialogsStayBesideTheFold() throws {
+        try launchOpen(["BB_START_TAB": "settings", "BB_SEED_SICK": "1", "BB_TEMP_UNIT": "f"])
+        allowNotificationsIfAsked()
+        let middle = app.windows.firstMatch.frame.midX
+
+        tap(app.buttons.labeled("Fever line"))
+        XCTAssertGreaterThan(expect(app.buttons["99.5°F"]).frame.minX, middle)
+        back(from: "Fever line")
+
+        tap(app.buttons.labeled("Temperature checks"))
+        XCTAssertGreaterThan(expect(app.buttons["Off"]).frame.minX, middle)
+        back(from: "Temperature checks")
+
+        tap(app.buttons["Medicine colors"])
+        tap(app.buttons.labeled("Ibuprofen"))
+        let pink = expect(app.buttons["Pink"])
+        XCTAssertGreaterThan(pink.frame.minX, middle)
+        tap(pink)
+        let cancel = expect(app.buttons["Cancel"])
+        XCTAssertGreaterThan(cancel.frame.minX, middle)
+        tap(cancel)
+        back(from: "Medicine colors")
+
+        tap(app.buttons["Sign out"])
+        let signOut = expect(app.alerts.labeled("Sign out of "))
+        XCTAssertGreaterThan(expect(signOut.buttons["Cancel"]).frame.minX, middle)
+    }
+
     /// The tapped record opens right of the list, ready to edit, with Save, Repeat and Delete in the
     /// toolbar. Each of them closes the pane again.
     func testTimelineOpensARecordBesideTheList() throws {

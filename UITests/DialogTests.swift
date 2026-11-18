@@ -86,6 +86,23 @@ final class DialogTests: UITestCase {
         expect(app.staticTexts["Connect to your self-hosted server"])
     }
 
+    func testSignOutCardAtLargestText() {
+        launch(["BB_START_TAB": "settings"], largestText: true)
+        openSignOut()
+        expect(signOutCard.staticTexts["Sign out?"])
+        let cancel = expect(signOutCard.buttons["Cancel"])
+        let confirm = expect(signOutCard.buttons["Sign out"])
+        attachSickSettingsScreen("settings-sign-out-dialog")
+        XCTAssertGreaterThan(confirm.frame.minY, cancel.frame.maxY)
+        XCTAssertTrue(confirm.isHittable)
+        tap(cancel)
+        expectGone(signOutCard)
+
+        openSignOut()
+        tap(signOutCard.buttons["Sign out"])
+        expect(app.staticTexts["Connect to your self-hosted server"])
+    }
+
     // Regression: #66 — the login URL shipped prefilled (#1) and App Review rejected it.
     func testOnboardingStartsEmpty() {
         launch(["BB_START_TAB": "settings"])

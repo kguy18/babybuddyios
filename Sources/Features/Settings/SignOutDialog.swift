@@ -14,64 +14,40 @@ struct SignOutDialog: View {
     let onSignOut: () -> Void
 
     @Environment(\.colorScheme) private var scheme
-    /// Drives the entrance. The cover it rides in is presented without its own transition (see
-    /// `SettingsView.setSignOutDialog`), so the card animates itself in like an alert would.
-    @State private var shown = false
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        ZStack {
-            Color.black.opacity(scheme == .dark ? 0.55 : 0.42)
-                .ignoresSafeArea()
-                .onTapGesture { onCancel() } // tapping out is the non-destructive way back
-            card
-                .padding(.horizontal, 30)
-                .scaleEffect(shown ? 1 : 0.94)
-                .opacity(shown ? 1 : 0)
-        }
-        .onAppear { withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) { shown = true } }
-    }
-
-    private var card: some View {
-        BBCard(padding: 20) {
+        SettingsDialogCard(label: String(localized: "Sign out of \(host)?"), onCancel: onCancel) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 13) {
                     glyphTile(size: 46, radius: 14, symbol: "rectangle.portrait.and.arrow.right",
-                              glyph: 21, tint: BBColor.danger, color: BBColor.danger)
-                    Text("Sign out?").font(.system(size: 21, weight: .semibold))
+                              font: .title3, tint: BBColor.danger, color: BBColor.danger)
+                    Text("Sign out?").font(.title3.weight(.semibold))
                 }
                 serverRow
                 if pendingCount > 0 { pendingRow }
                 Text("The activities cached on this device will be deleted. Nothing on your server changes — signing back in downloads them again.")
-                    .font(.system(size: 15))
+                    .font(.body)
                     .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: 10) {
-                    Button("Cancel") { onCancel() }
-                        .buttonStyle(BBFilledButton(background: BBColor.controlFill, foreground: .primary))
-                    Button("Sign out") { onSignOut() }
-                        // Dark-on-tint: `danger` dims to a pale red in dark mode, where white fails.
-                        .buttonStyle(BBFilledButton(background: BBColor.danger,
-                                                    foreground: .adaptive(light: "FFFFFF", dark: "0C0E12")))
-                }
-                .padding(.top, 2)
             }
+        } actions: {
+            Button("Cancel", action: onCancel).buttonStyle(.bbNeutral)
+            Button("Sign out", action: onSignOut)
+                // The pale red in dark mode needs dark text for contrast.
+                .buttonStyle(BBFilledButton(background: BBColor.danger,
+                                            foreground: .adaptive(light: "FFFFFF", dark: "0C0E12")))
         }
-        .shadow(color: .black.opacity(scheme == .dark ? 0.5 : 0.18), radius: 24, y: 12)
-        // `.contain` first: a label on a plain container is stamped onto every child, which read
-        // both buttons to VoiceOver as "Sign out of <host>?" — Cancel indistinguishable from Sign out.
-        .accessibilityElement(children: .contain)
-        .accessibilityAddTraits(.isModal)
-        .accessibilityLabel("Sign out of \(host)?")
     }
 
     /// The server being left, drawn as the row Settings already shows it in.
     private var serverRow: some View {
         HStack(spacing: 10) {
-            glyphTile(size: 26, radius: 8, symbol: "cloud", glyph: 13,
+            glyphTile(size: 26, radius: 8, symbol: "cloud", font: .footnote,
                       tint: BBColor.brand, color: BBColor.brandAccent)
             Circle().fill(BBColor.success).frame(width: 7, height: 7)
-            Text(host).font(.system(size: 15, weight: .medium))
-                .lineLimit(1).truncationMode(.middle)
+            Text(host).font(.subheadline.weight(.medium))
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                .truncationMode(.middle)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 12)
@@ -83,10 +59,10 @@ struct SignOutDialog: View {
     /// get the amber pending-changes vocabulary rather than a line of body copy.
     private var pendingRow: some View {
         HStack(alignment: .top, spacing: 10) {
-            glyphTile(size: 26, radius: 8, symbol: "icloud.and.arrow.up", glyph: 13,
+            glyphTile(size: 26, radius: 8, symbol: "icloud.and.arrow.up", font: .footnote,
                       tint: BBColor.warning, color: BBColor.warning, opacity: 0.35)
             Text(pendingMessage)
-                .font(.system(size: 14))
+                .font(.subheadline)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
@@ -101,15 +77,68 @@ struct SignOutDialog: View {
     }
 
     /// The tinted glyph tile used across Settings, at the two sizes this dialog needs.
-    private func glyphTile(size: CGFloat, radius: CGFloat, symbol: String, glyph: CGFloat,
+    private func glyphTile(size: CGFloat, radius: CGFloat, symbol: String, font: Font,
                            tint: Color, color: Color, opacity: Double? = nil) -> some View {
         RoundedRectangle(cornerRadius: radius, style: .continuous)
             .fill(tint.opacity(opacity ?? (scheme == .dark ? 0.22 : 0.15)))
             .frame(width: size, height: size)
             .overlay {
                 Image(systemName: symbol)
-                    .font(.system(size: glyph, weight: .semibold))
+                    .font(font.weight(.semibold))
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     .foregroundStyle(color)
+                    .accessibilityHidden(true)
             }
+    }
+}
+
+/// A modal settings card that keeps its actions visible while long copy scrolls above them.
+struct SettingsDialogCard<Copy: View, Actions: View>: View {
+    let label: String
+    let onCancel: () -> Void
+    @ViewBuilder var copy: () -> Copy
+    @ViewBuilder var actions: () -> Actions
+
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var shown = false
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(scheme == .dark ? 0.55 : 0.42)
+                .ignoresSafeArea()
+                .onTapGesture(perform: onCancel)
+                .accessibilityHidden(true)
+            FoldSplitView { Color.clear.allowsHitTesting(false) } main: { _ in
+                card
+                    .frame(maxWidth: 400)
+                    .padding(16)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .scaleEffect(shown ? 1 : 0.94)
+                    .opacity(shown ? 1 : 0)
+            }
+        }
+        .onAppear { withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) { shown = true } }
+    }
+
+    private var card: some View {
+        let actionLayout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 10))
+            : AnyLayout(HStackLayout(spacing: 10))
+        return BBCard(padding: 20) {
+            VStack(alignment: .leading, spacing: 16) {
+                ViewThatFits(in: .vertical) {
+                    copy().fixedSize(horizontal: false, vertical: true)
+                    ScrollView { copy().frame(maxWidth: .infinity, alignment: .leading) }
+                        .scrollBounceBehavior(.basedOnSize)
+                        .scrollIndicatorsFlash(onAppear: true)
+                }
+                actionLayout { actions() }
+            }
+        }
+        .shadow(color: .black.opacity(scheme == .dark ? 0.5 : 0.18), radius: 24, y: 12)
+        .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isModal)
+        .accessibilityLabel(label)
     }
 }
