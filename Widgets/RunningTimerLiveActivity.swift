@@ -69,6 +69,14 @@ struct RunningTimerLiveActivity: Widget {
         let stop = stopControl(context, font: .footnote.weight(.medium))
             .frame(minWidth: 92)
             .fixedSize(horizontal: true, vertical: false)
+        let glyph = RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(tint.opacity(0.2))
+            .frame(width: 38, height: 38)
+            .overlay {
+                Image(systemName: context.state.activity?.systemImage ?? "timer")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(tint)
+            }
 
         HStack(spacing: 0) {
             Rectangle()
@@ -77,14 +85,7 @@ struct RunningTimerLiveActivity: Widget {
 
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 11) {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(tint.opacity(0.2))
-                        .frame(width: 38, height: 38)
-                        .overlay {
-                            Image(systemName: context.state.activity?.systemImage ?? "timer")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(tint)
-                        }
+                    glyph
                     VStack(alignment: .leading, spacing: 2) {
                         timerTitle(context.state.title).fixedSize()
                         elapsed(context.state.start)
@@ -96,6 +97,7 @@ struct RunningTimerLiveActivity: Widget {
                 VStack(alignment: .leading, spacing: 2) {
                     timerTitle(context.state.title).minimumScaleFactor(0.6)
                     HStack(spacing: 11) {
+                        glyph
                         elapsed(context.state.start)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         stop
@@ -118,7 +120,7 @@ struct RunningTimerLiveActivity: Widget {
 
     private func elapsed(_ start: Date) -> some View {
         Text(start, style: .timer)
-            .font(.system(.title, design: .rounded).weight(.medium))
+            .font(.system(.largeTitle, design: .rounded).weight(.medium))
             .monospacedDigit()
             .lineLimit(1)
             .minimumScaleFactor(0.6)
