@@ -183,9 +183,9 @@ jobs:
           - shard: settings
             classes: SettingsTests FeedbackAccountTests FoldTests
           - shard: forecast
-            classes: ActivityForecastUITests LiveActivityTests PortugueseLocalizationTests
+            classes: ActivityForecastUITests LiveActivityTests PortugueseLocalizationTests DashboardTests
           - shard: feedback
-            classes: FeedbackTests SickModeTests DashboardTests
+            classes: FeedbackTests SickModeTests
           - shard: timeline
             classes: DialogTests TimelineTests SyncTests
     steps:
