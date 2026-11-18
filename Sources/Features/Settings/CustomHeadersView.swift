@@ -47,6 +47,13 @@ struct HeaderRow: Identifiable, Equatable {
 struct CustomHeaderFields: View {
     @Binding var rows: [HeaderRow]
     var addTitle = String(localized: "Add header")
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private var valueLayout: AnyLayout {
+        typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 8))
+    }
 
     /// Return moves through the fields in order (Client ID, then Client Secret) and closes the
     /// keyboard after the last one.
@@ -111,7 +118,7 @@ struct CustomHeaderFields: View {
                     .lineLimit(1)
                 removeButton(row.wrappedValue)
             }
-            HStack(spacing: 8) {
+            valueLayout {
                 // A password manager stores a service token as a login: the client ID is the
                 // username, the secret the password. Tagged, Password AutoFill fills each into its
                 // own field. The `onChange` cleaning below handles text that arrives any other way,
@@ -150,7 +157,7 @@ struct CustomHeaderFields: View {
                     .focused($focus, equals: .name(row.wrappedValue.id))
                     .submitLabel(.next)
                     .onSubmit { advance(from: .name(row.wrappedValue.id)) }
-                HStack(spacing: 8) {
+                valueLayout {
                     SecureField("Header value", text: row.value)
                         .textContentType(.password)
                         .font(.body)
@@ -195,7 +202,7 @@ struct CustomHeaderFields: View {
             }
         } label: {
             Label("Paste", systemImage: "doc.on.clipboard")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.footnote.weight(.semibold))
                 .foregroundStyle(BBColor.brandAccent)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)

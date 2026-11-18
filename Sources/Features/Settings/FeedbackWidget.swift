@@ -154,6 +154,7 @@ struct FeedbackSheet: View {
     let onEmail: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var phase = FeedbackWebView.Phase.loading
     /// Whether the widget has a signed-in user, from its `auth-change` event; `nil` until it says.
     @State private var signedIn: Bool?
@@ -185,24 +186,15 @@ struct FeedbackSheet: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                BBColor.surface.ignoresSafeArea()
-                if phase == .failed {
-                    unreachable
-                } else {
-                    FeedbackWebView(widget: widget, phase: $phase, signedIn: $signedIn, reloads: reloads,
-                                    onSignIn: { if widget != .help, signedIn != true { signingIn = true } },
-                                    onClose: { dismiss() })
-                        .opacity(showsWebView ? 1 : 0)
-                        .accessibilityHidden(!showsWebView)
-                        .allowsHitTesting(showsWebView)
-                    if phase == .loading || savingSession || (phase == .ready && holdsChat && signedIn == nil) {
-                        ProgressView()
-                    } else if phase == .ready && holdsChat {
-                        signIn
-                    }
-                }
+            GeometryReader { geometry in
+                let width = geometry.size.width
+                let besideFold = widget == .help && FoldLayout.isWide(width)
+                // The system centres a wide sheet across the fold. Keep Get Help in its right half.
+                sheetContent
+                    .frame(width: besideFold ? (width - FoldLayout.assumedFold) / 2 : width)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
             }
+            .background(BBColor.surface.ignoresSafeArea())
             .onChange(of: phase) { _, phase in
                 if phase == .failed { Analytics.feedbackOffline() }
             }
@@ -239,6 +231,26 @@ struct FeedbackSheet: View {
         }
     }
 
+    private var sheetContent: some View {
+        ZStack {
+            if phase == .failed {
+                unreachable
+            } else {
+                FeedbackWebView(widget: widget, phase: $phase, signedIn: $signedIn, reloads: reloads,
+                                onSignIn: { if widget != .help, signedIn != true { signingIn = true } },
+                                onClose: { dismiss() })
+                    .opacity(showsWebView ? 1 : 0)
+                    .accessibilityHidden(!showsWebView)
+                    .allowsHitTesting(showsWebView)
+                if phase == .loading || savingSession || (phase == .ready && holdsChat && signedIn == nil) {
+                    ProgressView()
+                } else if phase == .ready && holdsChat {
+                    signIn
+                }
+            }
+        }
+    }
+
     /// The native sign-in. Once it has written the session, the widget reloads and starts signed
     /// in, on the sheet's view. Offline, the sheet shows its Mail fallback.
     private var signIn: some View {
@@ -261,25 +273,30 @@ struct FeedbackSheet: View {
     }
 
     private var unreachable: some View {
-        BBCard(cornerRadius: BBRadius.card, padding: 20) {
-            VStack(spacing: 12) {
-                Image(systemName: "wifi.exclamationmark")
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(BBColor.brand)
-                    .accessibilityHidden(true)
-                Text("Can't reach the feedback server")
-                    .font(.headline)
-                Text("Check your connection, or email us and we'll reply there.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+        GeometryReader { geometry in
+            ScrollView {
+                BBCard(cornerRadius: BBRadius.card, padding: typeSize.isAccessibilitySize ? 12 : 20) {
+                    VStack(spacing: 12) {
+                        Image(systemName: "wifi.exclamationmark")
+                            .font(.system(size: 30, weight: .semibold))
+                            .foregroundStyle(BBColor.brand)
+                            .accessibilityHidden(true)
+                        Text("Can't reach the feedback server")
+                            .font(.headline)
+                        Text("Check your connection, or email us and we'll reply there.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Button("Email Support") { onEmail(); dismiss() }
+                            .buttonStyle(.bbPrimary)
+                            .padding(.top, 4)
+                    }
                     .multilineTextAlignment(.center)
-                Button("Email Support") { onEmail(); dismiss() }
-                    .buttonStyle(.bbPrimary)
-                    .padding(.top, 4)
+                    .frame(maxWidth: .infinity)
+                }
+                .padding(16)
+                .frame(minHeight: geometry.size.height)
             }
-            .frame(maxWidth: .infinity)
         }
-        .padding(16)
     }
 }
 

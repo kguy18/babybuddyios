@@ -23,6 +23,22 @@ final class FeedbackAccountTests: UITestCase {
         expect(app.navigationBars["Send Feedback"])
     }
 
+    func testFeedbackAccountDeletionFollowsTheNoteAtLargestText() {
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in"], largestText: true)
+        openSendFeedback()
+        openFeedbackAccount()
+        let signOut = expect(app.buttons["Sign Out of Feedback"])
+        let note = expect(app.staticTexts.labeled("Your Baby Buddy data isn't affected."))
+        let deletion = expect(app.buttons["Delete Feedback Account"])
+        let scroll = expect(app.scrollViews.containing(.button, identifier: "Delete Feedback Account").firstMatch)
+        XCTAssertGreaterThan(signOut.frame.height, 50, "Sign Out should grow with the text")
+        XCTAssertGreaterThan(deletion.frame.minY, note.frame.maxY, "Delete should follow the whole note")
+        attachScreen("settings-feedback-account")
+        reveal(deletion, in: scroll)
+        tap(deletion)
+        tap(app.alerts["Delete your feedback account?"].buttons["Cancel"])
+    }
+
     /// Sign Out of Feedback asks first, goes back to Send Feedback without the account row, and
     /// the next sheet opens signed out.
     func testSignOutOfFeedback() {
