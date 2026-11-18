@@ -208,6 +208,7 @@ struct FeedbackAccountView: View {
     let onSignedOut: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var confirmingSignOut = false
     @State private var confirmingDeletion = false
     /// Delete Feedback Account's request, in the Mail composer.
@@ -218,26 +219,27 @@ struct FeedbackAccountView: View {
     @State private var deletionFailed = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 8) {
-                card
-                Text("Your Baby Buddy data isn't affected. This account is only for posting, voting and chatting with me.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 4)
-                    .fixedSize(horizontal: false, vertical: true)
+        FoldSplitView { Color.clear } main: { _ in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    card
+                    Text("Your Baby Buddy data isn't affected. This account is only for posting, voting and chatting with me.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 4)
+                        .fixedSize(horizontal: false, vertical: true)
+                    BBCard(cornerRadius: BBRadius.card, padding: 0) {
+                        deletion
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 16)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 16)
         }
         .background(BBColor.surface)
-        .safeAreaInset(edge: .bottom) {
-            deletion
-                .frame(maxWidth: .infinity)
-                .padding(.bottom, 8)
-                .background(BBColor.surface)
-        }
         .navigationTitle("Feedback Account")
         .navigationBarTitleDisplayMode(.inline)
         .alert("Sign out of feedback?", isPresented: $confirmingSignOut) {
@@ -287,6 +289,8 @@ struct FeedbackAccountView: View {
                 HStack(spacing: 12) {
                     Text(email?.first.map { String($0).uppercased() } ?? "")
                         .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
                         .foregroundStyle(BBColor.brandAccent)
                         .frame(width: 34, height: 34)
                         .background(BBColor.brandTint, in: Circle())
@@ -304,12 +308,12 @@ struct FeedbackAccountView: View {
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                             Text(email)
-                                .font(.system(size: 16))
-                                .lineLimit(1)
+                                .font(.body)
+                                .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
                                 .truncationMode(.middle)
                         } else {
                             Text("Signed in to feedback")
-                                .font(.system(size: 16))
+                                .font(.body)
                         }
                     }
                     Spacer(minLength: 0)
@@ -320,8 +324,9 @@ struct FeedbackAccountView: View {
                 Rectangle().fill(BBColor.divider).frame(height: 0.5)
                 Button { confirmingSignOut = true } label: {
                     Text("Sign Out of Feedback")
-                        .font(.system(size: 16))
+                        .font(.body)
                         .foregroundStyle(BBColor.danger)
+                        .padding(.vertical, 8)
                         .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
                         .contentShape(Rectangle())
                 }

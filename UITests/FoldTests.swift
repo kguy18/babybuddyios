@@ -59,6 +59,39 @@ final class FoldTests: UITestCase {
         expectGone(board)
     }
 
+    func testGetHelpSignInStaysBesideTheFoldAtLargestText() throws {
+        try launchOpen(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out"], largestText: true)
+        openSendFeedback()
+        tap(app.buttons.labeled("Get Help"))
+        let email = expect(app.textFields["Email"], timeout: 30)
+        let sendCode = expect(app.buttons["Send Code"])
+        let middle = app.windows.firstMatch.frame.midX
+        XCTAssertGreaterThan(email.frame.minX, middle, "The email field should stay right of the fold")
+        XCTAssertGreaterThan(sendCode.frame.minX, middle, "Send Code should stay with the email field")
+    }
+
+    func testOfflineGetHelpStaysBesideTheFold() throws {
+        try launchOpen(["BB_START_TAB": "settings"])
+        openSendFeedback()
+        tap(app.buttons.labeled("Get Help"))
+        let title = expect(app.staticTexts["Can't reach the feedback server"], timeout: 30)
+        let email = expect(app.buttons["Email Support"])
+        let middle = app.windows.firstMatch.frame.midX
+        XCTAssertGreaterThan(title.frame.minX, middle, "The offline title should stay right of the fold")
+        XCTAssertGreaterThan(email.frame.minX, middle, "Email Support should stay with the offline message")
+    }
+
+    func testFeedbackAccountStaysBesideTheFoldAtLargestText() throws {
+        try launchOpen(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in"], largestText: true)
+        openSendFeedback()
+        tap(app.buttons.labeled("Feedback Account"))
+        let signOut = expect(app.buttons["Sign Out of Feedback"])
+        let deletion = expect(app.buttons["Delete Feedback Account"])
+        let middle = app.windows.firstMatch.frame.midX
+        XCTAssertGreaterThan(signOut.frame.minX, middle, "Sign Out should stay right of the fold")
+        XCTAssertGreaterThan(deletion.frame.minX, middle, "Delete should stay in the same pane")
+    }
+
     func testCustomHeadersStayBesideTheFold() throws {
         try checkCustomHeaderPane(largestText: false)
     }
@@ -80,6 +113,9 @@ final class FoldTests: UITestCase {
         tap(add)
         let name = expect(app.textFields["Header name"])
         XCTAssertGreaterThan(name.frame.minX, middle, "Added fields should stay in the same pane")
+        let paste = expect(app.buttons.labeled("Paste"))
+        XCTAssertGreaterThan(paste.frame.minX, middle, "Paste should stay in the same pane")
+        attachScreen("settings-custom-headers-add")
         tap(app.buttons["Remove header"])
         expectGone(name)
     }

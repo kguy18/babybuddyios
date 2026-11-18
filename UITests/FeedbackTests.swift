@@ -27,6 +27,37 @@ final class FeedbackTests: UITestCase {
         expect(app.buttons.labeled("Feedback Account"))
     }
 
+    func testGetHelpSendCodeStaysAboveTheKeyboardAtLargestText() {
+        openGetHelpSignedOut(largestText: true)
+        let email = expect(app.textFields["Email"], timeout: widgetTimeout)
+        tap(email)
+        email.typeText("parent@example.com")
+        let keyboard = expect(app.keyboards.firstMatch)
+        let sendCode = expect(app.buttons["Send Code"])
+        expect(sendCode, matching: NSPredicate { _, _ in
+            sendCode.isHittable && sendCode.frame.maxY <= keyboard.frame.minY + 1
+        }, timeout: 10, describedAs: "to be visible above the keyboard")
+        attachScreen("feedback-get-help")
+        tap(sendCode)
+        expect(app.staticTexts["Check your email"])
+    }
+
+    func testOfflineGetHelpWrapsAndOffersEmailAtLargestText() {
+        launch(["BB_START_TAB": "settings"], largestText: true)
+        openSendFeedback()
+        tap(app.buttons.labeled("Get Help"))
+        let title = expect(app.staticTexts["Can't reach the feedback server"], timeout: 30)
+        let details = expect(app.staticTexts["Check your connection, or email us and we'll reply there."])
+        let email = expect(app.buttons["Email Support"])
+        let scroll = expect(app.scrollViews.containing(.button, identifier: "Email Support").firstMatch)
+        XCTAssertGreaterThan(title.frame.height, 70, "The title should wrap")
+        XCTAssertGreaterThan(details.frame.height, 70, "The instructions should wrap")
+        attachScreen("feedback-get-help-offline")
+        reveal(email, in: scroll)
+        tap(email)
+        tap(app.alerts["Contact Support"].buttons["Cancel"])
+    }
+
     /// Signed in, Get Help opens straight to the chat: no sign-in, no Sign In. A device showed a
     /// signed-in user the sign-in when an anonymous identify made Quackback report a stale null user.
     func testGetHelpSignedInOpensTheChat() {
@@ -192,7 +223,11 @@ final class FeedbackTests: UITestCase {
         XCTAssertTrue(add.isHittable)
         tap(add)
         expect(app.textFields["Header name"])
-        expect(app.secureTextFields["Header value"])
+        let value = expect(app.secureTextFields["Header value"])
+        let paste = expect(app.buttons.labeled("Paste"))
+        XCTAssertGreaterThanOrEqual(paste.frame.minY, value.frame.maxY, "Paste should leave the value the full line")
+        XCTAssertGreaterThan(paste.frame.height, 32, "Paste should grow with the text")
+        attachScreen("settings-custom-headers-add")
         tap(app.buttons["Remove header"])
         expectGone(app.textFields["Header name"])
         XCTAssertTrue(add.isHittable, "The empty state should return after removal")
@@ -224,8 +259,8 @@ extension UITestCase {
         scroll.swipeDown()
     }
 
-    func openGetHelpSignedOut() {
-        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out"])
+    func openGetHelpSignedOut(largestText: Bool = false) {
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out"], largestText: largestText)
         openSendFeedback()
         tap(app.buttons.labeled("Get Help"))
         expect(app.navigationBars["Get Help"])

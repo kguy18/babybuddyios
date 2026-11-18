@@ -26,6 +26,7 @@ struct FeedbackSignInView: View {
     @State private var blockedUntil = Date.distantPast
     @FocusState private var focus: Field?
     @Environment(\.openURL) private var openURL
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     /// Each send starts a 30-second wait before Resend.
     static let resendDelay: TimeInterval = 30
@@ -39,10 +40,20 @@ struct FeedbackSignInView: View {
     var body: some View {
         // Ticks each second for Resend's countdown and the end of a rate limit.
         SwiftUI.TimelineView(.periodic(from: .now, by: 1)) { timeline in
-            ScrollView { content(now: timeline.date).padding(16) }
+            GeometryReader { geometry in
+                ScrollViewReader { scroll in
+                    ScrollView { content(now: timeline.date).padding(16) }
+                        .scrollDismissesKeyboard(.interactively)
+                        .onChange(of: geometry.size.height) { oldHeight, height in
+                            // Wait until the keyboard has reduced the scroll view's height.
+                            if height < oldHeight, typeSize.isAccessibilitySize, step == .email, focus == .email {
+                                scroll.scrollTo("send-code", anchor: .bottom)
+                            }
+                        }
+                }
+            }
         }
         .background(BBColor.surface)
-        .scrollDismissesKeyboard(.interactively)
         .onAppear { Analytics.feedbackSignInStarted(from: widget.analyticsView) }
     }
 
@@ -80,6 +91,7 @@ struct FeedbackSignInView: View {
             Button("Send Code", action: sendCode)
                 .buttonStyle(.bbPrimary)
                 .disabled(!emailLooksValid || working || blocked)
+                .id("send-code")
             hint(String(localized: "No password needed. You'll get a 6-digit code by email."))
             quietLink(String(localized: "Use a password instead")) { show(.password) }
         }
@@ -92,7 +104,7 @@ struct FeedbackSignInView: View {
                 TextField("Code", text: $code, prompt: Text("6-digit code").foregroundStyle(.secondary))
                     .textContentType(.oneTimeCode)
                     .keyboardType(.numberPad)
-                    .font(.system(size: 20, weight: .semibold).monospacedDigit())
+                    .font(.title3.weight(.semibold).monospacedDigit())
                     .focused($focus, equals: .code)
                     .accessibilityLabel("Code")
                     .disabled(working || blocked)
@@ -161,7 +173,7 @@ struct FeedbackSignInView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .accessibilityHidden(true)
-                    input.font(.system(size: 15))
+                    input.font(.body)
                 }
                 .padding(.horizontal, 15)
                 .padding(.vertical, 12)
