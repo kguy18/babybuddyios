@@ -6,10 +6,24 @@ import SwiftUI
 /// dependency; see ``AppIconOption``.
 struct AppIconPickerView: View {
     @Environment(AppIconManager.self) private var icons
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @ScaledMetric(relativeTo: .caption) private var minimumTileWidth: CGFloat = 96
 
-    private let columns = [GridItem(.adaptive(minimum: 96), spacing: 16)]
+    private var columns: [GridItem] {
+        let size: GridItem.Size = typeSize.isAccessibilitySize ? .flexible() : .adaptive(minimum: minimumTileWidth)
+        return [GridItem(size, spacing: 16, alignment: .top)]
+    }
 
     var body: some View {
+        FoldSplitView { Color.clear } main: { _ in
+            picker
+        }
+        .background(BBColor.surface)
+        .navigationTitle("App Icon")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var picker: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 LazyVGrid(columns: columns, spacing: 16) {
@@ -36,15 +50,13 @@ struct AppIconPickerView: View {
             .padding(.top, 12)
             .padding(.bottom, 28)
         }
-        .background(BBColor.surface)
-        .navigationTitle("App Icon")
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
 /// One icon in the grid: the artwork at the system's squircle rounding, its name, and a
 /// brand-blue ring plus check badge when it's the one on the Home Screen.
 private struct AppIconTile: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     let option: AppIconOption
     let isSelected: Bool
     var action: () -> Void
@@ -56,15 +68,19 @@ private struct AppIconTile: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 8) {
+            let layout = typeSize.isAccessibilitySize
+                ? AnyLayout(HStackLayout(spacing: 16))
+                : AnyLayout(VStackLayout(spacing: 8))
+            layout {
                 artwork
                 Text(option.displayName)
                     .font(.caption.weight(isSelected ? .semibold : .regular))
                     .foregroundStyle(isSelected ? BBColor.brandAccent : .secondary)
-                    .multilineTextAlignment(.center)
+                    .multilineTextAlignment(typeSize.isAccessibilitySize ? .leading : .center)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, alignment: typeSize.isAccessibilitySize ? .leading : .center)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .animation(.snappy(duration: 0.15), value: isSelected)

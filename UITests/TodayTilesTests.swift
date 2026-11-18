@@ -26,6 +26,20 @@ final class TodayTilesTests: UITestCase {
         expect(tile("feeding"))
     }
 
+    func testTileSwitchSitsBelowItsNameAtLargestText() {
+        launch(["BB_START_TAB": "settings"], largestText: true)
+        tap(app.buttons.labeled("Today tiles, 4 on"))
+        expect(app.navigationBars["Today Tiles"])
+
+        let name = expect(app.staticTexts["Feedings"])
+        let control = expect(app.switches["Feedings"])
+        XCTAssertGreaterThan(name.frame.width, name.frame.height, "Feedings should fit on one line")
+        XCTAssertGreaterThanOrEqual(control.frame.minY, name.frame.maxY - 1)
+        tap(control)
+        back(from: "Today Tiles")
+        expect(app.buttons.labeled("Today tiles, 3 on"))
+    }
+
     /// With every tile off, Home leaves out the Today section.
     func testNoTilesHidesToday() {
         launch(["BB_START_TAB": "settings"])

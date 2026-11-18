@@ -66,63 +66,91 @@ struct RunningTimerLiveActivity: Widget {
     @ViewBuilder
     private func lockScreen(_ context: ActivityViewContext<RunningTimerAttributes>) -> some View {
         let tint = context.state.activity.map(BBColor.tint(for:)) ?? BBColor.brand
+        let stop = stopControl(context, font: .footnote.weight(.medium))
+            .frame(minWidth: 92)
+            .fixedSize(horizontal: true, vertical: false)
+        let glyph = RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(tint.opacity(0.2))
+            .frame(width: 38, height: 38)
+            .overlay {
+                Image(systemName: context.state.activity?.systemImage ?? "timer")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(tint)
+            }
+
         HStack(spacing: 0) {
-            // Accent rail: the activity tint down the leading edge.
             Rectangle()
                 .fill(tint)
                 .frame(width: 4)
-            HStack(spacing: 11) {
-                // Tinted glyph tile — the activity icon over the app's ActivityTile-style wash.
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(tint.opacity(0.2))
-                    .frame(width: 38, height: 38)
-                    .overlay {
-                        Image(systemName: context.state.activity?.systemImage ?? "timer")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(tint)
+
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 11) {
+                    glyph
+                    VStack(alignment: .leading, spacing: 2) {
+                        timerTitle(context.state.title).fixedSize()
+                        elapsed(context.state.start)
                     }
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(context.state.title)
-                            .font(.system(size: 14, weight: .medium))
-                            .lineLimit(1)
-                        Circle().fill(BBColor.success).frame(width: 7, height: 7) // running
-                    }
-                    Text(context.state.start, style: .timer)
-                        .font(.system(size: 30, weight: .medium, design: .rounded))
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
+                    Spacer(minLength: 0)
+                    stop
                 }
-                Spacer(minLength: 8)
-                stopControl(context).frame(width: 92)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    timerTitle(context.state.title).minimumScaleFactor(0.6)
+                    HStack(spacing: 11) {
+                        glyph
+                        elapsed(context.state.start)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        stop
+                    }
+                }
             }
             .padding(14)
         }
         .widgetURL(bodyURL(context))
     }
 
+    private func timerTitle(_ title: String) -> some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .font(.headline)
+                .lineLimit(1)
+            Circle().fill(BBColor.success).frame(width: 7, height: 7)
+        }
+    }
+
+    private func elapsed(_ start: Date) -> some View {
+        Text(start, style: .timer)
+            .font(.system(.largeTitle, design: .rounded).weight(.medium))
+            .monospacedDigit()
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+    }
+
     // MARK: Stop control (mirrors ActiveTimerWidget)
 
     @ViewBuilder
-    private func stopControl(_ context: ActivityViewContext<RunningTimerAttributes>) -> some View {
+    private func stopControl(
+        _ context: ActivityViewContext<RunningTimerAttributes>,
+        font: Font = .system(size: 13, weight: .medium)
+    ) -> some View {
         let route = TimerStopRoute.resolve(localID: context.attributes.timerLocalID,
                                            activity: context.state.activity)
         switch route {
         case .log(let id):
-            Button(intent: LogTimerIntent(timerLocalID: id)) { stopLabel }
+            Button(intent: LogTimerIntent(timerLocalID: id)) { stopLabel(font: font) }
                 .buttonStyle(.plain)
         case .convertForm, .openActions:
-            Link(destination: route.deepLink!) { stopLabel }
+            Link(destination: route.deepLink!) { stopLabel(font: font) }
         }
     }
 
-    private var stopLabel: some View {
+    private func stopLabel(font: Font) -> some View {
         HStack(spacing: 4) {
             Image(systemName: "stop.fill").font(.system(size: 11))
-            Text("Stop").font(.system(size: 13, weight: .medium))
+            Text("Stop").font(font)
         }
         .frame(maxWidth: .infinity)
+        .padding(.horizontal, 8)
         .padding(.vertical, 8)
         .background(BBColor.stop, in: RoundedRectangle(cornerRadius: 9))
         .foregroundStyle(Color(red: 0x5A / 255.0, green: 0x43 / 255.0, blue: 0x02 / 255.0))

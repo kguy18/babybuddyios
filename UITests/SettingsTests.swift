@@ -50,6 +50,20 @@ final class SettingsTests: UITestCase {
         expect(app.buttons.labeled("App Icon, Center Peek"))
     }
 
+    func testAppIconPickerUsesOneColumnAtLargestText() {
+        launch(["BB_START_TAB": "settings"], largestText: true)
+        tap(app.buttons.labeled("App Icon, Center Peek"))
+        expect(app.navigationBars["App Icon"])
+
+        let current = expect(iconTile("Center Peek"))
+        let next = expect(iconTile("Happy Low Peek"))
+        XCTAssertTrue(current.isSelected)
+        XCTAssertGreaterThanOrEqual(next.frame.minY, current.frame.maxY - 1)
+        let last = iconTile("Side Peek Right")
+        reveal(last, in: app.scrollViews.firstMatch)
+        XCTAssertFalse(last.isSelected)
+    }
+
     /// What's New sits with the supporter row, above the fold, and opens the same card Settings
     /// always had — with Done, since nothing is being continued.
     func testWhatsNewRowUnderSupporter() {

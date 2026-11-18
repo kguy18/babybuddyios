@@ -32,6 +32,26 @@ final class LiveActivityTests: UITestCase {
         XCTAssertNotEqual(tummyToday.label, before, "The tummy time should count toward today")
     }
 
+    func testStopFromNotificationCenterAtLargestText() {
+        launch(largestText: true)
+        allowNotificationsIfAsked()
+        showNotificationCenter()
+
+        let activity = expect(liveActivity, timeout: bannerTimeout)
+        expect(activity.staticTexts["Maya · Tummy time"])
+        let allow = springboard.buttons["Allow"]
+        if allow.waitForExistence(timeout: 5) {
+            attachNotificationCenter("live-activity-notification-center")
+            tap(allow)
+            expectGone(allow)
+        }
+
+        let stop = expect(activity.buttons["Stop"])
+        attachNotificationCenter("live-activity-notification-center-allowed")
+        tap(stop)
+        expectGone(liveActivity, timeout: bannerTimeout)
+    }
+
     /// Regression: #53 — stopping in the app left its Live Activity behind, so the Lock Screen kept
     /// showing a timer that had already been logged.
     func testStoppingInAppEndsTheLiveActivity() {
@@ -110,6 +130,13 @@ final class LiveActivityTests: UITestCase {
     /// its part and the renderer was still catching up. A missing activity still fails here, only
     /// later.
     private let bannerTimeout: TimeInterval = 60
+
+    private func attachNotificationCenter(_ name: String) {
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = name
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
 
     /// Leaves the app and pulls Notification Center down, where the banner shows in full.
     private func showNotificationCenter() {
