@@ -3,6 +3,7 @@ import SwiftUI
 /// Settings ▸ Appearance ▸ Today tiles (#188): a switch per kind and drag handles to order the
 /// tiles under TODAY on Home. The tiles that are on come first, in Home's order; the rest follow.
 struct TodayTilesView: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     @AppStorage(TodayTiles.key, store: SharedDefaults.suite) private var raw: String?
     /// What the screen opened with, so leaving it reports only a real change.
     @State private var opened: [EntityKind]?
@@ -11,18 +12,27 @@ struct TodayTilesView: View {
     private var rows: [EntityKind] { enabled + TodayTiles.eligible.filter { !enabled.contains($0) } }
 
     var body: some View {
+        FoldSplitView { Color.clear } main: { _ in
+            tileList
+        }
+        .background(BBColor.surface)
+        .navigationTitle("Today Tiles")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear { if opened == nil { opened = enabled } }
+        .onDisappear {
+            if let opened, opened != enabled {
+                Analytics.todayTilesChanged(enabled, isDefault: enabled == TodayTiles.defaults)
+                self.opened = enabled
+            }
+        }
+    }
+
+    private var tileList: some View {
         List {
             Section {
                 ForEach(rows) { kind in
-                    HStack(spacing: 12) {
-                        ActivityTile(kind: kind, size: 30, glyph: 16)
-                        Text(TodayTiles.label(kind)).font(.body)
-                        Spacer(minLength: 8)
-                        Toggle(TodayTiles.label(kind), isOn: isOn(kind))
-                            .labelsHidden()
-                            .tint(BBColor.primary)
-                    }
-                    .listRowBackground(BBColor.card)
+                    tileRow(kind)
+                        .listRowBackground(BBColor.card)
                 }
                 .onMove { from, to in
                     var order = rows
@@ -36,14 +46,32 @@ struct TodayTilesView: View {
         }
         .environment(\.editMode, .constant(.active))
         .scrollContentBackground(.hidden)
-        .background(BBColor.surface)
-        .navigationTitle("Today Tiles")
-        .navigationBarTitleDisplayMode(.inline)
-        .onAppear { if opened == nil { opened = enabled } }
-        .onDisappear {
-            if let opened, opened != enabled {
-                Analytics.todayTilesChanged(enabled, isDefault: enabled == TodayTiles.defaults)
-                self.opened = enabled
+    }
+
+    @ViewBuilder
+    private func tileRow(_ kind: EntityKind) -> some View {
+        let label = TodayTiles.label(kind)
+        let icon = ActivityTile(kind: kind, size: 30, glyph: 16)
+        let name = Text(label).font(.body)
+        let toggle = Toggle(label, isOn: isOn(kind))
+            .labelsHidden()
+            .tint(BBColor.primary)
+
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 8) {
+                name.fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 12) {
+                    icon
+                    toggle
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            HStack(spacing: 12) {
+                icon
+                name
+                Spacer(minLength: 8)
+                toggle
             }
         }
     }

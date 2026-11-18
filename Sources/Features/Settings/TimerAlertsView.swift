@@ -17,6 +17,16 @@ struct TimerAlertsView: View {
     }
 
     var body: some View {
+        FoldSplitView { Color.clear } main: { _ in
+            alertSettings
+        }
+        .background(BBColor.surface)
+        .onAppear { thresholds = Self.stored() }
+        .navigationTitle("Forgotten timer alerts")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var alertSettings: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 8) {
@@ -78,10 +88,6 @@ struct TimerAlertsView: View {
             .padding(.bottom, 28)
             .animation(.default, value: enabled)
         }
-        .background(BBColor.surface)
-        .onAppear { thresholds = Self.stored() }
-        .navigationTitle("Forgotten timer alerts")
-        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func threshold(_ activity: TimerActivity) -> Binding<TimeInterval> {

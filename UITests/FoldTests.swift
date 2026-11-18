@@ -84,6 +84,27 @@ final class FoldTests: UITestCase {
         expectGone(name)
     }
 
+    func testSettingsPickersStayRightOfTheFold() throws {
+        try launchOpen(["BB_START_TAB": "settings"])
+        let middle = app.windows.firstMatch.frame.midX
+
+        tap(app.buttons.labeled("Today tiles, 4 on"))
+        expect(app.navigationBars["Today Tiles"])
+        XCTAssertGreaterThan(expect(app.staticTexts["Feedings"]).frame.minX, middle)
+        XCTAssertGreaterThan(expect(app.switches["Feedings"]).frame.minX, middle)
+        back(from: "Today Tiles")
+
+        tap(app.buttons.labeled("App Icon, Center Peek"))
+        expect(app.navigationBars["App Icon"])
+        XCTAssertGreaterThan(expect(app.buttons.labeled("Center Peek")).frame.minX, middle)
+        back(from: "App Icon")
+
+        tap(app.buttons.labeled("Forgotten timer alerts, Off"))
+        expect(app.navigationBars["Forgotten timer alerts"])
+        XCTAssertGreaterThan(expect(app.scrollViews.staticTexts["Forgotten timer alerts"]).frame.minX, middle)
+        XCTAssertGreaterThan(expect(app.switches["Forgotten timer alerts"]).frame.minX, middle)
+    }
+
     /// The tapped record opens right of the list, ready to edit, with Save, Repeat and Delete in the
     /// toolbar. Each of them closes the pane again.
     func testTimelineOpensARecordBesideTheList() throws {

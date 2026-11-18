@@ -76,6 +76,24 @@ final class NotificationTests: UITestCase {
         for row in rows { XCTAssertFalse(app.staticTexts[row].exists, "\(row) came back with doses") }
     }
 
+    func testForgottenTimerAlertsAtLargestText() {
+        launch(["BB_START_TAB": "settings"], largestText: true)
+        tap(app.buttons.labeled("Forgotten timer alerts, Off"))
+        expect(app.navigationBars["Forgotten timer alerts"])
+
+        let title = expect(app.scrollViews.staticTexts["Forgotten timer alerts"])
+        XCTAssertGreaterThan(title.frame.height, 40, "The row title should grow with the text")
+        let alerts = expect(app.switches["Forgotten timer alerts"])
+        tap(alerts)
+        allowNotificationsIfAsked()
+        expectValue(alerts, "1")
+
+        let threshold = app.buttons["1h"]
+        reveal(threshold, in: app.scrollViews.firstMatch)
+        tap(threshold)
+        expect(app.buttons["10m"])
+    }
+
     /// Regression: #116 — a tapped alert routed into the app off the main actor, and the app
     /// crashed on its way back from the background. Fixed in #118. The tap shows the timer without
     /// stopping it: only Stop stops a timer (#146).
