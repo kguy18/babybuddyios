@@ -366,6 +366,10 @@ final class FoldTests: UITestCase {
         reveal(feeding, in: stopScroll)
         let sleep = expect(app.buttons["Sleep"])
         XCTAssertGreaterThan(sleep.frame.minY, feeding.frame.maxY)
+        tap(feeding)
+        let log = expect(app.buttons["Log feeding…"])
+        XCTAssertTrue(log.isHittable, "Log should be visible as soon as a type is picked")
+        XCTAssertTrue(app.windows.firstMatch.frame.contains(log.frame))
         let resume = app.buttons["Resume timer"]
         reveal(resume, in: stopScroll)
         XCTAssertGreaterThan(resume.frame.minY, app.buttons["Pumping"].frame.maxY)
@@ -379,9 +383,13 @@ final class FoldTests: UITestCase {
         XCTAssertGreaterThan(app.buttons["Sleep"].frame.minY, app.buttons["Feeding"].frame.maxY)
         reveal(app.buttons["Sleep"], in: startScroll)
         tap(app.buttons["Sleep"])
-        let start = app.buttons["Start sleep timer"]
-        reveal(start, in: startScroll)
-        XCTAssertGreaterThan(start.frame.minY, app.buttons["Pumping"].frame.maxY)
+        let start = expect(app.buttons["Start sleep timer"])
+        XCTAssertTrue(start.isHittable, "Start should be visible as soon as a type is picked")
+        XCTAssertTrue(app.windows.firstMatch.frame.contains(start.frame))
+        let starts = app.staticTexts["Starts"]
+        reveal(starts, in: startScroll)
+        XCTAssertGreaterThan(starts.frame.width, starts.frame.height, "\"Starts\" should fit on one line")
+        XCTAssertTrue(start.isHittable, "Start should still be visible after scrolling the details")
         tap(start)
         expectGone(app.navigationBars["Start Timer"])
         expect(element(labeled: "Sleep running"))
@@ -459,6 +467,8 @@ final class FoldTests: UITestCase {
         let startSleep = expect(app.buttons["Start sleep timer"])
         XCTAssertGreaterThan(startSleep.frame.minX, app.buttons["Feeding"].frame.minX + 50,
                              "Start should sit right of the activities")
+        let starts = expect(app.staticTexts["Starts"])
+        XCTAssertGreaterThan(starts.frame.width, starts.frame.height, "\"Starts\" should fit on one line")
         tap(startSleep)
         expectGone(start)
         expect(element(labeled: "Sleep running"))
