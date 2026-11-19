@@ -20,8 +20,10 @@ struct SignOutDialog: View {
         SettingsDialogCard(label: String(localized: "Sign out of \(host)?"), onCancel: onCancel) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 13) {
-                    glyphTile(size: 46, radius: 14, symbol: "rectangle.portrait.and.arrow.right",
-                              font: .title3, tint: BBColor.danger, color: BBColor.danger)
+                    if !typeSize.isAccessibilitySize {
+                        glyphTile(size: 46, radius: 14, symbol: "rectangle.portrait.and.arrow.right",
+                                  font: .title3, tint: BBColor.danger, color: BBColor.danger)
+                    }
                     Text("Sign out?").font(.title3.weight(.semibold))
                 }
                 serverRow
@@ -91,56 +93,5 @@ struct SignOutDialog: View {
                     .foregroundStyle(color)
                     .accessibilityHidden(true)
             }
-    }
-}
-
-/// A modal settings card that keeps its actions visible while long copy scrolls above them.
-struct SettingsDialogCard<Copy: View, Actions: View>: View {
-    let label: String
-    let onCancel: () -> Void
-    @ViewBuilder var copy: () -> Copy
-    @ViewBuilder var actions: () -> Actions
-
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.dynamicTypeSize) private var typeSize
-    @State private var shown = false
-
-    var body: some View {
-        ZStack {
-            Color.black.opacity(scheme == .dark ? 0.55 : 0.42)
-                .ignoresSafeArea()
-                .onTapGesture(perform: onCancel)
-                .accessibilityHidden(true)
-            FoldSplitView { Color.clear.allowsHitTesting(false) } main: { _ in
-                card
-                    .frame(maxWidth: 400)
-                    .padding(16)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .scaleEffect(shown ? 1 : 0.94)
-                    .opacity(shown ? 1 : 0)
-            }
-        }
-        .onAppear { withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) { shown = true } }
-    }
-
-    private var card: some View {
-        let actionLayout = typeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(spacing: 10))
-            : AnyLayout(HStackLayout(spacing: 10))
-        return BBCard(padding: 20) {
-            VStack(alignment: .leading, spacing: 16) {
-                ViewThatFits(in: .vertical) {
-                    copy().fixedSize(horizontal: false, vertical: true)
-                    ScrollView { copy().frame(maxWidth: .infinity, alignment: .leading) }
-                        .scrollBounceBehavior(.basedOnSize)
-                        .scrollIndicatorsFlash(onAppear: true)
-                }
-                actionLayout { actions() }
-            }
-        }
-        .shadow(color: .black.opacity(scheme == .dark ? 0.5 : 0.18), radius: 24, y: 12)
-        .accessibilityElement(children: .contain)
-        .accessibilityAddTraits(.isModal)
-        .accessibilityLabel(label)
     }
 }

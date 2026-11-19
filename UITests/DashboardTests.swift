@@ -128,22 +128,33 @@ final class DashboardTests: UITestCase {
 
     /// At the largest text the nudges' copy scrolls, but their buttons stay in view: the gentle
     /// ask's in its card, the milestone's pinned under the sheet's copy.
-    func testSupportNudgeButtonsStayInViewAtTheLargestText() {
+    func testSupportNudgeCopyAndButtonsAreReachableAtTheLargestText() {
         launch(["BB_NUDGE": "gentle"], largestText: true)
         allowNotificationsIfAsked()
-        XCTAssertTrue(expect(app.buttons["Become a Supporter"]).isHittable, "Become a Supporter should be in view")
-        XCTAssertTrue(expect(app.buttons["Maybe later"]).isHittable, "Maybe later should be in view")
-        attachScreen("nudge-gentle")
-        tap(app.buttons["Maybe later"])
-        expectGone(app.buttons["Maybe later"])
+        let support = expect(app.buttons["Become a Supporter"])
+        let later = expect(app.buttons["Maybe later"])
+        XCTAssertTrue(support.isHittable)
+        XCTAssertTrue(later.isHittable)
+        expectReadableText(
+            "Every feature is free — no locks, no subscriptions. If the app has earned a place in your routine, you can chip in to keep it growing.",
+            above: support, minimumHeight: 150)
+        XCTAssertTrue(support.isHittable)
+        XCTAssertTrue(later.isHittable)
+        tap(later)
+        expectGone(later)
 
         launch(["BB_NUDGE": "milestone"], largestText: true)
         allowNotificationsIfAsked()
-        XCTAssertTrue(expect(app.buttons["Become a Supporter"]).isHittable, "Become a Supporter should be in view")
-        XCTAssertTrue(expect(app.buttons["Not now"]).isHittable, "Not now should be in view")
-        attachScreen("nudge-milestone")
-        tap(app.buttons["Become a Supporter"])
+        expect(support)
+        let notNow = expect(app.buttons["Not now"])
+        XCTAssertTrue(support.isHittable)
+        XCTAssertTrue(notNow.isHittable)
+        expectReadableText(
+            "Baby Buddy Companion has been there for every one of them. It's free for everyone — supporters are what keep it that way.",
+            above: support, minimumHeight: 110)
+        XCTAssertTrue(support.isHittable)
+        XCTAssertTrue(notNow.isHittable)
+        tap(support)
         expect(app.staticTexts["Support Baby Buddy Companion"])
-        attachScreen("supporter-sheet-from-nudge")
     }
 }

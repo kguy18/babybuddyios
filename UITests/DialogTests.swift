@@ -94,6 +94,12 @@ final class DialogTests: UITestCase {
         let confirm = expect(signOutCard.buttons["Sign out"])
         attachSickSettingsScreen("settings-sign-out-dialog")
         XCTAssertGreaterThan(confirm.frame.minY, cancel.frame.maxY)
+        XCTAssertTrue(cancel.isHittable)
+        XCTAssertTrue(confirm.isHittable)
+        expectReadableText(
+            "The activities cached on this device will be deleted. Nothing on your server changes — signing back in downloads them again.",
+            above: cancel, minimumHeight: 150)
+        XCTAssertTrue(cancel.isHittable)
         XCTAssertTrue(confirm.isHittable)
         tap(cancel)
         expectGone(signOutCard)
@@ -282,31 +288,34 @@ final class DialogTests: UITestCase {
         let title = expect(app.staticTexts["Scan QR code"].firstMatch)
         XCTAssertGreaterThan(title.frame.height, 40, "The scanner title should scale")
         let heading = expect(app.staticTexts["Point at the QR code"])
-        let instructions = expect(app.staticTexts["Open User → Add a Device on your Baby Buddy site to show your login code."])
         let manual = expect(app.buttons["Enter details manually"])
         XCTAssertGreaterThan(heading.frame.minY, title.frame.maxY, "The viewfinder should clear the header")
-        XCTAssertGreaterThan(manual.frame.minY, instructions.frame.maxY, "Manual entry should follow the instructions")
-        let shot = XCTAttachment(screenshot: app.screenshot())
-        shot.name = "qr-scanner-preview"
-        shot.lifetime = .keepAlways
-        add(shot)
+        XCTAssertTrue(expect(app.buttons["Close scanner"]).isHittable)
+        XCTAssertTrue(expect(app.buttons["Flashlight"]).isHittable)
+        XCTAssertTrue(manual.isHittable)
+        XCTAssertTrue(app.windows.firstMatch.frame.contains(manual.frame))
+        expectReadableText("Open User → Add a Device on your Baby Buddy site to show your login code.",
+                           above: manual, minimumHeight: 110)
+        XCTAssertTrue(manual.isHittable)
+        attachSickSettingsScreen("qr-scanner-preview")
         tap(manual)
         expectGone(heading)
         expect(app.staticTexts["Connect to your self-hosted server"])
     }
 
-    func testDeniedScannerCanScrollToManualEntryAtTheLargestText() {
+    func testDeniedScannerKeepsManualEntryInViewAtTheLargestText() {
         launch(demo: false, largestText: true)
         tap(app.buttons.labeled("Scan QR code"))
         refuseCameraIfAsked()
         expect(app.staticTexts["Camera Access Needed"])
         let settings = expect(app.buttons["Open Settings"])
         let manual = expect(app.buttons["Enter details manually"])
-        XCTAssertGreaterThan(manual.frame.minY, settings.frame.maxY)
-        let shot = XCTAttachment(screenshot: app.screenshot())
-        shot.name = "onboarding-scan-qr-no-camera"
-        shot.lifetime = .keepAlways
-        add(shot)
+        XCTAssertTrue(manual.isHittable)
+        let scroll = app.scrollViews.containing(.button, identifier: "Open Settings").firstMatch
+        reveal(settings, in: scroll)
+        XCTAssertLessThan(settings.frame.minY, manual.frame.minY)
+        XCTAssertTrue(manual.isHittable)
+        attachSickSettingsScreen("onboarding-scan-qr-no-camera")
         tap(manual)
         expectGone(app.staticTexts["Camera Access Needed"])
         expect(app.staticTexts["Connect to your self-hosted server"])

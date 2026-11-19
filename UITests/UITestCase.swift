@@ -254,6 +254,33 @@ class UITestCase: XCTestCase {
         XCTAssertTrue(clear(), "The control should be reachable by scrolling", file: file, line: line)
     }
 
+    /// The accessibility label can still contain the full text when SwiftUI clips its drawing.
+    /// Check the rendered height and scroll until the last line is above the pinned action.
+    func expectReadableText(_ label: String, above action: XCUIElement, minimumHeight: CGFloat,
+                            file: StaticString = #filePath, line: UInt = #line) {
+        let text = expect(app.staticTexts[label], file: file, line: line)
+        let scroll = app.scrollViews.containing(.staticText, identifier: label).firstMatch
+        let viewport = scroll.exists ? scroll.frame : app.windows.firstMatch.frame
+        let bottom = min(viewport.maxY, action.frame.minY)
+        XCTAssertGreaterThanOrEqual(text.frame.height, minimumHeight, file: file, line: line)
+        if scroll.exists {
+            let visibleFraction = (bottom - viewport.minY) / viewport.height
+            XCTAssertGreaterThan(visibleFraction, 0, "The copy should have room above the actions",
+                                 file: file, line: line)
+            guard visibleFraction > 0 else { return }
+            let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8 * visibleFraction))
+            let end = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25 * visibleFraction))
+            for _ in 0..<8 {
+                if text.frame.maxY <= bottom + 1 { break }
+                start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.2)
+            }
+        }
+        XCTAssertLessThanOrEqual(text.frame.maxY, bottom + 1,
+                                 "The last line should be visible above the action", file: file, line: line)
+        XCTAssertGreaterThan(text.frame.maxY, viewport.minY,
+                             "The message should be visible in the scroll view", file: file, line: line)
+    }
+
     /// Home ▸ "+" ▸ More… ▸ `kind`. Not the quick-add rows: those log in one tap once #78 lands.
     func openEditor(_ kind: String) {
         tap(app.buttons["Add"])

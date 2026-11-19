@@ -50,21 +50,14 @@ struct SupportGentleAskCard: View {
         }
     }
 
-    /// At accessibility text sizes the card can be taller than the screen. Its copy then scrolls
-    /// inside it, under the buttons, so they stay in view; without the scroll the body copy is
-    /// silently truncated mid-sentence, which is the one thing a card of copy can't afford.
-    /// `minHeight` keeps a card that fits in place.
+    @ViewBuilder
     private func scrolling(alignment: Alignment, horizontalPadding: CGFloat) -> some View {
-        GeometryReader { proxy in
-            if typeSize.isAccessibilitySize {
-                ViewThatFits(in: .vertical) {
-                    card(scrollingCopy: false)
-                    card(scrollingCopy: true)
-                }
-                .padding(.horizontal, horizontalPadding)
-                .padding(.vertical, 24)
-                .frame(width: proxy.size.width, height: proxy.size.height, alignment: alignment)
-            } else {
+        if typeSize.isAccessibilitySize {
+            card(scrollingCopy: true)
+                .padding(10)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
+        } else {
+            GeometryReader { proxy in
                 ScrollView {
                     peekingCard
                         .padding(.horizontal, horizontalPadding)
@@ -99,31 +92,40 @@ struct SupportGentleAskCard: View {
     private func card(scrollingCopy: Bool) -> some View {
         VStack(spacing: 0) {
             if scrollingCopy {
-                ScrollView {
-                    VStack(spacing: 7) { copy; reminder }
+                DialogCopy {
+                    VStack(spacing: 7) {
+                        copy
+                        reminder
+                    }
                 }
-                .scrollBounceBehavior(.basedOnSize)
-                .scrollIndicatorsFlash(onAppear: true)
             } else {
                 copy
             }
 
-            Button("Become a Supporter", action: onSupport)
-                .buttonStyle(.bbPrimary)
-                .padding(.top, 20)
-
-            QuietNudgeButton(title: String(localized: "Maybe later"), action: onDismiss)
+            actions
+                .fixedSize(horizontal: false, vertical: true)
+                .layoutPriority(1)
 
             if !scrollingCopy { reminder }
         }
         .multilineTextAlignment(.center)
-        .padding(.horizontal, 22)
-        .padding(.top, 26)
-        .padding(.bottom, 14)
+        .padding(.horizontal, typeSize.isAccessibilitySize ? 14 : 22)
+        .padding(.top, typeSize.isAccessibilitySize ? 14 : 26)
+        .padding(.bottom, typeSize.isAccessibilitySize ? 4 : 14)
         .background(BBColor.card, in: RoundedRectangle(cornerRadius: BBRadius.card, style: .continuous))
         .shadow(color: .black.opacity(0.30), radius: 24, y: 10)
-        // Trap VoiceOver inside the card, so the dimmed Dashboard behind it isn't still swipeable.
+        .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
+    }
+
+    private var actions: some View {
+        VStack(spacing: 0) {
+            Button("Become a Supporter", action: onSupport)
+                .buttonStyle(.bbPrimary)
+                .padding(.top, typeSize.isAccessibilitySize ? 10 : 20)
+
+            QuietNudgeButton(title: String(localized: "Maybe later"), action: onDismiss)
+        }
     }
 
     /// The line that makes the whole thing fair: the ask is opt-out, and says so.
@@ -176,7 +178,9 @@ struct SupportMilestoneSheet: View {
         // scrolls behind them. In two they sit in the right column, next to the copy.
         FittedSheet {
             SheetColumns(wide: wide, spacing: 0) {
-                VStack(spacing: 0) { headline }.frame(maxWidth: .infinity)
+                VStack(spacing: 0) { headline }
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity)
             } trailing: {
                 VStack(spacing: 0) {
                     perks
@@ -185,15 +189,17 @@ struct SupportMilestoneSheet: View {
                 .frame(maxWidth: .infinity)
             }
             .multilineTextAlignment(.center)
-            .padding(.horizontal, 22)
+            .padding(.horizontal, typeSize.isAccessibilitySize ? 14 : 22)
             .padding(.top, 10)
             .padding(.bottom, twoColumns ? 24 : 0)
-            .overlay(alignment: .top) { Confetti() }
+            .overlay(alignment: .top) {
+                if !typeSize.isAccessibilitySize { Confetti() }
+            }
         } actions: {
             if !twoColumns {
                 buttons
-                    .padding(.horizontal, 22)
-                    .padding(.bottom, 24)
+                    .padding(.horizontal, typeSize.isAccessibilitySize ? 14 : 22)
+                    .padding(.bottom, typeSize.isAccessibilitySize ? 8 : 24)
                     .background(BBColor.card)
             }
         }
@@ -201,14 +207,16 @@ struct SupportMilestoneSheet: View {
     }
 
     @ViewBuilder private var headline: some View {
-        SupporterBadge(systemImage: "sparkles")
+        if !typeSize.isAccessibilitySize {
+            SupporterBadge(systemImage: "sparkles")
+        }
 
         Text("Milestone")
             .font(.caption2.weight(.semibold))
             .kerning(0.6)
             .textCase(.uppercase)
             .foregroundStyle(.secondary)
-            .padding(.top, 14)
+            .padding(.top, typeSize.isAccessibilitySize ? 0 : 14)
 
         Text("\(count) activities logged")
             .font(.title3.weight(.semibold))
@@ -225,7 +233,7 @@ struct SupportMilestoneSheet: View {
         VStack(spacing: 0) {
             Button("Become a Supporter", action: onSupport)
                 .buttonStyle(.bbPrimary)
-                .padding(.top, 20)
+                .padding(.top, typeSize.isAccessibilitySize ? 10 : 20)
 
             QuietNudgeButton(title: String(localized: "Not now"), action: onDismiss)
         }
