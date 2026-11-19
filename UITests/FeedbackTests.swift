@@ -250,7 +250,9 @@ final class FeedbackTests: UITestCase {
         openSendFeedback()
         tap(app.buttons.labeled("Request a Feature"))
         let sheet = expect(app.navigationBars["Request a Feature"])
-        expect(app.staticTexts["Can't reach the feedback server"], timeout: 6)
+        // The sheet gives up on the server after FeedbackWebView.readyTimeout, 8 seconds, when
+        // WebKit hasn't reported the failed load sooner, as on a cold iPhone Duo simulator.
+        expect(app.staticTexts["Can't reach the feedback server"], timeout: 30)
         tap(app.buttons["Email Support"])
         expectGone(sheet)
         tap(app.alerts["Contact Support"].buttons["Don't Include"])

@@ -333,4 +333,29 @@ final class LoggingTests: UITestCase {
         XCTAssertGreaterThan(expect(element(labeled: "Can\u{2019}t save yet.")).frame.height, 100,
                              "The warning should grow with the text")
     }
+
+    /// Cancel and Save stay put while the form scrolls under them. On iPhone Duo's folded display
+    /// the bar used to scroll away with the form.
+    func testEditorBarStaysWhileScrolling() {
+        launch()
+        var hidden: [String] = []
+        for (kind, title) in [("Diaper", "New Diaper Change"), ("Medication", "New Medication")] {
+            openEditor(kind)
+            let bar = expect(app.navigationBars[title])
+            let scroll = app.scrollViews["screen-editor"]
+            scroll.swipeUp()
+            scroll.swipeUp()
+            attachScreen("editor-\(kind.lowercased())-scrolled")
+            let cancel = bar.buttons["Cancel"]
+            if !cancel.isHittable || !bar.buttons["Save"].isHittable {
+                hidden.append(title)
+                // Scrolling back brings a minimized bar back, so the sheet can still close.
+                scroll.swipeDown()
+                scroll.swipeDown()
+            }
+            tap(cancel)
+            expectGone(bar)
+        }
+        XCTAssertEqual(hidden, [], "Cancel and Save should stay in reach while the form scrolls")
+    }
 }
