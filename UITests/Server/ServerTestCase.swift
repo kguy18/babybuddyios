@@ -76,21 +76,56 @@ class ServerTestCase: UITestCase {
     /// Fills in onboarding and connects, on whichever onboarding screen is showing — a fresh launch
     /// or the one left behind by signing out.
     func connect() {
+        submit(token: api.token)
+        // The first pull brings the server's history down before the tabs appear. The demo server's
+        // 30 days (about 1,000 records in November 2026) download in a few seconds, so a miss here
+        // means sign-in stalled or the server answered with an error. CI never uploads this lane's
+        // result bundle, because it records the typed token, so the failure says what showed.
+        awaitConnection(tab("Home"), describedAs: "the Home tab after connecting")
+    }
+
+    /// Types the server URL and `token` into onboarding and taps Connect.
+    func submit(token value: String) {
         let address = expect(app.textFields["Your server URL or IP address"])
         address.tap()
         address.typeText(api.baseURL.absoluteString)
         let token = app.secureTextFields["Paste your API token"]
         token.tap()
-        token.typeText(api.token)
+        token.typeText(value)
         tap(app.buttons["Connect"])
-        // The first pull brings the server's history down before the tabs appear. The demo server's
-        // 30 days (about 1,000 records in November 2026) download in a few seconds, so a miss here
-        // means sign-in stalled or the server answered with an error. CI never uploads this lane's
-        // result bundle, because it records the typed token, so the failure says what showed.
-        if !tab("Home").waitForExistence(timeout: 60) {
-            let shown = app.staticTexts.allElementsBoundByIndex.map(\.label).filter { !$0.isEmpty }
-            XCTFail("Expected the Home tab after connecting. On screen: \(shown.joined(separator: " | "))")
+    }
+
+    /// A cold runner pays for DNS, TLS and a sleeping server on its first request, so each attempt
+    /// may stay on "Connecting…" this long before it counts as failed.
+    static let connectWait: TimeInterval = 60
+    /// Gives a runner's network a moment to recover before "Try again", so the retry isn't a replay
+    /// of the same failure.
+    static let retryPause: TimeInterval = 5
+
+    /// Waits for `outcome` after Connect, tapping "Try again" once if the app couldn't connect.
+    /// GitHub's macOS runners sometimes fail to reach the demo server ("No connection", a refused
+    /// certificate, or "Connecting…" that never ends) while it serves other clients fine. A second
+    /// failure fails the test with what the screen says, so a real outage still shows.
+    func awaitConnection(
+        _ outcome: XCUIElement, describedAs expected: String,
+        file: StaticString = #filePath, line: UInt = #line
+    ) {
+        let failed = app.staticTexts["Couldn't connect"]
+        for attempt in 1...2 {
+            let deadline = Date().addingTimeInterval(Self.connectWait)
+            while Date() < deadline, !outcome.exists, !failed.exists {
+                _ = outcome.waitForExistence(timeout: 1)
+            }
+            // The error banner shares a view with a rejected-token message, so give `outcome` a
+            // moment to show before treating the banner as a failed connection.
+            if outcome.waitForExistence(timeout: 2) { return }
+            guard attempt == 1, failed.exists else { break }
+            Thread.sleep(forTimeInterval: Self.retryPause)
+            tap(app.buttons["Try again"])
+            _ = failed.waitForNonExistence(timeout: 5)
         }
+        let shown = app.staticTexts.allElementsBoundByIndex.map(\.label).filter { !$0.isEmpty }
+        XCTFail("Expected \(expected). On screen: \(shown.joined(separator: " | "))", file: file, line: line)
     }
 
     /// Pull to refresh on the Timeline, then find a record by its marker. The app syncs on its own
