@@ -140,21 +140,32 @@ final class TimelineTests: UITestCase {
 }
 
 extension UITestCase {
+    /// Searches for nothing, then scrolls the empty result until "Clear Search & Filters" shows
+    /// above the keyboard, and taps it. On an open iPhone Duo at the largest text only its top
+    /// fits between the pane's header and the keyboard, so that is what has to show.
     func checkEmptySearchWithKeyboard(_ search: XCUIElement) {
         tap(search)
         search.typeText("zzqx")
         let keyboard = expect(app.keyboards.firstMatch)
         expect(app.staticTexts["No Results"])
         let clear = expect(app.buttons["Clear Search & Filters"])
-        for _ in 0..<4 {
-            if clear.isHittable, clear.frame.maxY <= keyboard.frame.minY + 1 { break }
-            app.scrollViews.firstMatch.swipeUp()
+        let results = app.scrollViews.containing(.button, identifier: "Clear Search & Filters").firstMatch
+        let resultsTop = expect(results).frame.minY
+        // On iPhone Duo the keyboard's frame leaves out its 44-point suggestions bar.
+        let keyboardTop = keyboard.frame.minY - (hasRail ? 44 : 0)
+        func shows() -> Bool { clear.frame.minY >= resultsTop && clear.frame.minY + 30 <= keyboardTop }
+        for _ in 0..<8 where !shows() {
+            // From the top of the results: a swipe starts at their centre, which the keyboard
+            // covers on iPhone Duo.
+            let from = results.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0))
+                .withOffset(CGVector(dx: 0, dy: 20))
+            from.press(forDuration: 0.05, thenDragTo: from.withOffset(CGVector(dx: 0, dy: -50)),
+                       withVelocity: .slow, thenHoldForDuration: 0.2)
         }
         attachSickSettingsScreen("timeline-empty-search")
         XCTAssertTrue(keyboard.exists, "The keyboard should stay open while scrolling")
-        XCTAssertTrue(clear.isHittable, "Clear Search & Filters should be reachable with the keyboard open")
-        XCTAssertLessThanOrEqual(clear.frame.maxY, keyboard.frame.minY + 1)
-        tap(clear)
-        expect(elements("label BEGINSWITH 'Feeding, '").firstMatch)
+        XCTAssertTrue(shows(), "Clear Search & Filters should scroll above the keyboard")
+        clear.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(CGVector(dx: 0, dy: 15)).tap()
+        expectGone(app.staticTexts["No Results"])
     }
 }

@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 /// Merged chronological activity feed across all event kinds for the selected child, grouped
 /// by day and laid out as a continuous left "rail": each event's tinted glyph tile is a node
@@ -24,6 +25,7 @@ struct TimelineView: View {
     @State private var editing: LocalEntity?
     /// The record open in the right pane on iPhone Duo's open display.
     @State private var selected: LocalEntity?
+    @State private var keyboardHeight: CGFloat = 0
     @State private var didAutoLoadHistory = false
     @State private var searchText = ""
     @State private var dateFrom: Date?
@@ -101,6 +103,13 @@ struct TimelineView: View {
             }
             .background(BBColor.surface)
             .accessibilityIdentifier("screen-timeline")
+            // Here rather than on the empty search, which appears after the keyboard has.
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) {
+                keyboardHeight = ($0.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect)?.height ?? 0
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                keyboardHeight = 0
+            }
             .navigationBarTitleDisplayMode(.inline)
             .onChange(of: searchText) { _, newValue in handleSearchChange(newValue) }
             .onAppear(perform: autoLoadOlderIfRequested)
@@ -121,6 +130,9 @@ struct TimelineView: View {
         if items.isEmpty && isFilteringOrSearching {
             ScrollView { noResults }
                 .scrollDismissesKeyboard(.never)
+                // iPhone Duo (iOS 27.1) gives this scroll view no keyboard safe area, so the room
+                // to scroll the Clear button above the keyboard is added here.
+                .contentMargins(.bottom, keyboardHeight, for: .scrollContent)
         } else {
             list(items, tagColors: tagColors, split: split)
         }
