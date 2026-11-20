@@ -371,9 +371,9 @@ final class FoldTests: UITestCase {
         expect(app.navigationBars["New Feeding"])
         attachScreen("editor-axxxl")
         assertLeftOfFold(app.staticTexts["WHEN"])
-        let start = expect(app.datePickers.firstMatch)
-        assertLeftOfFold(start.buttons.element(boundBy: 1))
-        assertLeftOfFold(start.buttons.element(boundBy: 2))
+        // Start's date and time pills, each on a line of its own.
+        assertLeftOfFold(app.datePickers.element(boundBy: 0))
+        assertLeftOfFold(app.datePickers.element(boundBy: 1))
         assertRightOfFold(app.staticTexts["TAGS"])
         assertRightOfFold(app.buttons["Save Feeding"])
     }
@@ -422,6 +422,8 @@ final class FoldTests: UITestCase {
         attachScreen("advanced-axxxl")
         assertLeftOfFold(element(labeled: "Where sign-in stopped"))
         assertRightOfFold(app.textFields["Client ID"])
+        let label = expect(app.staticTexts["Client ID"])
+        XCTAssertGreaterThan(label.frame.width, label.frame.height, "\"Client ID\" should fit on one line")
         assertRightOfFold(app.buttons["Save and try again"])
     }
 

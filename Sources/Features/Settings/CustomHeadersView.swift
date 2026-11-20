@@ -109,15 +109,19 @@ struct CustomHeaderFields: View {
 
     private func presetRow(_ preset: HeaderRow.Preset, _ row: Binding<HeaderRow>) -> some View {
         VStack(alignment: .leading, spacing: 6) {
+            // At accessibility sizes the header's name gets a line of its own under the label,
+            // which beside it squeezed "Client ID" to a few letters per line in a sheet column.
+            let name = Text(row.wrappedValue.name)
+                .font(.caption.monospaced())
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(preset.label).font(.subheadline.weight(.semibold))
                 Spacer(minLength: 8)
-                Text(row.wrappedValue.name)
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                if !typeSize.isAccessibilitySize { name }
                 removeButton(row.wrappedValue)
             }
+            if typeSize.isAccessibilitySize { name }
             valueLayout {
                 // A password manager stores a service token as a login: the client ID is the
                 // username, the secret the password. Tagged, Password AutoFill fills each into its
@@ -429,7 +433,7 @@ struct SignInTrace: View {
             }
         }
         .padding(15)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(BBColor.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -447,14 +451,18 @@ struct SignInTrace: View {
         case .arrived: BBColor.success
         }
         return HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .fill(hop.kind == .plain ? BBColor.controlFill : tint.opacity(0.14))
-                .frame(width: 38, height: 38)
-                .overlay {
-                    Image(systemName: hop.symbol)
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(tint)
-                }
+            // At accessibility sizes the text takes the icon's room: in a sheet column on iPhone
+            // Duo's open display, beside it, "This app" ran to two lines and cut off.
+            if !typeSize.isAccessibilitySize {
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .fill(hop.kind == .plain ? BBColor.controlFill : tint.opacity(0.14))
+                    .frame(width: 38, height: 38)
+                    .overlay {
+                        Image(systemName: hop.symbol)
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundStyle(tint)
+                    }
+            }
             VStack(alignment: .leading, spacing: 1) {
                 Text(hop.title).font(.body.weight(.semibold)).lineLimit(2)
                 Text(hop.detail).font(.footnote).foregroundStyle(.secondary)
@@ -470,7 +478,9 @@ struct SignInTrace: View {
         Text("Stopped here")
             .font(.caption.weight(.bold))
             .foregroundStyle(BBColor.danger)
-            .fixedSize()
+            // Wraps at accessibility sizes, where on one line it's wider than a sheet column on
+            // iPhone Duo's open display and pushed the card across the fold.
+            .fixedSize(horizontal: !typeSize.isAccessibilitySize, vertical: true)
             .padding(.horizontal, 9)
             .padding(.vertical, 3)
             .background(BBColor.danger.opacity(0.12), in: Capsule())

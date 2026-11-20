@@ -419,7 +419,12 @@ struct EntityEditorView: View {
             picker
         }
         return Group {
-            if typeSize.isAccessibilitySize {
+            if typeSize.isAccessibilitySize, wide {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack { title; Spacer(); caption }
+                    columnPickers(selection, components)
+                }
+            } else if typeSize.isAccessibilitySize {
                 stacked
             } else {
                 ViewThatFits(in: .horizontal) {
@@ -429,6 +434,27 @@ struct EntityEditorView: View {
             }
         }
         .padding(.horizontal, 15).padding(.vertical, 11)
+    }
+
+    /// The date and time pills for a 290 pt sheet column on iPhone Duo's open display at
+    /// accessibility sizes. Side by side they don't fit, and at the largest size the date alone
+    /// doesn't either, so each takes a line at the largest text size that fits it.
+    private func columnPickers(_ selection: Binding<Date>, _ components: DatePickerComponents) -> some View {
+        func fitting(_ part: DatePickerComponents) -> some View {
+            let picker = DatePicker("", selection: selection, displayedComponents: part)
+                .labelsHidden()
+                .datePickerStyle(.compact)
+                .tint(BBColor.brandAccent)
+            return ViewThatFits(in: .horizontal) {
+                picker
+                picker.dynamicTypeSize(...DynamicTypeSize.accessibility3)
+                picker.dynamicTypeSize(...DynamicTypeSize.accessibility1)
+            }
+        }
+        return VStack(alignment: .leading, spacing: 8) {
+            if components.contains(.date) { fitting(.date) }
+            if components.contains(.hourAndMinute) { fitting(.hourAndMinute) }
+        }
     }
 
     private var endRow: some View {

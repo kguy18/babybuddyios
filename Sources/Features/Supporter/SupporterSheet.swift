@@ -87,9 +87,11 @@ struct SupporterSheet: View {
     /// and buttons right of it.
     private var content: some View {
         SheetColumns(wide: wide, spacing: 0) {
-            VStack(spacing: 0) { pitch }.frame(maxWidth: .infinity)
+            // Each column at the height its text needs, so none of it is cut short at the
+            // largest text sizes, where the two columns wrap to different heights.
+            VStack(spacing: 0) { pitch }.frame(maxWidth: .infinity).fixedSize(horizontal: false, vertical: true)
         } trailing: {
-            VStack(spacing: 0) { actions }.frame(maxWidth: .infinity)
+            VStack(spacing: 0) { actions }.frame(maxWidth: .infinity).fixedSize(horizontal: false, vertical: true)
         }
         .multilineTextAlignment(.center)
     }
