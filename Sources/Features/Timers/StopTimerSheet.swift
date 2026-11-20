@@ -32,6 +32,8 @@ struct StopTimerSheet: View {
     private let activities: [EntityKind] = [.feeding, .sleep, .tummyTime, .pumping]
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
+    private var actionsInSideColumn: Bool { wide && !typeSize.isAccessibilitySize }
+
     init(timer: LocalEntity, onLog: @escaping (EntityKind) -> Void, onResume: @escaping () -> Void,
          onDiscard: @escaping () -> Void) {
         self.timer = timer
@@ -55,7 +57,11 @@ struct StopTimerSheet: View {
                         LazyVGrid(columns: columns, spacing: 12) { activityTiles }
                     }
                 } trailing: {
-                    if wide || typeSize.isAccessibilitySize { actions }
+                    if actionsInSideColumn {
+                        actions
+                    } else if typeSize.isAccessibilitySize {
+                        secondaryActionGroup
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
@@ -72,9 +78,10 @@ struct StopTimerSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
             }
-            .safeAreaInset(edge: .bottom) {
-                if !wide && !typeSize.isAccessibilitySize {
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if !actionsInSideColumn {
                     actions
+                        .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 16)
                         .padding(.top, 10)
                         .padding(.bottom, 6)
@@ -95,7 +102,7 @@ struct StopTimerSheet: View {
     /// presents, so this waits for its height to hold still, then decides once, which leaves the
     /// sheet free to be dragged back down.
     private func openTallEnough() async {
-        guard !checkedHeight, actionsTop > 0 else { return }
+        guard !typeSize.isAccessibilitySize, !checkedHeight, actionsTop > 0 else { return }
         try? await Task.sleep(for: .milliseconds(300))
         guard !Task.isCancelled, !checkedHeight else { return }
         checkedHeight = true
@@ -203,8 +210,6 @@ struct StopTimerSheet: View {
 
     // MARK: Actions
 
-    /// Log, then the quieter choices: in a row under it on a phone, and one above the other in the
-    /// right column of a wide sheet, with Discard last.
     private var actions: some View {
         VStack(spacing: wide ? 14 : 8) {
             Button { if let selected { onLog(selected) } } label: { Text(logTitle) }
@@ -212,38 +217,50 @@ struct StopTimerSheet: View {
                 .disabled(selected == nil)
                 .opacity(selected == nil ? 0.5 : 1)
 
-            Group {
-                if wide || typeSize.isAccessibilitySize {
-                    VStack(spacing: 14) { secondaryActions }
-                } else {
-                    ViewThatFits(in: .horizontal) {
-                        HStack {
-                            Button("Resume timer") { onResume() }
-                                .foregroundStyle(BBColor.brandAccent)
-                            Spacer(minLength: 12)
-                            Button("Restart from now") { setStart(.now); onResume() }
-                                .foregroundStyle(BBColor.brandAccent)
-                            Spacer(minLength: 12)
-                            Button("Discard timer", role: .destructive) { onDiscard() }
-                                .foregroundStyle(BBColor.danger)
-                        }
-                        VStack(spacing: 14) { secondaryActions }
-                    }
-                }
-            }
-            .font(.subheadline.weight(.medium))
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.vertical, 4)
+            if !typeSize.isAccessibilitySize { secondaryActionGroup }
         }
     }
 
+    private var secondaryActionGroup: some View {
+        Group {
+            if wide || typeSize.isAccessibilitySize {
+                VStack(spacing: 14) { secondaryActions }
+            } else {
+                // One row only with clear gaps between the three; tighter than that, they stack.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 0) {
+                        resumeButton
+                        Spacer(minLength: 20)
+                        restartButton
+                        Spacer(minLength: 20)
+                        discardButton
+                    }
+                    VStack(spacing: 14) { secondaryActions }
+                }
+            }
+        }
+        .font(.subheadline.weight(.medium))
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity)
+    }
+
     @ViewBuilder private var secondaryActions: some View {
-        Button("Resume timer") { onResume() }
-            .foregroundStyle(BBColor.brandAccent)
-        Button("Restart from now") { setStart(.now); onResume() }
-            .foregroundStyle(BBColor.brandAccent)
-        Button("Discard timer", role: .destructive) { onDiscard() }
-            .foregroundStyle(BBColor.danger)
+        resumeButton
+        restartButton
+        discardButton
+    }
+
+    private var resumeButton: some View {
+        Button("Resume timer") { onResume() }.foregroundStyle(BBColor.brandAccent)
+    }
+
+    private var restartButton: some View {
+        Button("Restart from now") { setStart(.now); onResume() }.foregroundStyle(BBColor.brandAccent)
+    }
+
+    private var discardButton: some View {
+        Button("Discard timer", role: .destructive) { onDiscard() }.foregroundStyle(BBColor.danger)
     }
 
     private var logTitle: String {

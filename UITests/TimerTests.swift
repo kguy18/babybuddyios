@@ -76,6 +76,8 @@ final class TimerTests: UITestCase {
         tap(app.buttons["Start timer"])
         expect(startSheet)
         tap(app.buttons["Sleep"])
+        let starts = expect(app.staticTexts["Starts"])
+        XCTAssertGreaterThan(starts.frame.width, starts.frame.height, "\"Starts\" should fit on one line")
         tap(app.buttons["Start sleep timer"])
         expectGone(startSheet)
         expect(element(labeled: "Sleep running"))
@@ -102,16 +104,19 @@ final class TimerTests: UITestCase {
         XCTAssertGreaterThan(sleep.frame.minY, feeding.frame.maxY, "Activities should have one row each")
         reveal(sleep, in: scroll)
         tap(sleep)
+        let start = expect(app.buttons["Start sleep timer"])
+        XCTAssertTrue(start.isHittable, "Start should be visible as soon as a type is picked")
+        XCTAssertTrue(app.windows.firstMatch.frame.contains(start.frame))
+        let starts = app.staticTexts["Starts"]
+        reveal(starts, in: scroll)
+        XCTAssertGreaterThan(starts.frame.width, starts.frame.height, "\"Starts\" should fit on one line")
         let offset = app.buttons.labeled("Starts,")
         reveal(offset, in: scroll)
         tap(offset)
         tap(app.buttons["−30 min"])
-        let start = app.buttons["Start sleep timer"]
-        reveal(start, in: scroll)
         let untyped = app.buttons["Start without a type"]
         reveal(untyped, in: scroll)
-        XCTAssertGreaterThan(start.frame.minY, app.buttons["Pumping"].frame.maxY,
-                             "Start actions should follow the tiles in the scroll content")
+        XCTAssertTrue(start.isHittable, "Start should still be visible after scrolling the details")
         tap(start)
         expectGone(app.navigationBars["Start Timer"])
         expect(element(labeled: "Sleep running"))
@@ -129,17 +134,18 @@ final class TimerTests: UITestCase {
         XCTAssertGreaterThan(startTime.frame.minY, started.frame.maxY,
                              "The start-time control should sit below its label at accessibility sizes")
         let feeding = app.buttons["Feeding"]
-        reveal(feeding, in: scroll)
+        reveal(feeding, above: expect(app.buttons["Log tummy time"]), in: scroll)
         tap(feeding)
-        let log = app.buttons["Log feeding…"]
-        reveal(log, in: scroll)
+        let log = expect(app.buttons["Log feeding…"])
+        XCTAssertTrue(log.isHittable, "Log should be visible as soon as a type is picked")
+        XCTAssertTrue(app.windows.firstMatch.frame.contains(log.frame))
         let discard = app.buttons["Discard timer"]
         reveal(discard, in: scroll)
         let resume = expect(app.buttons["Resume timer"])
         let restart = expect(app.buttons["Restart from now"])
         XCTAssertGreaterThan(restart.frame.minY, resume.frame.maxY)
         XCTAssertGreaterThan(discard.frame.minY, restart.frame.maxY)
-        for button in [log, resume, restart, discard] {
+        for button in [resume, restart, discard] {
             revealAction(button, in: scroll)
             XCTAssertTrue(button.isHittable, "\(button.label) should be reachable by scrolling")
             let window = app.windows.firstMatch.frame
@@ -154,6 +160,28 @@ final class TimerTests: UITestCase {
         tap(resume)
         expectGone(app.navigationBars["Stop Timer"])
         expect(element(labeled: "Tummy time running"))
+    }
+
+    /// Scrolls `element` clear of the button pinned under the content. XCUITest calls a tile
+    /// hittable while it sits behind that button, and on the folded iPhone Duo at the largest text
+    /// a tap there missed the tile. Short drags, so a tall tile isn't flung past the top.
+    private func reveal(_ element: XCUIElement, above pinned: XCUIElement, in scroll: XCUIElement) {
+        func drag(from: CGFloat, to: CGFloat) {
+            scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: from))
+                .press(forDuration: 0.05, thenDragTo: scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: to)),
+                       withVelocity: .slow, thenHoldForDuration: 0.2)
+        }
+        for _ in 0..<12 {
+            let frame = element.frame
+            if element.exists, frame.minY < scroll.frame.minY {
+                drag(from: 0.2, to: 0.4)
+            } else if !element.exists || frame.maxY > pinned.frame.minY {
+                drag(from: 0.4, to: 0.2)
+            } else {
+                return
+            }
+        }
+        XCTFail("\(element) should scroll clear of \(pinned.label)")
     }
 
     /// Hittable can include a button clipped by the bottom of a short Duo display.

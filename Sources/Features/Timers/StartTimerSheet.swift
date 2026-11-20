@@ -27,6 +27,8 @@ struct StartTimerSheet: View {
 
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
+    private var actionsInSideColumn: Bool { wide && !typeSize.isAccessibilitySize }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -43,7 +45,11 @@ struct StartTimerSheet: View {
                     detailsCard
                     Text("The timer counts up from its start until you stop it.")
                         .font(.caption).foregroundStyle(.secondary)
-                    if wide || typeSize.isAccessibilitySize { startButtons }
+                    if actionsInSideColumn {
+                        startButtons
+                    } else if typeSize.isAccessibilitySize {
+                        untypedStartButton
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
@@ -57,9 +63,10 @@ struct StartTimerSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
-            .safeAreaInset(edge: .bottom) {
-                if !wide && !typeSize.isAccessibilitySize {
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if !actionsInSideColumn {
                     startButtons
+                        .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 16)
                         .padding(.top, 10)
                         .padding(.bottom, 6)
@@ -93,19 +100,7 @@ struct StartTimerSheet: View {
                 Rectangle().fill(BBColor.divider).frame(height: 1).padding(.leading, 15)
 
                 VStack(spacing: 10) {
-                    let layout = typeSize.isAccessibilitySize
-                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout())
-                    layout {
-                        Text("Starts").font(.subheadline).foregroundStyle(.secondary)
-                        if !typeSize.isAccessibilitySize { Spacer() }
-                        DatePicker(String(localized: "Starts"), selection: Binding(
-                            get: { startDate() },
-                            set: { customStart = min($0, .now); minutesBack = nil }
-                        ), in: ...Date.now, displayedComponents: [.date, .hourAndMinute])
-                            .labelsHidden()
-                            .datePickerStyle(.compact)
-                            .tint(BBColor.brandAccent)
-                    }
+                    startDateRow
                     if typeSize.isAccessibilitySize {
                         Picker("Starts", selection: $minutesBack) {
                             if minutesBack == nil {
@@ -129,6 +124,37 @@ struct StartTimerSheet: View {
         }
     }
 
+    private var startDateRow: some View {
+        let title = Text("Starts").font(.subheadline).foregroundStyle(.secondary).fixedSize()
+        let picker = DatePicker(String(localized: "Starts"), selection: Binding(
+            get: { startDate() },
+            set: { customStart = min($0, .now); minutesBack = nil }
+        ), in: ...Date.now, displayedComponents: [.date, .hourAndMinute])
+            .labelsHidden()
+            .datePickerStyle(.compact)
+            .tint(BBColor.brandAccent)
+        let stacked = VStack(alignment: .leading, spacing: 8) {
+            title
+            picker
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+
+        return Group {
+            if typeSize.isAccessibilitySize {
+                stacked
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack {
+                        title
+                        Spacer(minLength: 8)
+                        picker
+                    }
+                    stacked
+                }
+            }
+        }
+    }
+
     // MARK: Start actions
 
     private var startButtons: some View {
@@ -136,14 +162,18 @@ struct StartTimerSheet: View {
             Button { start(kind: selected) } label: { Text(startTitle) }
                 .buttonStyle(startStyle)
 
-            // Lower-emphasis escape hatch: once an activity is picked, still allow an
-            // uncategorized timer (with none picked, the primary button already does this).
-            if selected != nil {
-                Button("Start without a type") { start(kind: nil) }
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 4)
-            }
+            if !typeSize.isAccessibilitySize { untypedStartButton }
+        }
+    }
+
+    /// Once an activity is picked, this still lets the user start an uncategorized timer.
+    @ViewBuilder private var untypedStartButton: some View {
+        if selected != nil {
+            Button("Start without a type") { start(kind: nil) }
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity)
         }
     }
 
