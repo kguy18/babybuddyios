@@ -23,59 +23,48 @@ struct PendingChangesView: View {
     /// The stale-timer row awaiting "create without timer" confirmation. The original request may
     /// have already succeeded, so it warns about a possible duplicate first.
     @State private var creatingWithoutTimer: PendingMutation?
-    @State private var wide = false
     /// The row to scroll to and outline on appear — the editor's sync banner lands here.
     var highlight: UUID? = nil
 
     var body: some View {
         NavigationStack {
-            HStack(spacing: 0) {
-                // The open display centres this sheet on the fold, with columns narrower than
-                // FoldSplitView's screen panes. Use the shared wide-sheet check for this queue.
-                if wide {
-                    Color.clear.frame(maxWidth: .infinity).accessibilityHidden(true)
-                    Color.clear.frame(width: FoldLayout.assumedFold).accessibilityHidden(true)
-                }
-                ScrollViewReader { proxy in
-                    List {
-                        ForEach(mutations) { mutation in
-                            let entity = LocalStore.fetch(localID: mutation.localID, in: context)
-                            row(QueueRow(kind: mutation.kind,
-                                         title: title(for: mutation),
-                                         detail: entity.flatMap(EntityFormatting.subtitle),
-                                         lastError: mutation.lastError,
-                                         isBlocked: mutation.isBlocked,
-                                         createdAt: mutation.createdAt,
-                                         // A parked create with no `timer` field (the DELETE found the timer
-                                         // gone) has nothing for the server to refuse: Retry would file the
-                                         // duplicate unasked, so only "Create without timer" sends it.
-                                         onRetry: mutation.isStaleTimer && !carriesTimer(mutation)
-                                             ? nil : { sync.retry(mutation) },
-                                         onCreateWithoutTimer: mutation.isStaleTimer
-                                             ? { creatingWithoutTimer = mutation } : nil,
-                                         highlighted: mutation.localID == highlight),
-                                target: .mutation(mutation))
-                            .id(mutation.localID)
-                        }
-                        ForEach(uploads) { upload in
-                            let entity = LocalStore.fetch(localID: upload.localID, in: context)
-                            row(QueueRow(kind: upload.kind,
-                                         title: String(localized: "\(upload.kind.displayName) photo"),
-                                         detail: entity.flatMap(EntityFormatting.subtitle),
-                                         lastError: upload.lastError,
-                                         isBlocked: upload.isBlocked,
-                                         createdAt: upload.createdAt,
-                                         onRetry: { sync.retry(upload) },
-                                         onCreateWithoutTimer: nil,
-                                         highlighted: false),
-                                target: .upload(upload))
-                        }
+            ScrollViewReader { proxy in
+                List {
+                    ForEach(mutations) { mutation in
+                        let entity = LocalStore.fetch(localID: mutation.localID, in: context)
+                        row(QueueRow(kind: mutation.kind,
+                                     title: title(for: mutation),
+                                     detail: entity.flatMap(EntityFormatting.subtitle),
+                                     lastError: mutation.lastError,
+                                     isBlocked: mutation.isBlocked,
+                                     createdAt: mutation.createdAt,
+                                     // A parked create with no `timer` field (the DELETE found the timer
+                                     // gone) has nothing for the server to refuse: Retry would file the
+                                     // duplicate unasked, so only "Create without timer" sends it.
+                                     onRetry: mutation.isStaleTimer && !carriesTimer(mutation)
+                                         ? nil : { sync.retry(mutation) },
+                                     onCreateWithoutTimer: mutation.isStaleTimer
+                                         ? { creatingWithoutTimer = mutation } : nil,
+                                     highlighted: mutation.localID == highlight),
+                            target: .mutation(mutation))
+                        .id(mutation.localID)
                     }
-                    .onAppear { if let highlight { proxy.scrollTo(highlight, anchor: .center) } }
+                    ForEach(uploads) { upload in
+                        let entity = LocalStore.fetch(localID: upload.localID, in: context)
+                        row(QueueRow(kind: upload.kind,
+                                     title: String(localized: "\(upload.kind.displayName) photo"),
+                                     detail: entity.flatMap(EntityFormatting.subtitle),
+                                     lastError: upload.lastError,
+                                     isBlocked: upload.isBlocked,
+                                     createdAt: upload.createdAt,
+                                     onRetry: { sync.retry(upload) },
+                                     onCreateWithoutTimer: nil,
+                                     highlighted: false),
+                            target: .upload(upload))
+                    }
                 }
-                .frame(maxWidth: .infinity)
+                .onAppear { if let highlight { proxy.scrollTo(highlight, anchor: .center) } }
             }
-            .trackingWide($wide)
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .background(BBColor.surface)
@@ -226,7 +215,7 @@ private struct QueueRow: View {
                     }
                     if !typeSize.isAccessibilitySize {
                         Spacer(minLength: 8)
-                        timestamp
+                        timestamp.layoutPriority(1)
                     }
                 }
                 if isBlocked {

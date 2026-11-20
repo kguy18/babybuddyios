@@ -513,17 +513,50 @@ final class FoldTests: UITestCase {
         XCTAssertGreaterThan(undo.frame.minX, server.frame.minX + 100)
     }
 
-    func testSyncScreensKeepContentBesideTheFold() throws {
-        try launchOpen(["BB_START_TAB": "settings", "BB_SEED_PENDING": "1", "BB_OPEN_PENDING": "1"])
-        let pending = expect(app.navigationBars["Pending Changes"])
+    func testPendingChangesUsesTheSheetWidth() throws {
+        try checkPendingChanges(largestText: false)
+    }
+
+    func testPendingChangesUsesTheSheetWidthAtLargestText() throws {
+        try checkPendingChanges(largestText: true)
+    }
+
+    private func checkPendingChanges(largestText: Bool) throws {
+        try launchOpen(["BB_START_TAB": "settings", "BB_SEED_PENDING": "1", "BB_OPEN_PENDING": "1"],
+                       largestText: largestText)
+        expect(app.navigationBars["Pending Changes"])
         let title = expect(app.staticTexts["Added Pumping"])
         let queue = expect(app.collectionViews.firstMatch)
-        XCTAssertGreaterThan(queue.frame.minX, app.windows.firstMatch.frame.midX,
-                             "The whole pending list should stay right of the fold")
-        XCTAssertGreaterThan(title.frame.minX, app.windows.firstMatch.frame.midX,
-                             "Pending rows should stay right of the fold")
-        tap(pending.buttons["Done"])
+        let queueFrame = queue.frame
+        let window = app.windows.firstMatch.frame
+        XCTAssertGreaterThan(queueFrame.width, window.width * 0.6, "The queue should use the sheet width")
+        XCTAssertLessThan(title.frame.minX, window.midX, "Pending rows should start left of the fold")
 
+        // Swipe from the card's trailing end, clear of the fold.
+        let cell = queue.cells.firstMatch
+        cell.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5))
+            .press(forDuration: 0.05, thenDragTo: cell.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5)))
+        tap(app.buttons["Discard"])
+        let prompt = expect(app.alerts["Discard this change?"])
+        tap(prompt.buttons["Cancel"])
+        expectGone(prompt)
+        XCTAssertTrue(title.exists, "Cancel should keep the change")
+
+        if largestText {
+            let photo = app.staticTexts["Note photo"]
+            XCTAssertFalse(photo.exists && photo.isHittable, "The last entry should start below the viewport")
+            // Start on the left side of the sheet, which previously had no scrolling content.
+            let start = queue.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.8))
+            let end = queue.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.25))
+            for _ in 0..<5 {
+                if photo.exists && photo.isHittable { break }
+                start.press(forDuration: 0.05, thenDragTo: end)
+            }
+            XCTAssertTrue(photo.exists && photo.isHittable, "Scrolling should reveal the last entry")
+        }
+    }
+
+    func testConflictScreensKeepContentBesideTheFold() throws {
         try launchOpen(["BB_START_TAB": "settings", "BB_SEED_CONFLICT": "1"])
         tap(app.buttons.labeled("Conflicts"))
         let row = expect(app.buttons.labeled("Feeding"))
