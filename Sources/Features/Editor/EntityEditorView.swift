@@ -127,6 +127,7 @@ struct EntityEditorView: View {
                         Button("Save", action: save).disabled(!isValid).tint(BBColor.brandAccent)
                     }
                 }
+                .keepsNavigationBar()
             }
         }
     }

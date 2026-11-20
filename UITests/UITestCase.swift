@@ -157,10 +157,17 @@ class UITestCase: XCTestCase {
     /// run the list has scrolled to the switch and the switch never flips. The second tap is
     /// only made when the value hasn't moved, so it can't undo a first one that worked; a first tap
     /// that landed later than five seconds would flip it back and fail below, not pass.
+    ///
+    /// The taps go to the UISwitch nested in a SwiftUI toggle's element when it has one. XCUITest
+    /// taps the outer element at (1, 1) from its corner, outside the switch's rounded track, and on
+    /// iPhone Duo CI that tap sometimes did nothing, twice in a row (TodayTilesTests). The nested
+    /// switch takes the tap at its center.
     func toggle(_ element: XCUIElement, to value: String, file: StaticString = #filePath, line: UInt = #line) {
-        tap(element, file: file, line: line)
+        expect(element, file: file, line: line)
+        let control = element.switches.firstMatch.exists ? element.switches.firstMatch : element
+        tap(control, file: file, line: line)
         let flipped = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", value), object: element)
-        if XCTWaiter().wait(for: [flipped], timeout: 5) != .completed { element.tap() }
+        if XCTWaiter().wait(for: [flipped], timeout: 5) != .completed { control.tap() }
         expectValue(element, value, file: file, line: line)
     }
 

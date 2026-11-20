@@ -108,3 +108,21 @@ struct FoldSplitView<Side: View, Main: View>: View {
         return nil
     }
 }
+
+extension View {
+    /// Keeps the navigation bar in place while the content scrolls. From iOS 27 the system may
+    /// minimize it on scroll, and on iPhone Duo's folded display it does, taking a sheet's Cancel
+    /// and Save with it.
+    @ViewBuilder func keepsNavigationBar() -> some View {
+        // The API is in the iOS 27 SDK (Swift 6.4); Xcode 26 builds lack it and never minimize.
+        #if compiler(>=6.4)
+        if #available(iOS 27.0, *) {
+            toolbarMinimizationBehavior(.never, for: .navigationBar)
+        } else {
+            self
+        }
+        #else
+        self
+        #endif
+    }
+}
