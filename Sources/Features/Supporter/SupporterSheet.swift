@@ -26,6 +26,7 @@ struct SupporterSheet: View {
 
     @Environment(PurchaseManager.self) private var purchases
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     /// The amount the customer has actually tapped. `nil` until they do — the effective selection is
     /// then ``selectedTier``, which follows the offering's preselected default as it loads. Holding
@@ -145,8 +146,12 @@ struct SupporterSheet: View {
 
     // MARK: Tips
 
+    private var stackActions: Bool { wide && typeSize.isAccessibilitySize }
+
     private var amounts: some View {
-        HStack(spacing: 9) {
+        let layout = stackActions
+            ? AnyLayout(VStackLayout(spacing: 9)) : AnyLayout(HStackLayout(spacing: 9))
+        return layout {
             ForEach(TipTier.allCases) { tier in
                 TipTile(tier: tier, price: price(for: tier), isSelected: selectedTier == tier) {
                     selection = tier
@@ -237,9 +242,11 @@ struct SupporterSheet: View {
             .tint(BBColor.brandAccent)
             .disabled(!purchases.isConfigured || purchases.isLoading)
 
-            HStack(spacing: 6) {
+            let layout = stackActions
+                ? AnyLayout(VStackLayout(spacing: 6)) : AnyLayout(HStackLayout(spacing: 6))
+            layout {
                 Link(String(localized: "Privacy Policy"), destination: SupporterLinks.privacyPolicy)
-                Text("•").foregroundStyle(.tertiary)
+                if !stackActions { Text("•").foregroundStyle(.tertiary) }
                 Link(String(localized: "Terms of Service"), destination: SupporterLinks.termsOfService)
             }
             .font(.footnote)

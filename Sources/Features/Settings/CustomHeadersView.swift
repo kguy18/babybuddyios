@@ -226,6 +226,7 @@ struct AdvancedConfigurationSheet: View {
     let onSave: ([HeaderRow], Bool) -> Void
 
     @State private var draft: [HeaderRow]
+    @State private var wide = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -247,31 +248,25 @@ struct AdvancedConfigurationSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                SheetColumns(wide: wide, spacing: gate == nil ? 0 : 16) {
                     if let gate {
                         SignInTrace(gate: gate, host: host, ready: ready)
                         if !ready { fixBox(gate) }
                     }
-                    VStack(alignment: .leading, spacing: 8) {
-                        SectionHeader(gate == .cloudflareAccess ? String(localized: "Service token") : String(localized: "Custom headers"))
-                            .padding(.horizontal, 4)
-                        BBCard(cornerRadius: BBRadius.tile, padding: 0) {
-                            CustomHeaderFields(rows: $draft, addTitle: draft.isEmpty ? String(localized: "Add header") : String(localized: "Add another header"))
-                        }
-                        Text(CustomHeaderFields.footnote)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 4)
+                } trailing: {
+                    VStack(alignment: .leading, spacing: 16) {
+                        headerForm
+                        if wide || typeSize.isAccessibilitySize { saveButton }
                     }
-                    if typeSize.isAccessibilitySize { saveButton }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 20)
             }
+            .trackingWide($wide)
             .background(BBColor.surface.ignoresSafeArea())
             .safeAreaInset(edge: .bottom) {
-                if !typeSize.isAccessibilitySize { footer }
+                if !wide && !typeSize.isAccessibilitySize { footer }
             }
             .navigationTitle("Advanced configuration")
             .navigationBarTitleDisplayMode(.inline)
@@ -289,8 +284,20 @@ struct AdvancedConfigurationSheet: View {
         }
     }
 
-    /// Pinned under the content, except at accessibility sizes: there it would cover the sheet, so
-    /// Save scrolls with the content instead.
+    private var headerForm: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionHeader(gate == .cloudflareAccess ? String(localized: "Service token") : String(localized: "Custom headers"))
+                .padding(.horizontal, 4)
+            BBCard(cornerRadius: BBRadius.tile, padding: 0) {
+                CustomHeaderFields(rows: $draft, addTitle: draft.isEmpty ? String(localized: "Add header") : String(localized: "Add another header"))
+            }
+            Text(CustomHeaderFields.footnote)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+        }
+    }
+
     private var footer: some View {
         saveButton
             .padding(.horizontal, 16)

@@ -169,10 +169,6 @@ struct SupportMilestoneSheet: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var wide = false
 
-    /// Whether the sheet is in two columns, on iPhone Duo's open display. ``SheetColumns`` keeps
-    /// one at accessibility text sizes.
-    private var twoColumns: Bool { wide && !typeSize.isAccessibilitySize }
-
     var body: some View {
         // In one column the buttons are pinned under the copy, so a long read at large text sizes
         // scrolls behind them. In two they sit in the right column, next to the copy.
@@ -184,19 +180,19 @@ struct SupportMilestoneSheet: View {
             } trailing: {
                 VStack(spacing: 0) {
                     perks
-                    if twoColumns { buttons }
+                    if wide { buttons }
                 }
                 .frame(maxWidth: .infinity)
             }
             .multilineTextAlignment(.center)
             .padding(.horizontal, typeSize.isAccessibilitySize ? 14 : 22)
             .padding(.top, 10)
-            .padding(.bottom, twoColumns ? 24 : 0)
+            .padding(.bottom, wide ? 24 : 0)
             .overlay(alignment: .top) {
                 if !typeSize.isAccessibilitySize { Confetti() }
             }
         } actions: {
-            if !twoColumns {
+            if !wide {
                 buttons
                     .padding(.horizontal, typeSize.isAccessibilitySize ? 14 : 22)
                     .padding(.bottom, typeSize.isAccessibilitySize ? 8 : 24)

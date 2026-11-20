@@ -28,17 +28,17 @@ struct WhatsNewView: View {
     var body: some View {
         // iPhone Duo's open display: the heading and buttons left of the fold, the list right of
         // it. The launch card is a full-screen cover, which FoldSplitView splits at the fold. From
-        // Settings it is a sheet centred on the fold, too narrow for those panes, so it splits in
-        // half, and keeps one column at accessibility text sizes as the other sheets do.
+        // Settings it is a narrower sheet centred on the fold, so it uses the sheet columns.
         FoldSplitView {
             sidePane
         } main: { split in
             if split {
                 list
-            } else if wide && !typeSize.isAccessibilitySize {
-                HStack(spacing: FoldLayout.assumedFold) {
-                    sidePane.frame(maxWidth: .infinity)
-                    list.frame(maxWidth: .infinity)
+            } else if wide {
+                SheetColumns(wide: wide) {
+                    sidePane
+                } trailing: {
+                    list
                 }
             } else {
                 VStack(spacing: 0) {
@@ -73,10 +73,18 @@ struct WhatsNewView: View {
 
     private var sidePane: some View {
         VStack(spacing: 0) {
-            Spacer(minLength: 0)
-            masthead
-            Spacer(minLength: 0)
-            footer()
+            if typeSize.isAccessibilitySize {
+                ScrollView {
+                    masthead
+                    supportButton.padding(.horizontal, 20).padding(.top, 8)
+                }
+                footer(withSupport: false)
+            } else {
+                Spacer(minLength: 0)
+                masthead
+                Spacer(minLength: 0)
+                footer()
+            }
         }
     }
 
@@ -94,6 +102,7 @@ struct WhatsNewView: View {
             .padding(.bottom, 16)
         }
         .scrollIndicatorsFlash(onAppear: true)
+        .accessibilityIdentifier("whats-new-releases")
     }
 
     private var masthead: some View {
@@ -140,14 +149,17 @@ struct WhatsNewView: View {
 
     private func row(_ item: ReleaseNote.Item) -> some View {
         HStack(alignment: .top, spacing: 13) {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(item.icon.tint.opacity(0.15))
-                .frame(width: 34, height: 34)
-                .overlay {
-                    Image(systemName: item.icon.symbol)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(item.icon.tint)
-                }
+            if !typeSize.isAccessibilitySize {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(item.icon.tint.opacity(0.15))
+                    .frame(width: 34, height: 34)
+                    .overlay {
+                        Image(systemName: item.icon.symbol)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(item.icon.tint)
+                    }
+                    .accessibilityHidden(true)
+            }
             VStack(alignment: .leading, spacing: 3) {
                 Text(NSLocalizedString(item.title, comment: "Bundled release note title")).font(.subheadline.weight(.semibold))
                 if !item.body.isEmpty {
@@ -157,8 +169,8 @@ struct WhatsNewView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
         .padding(.vertical, 15)
         .accessibilityElement(children: .combine)

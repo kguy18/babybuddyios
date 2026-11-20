@@ -125,7 +125,7 @@ struct ConflictResolutionView: View {
         spacing: CGFloat = 18, innerPadding: CGFloat = 0,
         @ViewBuilder leading: @escaping () -> Leading, @ViewBuilder trailing: @escaping () -> Trailing
     ) -> some View {
-        if let foldPanes, !typeSize.isAccessibilitySize {
+        if let foldPanes {
             let edge = contentPadding + innerPadding
             HStack(alignment: .top, spacing: foldPanes.fold + edge * 2) {
                 VStack(alignment: .leading, spacing: spacing, content: leading)
@@ -163,34 +163,41 @@ struct ConflictResolutionView: View {
 
     private var deletedBody: some View {
         ScrollView {
-            VStack(spacing: 16) {
+            columns(spacing: 16) {
                 headerCard
-
-                HStack(alignment: .top, spacing: 10) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 17))
-                        .foregroundStyle(BBColor.danger)
-                    Text("This \(conflict.kind.sentenceName) was deleted on the server while you had local changes here. Keep your version to restore it, or discard it to accept the deletion.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                    Spacer(minLength: 0)
-                }
-                .padding(13)
-                .background(BBColor.danger.opacity(0.12),
-                            in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-                VStack(spacing: 10) {
-                    Button("Keep my version") { sync.resolveKeepMine(conflict); dismiss() }
-                        .buttonStyle(.bbPrimary)
-                    Button("Discard it") { sync.resolveKeepTheirs(conflict); dismiss() }
-                        .buttonStyle(BBFilledButton(background: BBColor.danger, foreground: .white))
-                }
-                .padding(.top, 2)
+                deletedNotice
+            } trailing: {
+                deletedActions
             }
             .padding(.horizontal, contentPadding)
             .padding(.top, 8)
             .padding(.bottom, 28)
         }
+    }
+
+    private var deletedNotice: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "trash")
+                .font(.system(size: 17))
+                .foregroundStyle(BBColor.danger)
+            Text("This \(conflict.kind.sentenceName) was deleted on the server while you had local changes here. Keep your version to restore it, or discard it to accept the deletion.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+        }
+        .padding(13)
+        .background(BBColor.danger.opacity(0.12),
+                    in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private var deletedActions: some View {
+        VStack(spacing: 10) {
+            Button("Keep my version") { sync.resolveKeepMine(conflict); dismiss() }
+                .buttonStyle(.bbPrimary)
+            Button("Discard it") { sync.resolveKeepTheirs(conflict); dismiss() }
+                .buttonStyle(BBFilledButton(background: BBColor.danger, foreground: .white))
+        }
+        .padding(.top, 2)
     }
 
     // MARK: Header
