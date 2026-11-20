@@ -6,15 +6,10 @@ final class ServerTests: ServerTestCase {
     /// A mistyped token has to say so, not fail silently (#93, #94).
     func testBadTokenIsRejected() {
         launch(demo: false)
-        let address = expect(app.textFields["Your server URL or IP address"])
-        address.tap()
-        address.typeText(api.baseURL.absoluteString)
-        let token = app.secureTextFields["Paste your API token"]
-        token.tap()
-        token.typeText("not-a-real-token")
-        tap(app.buttons["Connect"])
+        submit(token: "not-a-real-token")
 
-        expect(app.staticTexts["Your API token was rejected. Please sign in again."], timeout: 30)
+        awaitConnection(app.staticTexts["Your API token was rejected. Please sign in again."],
+                        describedAs: "the rejected-token message")
         expect(app.buttons["Try again"])
     }
 
