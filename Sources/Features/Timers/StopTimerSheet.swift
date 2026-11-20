@@ -226,9 +226,15 @@ struct StopTimerSheet: View {
             if wide || typeSize.isAccessibilitySize {
                 VStack(spacing: 14) { secondaryActions }
             } else {
+                // One row only with clear gaps between the three; tighter than that, they stack.
                 ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 20) { secondaryActions }
-                        .fixedSize(horizontal: true, vertical: false)
+                    HStack(spacing: 0) {
+                        resumeButton
+                        Spacer(minLength: 20)
+                        restartButton
+                        Spacer(minLength: 20)
+                        discardButton
+                    }
                     VStack(spacing: 14) { secondaryActions }
                 }
             }
@@ -240,12 +246,21 @@ struct StopTimerSheet: View {
     }
 
     @ViewBuilder private var secondaryActions: some View {
-        Button("Resume timer") { onResume() }
-            .foregroundStyle(BBColor.brandAccent)
-        Button("Restart from now") { setStart(.now); onResume() }
-            .foregroundStyle(BBColor.brandAccent)
-        Button("Discard timer", role: .destructive) { onDiscard() }
-            .foregroundStyle(BBColor.danger)
+        resumeButton
+        restartButton
+        discardButton
+    }
+
+    private var resumeButton: some View {
+        Button("Resume timer") { onResume() }.foregroundStyle(BBColor.brandAccent)
+    }
+
+    private var restartButton: some View {
+        Button("Restart from now") { setStart(.now); onResume() }.foregroundStyle(BBColor.brandAccent)
+    }
+
+    private var discardButton: some View {
+        Button("Discard timer", role: .destructive) { onDiscard() }.foregroundStyle(BBColor.danger)
     }
 
     private var logTitle: String {
