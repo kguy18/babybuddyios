@@ -60,36 +60,36 @@ struct QRScannerSheet: View {
 
     private var scanner: some View {
         FoldSplitView {
-            VStack(spacing: 0) {
-                scannerHeader
-                ScrollView {
-                    VStack(spacing: 24) {
-                        instructions
-                        manualEntryButton
-                    }
-                    .padding(24)
-                }
-            }
+            scannerControls(showReticle: false)
         } main: { split in
             ZStack {
                 cameraLayer
                 if split {
-                    reticle
+                    reticle()
                 } else {
-                    VStack(spacing: 0) {
-                        scannerHeader
-                        ScrollView {
-                            VStack(spacing: 24) {
-                                reticle
-                                instructions
-                                manualEntryButton
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 24)
-                        }
-                    }
+                    scannerControls(showReticle: true)
                 }
+            }
+        }
+    }
+
+    private func scannerControls(showReticle: Bool) -> some View {
+        VStack(spacing: 0) {
+            scannerHeader
+            ScrollView {
+                VStack(spacing: 24) {
+                    if showReticle { reticle(compact: typeSize.isAccessibilitySize) }
+                    instructions
+                    if !typeSize.isAccessibilitySize { manualEntryButton }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(typeSize.isAccessibilitySize ? 16 : 24)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .scrollIndicatorsFlash(onAppear: true)
+
+            if typeSize.isAccessibilitySize {
+                manualEntryFooter
             }
         }
     }
@@ -116,8 +116,9 @@ struct QRScannerSheet: View {
         .fixedSize(horizontal: false, vertical: true)
     }
 
-    private var reticle: some View {
-        ZStack {
+    private func reticle(compact: Bool = false) -> some View {
+        let size: CGFloat = compact ? 144 : 224
+        return ZStack {
             ReticleCorners(cornerLength: 34, radius: 20)
                 .stroke(reticleColor, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
                 .animation(.easeInOut(duration: 0.25), value: didSucceed)
@@ -132,11 +133,11 @@ struct QRScannerSheet: View {
                     .fill(BBColor.brand)
                     .frame(height: 2)
                     .padding(.horizontal, 14)
-                    .offset(y: scanLineDown ? 92 : -92)
+                    .offset(y: (size / 2 - 20) * (scanLineDown ? 1 : -1))
                     .shadow(color: BBColor.brand.opacity(0.8), radius: 6)
             }
         }
-        .frame(width: 224, height: 224)
+        .frame(width: size, height: size)
         .accessibilityHidden(true)
         .onAppear {
             withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
@@ -163,17 +164,31 @@ struct QRScannerSheet: View {
         .background(.black.opacity(0.6))
     }
 
+    private var manualEntryFooter: some View {
+        manualEntryButton
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
+            .background(.black.opacity(0.6))
+    }
+
     private var manualEntryButton: some View {
         Button { dismiss() } label: {
-            Label("Enter details manually", systemImage: "keyboard")
-                .font(.subheadline.weight(.semibold))
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .foregroundStyle(.white)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .frame(minHeight: 44)
-                .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: BBRadius.control))
+            Group {
+                if typeSize.isAccessibilitySize {
+                    Text("Enter details manually")
+                } else {
+                    Label("Enter details manually", systemImage: "keyboard")
+                }
+            }
+            .font(.subheadline.weight(.semibold))
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .frame(minHeight: 44)
+            .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: BBRadius.control))
         }
         .buttonStyle(.plain)
     }
@@ -183,6 +198,7 @@ struct QRScannerSheet: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.title3.weight(.medium))
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                 .foregroundStyle(isActive ? Color.black : .white)
                 .frame(width: 44, height: 44)
                 .background(isActive ? AnyShapeStyle(BBColor.brand) : AnyShapeStyle(.white.opacity(0.12)), in: Circle())
@@ -200,17 +216,25 @@ struct QRScannerSheet: View {
                 deniedExplanation.padding(24)
             }
         } main: { split in
-            ScrollView {
-                VStack(spacing: 24) {
-                    if !split { deniedExplanation }
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        Button("Open Settings") { UIApplication.shared.open(url) }
-                            .buttonStyle(.bbPrimary)
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(spacing: 24) {
+                        if !split { deniedExplanation }
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            Button("Open Settings") { UIApplication.shared.open(url) }
+                                .buttonStyle(.bbPrimary)
+                        }
+                        if !typeSize.isAccessibilitySize { manualEntryButton }
                     }
-                    manualEntryButton
+                    .frame(maxWidth: .infinity)
+                    .padding(24)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(24)
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollIndicatorsFlash(onAppear: true)
+
+                if typeSize.isAccessibilitySize {
+                    manualEntryFooter
+                }
             }
         }
     }

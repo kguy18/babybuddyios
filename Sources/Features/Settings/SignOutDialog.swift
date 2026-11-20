@@ -20,8 +20,10 @@ struct SignOutDialog: View {
         SettingsDialogCard(label: String(localized: "Sign out of \(host)?"), onCancel: onCancel) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 13) {
-                    glyphTile(size: 46, radius: 14, symbol: "rectangle.portrait.and.arrow.right",
-                              font: .title3, tint: BBColor.danger, color: BBColor.danger)
+                    if !typeSize.isAccessibilitySize {
+                        glyphTile(size: 46, radius: 14, symbol: "rectangle.portrait.and.arrow.right",
+                                  font: .title3, tint: BBColor.danger, color: BBColor.danger)
+                    }
                     Text("Sign out?").font(.title3.weight(.semibold))
                 }
                 serverRow
@@ -114,7 +116,7 @@ struct SettingsDialogCard<Copy: View, Actions: View>: View {
             FoldSplitView { Color.clear.allowsHitTesting(false) } main: { _ in
                 card
                     .frame(maxWidth: 400)
-                    .padding(16)
+                    .padding(typeSize.isAccessibilitySize ? 10 : 16)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .scaleEffect(shown ? 1 : 0.94)
                     .opacity(shown ? 1 : 0)
@@ -127,15 +129,12 @@ struct SettingsDialogCard<Copy: View, Actions: View>: View {
         let actionLayout = typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(spacing: 10))
             : AnyLayout(HStackLayout(spacing: 10))
-        return BBCard(padding: 20) {
-            VStack(alignment: .leading, spacing: 16) {
-                ViewThatFits(in: .vertical) {
-                    copy().fixedSize(horizontal: false, vertical: true)
-                    ScrollView { copy().frame(maxWidth: .infinity, alignment: .leading) }
-                        .scrollBounceBehavior(.basedOnSize)
-                        .scrollIndicatorsFlash(onAppear: true)
-                }
+        return BBCard(padding: typeSize.isAccessibilitySize ? 14 : 20) {
+            VStack(alignment: .leading, spacing: typeSize.isAccessibilitySize ? 12 : 16) {
+                DialogCopy(alignment: .leading, content: copy)
                 actionLayout { actions() }
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
             }
         }
         .shadow(color: .black.opacity(scheme == .dark ? 0.5 : 0.18), radius: 24, y: 12)

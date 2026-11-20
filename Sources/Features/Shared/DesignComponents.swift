@@ -313,6 +313,29 @@ struct FloatingAddButton: View {
     }
 }
 
+// MARK: Dialogs
+
+/// Fits the full copy at the available width, then scrolls it if there is too little height.
+struct DialogCopy<Content: View>: View {
+    var alignment: Alignment = .center
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        ViewThatFits(in: .vertical) {
+            copy
+            ScrollView { copy }
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollIndicatorsFlash(onAppear: true)
+        }
+    }
+
+    private var copy: some View {
+        content()
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: alignment)
+    }
+}
+
 // MARK: Content-fitted bottom sheet
 
 /// A bottom sheet exactly as tall as what's in it, over the standard card background.

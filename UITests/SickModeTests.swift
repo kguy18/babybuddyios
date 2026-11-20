@@ -200,9 +200,13 @@ final class SickModeTests: UITestCase {
             attachSickSettingsScreen("alert-medicine-color-change")
             let change = expect(element(labeled: "Ibuprofen: Purple to Pink"))
             XCTAssertTrue(change.isHittable)
-            let explanation = app.staticTexts.labeled("Your server gave ibuprofen purple")
-            reveal(explanation, in: app.alerts["Color changes only on this phone"].scrollViews.firstMatch)
             XCTAssertGreaterThan(use.frame.minY, cancel.frame.maxY)
+            XCTAssertTrue(cancel.isHittable)
+            XCTAssertTrue(use.isHittable)
+            expectReadableText(
+                "Your server gave ibuprofen purple, and other phones keep showing it that way. To match, change it on each phone.",
+                above: cancel, minimumHeight: 150)
+            XCTAssertTrue(cancel.isHittable)
             XCTAssertTrue(use.isHittable)
         }
         tap(cancel)
