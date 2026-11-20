@@ -434,6 +434,18 @@ final class FoldTests: UITestCase {
                                  "\(element) should end before the fold", file: file, line: line)
     }
 
+    /// Drags the left column until `element` is above the pinned button whose label starts with
+    /// `pinned`. XCUITest calls a tile under that button hittable, and a tap then lands on the button.
+    private func scrollClear(of pinned: String, _ element: XCUIElement, in scrollView: XCUIElement) {
+        let button = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", pinned)).firstMatch
+        for _ in 0..<6 where button.exists && element.frame.maxY > button.frame.minY {
+            scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.7))
+                .press(forDuration: 0.05,
+                       thenDragTo: scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.45)),
+                       withVelocity: .slow, thenHoldForDuration: 0.2)
+        }
+    }
+
     private func assertRightOfFold(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
         let edge = app.windows.firstMatch.frame.midX + 19
         XCTAssertGreaterThanOrEqual(expect(element, file: file, line: line).frame.minX, edge,
@@ -450,12 +462,15 @@ final class FoldTests: UITestCase {
         let sleep = expect(app.buttons["Sleep"])
         assertLeftOfFold(feeding)
         XCTAssertGreaterThan(sleep.frame.minY, feeding.frame.maxY)
+        let resume = app.buttons["Resume timer"]
+        assertRightOfFold(resume)
+        scrollClear(of: "Log ", feeding, in: stopScroll)
         tap(feeding)
         let log = expect(app.buttons["Log feeding…"])
         XCTAssertTrue(log.isHittable, "Log should be visible as soon as a type is picked")
         XCTAssertTrue(app.windows.firstMatch.frame.contains(log.frame))
-        let resume = app.buttons["Resume timer"]
-        assertRightOfFold(resume)
+        // Back up to the quiet actions, which the drag to the tiles took off the top.
+        stopScroll.swipeDown()
         reveal(resume, in: stopScroll)
         tap(resume)
         expectGone(app.navigationBars["Stop Timer"])
@@ -474,6 +489,10 @@ final class FoldTests: UITestCase {
         XCTAssertTrue(app.windows.firstMatch.frame.contains(start.frame))
         let starts = app.staticTexts["Starts"]
         assertRightOfFold(starts)
+        // The date and time pills fit the column: at the largest size they ran off the sheet.
+        for picker in app.datePickers.allElementsBoundByIndex {
+            XCTAssertLessThanOrEqual(picker.frame.maxX, start.frame.maxX + 1, "\(picker) should fit the sheet")
+        }
         reveal(starts, in: startScroll)
         XCTAssertGreaterThan(starts.frame.width, starts.frame.height, "\"Starts\" should fit on one line")
         XCTAssertTrue(start.isHittable, "Start should still be visible after scrolling the details")

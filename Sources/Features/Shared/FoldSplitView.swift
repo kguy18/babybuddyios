@@ -72,6 +72,34 @@ struct SheetColumns<Leading: View, Trailing: View>: View {
     }
 }
 
+/// The date and time pills for a 290 pt sheet column on iPhone Duo's open display at
+/// accessibility sizes. Side by side they don't fit, and at the largest size the date alone
+/// doesn't either, so each takes a line at the largest text size that fits it.
+struct ColumnDatePickers: View {
+    @Binding var selection: Date
+    let components: DatePickerComponents
+    var range: PartialRangeThrough<Date> = ...Date.distantFuture
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if components.contains(.date) { fitting(.date) }
+            if components.contains(.hourAndMinute) { fitting(.hourAndMinute) }
+        }
+    }
+
+    private func fitting(_ part: DatePickerComponents) -> some View {
+        let picker = DatePicker("", selection: $selection, in: range, displayedComponents: part)
+            .labelsHidden()
+            .datePickerStyle(.compact)
+            .tint(BBColor.brandAccent)
+        return ViewThatFits(in: .horizontal) {
+            picker
+            picker.dynamicTypeSize(...DynamicTypeSize.accessibility3)
+            picker.dynamicTypeSize(...DynamicTypeSize.accessibility1)
+        }
+    }
+}
+
 /// Two panes either side of the fold when there's room for both, and only `main` otherwise.
 /// `main` keeps its place in the view tree across the change, so folding or unfolding the phone
 /// resizes it rather than rebuilding it: its scroll position and the sheets above it stay put.

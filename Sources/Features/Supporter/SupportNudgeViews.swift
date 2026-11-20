@@ -237,6 +237,14 @@ struct SupportMilestoneSheet: View {
 
     /// What supporting will eventually get you. Nothing here is gated today, and the header says
     /// "planned" precisely so it can't read as a promise that has already been broken.
+    @ViewBuilder private var perkChips: some View {
+        PerkChip(title: String(localized: "Themes"), color: BBColor.tummy)
+        // `primary`, not `brand`: the latter is the one fixed token in the palette, and an
+        // undimmed dot beside the adaptive one would be the only thing on the sheet ignoring
+        // dark mode.
+        PerkChip(title: String(localized: "Alt app icons"), color: BBColor.primary)
+    }
+
     private var perks: some View {
         VStack(spacing: 0) {
             Text("Supporter thank-yous · planned")
@@ -246,12 +254,11 @@ struct SupportMilestoneSheet: View {
                 .foregroundStyle(.tertiary)
                 .padding(.top, 18)
 
-            HStack(spacing: 8) {
-                PerkChip(title: String(localized: "Themes"), color: BBColor.tummy)
-                // `primary`, not `brand`: the latter is the one fixed token in the palette, and an
-                // undimmed dot beside the adaptive one would be the only thing on the sheet ignoring
-                // dark mode.
-                PerkChip(title: String(localized: "Alt app icons"), color: BBColor.primary)
+            // Stacked when side by side doesn't fit, as in a sheet column on iPhone Duo's open
+            // display at accessibility sizes, where "Themes" broke mid-word.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { perkChips }
+                VStack(spacing: 8) { perkChips }
             }
             .padding(.top, 12)
         }

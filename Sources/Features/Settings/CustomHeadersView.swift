@@ -116,7 +116,9 @@ struct CustomHeaderFields: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             HStack(alignment: .firstTextBaseline, spacing: 8) {
+                // Wraps rather than ending in "…": "Client Secret" did in a sheet column.
                 Text(preset.label).font(.subheadline.weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 8)
                 if !typeSize.isAccessibilitySize { name }
                 removeButton(row.wrappedValue)
@@ -330,6 +332,8 @@ struct AdvancedConfigurationSheet: View {
                   systemImage: "wrench.and.screwdriver.fill")
                 .font(.headline)
                 .foregroundStyle(BBColor.brandAccent)
+                // Wraps in a sheet column on iPhone Duo's open display instead of ending in "…".
+                .fixedSize(horizontal: false, vertical: true)
             let steps = Self.steps(for: gate, host: host)
             ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
                 HStack(alignment: .firstTextBaseline, spacing: 11) {

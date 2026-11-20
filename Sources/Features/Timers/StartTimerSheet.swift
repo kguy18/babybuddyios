@@ -126,10 +126,12 @@ struct StartTimerSheet: View {
 
     private var startDateRow: some View {
         let title = Text("Starts").font(.subheadline).foregroundStyle(.secondary).fixedSize()
-        let picker = DatePicker(String(localized: "Starts"), selection: Binding(
+        let selection = Binding(
             get: { startDate() },
             set: { customStart = min($0, .now); minutesBack = nil }
-        ), in: ...Date.now, displayedComponents: [.date, .hourAndMinute])
+        )
+        let picker = DatePicker(String(localized: "Starts"), selection: selection,
+                                in: ...Date.now, displayedComponents: [.date, .hourAndMinute])
             .labelsHidden()
             .datePickerStyle(.compact)
             .tint(BBColor.brandAccent)
@@ -140,7 +142,14 @@ struct StartTimerSheet: View {
         .frame(maxWidth: .infinity, alignment: .leading)
 
         return Group {
-            if typeSize.isAccessibilitySize {
+            if typeSize.isAccessibilitySize, wide {
+                // A 290 pt column on iPhone Duo's open display: the date and time each take a line.
+                VStack(alignment: .leading, spacing: 8) {
+                    title
+                    ColumnDatePickers(selection: selection, components: [.date, .hourAndMinute], range: ...Date.now)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else if typeSize.isAccessibilitySize {
                 stacked
             } else {
                 ViewThatFits(in: .horizontal) {

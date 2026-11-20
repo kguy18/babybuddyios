@@ -77,11 +77,14 @@ struct AcknowledgementsView: View {
     private func noticeCard(_ notice: Acknowledgement) -> some View {
         BBCard(cornerRadius: BBRadius.tile) {
             VStack(alignment: .leading, spacing: 6) {
+                // Wrapped, not cut to "Baby Bu…", in a sheet column on iPhone Duo's open display.
                 Text(notice.title)
                     .font(.headline)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(notice.license)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(BBColor.brandAccent)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(notice.text)
                     .font(.caption2.monospaced())
                     .foregroundStyle(.secondary)
