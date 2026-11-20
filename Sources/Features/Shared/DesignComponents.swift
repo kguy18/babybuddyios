@@ -287,7 +287,23 @@ struct BBSegmentedControl<Value: Hashable>: View {
     }
 }
 
-// MARK: Floating add button
+// MARK: Add buttons
+
+/// The add action in the navigation toolbar, which iPhone Duo puts in its vertical rail.
+struct AddToolbarItem: ToolbarContent {
+    let title: String
+    var isOpen = false
+    let action: () -> Void
+
+    var body: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Button(action: action) {
+                Image(systemName: isOpen ? "xmark" : "plus")
+            }
+            .accessibilityLabel(title)
+        }
+    }
+}
 
 /// The floating circular "+" action button — brand-filled, shadowed, 58pt. Shared between the
 /// Dashboard's quick-add stack (where `rotated` morphs it into an "×" while the stack is open)

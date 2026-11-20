@@ -62,8 +62,10 @@ struct TimelineView: View {
             // On iPhone Duo's open display the list goes left of the fold and the tapped record
             // opens right of it, ready to edit. Everywhere else the list is the whole screen.
             FoldSplitView {
-                list(items, tagColors: tagColors, split: true)
-                    .safeAreaInset(edge: .top, spacing: 0) { paneHeader }
+                VStack(spacing: 0) {
+                    paneHeader
+                    results(items, tagColors: tagColors, split: true)
+                }
             } main: { split in
                 Group {
                     if split {
@@ -71,7 +73,7 @@ struct TimelineView: View {
                     } else {
                         // Split, the search field and the child pill are in the left pane's
                         // header instead: in the navigation bar they ran across the fold.
-                        list(items, tagColors: tagColors, split: false)
+                        results(items, tagColors: tagColors, split: false)
                             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always),
                                         prompt: String(localized: "Search notes, tags, type…"))
                     }
@@ -113,13 +115,24 @@ struct TimelineView: View {
         }
     }
 
+    /// The rows, or with nothing matching a search or filter, a way to clear them. That one has a
+    /// scroll view of its own: in the list, on iPhone Duo, the keyboard covered its Clear button.
+    @ViewBuilder private func results(_ items: [TimelineItem], tagColors: [String: String], split: Bool) -> some View {
+        if items.isEmpty && isFilteringOrSearching {
+            ScrollView { noResults }
+                .scrollDismissesKeyboard(.never)
+        } else {
+            list(items, tagColors: tagColors, split: split)
+        }
+    }
+
     /// The day-grouped rows. `split` is the open display's left pane, where a tap opens the record
     /// in the right pane instead of a sheet, and the open record's row is highlighted.
     private func list(_ items: [TimelineItem], tagColors: [String: String], split: Bool) -> some View {
         List {
             if items.isEmpty {
-                // In the list rather than over it, so it scrolls clear of the keyboard.
-                emptyState
+                ContentUnavailableView("No Activity", systemImage: "list.bullet",
+                    description: Text("Logged events will appear here."))
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
             }
@@ -229,27 +242,19 @@ struct TimelineView: View {
         }
     }
 
-    @ViewBuilder
-    private var emptyState: some View {
-        if isFilteringOrSearching {
-            ContentUnavailableView {
-                // The icon would push the Clear button under the keyboard. A bare Text gets the
-                // title's size but not its weight, which only a Label gets.
-                if typeSize.isAccessibilitySize {
-                    Text("No Results").bold()
-                } else {
-                    Label("No Results", systemImage: "magnifyingglass")
-                }
-            } description: {
-                Text("No activity matches your search and filters.")
-            } actions: {
-                // Borderless keeps the tint: in a list row a plain button takes the row's style.
-                Button("Clear Search & Filters") { clearAllFilters() }
-                    .buttonStyle(.borderless)
+    private var noResults: some View {
+        ContentUnavailableView {
+            // The icon would push the Clear button under the keyboard. A bare Text gets the
+            // title's size but not its weight, which only a Label gets.
+            if typeSize.isAccessibilitySize {
+                Text("No Results").bold()
+            } else {
+                Label("No Results", systemImage: "magnifyingglass")
             }
-        } else {
-            ContentUnavailableView("No Activity", systemImage: "list.bullet",
-                description: Text("Logged events will appear here."))
+        } description: {
+            Text("No activity matches your search and filters.")
+        } actions: {
+            Button("Clear Search & Filters") { clearAllFilters() }
         }
     }
 

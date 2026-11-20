@@ -122,18 +122,9 @@ final class TimelineTests: UITestCase {
         XCTAssertTrue(app.windows.firstMatch.frame.contains(to.frame), "The date range should be on screen")
     }
 
-    /// At the largest text the empty search's Clear button scrolls clear of the keyboard: drawn
-    /// over the list, it sat under it.
     func testNoResultsCanBeClearedAboveTheKeyboard() {
         launch(["BB_START_TAB": "timeline"], largestText: true)
-        let feedings = elements("label BEGINSWITH 'Feeding, '")
-        expect(feedings.firstMatch)
-        let search = app.searchFields.firstMatch
-        tap(search)
-        search.typeText("zzqx")
-        expect(app.keyboards.firstMatch)
-        tap(app.buttons["Clear Search & Filters"])
-        expect(feedings.firstMatch)
+        checkEmptySearchWithKeyboard(app.searchFields.firstMatch)
     }
 
     /// Narrows the timeline to notes, through the Filters sheet.
@@ -145,5 +136,25 @@ final class TimelineTests: UITestCase {
         tap(filters.buttons["Done"])
         expectGone(filters)
         expect(element(labeled: "Note, Looking out at the garden."))
+    }
+}
+
+extension UITestCase {
+    func checkEmptySearchWithKeyboard(_ search: XCUIElement) {
+        tap(search)
+        search.typeText("zzqx")
+        let keyboard = expect(app.keyboards.firstMatch)
+        expect(app.staticTexts["No Results"])
+        let clear = expect(app.buttons["Clear Search & Filters"])
+        for _ in 0..<4 {
+            if clear.isHittable, clear.frame.maxY <= keyboard.frame.minY + 1 { break }
+            app.scrollViews.firstMatch.swipeUp()
+        }
+        attachSickSettingsScreen("timeline-empty-search")
+        XCTAssertTrue(keyboard.exists, "The keyboard should stay open while scrolling")
+        XCTAssertTrue(clear.isHittable, "Clear Search & Filters should be reachable with the keyboard open")
+        XCTAssertLessThanOrEqual(clear.frame.maxY, keyboard.frame.minY + 1)
+        tap(clear)
+        expect(elements("label BEGINSWITH 'Feeding, '").firstMatch)
     }
 }

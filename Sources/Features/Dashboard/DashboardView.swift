@@ -13,6 +13,7 @@ struct DashboardView: View {
     @Environment(AppLockManager.self) private var lock
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.hasVerticalBar) private var hasVerticalBar
     @Binding var selectedChildID: Int
     @AppStorage(SharedDefaults.stalenessThresholdKey, store: SharedDefaults.suite)
     private var stalenessThresholdMinutes = SyncFreshness.defaultThresholdMinutes
@@ -241,7 +242,8 @@ struct DashboardView: View {
     /// Home as a phone draws it. On iPhone Duo's open display it is the pane right of the fold,
     /// and in sick mode its running timers move to the side pane.
     private func mainPane(split: Bool) -> some View {
-        ScrollView {
+        let usesToolbarAdd = split || hasVerticalBar
+        return ScrollView {
             VStack(spacing: 18) {
                 header
 
@@ -287,31 +289,25 @@ struct DashboardView: View {
             .padding(.horizontal)
             .padding(.top, 8)
             // Leave room so the last row can scroll clear of the floating add button.
-            .padding(.bottom, split ? 24 : 88)
+            .padding(.bottom, usesToolbarAdd ? 24 : 88)
         }
-        // On the open display the + sits in the rail, beside the tabs, rather than over the pane:
-        // at the largest text it covered a row's time or a timer's Stop button.
         .toolbar {
-            if split, !children.isEmpty {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        withAnimation(QuickAddMenu.spring) { quickAddOpen.toggle() }
-                    } label: {
-                        Image(systemName: quickAddOpen ? "xmark" : "plus")
-                    }
-                    .accessibilityLabel(quickAddOpen ? String(localized: "Close") : String(localized: "Add"))
+            if usesToolbarAdd, !children.isEmpty {
+                AddToolbarItem(title: quickAddOpen ? String(localized: "Close") : String(localized: "Add"),
+                               isOpen: quickAddOpen) {
+                    withAnimation(QuickAddMenu.spring) { quickAddOpen.toggle() }
                 }
             }
         }
         // On this pane rather than the whole screen, so on the open display they stay off the fold.
         .overlay(alignment: .bottom) {
-            UndoToastView().padding(.bottom, 84) // clear of the floating add button
+            UndoToastView().padding(.bottom, usesToolbarAdd ? 12 : 84)
         }
         .overlay {
             if !children.isEmpty {
                 QuickAddMenu(
                     isOpen: $quickAddOpen,
-                    showsButton: !split,
+                    showsButton: !usesToolbarAdd,
                     onStartTimer: { startingTimer = true },
                     onLog: { addKind = $0 },
                     onMore: { showAllActivities = true })
@@ -908,7 +904,7 @@ private func quickAddLabel(_ kind: EntityKind) -> String {
 /// over a "More…" row that opens the full activity list. The "+" morphs into an "×" while open.
 private struct QuickAddMenu: View {
     @Binding var isOpen: Bool
-    /// False on the open display, where the + is in the rail and the stack opens on its own.
+    /// False when the + is in the rail and the stack opens on its own.
     var showsButton = true
     var onStartTimer: () -> Void
     var onLog: (EntityKind) -> Void
