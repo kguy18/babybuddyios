@@ -249,6 +249,16 @@ final class FoldTests: UITestCase {
         expect(app.buttons.labeled("Current child, Leo"))
     }
 
+    func testTimelineEmptySearchCanBeClearedAboveTheKeyboard() throws {
+        try launchOpen(["BB_START_TAB": "timeline"])
+        checkEmptySearchWithKeyboard(app.textFields["Search notes, tags, type…"])
+    }
+
+    func testTimelineEmptySearchCanBeClearedAtLargestText() throws {
+        try launchOpen(["BB_START_TAB": "timeline"], largestText: true)
+        checkEmptySearchWithKeyboard(app.textFields["Search notes, tags, type…"])
+    }
+
     /// A Today tile's day keeps its list left of the fold and opens the tapped record right of it,
     /// as the Timeline tab does.
     func testDayTimelineOpensARecordBesideTheList() throws {
@@ -260,7 +270,14 @@ final class FoldTests: UITestCase {
         expectGone(new)
         tap(expect(element(labeled: "Feedings, ")))
         let empty = expect(app.staticTexts["No activity open"])
-        let row = elements("label BEGINSWITH 'Feeding, '").element(boundBy: 0)
+        let row = expect(elements("label BEGINSWITH 'Feeding, '").firstMatch)
+        let add = expect(app.buttons["Add Feeding"])
+        attachSickSettingsScreen("day-timeline")
+        XCTAssertFalse(add.frame.intersects(row.frame), "Add should leave the first activity row clear")
+        expectAddButtonInRail("Add Feeding")
+        tap(add)
+        tap(expect(new).buttons["Cancel"])
+        expectGone(new)
         tap(row)
         let editorSave = expect(app.buttons["Save Feeding"])
         XCTAssertGreaterThan(editorSave.frame.minX, row.frame.maxX - 1, "The editor should open right of the list")

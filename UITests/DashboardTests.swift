@@ -2,6 +2,19 @@ import XCTest
 
 /// Home's day summary and where it leads.
 final class DashboardTests: UITestCase {
+    /// On iPhone Duo the + sits in the rail, where it covered the first Latest row's time on the
+    /// front display. A phone's + floats over the list, with room below the last row.
+    func testAddButtonStaysClearOfLatest() throws {
+        try XCTSkipUnless(hasRail, "A phone's + floats over the list")
+        launch()
+        let row = app.buttons.labeled("Diaper Change, ")
+        reveal(row, in: app.scrollViews.firstMatch)
+        attachScreen("home-latest")
+        let add = expect(app.buttons["Add"])
+        XCTAssertFalse(add.frame.intersects(row.frame), "Add should leave the first Latest row clear")
+        expectAddButtonInRail()
+    }
+
     func testLatestExplainsSessionEndWhileTimelineRetainsItsStartTime() {
         launch()
         // On an open display, Home also contains start-based rows in its Today pane.
@@ -67,6 +80,7 @@ final class DashboardTests: UITestCase {
         XCTAssertGreaterThan(sleep.frame.minY, feedings.frame.maxY - 1, "Sleep should sit under Feedings")
         XCTAssertGreaterThan(feedings.frame.width, app.windows.firstMatch.frame.width * 0.6,
                              "A tile should take the pane's width")
+        if hasRail { expectAddButtonInRail() }
     }
 
     /// Latest shows the newest record of every kind, occasional ones included: the seeded note and

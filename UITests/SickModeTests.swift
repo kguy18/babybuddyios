@@ -112,6 +112,33 @@ final class SickModeTests: UITestCase {
         XCTAssertTrue(app.textFields.withValue("Ibuprofen").exists, "The name wasn't filled in")
     }
 
+    /// On iPhone Duo's front display the + covered the countdown, the Doses tile, and "Not needed".
+    func testAddButtonStaysClearOfSickHome() throws {
+        try XCTSkipUnless(hasRail, "A phone's + floats over the list")
+        launch(["BB_SEED_SICK": "1"])
+        allowNotificationsIfAsked()
+        let scroll = app.scrollViews.firstMatch
+        let countdown = elements("label BEGINSWITH 'Acetaminophen' AND label CONTAINS 'until '").firstMatch
+        let doses = app.buttons.labeled("Doses, ")
+        let add = expect(app.buttons["Add"])
+        reveal(countdown, in: scroll)
+        attachScreen("sick-home-countdown")
+        let overlapsCountdown = add.frame.intersects(countdown.frame)
+        reveal(doses, in: scroll)
+        attachScreen("sick-home-doses")
+        let overlapsDoses = add.frame.intersects(doses.frame)
+
+        launch(["BB_SEED_SICK": "clear"])
+        allowNotificationsIfAsked()
+        let notNeeded = elements("label BEGINSWITH 'Acetaminophen' AND label CONTAINS 'Not needed'").firstMatch
+        reveal(notNeeded, in: scroll)
+        attachScreen("sick-home-not-needed")
+        XCTAssertFalse(add.frame.intersects(notNeeded.frame), "Add should leave Not needed clear")
+        XCTAssertFalse(overlapsCountdown, "Add should leave the countdown clear")
+        XCTAssertFalse(overlapsDoses, "Add should leave the Doses tile clear")
+        expectAddButtonInRail()
+    }
+
     /// At the largest text size "Log temperature" stays on one line, where it hyphenated.
     func testSickHomeFitsTheLargestText() {
         launch(["BB_SEED_SICK": "1"], largestText: true)

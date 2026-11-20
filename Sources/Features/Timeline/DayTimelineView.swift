@@ -10,6 +10,7 @@ import SwiftData
 struct DayTimelineView: View {
     @Environment(SyncEngine.self) private var sync
     @Environment(\.modelContext) private var context
+    @Environment(\.hasVerticalBar) private var hasVerticalBar
 
     let kind: EntityKind?
     let childID: Int
@@ -66,6 +67,11 @@ struct DayTimelineView: View {
                     Group {
                         if split { detailPane } else { list(split: false) }
                     }
+                    .toolbar {
+                        if let kind, split || hasVerticalBar {
+                            AddToolbarItem(title: addTitle(for: kind)) { adding = true }
+                        }
+                    }
                     // Folding the phone with a record open carries it into the editor sheet.
                     .onChange(of: split) { _, split in
                         if !split, let selected {
@@ -91,7 +97,8 @@ struct DayTimelineView: View {
     /// The rows. `split` is the open display's left pane, where a tap opens the record right of
     /// the fold and the open record's row is highlighted.
     private func list(split: Bool) -> some View {
-        List {
+        let floatingAddKind = split || hasVerticalBar ? nil : kind
+        return List {
             if kind == nil {
                 paneHeader
                     .listRowSeparator(.hidden)
@@ -143,17 +150,21 @@ struct DayTimelineView: View {
             if kind != nil { UndoToastView().padding(.bottom, 12) }
         }
         // Leave room so the last row can scroll clear of the floating add button.
-        .contentMargins(.bottom, kind == nil ? 0 : 88, for: .scrollContent)
+        .contentMargins(.bottom, floatingAddKind == nil ? 0 : 88, for: .scrollContent)
         .refreshable { await sync.sync() }
         .overlay(alignment: .bottomTrailing) {
-            if let kind {
-                FloatingAddButton(accessibilityLabelText: String(localized: "Add \(kind.displayName)")) {
+            if let floatingAddKind {
+                FloatingAddButton(accessibilityLabelText: addTitle(for: floatingAddKind)) {
                     adding = true
                 }
                 .padding(.trailing, 20)
                 .padding(.bottom, 16)
             }
         }
+    }
+
+    private func addTitle(for kind: EntityKind) -> String {
+        String(localized: "Add \(kind.displayName)")
     }
 
     private func open(_ entity: LocalEntity, split: Bool) {

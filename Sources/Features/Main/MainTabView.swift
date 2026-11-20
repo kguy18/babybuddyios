@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 /// Root tab bar shown once authenticated. Owns the selected-child state shared by the
 /// Dashboard and Timeline tabs, and kicks off an initial pull.
@@ -23,6 +24,7 @@ struct MainTabView: View {
     @AppStorage(ReleaseNotes.lastSeenKey) private var lastWhatsNewVersion = ""
     @State private var selectedTab = initialTab
     @State private var whatsNew: ReleaseNote?
+    @State private var hasVerticalBar = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -37,6 +39,14 @@ struct MainTabView: View {
                 .tabItem { Label("Trends", systemImage: "chart.bar.fill") }.tag(2)
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape.fill") }.tag(3)
+        }
+        .environment(\.hasVerticalBar, hasVerticalBar)
+        .background {
+            #if compiler(>=6.4)
+            if #available(iOS 27.1, *) {
+                VerticalBarObserver(hasVerticalBar: $hasVerticalBar)
+            }
+            #endif
         }
         .task {
             await sync.sync()
@@ -157,6 +167,52 @@ struct MainTabView: View {
         }
     }
 }
+
+extension EnvironmentValues {
+    @Entry var hasVerticalBar = false
+}
+
+#if compiler(>=6.4)
+/// Reads the window's vertical bar trait on both iPhone Duo displays and follows orientation changes.
+@available(iOS 27.1, *)
+private struct VerticalBarObserver: UIViewRepresentable {
+    @Binding var hasVerticalBar: Bool
+
+    func makeUIView(context: Context) -> ObserverView {
+        let view = ObserverView()
+        view.registerForTraitChanges(UITraitCollection.systemTraitsAffectingVerticalBarEdge) {
+            (view: ObserverView, _: UITraitCollection) in
+            view.reportVerticalBar()
+        }
+        return view
+    }
+
+    func updateUIView(_ view: ObserverView, context: Context) {
+        view.onChange = { visible in
+            if hasVerticalBar != visible { hasVerticalBar = visible }
+        }
+        view.reportVerticalBar()
+    }
+
+    final class ObserverView: UIView {
+        var onChange: (Bool) -> Void = { _ in }
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            reportVerticalBar()
+        }
+
+        func reportVerticalBar() {
+            guard window != nil else { return }
+            // SwiftUI may be updating the view when UIKit reports the trait.
+            Task { @MainActor in
+                guard window != nil else { return }
+                onChange(traitCollection.verticalBarEdge != .unspecified)
+            }
+        }
+    }
+}
+#endif
 
 /// Toolbar control for switching between children (hidden when there's only one).
 struct ChildSwitcher: ToolbarContent {

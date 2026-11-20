@@ -122,18 +122,9 @@ final class TimelineTests: UITestCase {
         XCTAssertTrue(app.windows.firstMatch.frame.contains(to.frame), "The date range should be on screen")
     }
 
-    /// At the largest text the empty search's Clear button scrolls clear of the keyboard: drawn
-    /// over the list, it sat under it.
     func testNoResultsCanBeClearedAboveTheKeyboard() {
         launch(["BB_START_TAB": "timeline"], largestText: true)
-        let feedings = elements("label BEGINSWITH 'Feeding, '")
-        expect(feedings.firstMatch)
-        let search = app.searchFields.firstMatch
-        tap(search)
-        search.typeText("zzqx")
-        expect(app.keyboards.firstMatch)
-        tap(app.buttons["Clear Search & Filters"])
-        expect(feedings.firstMatch)
+        checkEmptySearchWithKeyboard(app.searchFields.firstMatch)
     }
 
     /// Narrows the timeline to notes, through the Filters sheet.
@@ -145,5 +136,36 @@ final class TimelineTests: UITestCase {
         tap(filters.buttons["Done"])
         expectGone(filters)
         expect(element(labeled: "Note, Looking out at the garden."))
+    }
+}
+
+extension UITestCase {
+    /// Searches for nothing, then scrolls the empty result until "Clear Search & Filters" shows
+    /// above the keyboard, and taps it. On an open iPhone Duo at the largest text only its top
+    /// fits between the pane's header and the keyboard, so that is what has to show.
+    func checkEmptySearchWithKeyboard(_ search: XCUIElement) {
+        tap(search)
+        search.typeText("zzqx")
+        let keyboard = expect(app.keyboards.firstMatch)
+        expect(app.staticTexts["No Results"])
+        let clear = expect(app.buttons["Clear Search & Filters"])
+        let results = app.scrollViews.containing(.button, identifier: "Clear Search & Filters").firstMatch
+        let resultsTop = expect(results).frame.minY
+        // On iPhone Duo the keyboard's frame leaves out its 44-point suggestions bar.
+        let keyboardTop = keyboard.frame.minY - (hasRail ? 44 : 0)
+        func shows() -> Bool { clear.frame.minY >= resultsTop && clear.frame.minY + 30 <= keyboardTop }
+        for _ in 0..<8 where !shows() {
+            // From the top of the results: a swipe starts at their centre, which the keyboard
+            // covers on iPhone Duo.
+            let from = results.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0))
+                .withOffset(CGVector(dx: 0, dy: 20))
+            from.press(forDuration: 0.05, thenDragTo: from.withOffset(CGVector(dx: 0, dy: -50)),
+                       withVelocity: .slow, thenHoldForDuration: 0.2)
+        }
+        attachSickSettingsScreen("timeline-empty-search")
+        XCTAssertTrue(keyboard.exists, "The keyboard should stay open while scrolling")
+        XCTAssertTrue(shows(), "Clear Search & Filters should scroll above the keyboard")
+        clear.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(CGVector(dx: 0, dy: 15)).tap()
+        expectGone(app.staticTexts["No Results"])
     }
 }
