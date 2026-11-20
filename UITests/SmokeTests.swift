@@ -113,6 +113,35 @@ final class SmokeTests: UITestCase {
             [.contrast, .dynamicType, .textClipped, .hitRegion, .sufficientElementDescription]))
     }
 
+    func testTrendsExactValuesAndTapSelection() {
+        launch(["BB_START_TAB": "trends"])
+        let values = expect(app.buttons["sleep-values"])
+        let chart = expect(app.descendants(matching: .any)["sleep-chart"])
+        chart.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        expect(app.descendants(matching: .any)["sleep-selected-value"])
+        tap(values)
+        expect(app.navigationBars["Chart values"])
+        XCTAssertEqual(app.cells.count, 7)
+        let firstWeekValue = expect(app.cells.firstMatch.staticTexts.firstMatch).label
+        tap(app.buttons["Done"])
+        expectGone(app.navigationBars["Chart values"])
+        tap(app.buttons.labeled("14 days"))
+        tap(app.buttons["sleep-values"])
+        expect(app.navigationBars["Chart values"])
+        XCTAssertNotEqual(expect(app.cells.firstMatch.staticTexts.firstMatch).label, firstWeekValue,
+                          "The list follows the selected window")
+    }
+
+    func testGermanChartValues() {
+        launch(["BB_START_TAB": "trends"], language: "de", locale: "de_DE")
+        let values = expect(app.buttons["sleep-values"])
+        XCTAssertEqual(values.label, "Werte anzeigen")
+        tap(values)
+        expect(app.navigationBars["Diagrammwerte"])
+        expect(app.buttons["Fertig"])
+        XCTAssertEqual(app.cells.count, 7)
+    }
+
     /// Every Trends card survives each period (#32, #114), and the picker says which is chosen.
     func testTrendsPeriodSwitch() {
         launch(["BB_START_TAB": "trends"])
