@@ -336,54 +336,6 @@ struct DialogCopy<Content: View>: View {
     }
 }
 
-/// A modal settings card that keeps its actions visible while long copy scrolls above them.
-struct SettingsDialogCard<Copy: View, Actions: View>: View {
-    let label: String
-    let onCancel: () -> Void
-    @ViewBuilder var copy: () -> Copy
-    @ViewBuilder var actions: () -> Actions
-
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.dynamicTypeSize) private var typeSize
-    @State private var shown = false
-
-    var body: some View {
-        ZStack {
-            Color.black.opacity(scheme == .dark ? 0.55 : 0.42)
-                .ignoresSafeArea()
-                .onTapGesture(perform: onCancel)
-                .accessibilityHidden(true)
-            FoldSplitView { Color.clear.allowsHitTesting(false) } main: { _ in
-                card
-                    .frame(maxWidth: 400)
-                    .padding(typeSize.isAccessibilitySize ? 10 : 16)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .scaleEffect(shown ? 1 : 0.94)
-                    .opacity(shown ? 1 : 0)
-            }
-        }
-        .onAppear { withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) { shown = true } }
-    }
-
-    private var card: some View {
-        let actionLayout = typeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(spacing: 10))
-            : AnyLayout(HStackLayout(spacing: 10))
-        return BBCard(padding: typeSize.isAccessibilitySize ? 14 : 20) {
-            VStack(alignment: .leading, spacing: typeSize.isAccessibilitySize ? 12 : 16) {
-                DialogCopy(alignment: .leading, content: copy)
-                actionLayout { actions() }
-                    .fixedSize(horizontal: false, vertical: true)
-                    .layoutPriority(1)
-            }
-        }
-        .shadow(color: .black.opacity(scheme == .dark ? 0.5 : 0.18), radius: 24, y: 12)
-        .accessibilityElement(children: .contain)
-        .accessibilityAddTraits(.isModal)
-        .accessibilityLabel(label)
-    }
-}
-
 // MARK: Content-fitted bottom sheet
 
 /// A bottom sheet exactly as tall as what's in it, over the standard card background.

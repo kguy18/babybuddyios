@@ -258,8 +258,10 @@ class UITestCase: XCTestCase {
     /// Check the rendered height and scroll until the last line is above the pinned action.
     func expectReadableText(_ label: String, above action: XCUIElement, minimumHeight: CGFloat,
                             file: StaticString = #filePath, line: UInt = #line) {
-        let text = expect(app.staticTexts[label], file: file, line: line)
-        let scroll = app.scrollViews.containing(.staticText, identifier: label).firstMatch
+        // A predicate, not a subscript: XCUITest rejects identifiers over 128 characters.
+        let byLabel = NSPredicate(format: "label == %@", label)
+        let text = expect(app.staticTexts.matching(byLabel).firstMatch, file: file, line: line)
+        let scroll = app.scrollViews.containing(byLabel).firstMatch
         let viewport = scroll.exists ? scroll.frame : app.windows.firstMatch.frame
         let bottom = min(viewport.maxY, action.frame.minY)
         XCTAssertGreaterThanOrEqual(text.frame.height, minimumHeight, file: file, line: line)
