@@ -16,6 +16,7 @@ struct InsightsView: View {
     @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "child" }, sort: \.timestamp)
     private var children: [LocalEntity]
     @State private var period: ChartPeriod = .week
+    @AppStorage(DailyRhythmPreferences.visibleKey) private var showDailyRhythm = true
     @State private var colors = MedicineColorStore.shared
     // Watched so the temperature card follows Settings ▸ Sick mode; the keys and defaults are the
     // ones ``SickMode`` reads.
@@ -50,6 +51,9 @@ struct InsightsView: View {
                     periodPicker
 
                     sleepCard
+                    if showDailyRhythm {
+                        DailyRhythmCard(entities: chartEntities, childID: selectedChildID, period: period)
+                    }
                     feedingCard
                     diaperCard
                     tummyTimeCard
