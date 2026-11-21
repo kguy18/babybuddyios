@@ -109,21 +109,29 @@ struct CustomHeaderFields: View {
 
     private func presetRow(_ preset: HeaderRow.Preset, _ row: Binding<HeaderRow>) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            // At accessibility sizes the header's name gets a line of its own under the label,
-            // which beside it squeezed "Client ID" to a few letters per line in a sheet column.
+            // The header's name sits beside the label when both fit on one line, and on a line of
+            // its own under it otherwise: in a sheet column it ended in "…" ("CF-Access-Client-Se…").
+            let label = Text(preset.label).font(.subheadline.weight(.semibold))
             let name = Text(row.wrappedValue.name)
                 .font(.caption.monospaced())
                 .foregroundStyle(.secondary)
-                .lineLimit(1)
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                // Wraps rather than ending in "…": "Client Secret" did in a sheet column.
-                Text(preset.label).font(.subheadline.weight(.semibold))
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 8)
-                if !typeSize.isAccessibilitySize { name }
-                removeButton(row.wrappedValue)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    label
+                    Spacer(minLength: 8)
+                    name
+                    removeButton(row.wrappedValue)
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        // Wraps rather than ending in "…": "Client Secret" did in a sheet column.
+                        label.fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 8)
+                        removeButton(row.wrappedValue)
+                    }
+                    name.fixedSize(horizontal: false, vertical: true)
+                }
             }
-            if typeSize.isAccessibilitySize { name }
             valueLayout {
                 // A password manager stores a service token as a login: the client ID is the
                 // username, the secret the password. Tagged, Password AutoFill fills each into its

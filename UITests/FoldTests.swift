@@ -434,18 +434,6 @@ final class FoldTests: UITestCase {
                                  "\(element) should end before the fold", file: file, line: line)
     }
 
-    /// Drags the left column until `element` is above the pinned button whose label starts with
-    /// `pinned`. XCUITest calls a tile under that button hittable, and a tap then lands on the button.
-    private func scrollClear(of pinned: String, _ element: XCUIElement, in scrollView: XCUIElement) {
-        let button = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", pinned)).firstMatch
-        for _ in 0..<6 where button.exists && element.frame.maxY > button.frame.minY {
-            scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.7))
-                .press(forDuration: 0.05,
-                       thenDragTo: scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.45)),
-                       withVelocity: .slow, thenHoldForDuration: 0.2)
-        }
-    }
-
     private func assertRightOfFold(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
         let edge = app.windows.firstMatch.frame.midX + 19
         XCTAssertGreaterThanOrEqual(expect(element, file: file, line: line).frame.minX, edge,
@@ -464,13 +452,13 @@ final class FoldTests: UITestCase {
         XCTAssertGreaterThan(sleep.frame.minY, feeding.frame.maxY)
         let resume = app.buttons["Resume timer"]
         assertRightOfFold(resume)
-        scrollClear(of: "Log ", feeding, in: stopScroll)
         tap(feeding)
+        // Log heads the right column, above the quiet actions, rather than pinned across the fold.
         let log = expect(app.buttons["Log feeding…"])
         XCTAssertTrue(log.isHittable, "Log should be visible as soon as a type is picked")
         XCTAssertTrue(app.windows.firstMatch.frame.contains(log.frame))
-        // Back up to the quiet actions, which the drag to the tiles took off the top.
-        stopScroll.swipeDown()
+        assertRightOfFold(log)
+        XCTAssertLessThan(log.frame.maxY, resume.frame.minY, "Log should sit above Resume")
         reveal(resume, in: stopScroll)
         tap(resume)
         expectGone(app.navigationBars["Stop Timer"])
@@ -536,6 +524,9 @@ final class FoldTests: UITestCase {
 
         tap(app.buttons["Feeding"])
         let editor = expect(app.navigationBars["New Feeding"])
+        // The activity pills run across the top of both columns.
+        assertRightOfFold(app.staticTexts["Pump"])
+        XCTAssertLessThan(app.staticTexts["Pump"].frame.maxY, app.staticTexts["TAGS"].frame.minY)
         XCTAssertGreaterThan(app.staticTexts["TAGS"].frame.minX, app.staticTexts["WHEN"].frame.minX + 50,
                              "Tags should sit right of When")
         // The narrow column keeps "End" whole beside its duration and date pills: it wrapped to

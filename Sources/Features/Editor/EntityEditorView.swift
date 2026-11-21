@@ -159,7 +159,7 @@ struct EntityEditorView: View {
                 if kind == .timer || kind == .child {
                     Text("Not editable here.").foregroundStyle(.secondary)
                 } else {
-                    formSections
+                    editorContent
                 }
             }
             .padding(.horizontal, 16)
@@ -253,12 +253,23 @@ struct EntityEditorView: View {
         blockedMutation = all.first { $0.localID == localID && $0.isBlocked }
     }
 
-    /// The editor's scrolling content. A wide sheet, on iPhone Duo's open display, puts the activity
-    /// selector (shown while creating), the time, and the details left of the fold and the rest right.
-    private var formSections: some View {
+    /// The editor's scrolling content: the activity selector (while creating, so the customer can
+    /// switch kinds without reopening the editor) above the form itself.
+    @ViewBuilder private var editorContent: some View {
+        if showsActivitySelector, !pillsInColumn { activitySelector }
+        formSections
+    }
+
+    /// On iPhone Duo's open display at accessibility sizes the pills are too big for a row across
+    /// the sheet, where one ("Diaper") sat across the fold, so they scroll in the left column.
+    private var pillsInColumn: Bool { wide && typeSize.isAccessibilitySize }
+
+    /// The editable form (everything below the activity selector). A wide sheet, on iPhone Duo's
+    /// open display, puts the time and details left and the rest right, so nothing scrolls.
+    @ViewBuilder private var formSections: some View {
+        syncErrorBanner
         SheetColumns(wide: wide) {
-            if showsActivitySelector { activitySelector }
-            syncErrorBanner
+            if showsActivitySelector, pillsInColumn { activitySelector }
             babySection
             sectioned(String(localized: "When")) { whenCard }
             sectioned(detailsTitle) { detailsCard }

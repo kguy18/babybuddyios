@@ -32,8 +32,6 @@ struct StopTimerSheet: View {
     private let activities: [EntityKind] = [.feeding, .sleep, .tummyTime, .pumping]
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
-    private var actionsInSideColumn: Bool { wide && !typeSize.isAccessibilitySize }
-
     init(timer: LocalEntity, onLog: @escaping (EntityKind) -> Void, onResume: @escaping () -> Void,
          onDiscard: @escaping () -> Void) {
         self.timer = timer
@@ -57,7 +55,9 @@ struct StopTimerSheet: View {
                         LazyVGrid(columns: columns, spacing: 12) { activityTiles }
                     }
                 } trailing: {
-                    if actionsInSideColumn {
+                    // The open display: the actions head the right column at every text size, so
+                    // nothing pinned under the sheet runs across the fold.
+                    if wide {
                         actions
                     } else if typeSize.isAccessibilitySize {
                         secondaryActionGroup
@@ -79,7 +79,7 @@ struct StopTimerSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                if !actionsInSideColumn {
+                if !wide {
                     actions
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 16)
@@ -217,7 +217,7 @@ struct StopTimerSheet: View {
                 .disabled(selected == nil)
                 .opacity(selected == nil ? 0.5 : 1)
 
-            if !typeSize.isAccessibilitySize { secondaryActionGroup }
+            if wide || !typeSize.isAccessibilitySize { secondaryActionGroup }
         }
     }
 

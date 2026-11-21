@@ -134,7 +134,12 @@ final class TimerTests: UITestCase {
         XCTAssertGreaterThan(startTime.frame.minY, started.frame.maxY,
                              "The start-time control should sit below its label at accessibility sizes")
         let feeding = app.buttons["Feeding"]
-        reveal(feeding, above: expect(app.buttons["Log tummy time"]), in: scroll)
+        // With BB_FOLD the sheet takes the open display's columns, and Log heads the right one.
+        if environment.isEmpty {
+            reveal(feeding, above: expect(app.buttons["Log tummy time"]), in: scroll)
+        } else {
+            reveal(feeding, in: scroll)
+        }
         tap(feeding)
         let log = expect(app.buttons["Log feeding…"])
         XCTAssertTrue(log.isHittable, "Log should be visible as soon as a type is picked")
