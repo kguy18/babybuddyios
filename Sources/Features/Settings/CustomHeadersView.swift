@@ -109,14 +109,28 @@ struct CustomHeaderFields: View {
 
     private func presetRow(_ preset: HeaderRow.Preset, _ row: Binding<HeaderRow>) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(preset.label).font(.subheadline.weight(.semibold))
-                Spacer(minLength: 8)
-                Text(row.wrappedValue.name)
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                removeButton(row.wrappedValue)
+            // The header's name sits beside the label when both fit on one line, and on a line of
+            // its own under it otherwise: in a sheet column it ended in "…" ("CF-Access-Client-Se…").
+            let label = Text(preset.label).font(.subheadline.weight(.semibold))
+            let name = Text(row.wrappedValue.name)
+                .font(.caption.monospaced())
+                .foregroundStyle(.secondary)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    label
+                    Spacer(minLength: 8)
+                    name
+                    removeButton(row.wrappedValue)
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        // Wraps rather than ending in "…": "Client Secret" did in a sheet column.
+                        label.fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 8)
+                        removeButton(row.wrappedValue)
+                    }
+                    name.fixedSize(horizontal: false, vertical: true)
+                }
             }
             valueLayout {
                 // A password manager stores a service token as a login: the client ID is the
@@ -226,6 +240,7 @@ struct AdvancedConfigurationSheet: View {
     let onSave: ([HeaderRow], Bool) -> Void
 
     @State private var draft: [HeaderRow]
+    @State private var wide = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -247,31 +262,25 @@ struct AdvancedConfigurationSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                SheetColumns(wide: wide, spacing: gate == nil ? 0 : 16) {
                     if let gate {
                         SignInTrace(gate: gate, host: host, ready: ready)
                         if !ready { fixBox(gate) }
                     }
-                    VStack(alignment: .leading, spacing: 8) {
-                        SectionHeader(gate == .cloudflareAccess ? String(localized: "Service token") : String(localized: "Custom headers"))
-                            .padding(.horizontal, 4)
-                        BBCard(cornerRadius: BBRadius.tile, padding: 0) {
-                            CustomHeaderFields(rows: $draft, addTitle: draft.isEmpty ? String(localized: "Add header") : String(localized: "Add another header"))
-                        }
-                        Text(CustomHeaderFields.footnote)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 4)
+                } trailing: {
+                    VStack(alignment: .leading, spacing: 16) {
+                        headerForm
+                        if wide || typeSize.isAccessibilitySize { saveButton }
                     }
-                    if typeSize.isAccessibilitySize { saveButton }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 20)
             }
+            .trackingWide($wide)
             .background(BBColor.surface.ignoresSafeArea())
             .safeAreaInset(edge: .bottom) {
-                if !typeSize.isAccessibilitySize { footer }
+                if !wide && !typeSize.isAccessibilitySize { footer }
             }
             .navigationTitle("Advanced configuration")
             .navigationBarTitleDisplayMode(.inline)
@@ -289,8 +298,20 @@ struct AdvancedConfigurationSheet: View {
         }
     }
 
-    /// Pinned under the content, except at accessibility sizes: there it would cover the sheet, so
-    /// Save scrolls with the content instead.
+    private var headerForm: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionHeader(gate == .cloudflareAccess ? String(localized: "Service token") : String(localized: "Custom headers"))
+                .padding(.horizontal, 4)
+            BBCard(cornerRadius: BBRadius.tile, padding: 0) {
+                CustomHeaderFields(rows: $draft, addTitle: draft.isEmpty ? String(localized: "Add header") : String(localized: "Add another header"))
+            }
+            Text(CustomHeaderFields.footnote)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+        }
+    }
+
     private var footer: some View {
         saveButton
             .padding(.horizontal, 16)
@@ -319,6 +340,8 @@ struct AdvancedConfigurationSheet: View {
                   systemImage: "wrench.and.screwdriver.fill")
                 .font(.headline)
                 .foregroundStyle(BBColor.brandAccent)
+                // Wraps in a sheet column on iPhone Duo's open display instead of ending in "…".
+                .fixedSize(horizontal: false, vertical: true)
             let steps = Self.steps(for: gate, host: host)
             ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
                 HStack(alignment: .firstTextBaseline, spacing: 11) {
@@ -422,7 +445,7 @@ struct SignInTrace: View {
             }
         }
         .padding(15)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(BBColor.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -440,14 +463,18 @@ struct SignInTrace: View {
         case .arrived: BBColor.success
         }
         return HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .fill(hop.kind == .plain ? BBColor.controlFill : tint.opacity(0.14))
-                .frame(width: 38, height: 38)
-                .overlay {
-                    Image(systemName: hop.symbol)
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(tint)
-                }
+            // At accessibility sizes the text takes the icon's room: in a sheet column on iPhone
+            // Duo's open display, beside it, "This app" ran to two lines and cut off.
+            if !typeSize.isAccessibilitySize {
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .fill(hop.kind == .plain ? BBColor.controlFill : tint.opacity(0.14))
+                    .frame(width: 38, height: 38)
+                    .overlay {
+                        Image(systemName: hop.symbol)
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundStyle(tint)
+                    }
+            }
             VStack(alignment: .leading, spacing: 1) {
                 Text(hop.title).font(.body.weight(.semibold)).lineLimit(2)
                 Text(hop.detail).font(.footnote).foregroundStyle(.secondary)
@@ -463,7 +490,9 @@ struct SignInTrace: View {
         Text("Stopped here")
             .font(.caption.weight(.bold))
             .foregroundStyle(BBColor.danger)
-            .fixedSize()
+            // Wraps at accessibility sizes, where on one line it's wider than a sheet column on
+            // iPhone Duo's open display and pushed the card across the fold.
+            .fixedSize(horizontal: !typeSize.isAccessibilitySize, vertical: true)
             .padding(.horizontal, 9)
             .padding(.vertical, 3)
             .background(BBColor.danger.opacity(0.12), in: Capsule())

@@ -256,15 +256,20 @@ struct EntityEditorView: View {
     /// The editor's scrolling content: the activity selector (while creating, so the customer can
     /// switch kinds without reopening the editor) above the form itself.
     @ViewBuilder private var editorContent: some View {
-        if showsActivitySelector { activitySelector }
+        if showsActivitySelector, !pillsInColumn { activitySelector }
         formSections
     }
+
+    /// On iPhone Duo's open display at accessibility sizes the pills are too big for a row across
+    /// the sheet, where one ("Diaper") sat across the fold, so they scroll in the left column.
+    private var pillsInColumn: Bool { wide && typeSize.isAccessibilitySize }
 
     /// The editable form (everything below the activity selector). A wide sheet, on iPhone Duo's
     /// open display, puts the time and details left and the rest right, so nothing scrolls.
     @ViewBuilder private var formSections: some View {
         syncErrorBanner
         SheetColumns(wide: wide) {
+            if showsActivitySelector, pillsInColumn { activitySelector }
             babySection
             sectioned(String(localized: "When")) { whenCard }
             sectioned(detailsTitle) { detailsCard }
@@ -425,7 +430,12 @@ struct EntityEditorView: View {
             picker
         }
         return Group {
-            if typeSize.isAccessibilitySize {
+            if typeSize.isAccessibilitySize, wide {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack { title; Spacer(); caption }
+                    ColumnDatePickers(selection: selection, components: components)
+                }
+            } else if typeSize.isAccessibilitySize {
                 stacked
             } else {
                 ViewThatFits(in: .horizontal) {

@@ -328,7 +328,7 @@ final class FoldTests: UITestCase {
         allowNotificationsIfAsked()
         let midX = app.windows.firstMatch.frame.midX
         XCTAssertLessThan(expect(app.buttons["Continue"]).frame.maxX, midX, "Continue should sit left of the fold")
-        XCTAssertGreaterThan(expect(app.scrollViews.firstMatch).frame.minX, midX,
+        XCTAssertGreaterThan(expect(app.scrollViews["whats-new-releases"]).frame.minX, midX,
                              "The release list should sit right of the fold")
         tap(app.buttons["Continue"])
         expectGone(app.buttons["Continue"])
@@ -364,32 +364,102 @@ final class FoldTests: UITestCase {
                              "Maybe later should sit right of the fold")
     }
 
-    /// Two columns can't hold the largest text, so the editor keeps to one, wide as the sheet.
-    func testEditorKeepsOneColumnAtTheLargestText() throws {
+    func testEditorFieldsStayBesideTheFoldAtTheLargestText() throws {
         try launchOpen(largestText: true)
+        allowNotificationsIfAsked()
         openEditor("Feeding")
         expect(app.navigationBars["New Feeding"])
-        let when = expect(app.staticTexts["WHEN"]), tags = expect(app.staticTexts["TAGS"])
-        XCTAssertEqual(tags.frame.minX, when.frame.minX, accuracy: 1, "Tags should sit under When")
-        XCTAssertGreaterThan(tags.frame.minY, when.frame.maxY, "Tags should sit under When")
+        attachScreen("editor-axxxl")
+        assertLeftOfFold(app.staticTexts["WHEN"])
+        // Start's date and time pills, each on a line of its own.
+        assertLeftOfFold(app.datePickers.element(boundBy: 0))
+        assertLeftOfFold(app.datePickers.element(boundBy: 1))
+        assertRightOfFold(app.staticTexts["TAGS"])
+        assertRightOfFold(app.buttons["Save Feeding"])
     }
 
-    func testTimerSheetsKeepOneColumnAtTheLargestText() throws {
+    func testConflictChoicesStayBesideTheFoldAtTheLargestText() throws {
+        try launchOpen(["BB_START_TAB": "settings", "BB_SEED_CONFLICT": "1", "BB_OPEN_CONFLICT": "1"],
+                       largestText: true)
+        expect(app.navigationBars["Resolve Conflict"])
+        attachScreen("conflict-axxxl")
+        let mine = app.buttons.labeled("Amount, Mine,")
+        let server = app.buttons.labeled("Amount, Server,")
+        assertLeftOfFold(mine)
+        assertRightOfFold(server)
+    }
+
+    func testSettingsSheetsStayBesideTheFoldAtTheLargestText() throws {
+        try launchOpen(["BB_START_TAB": "settings"], largestText: true)
+        allowNotificationsIfAsked()
+        let settings = app.scrollViews.firstMatch
+        let whatsNew = app.buttons.labeled("What's New")
+        if !whatsNew.isHittable { reveal(whatsNew, in: settings) }
+        tap(whatsNew)
+        let done = app.buttons["Done"]
+        let releases = app.scrollViews["whats-new-releases"]
+        assertLeftOfFold(done)
+        assertRightOfFold(releases)
+        attachScreen("whats-new-axxxl")
+        reveal(element(labeled: "Activity estimates"), in: releases)
+        tap(done)
+        expectGone(done)
+
+        let supporter = app.buttons.labeled("Baby Buddy App Supporter")
+        if !supporter.isHittable { reveal(supporter, in: settings) }
+        tap(supporter)
+        assertLeftOfFold(app.staticTexts["Support Baby Buddy Companion"])
+        let later = app.buttons["Maybe later"]
+        assertRightOfFold(later)
+        attachScreen("supporter-axxxl")
+        tap(later)
+        expectGone(later)
+    }
+
+    func testAdvancedConfigurationStaysBesideTheFoldAtTheLargestText() throws {
+        try launchOpen(["BB_GATE_PREVIEW": "cloudflareAccess"], largestText: true, demo: false)
+        expect(app.navigationBars["Advanced configuration"])
+        attachScreen("advanced-axxxl")
+        assertLeftOfFold(element(labeled: "Where sign-in stopped"))
+        assertRightOfFold(app.textFields["Client ID"])
+        let label = expect(app.staticTexts["Client ID"])
+        XCTAssertGreaterThan(label.frame.width, label.frame.height, "\"Client ID\" should fit on one line")
+        assertRightOfFold(app.buttons["Save and try again"])
+    }
+
+    // The fold is the middle 40 pt of the open window. Allow one point for frame rounding.
+    private func assertLeftOfFold(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        let edge = app.windows.firstMatch.frame.midX - 19
+        XCTAssertLessThanOrEqual(expect(element, file: file, line: line).frame.maxX, edge,
+                                 "\(element) should end before the fold", file: file, line: line)
+    }
+
+    private func assertRightOfFold(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        let edge = app.windows.firstMatch.frame.midX + 19
+        XCTAssertGreaterThanOrEqual(expect(element, file: file, line: line).frame.minX, edge,
+                                    "\(element) should start after the fold", file: file, line: line)
+    }
+
+    func testTimerSheetsKeepControlsBesideTheFoldAtTheLargestText() throws {
         try launchOpen(largestText: true)
+        allowNotificationsIfAsked()
         tap(app.buttons["Stop"])
         expect(app.navigationBars["Stop Timer"])
         let stopScroll = app.scrollViews["screen-stop-timer"]
         let feeding = app.buttons["Feeding"]
-        reveal(feeding, in: stopScroll)
         let sleep = expect(app.buttons["Sleep"])
+        assertLeftOfFold(feeding)
         XCTAssertGreaterThan(sleep.frame.minY, feeding.frame.maxY)
+        let resume = app.buttons["Resume timer"]
+        assertRightOfFold(resume)
         tap(feeding)
+        // Log heads the right column, above the quiet actions, rather than pinned across the fold.
         let log = expect(app.buttons["Log feeding…"])
         XCTAssertTrue(log.isHittable, "Log should be visible as soon as a type is picked")
         XCTAssertTrue(app.windows.firstMatch.frame.contains(log.frame))
-        let resume = app.buttons["Resume timer"]
+        assertRightOfFold(log)
+        XCTAssertLessThan(log.frame.maxY, resume.frame.minY, "Log should sit above Resume")
         reveal(resume, in: stopScroll)
-        XCTAssertGreaterThan(resume.frame.minY, app.buttons["Pumping"].frame.maxY)
         tap(resume)
         expectGone(app.navigationBars["Stop Timer"])
 
@@ -397,13 +467,20 @@ final class FoldTests: UITestCase {
         tap(app.buttons["Start timer"])
         expect(app.navigationBars["Start Timer"])
         let startScroll = app.scrollViews["screen-start-timer"]
-        XCTAssertGreaterThan(app.buttons["Sleep"].frame.minY, app.buttons["Feeding"].frame.maxY)
-        reveal(app.buttons["Sleep"], in: startScroll)
-        tap(app.buttons["Sleep"])
+        let startSleep = app.buttons["Sleep"]
+        assertLeftOfFold(startSleep)
+        XCTAssertGreaterThan(startSleep.frame.minY, app.buttons["Feeding"].frame.maxY)
+        reveal(startSleep, in: startScroll)
+        tap(startSleep)
         let start = expect(app.buttons["Start sleep timer"])
         XCTAssertTrue(start.isHittable, "Start should be visible as soon as a type is picked")
         XCTAssertTrue(app.windows.firstMatch.frame.contains(start.frame))
         let starts = app.staticTexts["Starts"]
+        assertRightOfFold(starts)
+        // The date and time pills fit the column: at the largest size they ran off the sheet.
+        for picker in app.datePickers.allElementsBoundByIndex {
+            XCTAssertLessThanOrEqual(picker.frame.maxX, start.frame.maxX + 1, "\(picker) should fit the sheet")
+        }
         reveal(starts, in: startScroll)
         XCTAssertGreaterThan(starts.frame.width, starts.frame.height, "\"Starts\" should fit on one line")
         XCTAssertTrue(start.isHittable, "Start should still be visible after scrolling the details")
@@ -447,6 +524,9 @@ final class FoldTests: UITestCase {
 
         tap(app.buttons["Feeding"])
         let editor = expect(app.navigationBars["New Feeding"])
+        // The activity pills run across the top of both columns.
+        assertRightOfFold(app.staticTexts["Pump"])
+        XCTAssertLessThan(app.staticTexts["Pump"].frame.maxY, app.staticTexts["TAGS"].frame.minY)
         XCTAssertGreaterThan(app.staticTexts["TAGS"].frame.minX, app.staticTexts["WHEN"].frame.minX + 50,
                              "Tags should sit right of When")
         // The narrow column keeps "End" whole beside its duration and date pills: it wrapped to
