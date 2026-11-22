@@ -306,16 +306,20 @@ final class FoldTests: UITestCase {
         expect(app.buttons.labeled("Current child, Leo"))
     }
 
-    func testTimelineTypeChoicesStayBesideTheFold() throws {
-        try checkTimelineTypeChoices(largestText: false)
+    func testTimelineTypeMenuStaysBesideTheFoldAtDefaultText() throws {
+        try launchOpen(["BB_START_TAB": "timeline"])
+        tap(app.buttons["Filters"])
+        let filters = expect(app.navigationBars["Filters"])
+        tap(app.buttons.labeled("Type"))
+        let note = expect(app.buttons["Note"])
+        if !forced { assertRightOfFold(note) }
+        tap(note)
+        tap(filters.buttons["Done"])
+        expect(element(labeled: "Note, Looking out at the garden."))
     }
 
     func testTimelineTypeChoicesStayBesideTheFoldAtLargestText() throws {
-        try checkTimelineTypeChoices(largestText: true)
-    }
-
-    private func checkTimelineTypeChoices(largestText: Bool) throws {
-        try launchOpen(["BB_START_TAB": "timeline"], largestText: largestText)
+        try launchOpen(["BB_START_TAB": "timeline"], largestText: true)
         tap(app.buttons["Filters"])
         let filters = expect(app.navigationBars["Filters"])
         let type = app.buttons.labeled("Type")
@@ -324,7 +328,7 @@ final class FoldTests: UITestCase {
         let allTypes = expect(app.buttons["All Types"])
         XCTAssertTrue(allTypes.isSelected)
         assertRightOfFold(allTypes)
-        attachSickSettingsScreen(largestText ? "timeline-type-open-axxxl-after" : "timeline-type-open-default-after")
+        attachSickSettingsScreen("timeline-type-open-axxxl-after")
 
         let note = app.buttons["Note"]
         reveal(note, in: expect(app.scrollViews.containing(.button, identifier: "All Types").firstMatch))

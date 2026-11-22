@@ -682,7 +682,7 @@ private struct TimelineFiltersView: View {
     }
 
     @ViewBuilder private var typePicker: some View {
-        if wide {
+        if wide && typeSize.isAccessibilitySize {
             NavigationLink {
                 SettingsChoices(
                     title: String(localized: "Type"),
