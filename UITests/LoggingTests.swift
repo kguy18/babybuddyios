@@ -263,13 +263,12 @@ final class LoggingTests: UITestCase {
         tap(sheet.buttons["Save"])
         expectGone(sheet)
         let toast = expect(element(labeled: "Logged Diaper Change"))
-        let scroll = app.scrollViews.firstMatch
-        let diapers = app.buttons["today-change"]
-        reveal(diapers, in: scroll)
+        let home = app.scrollViews["screen-home"]
+        home.swipeUp()
         attachScreen("undo-home")
-        XCTAssertLessThanOrEqual(scroll.frame.maxY, toast.frame.minY + 1, "Home should end above the toast")
-        tap(diapers)
-        expect(app.navigationBars["Diaper Change · Today"])
+        XCTAssertLessThanOrEqual(home.frame.maxY, toast.frame.minY + 1, "Home should end above the toast")
+        tap(app.buttons["Undo"])
+        expectGone(toast)
     }
 
     /// Baby Buddy refuses a feeding that overlaps another, so the editor names the cached one it
