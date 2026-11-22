@@ -261,6 +261,9 @@ struct BBSegmentedControl<Value: Hashable>: View {
                     .foregroundStyle(isSelected ? Color.primary : Color.secondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
+                    // Keeps a gap between neighbours that fill their segments, such as "Formula"
+                    // and "Fortified" in a narrow column on iPhone Duo's open display.
+                    .padding(.horizontal, 4)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 7)
                     .background {
