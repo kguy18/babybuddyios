@@ -73,20 +73,18 @@ private struct AppIconTile: View {
 
     var body: some View {
         Button(action: action) {
-            ViewThatFits(in: .horizontal) {
-                if typeSize.isAccessibilitySize {
-                    HStack(spacing: 16) {
-                        artwork
-                        name
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                VStack(spacing: 8) {
-                    artwork
-                    name.multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity)
+            let layout = typeSize.isAccessibilitySize
+                ? AnyLayout(HStackLayout(spacing: 16))
+                : AnyLayout(VStackLayout(spacing: 8))
+            layout {
+                artwork
+                Text(option.displayName)
+                    .font(.caption.weight(isSelected ? .semibold : .regular))
+                    .foregroundStyle(isSelected ? BBColor.brandAccent : .secondary)
+                    .multilineTextAlignment(typeSize.isAccessibilitySize ? .leading : .center)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: typeSize.isAccessibilitySize ? .leading : .center)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -94,13 +92,6 @@ private struct AppIconTile: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(option.displayName)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-    }
-
-    private var name: some View {
-        Text(option.displayName)
-            .font(.caption.weight(isSelected ? .semibold : .regular))
-            .foregroundStyle(isSelected ? BBColor.brandAccent : .secondary)
-            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var artwork: some View {

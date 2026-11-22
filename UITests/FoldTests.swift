@@ -167,9 +167,9 @@ final class FoldTests: UITestCase {
 
         tap(app.buttons.labeled("App Icon, Center Peek"))
         expect(app.navigationBars["App Icon"])
-        assertLeftOfFold(app.buttons["Center Peek"])
-        assertRightOfFold(app.buttons["Peek Wave"])
-        XCTAssertTrue(app.buttons["Center Peek"].isSelected)
+        assertLeftOfFold(app.buttons["Center Peek"].firstMatch)
+        assertRightOfFold(app.buttons["Peek Wave"].firstMatch)
+        XCTAssertTrue(app.buttons["Center Peek"].firstMatch.isSelected)
         attachScreen("settings-panes-icons")
         back(from: "App Icon")
 
@@ -221,7 +221,7 @@ final class FoldTests: UITestCase {
         tap(app.buttons.labeled("Roadmap and Updates"))
         expect(app.webViews.staticTexts["Stub widget: home"], timeout: 30)
         let bar = expect(app.navigationBars["Roadmap and Updates"])
-        let title = expect(bar.staticTexts["Roadmap and Updates"])
+        let title = expect(bar.staticTexts["Roadmap and Updates"].firstMatch)
         XCTAssertGreaterThan(title.frame.width, 115, "The title needs room for all three words")
         attachScreen("settings-panes-roadmap")
     }
