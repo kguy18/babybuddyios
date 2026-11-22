@@ -16536,6 +16536,29 @@
         }
       }
     },
+    "The sync time on Home and in the status widget changes color after this long.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The sync time on Home and in the status widget changes color after this long."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nach dieser Zeit ändert sich die Farbe der letzten Sync-Zeit auf der Startseite und im Status-Widget."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Após esse tempo, a cor do horário da última sincronização muda no Início e no widget de status."
+          }
+        }
+      }
+    },
     "The timer counts up from its start until you stop it.": {
       "extractionState": "manual",
       "localizations": {

@@ -15,35 +15,40 @@ struct AppIconPickerView: View {
     }
 
     var body: some View {
-        FoldSplitView { Color.clear } main: { _ in
-            picker
+        FoldSplitView {
+            picker(Array(AppIconOption.allCases.prefix(AppIconOption.allCases.count / 2)), showNote: false)
+        } main: { split in
+            let options = AppIconOption.allCases
+            picker(split ? Array(options.dropFirst(options.count / 2)) : options, showNote: true)
         }
         .background(BBColor.surface)
         .navigationTitle("App Icon")
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private var picker: some View {
+    private func picker(_ options: [AppIconOption], showNote: Bool) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(AppIconOption.allCases) { option in
+                    ForEach(options) { option in
                         AppIconTile(option: option, isSelected: icons.selected == option) {
                             Task { await icons.select(option) }
                         }
                     }
                 }
 
-                if let error = icons.errorMessage {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundStyle(BBColor.danger)
-                        .padding(.horizontal, 4)
-                } else {
-                    Text("Changing the icon shows a confirmation from iOS. It may take a moment to update on the Home Screen.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 4)
+                if showNote {
+                    if let error = icons.errorMessage {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(BBColor.danger)
+                            .padding(.horizontal, 4)
+                    } else {
+                        Text("Changing the icon shows a confirmation from iOS. It may take a moment to update on the Home Screen.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
+                    }
                 }
             }
             .padding(.horizontal, 16)

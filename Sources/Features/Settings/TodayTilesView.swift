@@ -12,8 +12,16 @@ struct TodayTilesView: View {
     private var rows: [EntityKind] { enabled + TodayTiles.eligible.filter { !enabled.contains($0) } }
 
     var body: some View {
-        FoldSplitView { Color.clear } main: { _ in
-            tileList
+        FoldSplitView {
+            ScrollView {
+                instructions
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        } main: { split in
+            tileList(showInstructions: !split)
         }
         .background(BBColor.surface)
         .navigationTitle("Today Tiles")
@@ -27,7 +35,11 @@ struct TodayTilesView: View {
         }
     }
 
-    private var tileList: some View {
+    private var instructions: Text {
+        Text("Drag to change the order on Home. With every tile off, Home leaves out Today.")
+    }
+
+    private func tileList(showInstructions: Bool) -> some View {
         List {
             Section {
                 ForEach(rows) { kind in
@@ -41,7 +53,7 @@ struct TodayTilesView: View {
                     raw = TodayTiles.encode(order.filter(on.contains))
                 }
             } footer: {
-                Text("Drag to change the order on Home. With every tile off, Home leaves out Today.")
+                if showInstructions { instructions }
             }
         }
         .environment(\.editMode, .constant(.active))
