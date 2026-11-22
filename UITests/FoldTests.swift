@@ -147,6 +147,28 @@ final class FoldTests: UITestCase {
         XCTAssertGreaterThan(expect(signOut.buttons["Cancel"]).frame.minX, middle)
     }
 
+    func testSignOutCopyFitsWithoutScrollingAtLargestText() throws {
+        try launchOpen(["BB_START_TAB": "settings", "BB_SEED_PENDING": "1"], largestText: true)
+        tap(app.buttons["Sign out"])
+        let dialog = expect(app.alerts.labeled("Sign out of "))
+
+        assertLeftOfFold(dialog.staticTexts["Sign out?"])
+        assertLeftOfFold(dialog.staticTexts["demo.local"])
+        let message = dialog.staticTexts.labeled("The activities cached on this device")
+        assertLeftOfFold(message)
+        let warning = expect(dialog.staticTexts.matching(NSPredicate(
+            format: "label CONTAINS %@", "haven't reached this server yet")).firstMatch)
+        assertRightOfFold(warning)
+        let cancel = expect(dialog.buttons["Cancel"])
+        assertRightOfFold(cancel)
+        XCTAssertLessThanOrEqual(warning.frame.maxY, cancel.frame.minY)
+        XCTAssertTrue(message.isHittable)
+        XCTAssertTrue(dialog.buttons["Sign out"].isHittable)
+        XCTAssertFalse(dialog.scrollViews.firstMatch.exists, "The whole dialog should fit when it opens")
+        tap(cancel)
+        expectGone(dialog)
+    }
+
     func testSettingsPickersUseBothPanes() throws {
         try checkSettingsPickers(largestText: false)
     }

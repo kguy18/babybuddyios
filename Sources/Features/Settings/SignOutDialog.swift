@@ -18,8 +18,8 @@ struct SignOutDialog: View {
 
     var body: some View {
         SettingsDialogCard(label: String(localized: "Sign out of \(host)?"), onCancel: onCancel,
-                           splitAtAccessibilitySizes: true) {
-            VStack(alignment: .leading, spacing: 14) {
+                           splitAtAccessibilitySizes: true) { split in
+            VStack(alignment: .leading, spacing: split ? 8 : 14) {
                 HStack(spacing: 13) {
                     if !typeSize.isAccessibilitySize {
                         glyphTile(size: 46, radius: 14, symbol: "rectangle.portrait.and.arrow.right",
@@ -27,10 +27,10 @@ struct SignOutDialog: View {
                     }
                     Text("Sign out?").font(.title3.weight(.semibold))
                 }
-                serverRow
-                if pendingCount > 0 { pendingRow }
+                serverRow(compact: split)
+                if !split && pendingCount > 0 { pendingRow(showGlyph: true) }
                 Text("The activities cached on this device will be deleted. Nothing on your server changes — signing back in downloads them again.")
-                    .font(.body)
+                    .font(split ? .subheadline : .body)
                     .foregroundStyle(.secondary)
             }
         } actions: {
@@ -39,11 +39,15 @@ struct SignOutDialog: View {
                 // The pale red in dark mode needs dark text for contrast.
                 .buttonStyle(BBFilledButton(background: BBColor.danger,
                                             foreground: .adaptive(light: "FFFFFF", dark: "0C0E12")))
+        } splitCopyAboveActions: {
+            if pendingCount > 0 {
+                DialogCopy(alignment: .leading) { pendingRow(showGlyph: false) }
+            }
         }
     }
 
     /// The server being left, drawn as the row Settings already shows it in.
-    private var serverRow: some View {
+    private func serverRow(compact: Bool) -> some View {
         HStack(spacing: 10) {
             if !typeSize.isAccessibilitySize {
                 glyphTile(size: 26, radius: 8, symbol: "cloud", font: .footnote,
@@ -56,16 +60,18 @@ struct SignOutDialog: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 11)
+        .padding(.vertical, compact ? 5 : 11)
         .background(BBColor.nested, in: RoundedRectangle(cornerRadius: BBRadius.control, style: .continuous))
     }
 
     /// Unsynced writes are the one thing sign-out destroys that the server can't give back, so they
     /// get the amber pending-changes vocabulary rather than a line of body copy.
-    private var pendingRow: some View {
+    private func pendingRow(showGlyph: Bool) -> some View {
         HStack(alignment: .top, spacing: 10) {
-            glyphTile(size: 26, radius: 8, symbol: "icloud.and.arrow.up", font: .footnote,
-                      tint: BBColor.warning, color: BBColor.warning, opacity: 0.35)
+            if showGlyph {
+                glyphTile(size: 26, radius: 8, symbol: "icloud.and.arrow.up", font: .footnote,
+                          tint: BBColor.warning, color: BBColor.warning, opacity: 0.35)
+            }
             Text(pendingMessage)
                 .font(.subheadline)
                 .fixedSize(horizontal: false, vertical: true)
@@ -98,16 +104,29 @@ struct SignOutDialog: View {
 }
 
 /// A modal card that keeps its actions visible while the copy scrolls.
-struct SettingsDialogCard<Copy: View, Actions: View>: View {
+struct SettingsDialogCard<Copy: View, Actions: View, ActionCopy: View>: View {
     let label: String
     let onCancel: () -> Void
-    var splitAtAccessibilitySizes = false
-    @ViewBuilder var copy: () -> Copy
-    @ViewBuilder var actions: () -> Actions
+    let splitAtAccessibilitySizes: Bool
+    private let copy: (Bool) -> Copy
+    private let actions: () -> Actions
+    private let splitCopyAboveActions: () -> ActionCopy
 
     @Environment(\.colorScheme) private var scheme
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var shown = false
+
+    init(label: String, onCancel: @escaping () -> Void, splitAtAccessibilitySizes: Bool = false,
+         @ViewBuilder copy: @escaping (Bool) -> Copy,
+         @ViewBuilder actions: @escaping () -> Actions,
+         @ViewBuilder splitCopyAboveActions: @escaping () -> ActionCopy = { EmptyView() }) {
+        self.label = label
+        self.onCancel = onCancel
+        self.splitAtAccessibilitySizes = splitAtAccessibilitySizes
+        self.copy = copy
+        self.actions = actions
+        self.splitCopyAboveActions = splitCopyAboveActions
+    }
 
     var body: some View {
         ZStack {
@@ -117,17 +136,22 @@ struct SettingsDialogCard<Copy: View, Actions: View>: View {
                 .accessibilityHidden(true)
             FoldSplitView {
                 if splitCopy {
-                    pane(maxWidth: .infinity) { DialogCopy(alignment: .leading, content: copy) }
+                    pane(maxWidth: .infinity) { DialogCopy(alignment: .leading) { copy(true) } }
                 } else {
                     Color.clear.allowsHitTesting(false)
                 }
             } main: { split in
                 if split && splitCopy {
-                    pane { actionGroup }
+                    pane {
+                        VStack(alignment: .leading, spacing: 12) {
+                            splitCopyAboveActions()
+                            actionGroup
+                        }
+                    }
                 } else {
                     pane {
                         VStack(alignment: .leading, spacing: typeSize.isAccessibilitySize ? 12 : 16) {
-                            DialogCopy(alignment: .leading, content: copy)
+                            DialogCopy(alignment: .leading) { copy(false) }
                             actionGroup
                         }
                     }
