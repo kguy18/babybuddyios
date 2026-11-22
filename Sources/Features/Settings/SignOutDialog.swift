@@ -19,16 +19,22 @@ struct SignOutDialog: View {
     var body: some View {
         SettingsDialogCard(label: String(localized: "Sign out of \(host)?"), onCancel: onCancel,
                            splitAtAccessibilitySizes: true) { split in
-            VStack(alignment: .leading, spacing: split ? 8 : 14) {
-                HStack(spacing: 13) {
-                    if !typeSize.isAccessibilitySize {
-                        glyphTile(size: 46, radius: 14, symbol: "rectangle.portrait.and.arrow.right",
-                                  font: .title3, tint: BBColor.danger, color: BBColor.danger)
+            VStack(alignment: .leading, spacing: split ? 2 : 14) {
+                if split {
+                    // Beside the fold at the largest sizes, the heading names the server: the
+                    // copy then fits the pane without the server row.
+                    Text("Sign out of \(host)?").font(.title3.weight(.semibold))
+                } else {
+                    HStack(spacing: 13) {
+                        if !typeSize.isAccessibilitySize {
+                            glyphTile(size: 46, radius: 14, symbol: "rectangle.portrait.and.arrow.right",
+                                      font: .title3, tint: BBColor.danger, color: BBColor.danger)
+                        }
+                        Text("Sign out?").font(.title3.weight(.semibold))
                     }
-                    Text("Sign out?").font(.title3.weight(.semibold))
+                    serverRow
+                    if pendingCount > 0 { pendingRow(showGlyph: true) }
                 }
-                serverRow(compact: split)
-                if !split && pendingCount > 0 { pendingRow(showGlyph: true) }
                 Text("The activities cached on this device will be deleted. Nothing on your server changes — signing back in downloads them again.")
                     .font(split ? .subheadline : .body)
                     .foregroundStyle(.secondary)
@@ -47,7 +53,7 @@ struct SignOutDialog: View {
     }
 
     /// The server being left, drawn as the row Settings already shows it in.
-    private func serverRow(compact: Bool) -> some View {
+    private var serverRow: some View {
         HStack(spacing: 10) {
             if !typeSize.isAccessibilitySize {
                 glyphTile(size: 26, radius: 8, symbol: "cloud", font: .footnote,
@@ -60,7 +66,7 @@ struct SignOutDialog: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, compact ? 5 : 11)
+        .padding(.vertical, 11)
         .background(BBColor.nested, in: RoundedRectangle(cornerRadius: BBRadius.control, style: .continuous))
     }
 
@@ -173,7 +179,9 @@ struct SettingsDialogCard<Copy: View, Actions: View, ActionCopy: View>: View {
         BBCard(padding: typeSize.isAccessibilitySize ? 14 : 20, content: content)
             .shadow(color: .black.opacity(scheme == .dark ? 0.5 : 0.18), radius: 24, y: 12)
             .frame(maxWidth: maxWidth)
-            .padding(typeSize.isAccessibilitySize ? 10 : 16)
+            .padding(.horizontal, typeSize.isAccessibilitySize ? 10 : 16)
+            // Split at the largest sizes, every point of height goes to the copy.
+            .padding(.vertical, splitCopy ? 4 : typeSize.isAccessibilitySize ? 10 : 16)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 

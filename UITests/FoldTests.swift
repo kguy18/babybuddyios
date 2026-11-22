@@ -147,28 +147,6 @@ final class FoldTests: UITestCase {
         XCTAssertGreaterThan(expect(signOut.buttons["Cancel"]).frame.minX, middle)
     }
 
-    func testSignOutCopyFitsWithoutScrollingAtLargestText() throws {
-        try launchOpen(["BB_START_TAB": "settings", "BB_SEED_PENDING": "1"], largestText: true)
-        tap(app.buttons["Sign out"])
-        let dialog = expect(app.alerts.labeled("Sign out of "))
-
-        assertLeftOfFold(dialog.staticTexts["Sign out?"])
-        assertLeftOfFold(dialog.staticTexts["demo.local"])
-        let message = dialog.staticTexts.labeled("The activities cached on this device")
-        assertLeftOfFold(message)
-        let warning = expect(dialog.staticTexts.matching(NSPredicate(
-            format: "label CONTAINS %@", "haven't reached this server yet")).firstMatch)
-        assertRightOfFold(warning)
-        let cancel = expect(dialog.buttons["Cancel"])
-        assertRightOfFold(cancel)
-        XCTAssertLessThanOrEqual(warning.frame.maxY, cancel.frame.minY)
-        XCTAssertTrue(message.isHittable)
-        XCTAssertTrue(dialog.buttons["Sign out"].isHittable)
-        XCTAssertFalse(dialog.scrollViews.firstMatch.exists, "The whole dialog should fit when it opens")
-        tap(cancel)
-        expectGone(dialog)
-    }
-
     func testSettingsPickersUseBothPanes() throws {
         try checkSettingsPickers(largestText: false)
     }
@@ -415,19 +393,25 @@ final class FoldTests: UITestCase {
     }
 
     func testSignOutCopySitsBesideItsActionsAtTheLargestText() throws {
-        try launchOpen(["BB_START_TAB": "settings"], largestText: true)
+        try launchOpen(["BB_START_TAB": "settings", "BB_SEED_PENDING": "1"], largestText: true)
         allowNotificationsIfAsked()
         tap(app.buttons["Sign out"])
 
         let dialog = expect(app.alerts.labeled("Sign out of "))
         let copy = expect(dialog.staticTexts.labeled("The activities cached on this device"))
         let cancel = expect(dialog.buttons["Cancel"])
+        assertLeftOfFold(dialog.staticTexts["Sign out of demo.local?"])
         assertLeftOfFold(copy)
+        // The unsynced-changes warning moves right of the fold, above the buttons, so the copy
+        // left of it fits without scrolling.
+        let warning = expect(dialog.staticTexts.matching(NSPredicate(
+            format: "label CONTAINS %@", "haven't reached this server yet")).firstMatch)
+        assertRightOfFold(warning)
         assertRightOfFold(cancel)
         assertRightOfFold(dialog.buttons["Sign out"])
-        // The copy has the whole left pane; past its height it scrolls there.
-        XCTAssertTrue(app.windows.firstMatch.frame.contains(dialog.staticTexts["Sign out?"].frame),
-                      "The heading should be in view")
+        XCTAssertLessThanOrEqual(warning.frame.maxY, cancel.frame.minY)
+        XCTAssertFalse(dialog.scrollViews.firstMatch.exists, "The whole dialog should fit without scrolling")
+        XCTAssertTrue(copy.isHittable, "The message should be in view")
         XCTAssertTrue(cancel.isHittable, "Cancel should be in view")
         tap(cancel)
         expectGone(dialog)
