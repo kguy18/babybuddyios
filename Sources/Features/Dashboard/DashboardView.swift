@@ -299,7 +299,9 @@ struct DashboardView: View {
                 }
             }
         }
-        // In sick mode the timers move left, so keep Undo in the right pane.
+        // Below the scroll view, not over it, so it never covers a row. On the open display it goes
+        // under the timeline left of the fold, clear of the timers; in sick mode the timers move
+        // left, so it stays here.
         .undoToastFooter(when: !split || sickModeStart != nil, bottomPadding: usesToolbarAdd ? 12 : 84)
         .overlay {
             if !children.isEmpty {
