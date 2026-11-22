@@ -80,6 +80,29 @@ final class SettingsTests: UITestCase {
         expectGone(app.staticTexts["Version 1.1.0"])
     }
 
+    func testWhatsNewMastheadScrollsAtTheLargestText() {
+        launch(["BB_START_TAB": "settings"], largestText: true)
+        allowNotificationsIfAsked()
+        let entry = expect(app.buttons.labeled("What's New"))
+        if !entry.isHittable {
+            let containingEntry = app.scrollViews.containing(NSPredicate(format: "label BEGINSWITH %@", "What's New"))
+            reveal(entry, in: containingEntry.firstMatch)
+        }
+        tap(entry)
+
+        let notes = expect(app.scrollViews["whats-new-releases"])
+        let heading = expect(notes.staticTexts["What's New"])
+        let firstItem = expect(notes.staticTexts.matching(NSPredicate(
+            format: "NOT (label BEGINSWITH %@ OR label BEGINSWITH %@)", "What's New", "Version ")).firstMatch)
+        let done = expect(app.buttons["Done"])
+        XCTAssertLessThanOrEqual(firstItem.frame.maxY, notes.frame.maxY)
+        let initialTop = heading.frame.minY
+        notes.swipeUp()
+        XCTAssertLessThan(heading.frame.minY, initialTop)
+        tap(done)
+        expectGone(done)
+    }
+
     /// Settings ▸ Feedback: Send Feedback, the source code and the App Store review, in that order.
     /// Contact Support and Request a Feature moved onto the Send Feedback screen.
     func testFeedbackSection() {

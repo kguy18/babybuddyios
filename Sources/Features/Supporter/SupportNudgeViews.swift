@@ -7,8 +7,8 @@ import SwiftUI
 
 // MARK: - A · Gentle ask
 
-/// The one-time centered card, over a scrim. On iPhone Duo's open display it sits at the bottom of
-/// the pane right of the fold.
+/// The one-time card, over a scrim. On iPhone Duo's open display it sits at the bottom right.
+/// At accessibility sizes the copy gets its own pane.
 ///
 /// A card rather than a sheet on purpose: this is the app pausing once to say something, and a
 /// sheet's drag indicator would invite a swipe that means neither yes nor no. Saying no is explicit
@@ -28,44 +28,48 @@ struct SupportGentleAskCard: View {
     private let overlap: CGFloat = 12
 
     var body: some View {
-        ZStack {
-            // Matches the quick-add stack's dim, the app's other full-screen scrim.
-            Color.black.opacity(0.42)
-                .ignoresSafeArea()
-                .onTapGesture(perform: onDismiss)
-                .accessibilityHidden(true)
-                .transition(.opacity)
+        if typeSize.isAccessibilitySize {
+            SettingsDialogCard(label: wrappingTitle, onCancel: onDismiss, splitAtAccessibilitySizes: true) {
+                VStack(spacing: 7) {
+                    copy
+                    reminder
+                }
+                .multilineTextAlignment(.center)
+            } actions: {
+                actions
+                    .multilineTextAlignment(.center)
+            }
+        } else {
+            ZStack {
+                // Matches the scrim behind the quick-add stack.
+                Color.black.opacity(0.42)
+                    .ignoresSafeArea()
+                    .onTapGesture(perform: onDismiss)
+                    .accessibilityHidden(true)
+                    .transition(.opacity)
 
-            // On iPhone Duo's open display a centred card would span the fold, so it sits at the
-            // bottom of the pane right of the fold instead, over Home.
-            FoldSplitView { Color.clear } main: { split in
-                if split {
-                    scrolling(alignment: .bottom, horizontalPadding: 16)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                } else {
-                    scrolling(alignment: .center, horizontalPadding: 28)
-                        .transition(.scale(scale: 0.96).combined(with: .opacity))
+                FoldSplitView { Color.clear } main: { split in
+                    if split {
+                        scrolling(alignment: .bottom, horizontalPadding: 16)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    } else {
+                        scrolling(alignment: .center, horizontalPadding: 28)
+                            .transition(.scale(scale: 0.96).combined(with: .opacity))
+                    }
                 }
             }
         }
     }
 
-    @ViewBuilder
     private func scrolling(alignment: Alignment, horizontalPadding: CGFloat) -> some View {
-        if typeSize.isAccessibilitySize {
-            card(scrollingCopy: true)
-                .padding(10)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
-        } else {
-            GeometryReader { proxy in
-                ScrollView {
-                    peekingCard
-                        .padding(.horizontal, horizontalPadding)
-                        .padding(.vertical, 24)
-                        .frame(minHeight: proxy.size.height, alignment: alignment)
-                }
-                .scrollBounceBehavior(.basedOnSize)
+        GeometryReader { proxy in
+            ScrollView {
+                peekingCard
+                    .padding(.horizontal, horizontalPadding)
+                    .padding(.vertical, 24)
+                    .frame(minHeight: proxy.size.height, alignment: alignment)
             }
+            .scrollBounceBehavior(.basedOnSize)
         }
     }
 
@@ -85,33 +89,20 @@ struct SupportGentleAskCard: View {
                 .scaledToFit()
                 .frame(width: mascotWidth, height: mascotWidth * mascotAspect)
                 .accessibilityHidden(true) // charm, not information
-            card(scrollingCopy: false)
+            card
         }
     }
 
-    private func card(scrollingCopy: Bool) -> some View {
+    private var card: some View {
         VStack(spacing: 0) {
-            if scrollingCopy {
-                DialogCopy {
-                    VStack(spacing: 7) {
-                        copy
-                        reminder
-                    }
-                }
-            } else {
-                copy
-            }
-
+            copy
             actions
-                .fixedSize(horizontal: false, vertical: true)
-                .layoutPriority(1)
-
-            if !scrollingCopy { reminder }
+            reminder
         }
         .multilineTextAlignment(.center)
-        .padding(.horizontal, typeSize.isAccessibilitySize ? 14 : 22)
-        .padding(.top, typeSize.isAccessibilitySize ? 14 : 26)
-        .padding(.bottom, typeSize.isAccessibilitySize ? 4 : 14)
+        .padding(.horizontal, 22)
+        .padding(.top, 26)
+        .padding(.bottom, 14)
         .background(BBColor.card, in: RoundedRectangle(cornerRadius: BBRadius.card, style: .continuous))
         .shadow(color: .black.opacity(0.30), radius: 24, y: 10)
         .accessibilityElement(children: .contain)
@@ -135,15 +126,13 @@ struct SupportGentleAskCard: View {
             .foregroundStyle(.tertiary)
     }
 
+    private var title: String { String(localized: "Enjoying Baby\u{00a0}Buddy\u{00a0}Companion?") }
+
+    private var wrappingTitle: String { title.replacingOccurrences(of: "\u{00a0}", with: " ") }
+
     private var copy: some View {
-        // Non-breaking spaces through the app's name: the title is two lines at default type on
-        // a narrow card, and the break belongs after "Enjoying" rather than inside the name (the
-        // mockup pins the same pair together for the same reason). At accessibility sizes the name
-        // is wider than the card, so the words wrap freely, and the title stops growing at the
-        // size where "Companion?" still fits on a line.
-        let title = String(localized: "Enjoying Baby\u{00a0}Buddy\u{00a0}Companion?")
-        return VStack(spacing: 0) {
-            Text(typeSize.isAccessibilitySize ? title.replacingOccurrences(of: "\u{00a0}", with: " ") : title)
+        VStack(spacing: 0) {
+            Text(typeSize.isAccessibilitySize ? wrappingTitle : title)
                 .font(.title3.weight(.semibold))
                 .dynamicTypeSize(...DynamicTypeSize.accessibility2)
 

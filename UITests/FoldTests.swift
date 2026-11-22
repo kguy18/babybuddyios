@@ -356,6 +356,40 @@ final class FoldTests: UITestCase {
         XCTAssertGreaterThan(nothing.frame.minY, header.frame.maxY - 1, "The empty state should sit under the header")
     }
 
+    func testSignOutCopySitsBesideItsActionsAtTheLargestText() throws {
+        try launchOpen(["BB_START_TAB": "settings"], largestText: true)
+        allowNotificationsIfAsked()
+        tap(app.buttons["Sign out"])
+
+        let dialog = expect(app.alerts.labeled("Sign out of "))
+        let copy = expect(dialog.staticTexts.labeled("The activities cached on this device"))
+        let cancel = expect(dialog.buttons["Cancel"])
+        assertLeftOfFold(copy)
+        assertRightOfFold(cancel)
+        assertRightOfFold(dialog.buttons["Sign out"])
+        // The copy has the whole left pane; past its height it scrolls there.
+        XCTAssertTrue(app.windows.firstMatch.frame.contains(dialog.staticTexts["Sign out?"].frame),
+                      "The heading should be in view")
+        XCTAssertTrue(cancel.isHittable, "Cancel should be in view")
+        tap(cancel)
+        expectGone(dialog)
+    }
+
+    func testGentleNudgeCopySitsBesideItsActionsAtTheLargestText() throws {
+        try launchOpen(["BB_NUDGE": "gentle"], largestText: true)
+        allowNotificationsIfAsked()
+        let copy = expect(app.staticTexts.labeled("Every feature is free"))
+        let reminder = expect(app.staticTexts["Reminders can be turned off in Settings."])
+        let later = expect(app.buttons["Maybe later"])
+        assertLeftOfFold(copy)
+        assertLeftOfFold(reminder)
+        assertRightOfFold(app.buttons["Become a Supporter"])
+        assertRightOfFold(later)
+        XCTAssertTrue(app.windows.firstMatch.frame.contains(copy.frame), "The whole body should be in view")
+        tap(later)
+        expectGone(later)
+    }
+
     /// The support nudge comes up at the bottom of the pane right of the fold rather than as a card
     /// centred across it, and still takes no for an answer.
     func testSupportNudgeSitsRightOfTheFold() {
@@ -389,6 +423,22 @@ final class FoldTests: UITestCase {
                              "The release list should sit right of the fold")
         tap(app.buttons["Continue"])
         expectGone(app.buttons["Continue"])
+    }
+
+    func testWhatsNewUpgradeNotesScrollBesideContinueAtTheLargestText() throws {
+        try launchOpen(["BB_WHATSNEW_UPGRADE": "1"], largestText: true)
+        allowNotificationsIfAsked()
+        let continueButton = expect(app.buttons["Continue"])
+        let notes = expect(app.scrollViews["whats-new-releases"])
+        let firstNote = expect(notes.staticTexts.firstMatch)
+        let initialTop = firstNote.frame.minY
+        assertLeftOfFold(continueButton)
+        assertRightOfFold(firstNote)
+        XCTAssertLessThanOrEqual(firstNote.frame.maxY, notes.frame.maxY)
+        notes.swipeUp()
+        XCTAssertLessThan(firstNote.frame.minY, initialTop)
+        tap(continueButton)
+        expectGone(continueButton)
     }
 
     /// Acknowledgements: the credit left of the fold, the other licences right of it.

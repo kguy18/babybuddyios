@@ -71,6 +71,8 @@ struct WhatsNewView: View {
 
     // MARK: Pieces
 
+    private var releaseInset: CGFloat { typeSize.isAccessibilitySize ? 8 : 16 }
+
     private var sidePane: some View {
         VStack(spacing: 0) {
             if typeSize.isAccessibilitySize {
@@ -96,7 +98,9 @@ struct WhatsNewView: View {
         ScrollView {
             VStack(spacing: 0) {
                 if withMasthead { masthead }
-                card.padding(.horizontal, 16).padding(.top, 24)
+                card
+                    .padding(.horizontal, releaseInset)
+                    .padding(.top, typeSize.isAccessibilitySize ? 8 : 24)
                 if withSupport { supportButton.padding(.horizontal, 20).padding(.top, 8) }
             }
             .padding(.bottom, 16)
@@ -107,26 +111,30 @@ struct WhatsNewView: View {
 
     private var masthead: some View {
         VStack(spacing: 0) {
-            RoundedRectangle(cornerRadius: 17, style: .continuous)
-                .fill(BBColor.brandTint)
-                .frame(width: 56, height: 56)
-                .overlay {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 26, weight: .medium))
-                        .foregroundStyle(BBColor.brandAccent)
-                }
+            if !typeSize.isAccessibilitySize {
+                RoundedRectangle(cornerRadius: 17, style: .continuous)
+                    .fill(BBColor.brandTint)
+                    .frame(width: 56, height: 56)
+                    .overlay {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 26, weight: .medium))
+                            .foregroundStyle(BBColor.brandAccent)
+                    }
+                    .accessibilityHidden(true)
+            }
             Text("What's New")
-                .font(.title.weight(.semibold))
-                .padding(.top, 15)
+                .font((typeSize.isAccessibilitySize ? Font.headline : .title).weight(.semibold))
+                .padding(.top, typeSize.isAccessibilitySize ? 0 : 15)
+                .accessibilityAddTraits(.isHeader)
             Text("Version \(note.version)")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(BBColor.brandAccent)
                 .padding(.horizontal, 11)
                 .padding(.vertical, 5)
                 .background(BBColor.brandTint, in: Capsule())
-                .padding(.top, 7)
+                .padding(.top, typeSize.isAccessibilitySize ? 3 : 7)
         }
-        .padding(.top, 26)
+        .padding(.top, typeSize.isAccessibilitySize ? 8 : 26)
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
     }
@@ -161,7 +169,9 @@ struct WhatsNewView: View {
                     .accessibilityHidden(true)
             }
             VStack(alignment: .leading, spacing: 3) {
-                Text(NSLocalizedString(item.title, comment: "Bundled release note title")).font(.subheadline.weight(.semibold))
+                Text(NSLocalizedString(item.title, comment: "Bundled release note title"))
+                    .font(.subheadline.weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
                 if !item.body.isEmpty {
                     Text(NSLocalizedString(item.body, comment: "Bundled release note body"))
                         .font(.footnote)
@@ -171,8 +181,8 @@ struct WhatsNewView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 15)
+        .padding(.horizontal, releaseInset)
+        .padding(.vertical, typeSize.isAccessibilitySize ? 8 : 15)
         .accessibilityElement(children: .combine)
     }
 
@@ -181,7 +191,7 @@ struct WhatsNewView: View {
             divider
             SectionHeader(String(localized: "Also fixed"))
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, releaseInset)
                 .padding(.top, 14)
                 .padding(.bottom, 6)
         }
@@ -199,7 +209,7 @@ struct WhatsNewView: View {
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, releaseInset)
         .padding(.vertical, 7)
         .accessibilityElement(children: .combine)
     }
@@ -217,8 +227,8 @@ struct WhatsNewView: View {
             if withSupport { supportButton }
         }
         .padding(.horizontal, 20)
-        .padding(.top, 10)
-        .padding(.bottom, 30)
+        .padding(.top, typeSize.isAccessibilitySize ? 6 : 10)
+        .padding(.bottom, typeSize.isAccessibilitySize ? 8 : 30)
         .background(BBColor.surface)
     }
 

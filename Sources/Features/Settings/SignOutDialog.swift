@@ -17,7 +17,8 @@ struct SignOutDialog: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        SettingsDialogCard(label: String(localized: "Sign out of \(host)?"), onCancel: onCancel) {
+        SettingsDialogCard(label: String(localized: "Sign out of \(host)?"), onCancel: onCancel,
+                           splitAtAccessibilitySizes: true) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 13) {
                     if !typeSize.isAccessibilitySize {
@@ -96,10 +97,11 @@ struct SignOutDialog: View {
     }
 }
 
-/// A modal settings card that keeps its actions visible while long copy scrolls above them.
+/// A modal card that keeps its actions visible while the copy scrolls.
 struct SettingsDialogCard<Copy: View, Actions: View>: View {
     let label: String
     let onCancel: () -> Void
+    var splitAtAccessibilitySizes = false
     @ViewBuilder var copy: () -> Copy
     @ViewBuilder var actions: () -> Actions
 
@@ -113,33 +115,50 @@ struct SettingsDialogCard<Copy: View, Actions: View>: View {
                 .ignoresSafeArea()
                 .onTapGesture(perform: onCancel)
                 .accessibilityHidden(true)
-            FoldSplitView { Color.clear.allowsHitTesting(false) } main: { _ in
-                card
-                    .frame(maxWidth: 400)
-                    .padding(typeSize.isAccessibilitySize ? 10 : 16)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .scaleEffect(shown ? 1 : 0.94)
-                    .opacity(shown ? 1 : 0)
+            FoldSplitView {
+                if splitCopy {
+                    pane(maxWidth: .infinity) { DialogCopy(alignment: .leading, content: copy) }
+                } else {
+                    Color.clear.allowsHitTesting(false)
+                }
+            } main: { split in
+                if split && splitCopy {
+                    pane { actionGroup }
+                } else {
+                    pane {
+                        VStack(alignment: .leading, spacing: typeSize.isAccessibilitySize ? 12 : 16) {
+                            DialogCopy(alignment: .leading, content: copy)
+                            actionGroup
+                        }
+                    }
+                }
             }
+            .scaleEffect(shown ? 1 : 0.94)
+            .opacity(shown ? 1 : 0)
+            .accessibilityElement(children: .contain)
+            .accessibilityAddTraits(.isModal)
+            .accessibilityLabel(label)
         }
         .onAppear { withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) { shown = true } }
     }
 
-    private var card: some View {
-        let actionLayout = typeSize.isAccessibilitySize
+    private var splitCopy: Bool { splitAtAccessibilitySizes && typeSize.isAccessibilitySize }
+
+    private func pane<Content: View>(maxWidth: CGFloat = 400,
+                                    @ViewBuilder content: @escaping () -> Content) -> some View {
+        BBCard(padding: typeSize.isAccessibilitySize ? 14 : 20, content: content)
+            .shadow(color: .black.opacity(scheme == .dark ? 0.5 : 0.18), radius: 24, y: 12)
+            .frame(maxWidth: maxWidth)
+            .padding(typeSize.isAccessibilitySize ? 10 : 16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var actionGroup: some View {
+        let layout = typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(spacing: 10))
             : AnyLayout(HStackLayout(spacing: 10))
-        return BBCard(padding: typeSize.isAccessibilitySize ? 14 : 20) {
-            VStack(alignment: .leading, spacing: typeSize.isAccessibilitySize ? 12 : 16) {
-                DialogCopy(alignment: .leading, content: copy)
-                actionLayout { actions() }
-                    .fixedSize(horizontal: false, vertical: true)
-                    .layoutPriority(1)
-            }
-        }
-        .shadow(color: .black.opacity(scheme == .dark ? 0.5 : 0.18), radius: 24, y: 12)
-        .accessibilityElement(children: .contain)
-        .accessibilityAddTraits(.isModal)
-        .accessibilityLabel(label)
+        return layout { actions() }
+            .fixedSize(horizontal: false, vertical: true)
+            .layoutPriority(1)
     }
 }
