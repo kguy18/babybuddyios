@@ -13,6 +13,7 @@ struct StopTimerSheet: View {
     @Environment(\.modelContext) private var context
 
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.hasVerticalBar) private var hasVerticalBar
 
     let timer: LocalEntity
     let onLog: (EntityKind) -> Void
@@ -223,7 +224,7 @@ struct StopTimerSheet: View {
 
     private var secondaryActionGroup: some View {
         Group {
-            if wide || typeSize.isAccessibilitySize {
+            if wide || hasVerticalBar || typeSize.isAccessibilitySize {
                 VStack(spacing: 14) { secondaryActions }
             } else {
                 // One row only with clear gaps between the three; tighter than that, they stack.

@@ -122,6 +122,24 @@ final class TimerTests: UITestCase {
         expect(element(labeled: "Sleep running"))
     }
 
+    func testStopTimerStacksSecondaryActionsOnTheFoldedDisplay() throws {
+        try XCTSkipUnless(hasRail, "Needs an iPhone Duo")
+        launch()
+        try XCTSkipIf(app.windows.firstMatch.frame.width >= 900, "Needs the folded display")
+        allowNotificationsIfAsked()
+        tap(app.buttons["Stop"])
+        let log = expect(app.buttons["Log tummy time"])
+        let resume = expect(app.buttons["Resume timer"])
+        let restart = expect(app.buttons["Restart from now"])
+        let discard = expect(app.buttons["Discard timer"])
+        XCTAssertGreaterThan(restart.frame.minY, resume.frame.maxY)
+        XCTAssertGreaterThan(discard.frame.minY, restart.frame.maxY)
+        XCTAssertTrue(log.isHittable)
+        XCTAssertTrue(discard.isHittable)
+        tap(discard)
+        expectGone(app.navigationBars["Stop Timer"])
+    }
+
     func testStopTimerFitsTheLargestText() {
         let environment = ProcessInfo.processInfo.environment["BB_FOLD"] == "1" ? ["BB_FOLD": "1"] : [:]
         launch(environment, largestText: true)
