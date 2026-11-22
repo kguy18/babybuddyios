@@ -254,6 +254,23 @@ final class LoggingTests: UITestCase {
         expectGone(undo)
     }
 
+    /// Home's last rows scroll clear of the toast instead of sitting under it: at the largest text
+    /// it covered the Today tiles on iPhone Duo's front display. The open display is in FoldTests.
+    func testUndoToastLeavesHomeRowsUncoveredAtLargestText() {
+        launch(["BB_TOAST_SECONDS": "90"], largestText: true)
+        openEditor("Diaper")
+        let sheet = expect(app.navigationBars["New Diaper Change"])
+        tap(sheet.buttons["Save"])
+        expectGone(sheet)
+        let toast = expect(element(labeled: "Logged Diaper Change"))
+        let home = app.scrollViews["screen-home"]
+        home.swipeUp()
+        attachScreen("undo-home")
+        XCTAssertLessThanOrEqual(home.frame.maxY, toast.frame.minY + 1, "Home should end above the toast")
+        tap(app.buttons["Undo"])
+        expectGone(toast)
+    }
+
     /// Baby Buddy refuses a feeding that overlaps another, so the editor names the cached one it
     /// would overlap. Only a warning: Save stays enabled. The seeded feeding ran 90 to 70 minutes
     /// before launch; a new one started 80 minutes ago and ending now overlaps it.

@@ -91,12 +91,14 @@ final class UndoToastCenter {
 
 /// The toast itself: activity tile, "Logged <kind>" plus the record's summary line, an Undo pill,
 /// and a draining bar in the activity colour. At accessibility sizes the tile goes and Undo takes a
-/// line of its own: beside the text it squeezed to a letter per line. Each screen that can create a record overlays it
-/// (an overlay on the `TabView` itself renders but never receives taps on iOS 26).
+/// line of its own: beside the text it squeezed to a letter per line. Each screen hosts its own
+/// toast so Undo can receive taps on iOS 26.
 struct UndoToastView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var center = UndoToastCenter.shared
+
+    var bottomPadding: CGFloat = 0
 
     var body: some View {
         ZStack { toast }
@@ -141,6 +143,7 @@ struct UndoToastView: View {
             .accessibilityActions {
                 if item.canUndo { Button("Undo") { center.undo(in: context) } }
             }
+            .padding(.bottom, bottomPadding)
         }
     }
 
@@ -171,6 +174,19 @@ struct UndoToastView: View {
                     .background(BBColor.brandTint, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
             .buttonStyle(.plain)
+        }
+    }
+}
+
+extension View {
+    /// Keeps the toast outside the scrolling viewport and reserves space only while it's visible.
+    func undoToastFooter(when visible: Bool = true, bottomPadding: CGFloat = 12) -> some View {
+        VStack(spacing: 0) {
+            self
+            if visible {
+                UndoToastView(bottomPadding: bottomPadding)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 }

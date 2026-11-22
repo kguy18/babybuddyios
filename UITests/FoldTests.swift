@@ -390,6 +390,25 @@ final class FoldTests: UITestCase {
         expectGone(later)
     }
 
+    /// The Undo toast comes up under the day's timeline, left of the fold: at the bottom of the
+    /// pane right of it, it covered the running timer's Stop button.
+    func testUndoToastLeavesTheTimerUncoveredAtTheLargestText() throws {
+        try launchOpen(["BB_TOAST_SECONDS": "90"], largestText: true)
+        allowNotificationsIfAsked()
+        openEditor("Diaper")
+        let sheet = expect(app.navigationBars["New Diaper Change"])
+        tap(sheet.buttons["Save"])
+        expectGone(sheet)
+        let toast = expect(element(labeled: "Logged Diaper Change"))
+        let stop = expect(app.buttons["Stop"])
+        attachScreen("undo-open")
+        assertLeftOfFold(toast)
+        assertRightOfFold(stop)
+        XCTAssertTrue(app.buttons["Undo"].isHittable)
+        tap(stop)
+        expect(app.navigationBars["Stop Timer"])
+    }
+
     /// The support nudge comes up at the bottom of the pane right of the fold rather than as a card
     /// centred across it, and still takes no for an answer.
     func testSupportNudgeSitsRightOfTheFold() {
