@@ -306,6 +306,38 @@ final class FoldTests: UITestCase {
         expect(app.buttons.labeled("Current child, Leo"))
     }
 
+    func testTimelineTypeChoicesStayBesideTheFold() throws {
+        try checkTimelineTypeChoices(largestText: false)
+    }
+
+    func testTimelineTypeChoicesStayBesideTheFoldAtLargestText() throws {
+        try checkTimelineTypeChoices(largestText: true)
+    }
+
+    private func checkTimelineTypeChoices(largestText: Bool) throws {
+        try launchOpen(["BB_START_TAB": "timeline"], largestText: largestText)
+        tap(app.buttons["Filters"])
+        let filters = expect(app.navigationBars["Filters"])
+        let type = app.buttons.labeled("Type")
+        tap(type)
+        let choices = expect(app.navigationBars["Type"])
+        let allTypes = expect(app.buttons["All Types"])
+        XCTAssertTrue(allTypes.isSelected)
+        assertRightOfFold(allTypes)
+        attachSickSettingsScreen(largestText ? "timeline-type-open-axxxl-after" : "timeline-type-open-default-after")
+
+        let note = app.buttons["Note"]
+        reveal(note, in: expect(app.scrollViews.containing(.button, identifier: "All Types").firstMatch))
+        assertRightOfFold(note)
+        tap(note)
+        expectGone(choices)
+        expect(filters)
+        XCTAssertEqual(type.value as? String, "Note")
+        tap(filters.buttons["Done"])
+        expect(element(labeled: "Note, Looking out at the garden."))
+        XCTAssertEqual(elements("label BEGINSWITH 'Feeding, '").count, 0)
+    }
+
     func testTimelineEmptySearchCanBeClearedAboveTheKeyboard() throws {
         try launchOpen(["BB_START_TAB": "timeline"])
         checkEmptySearchWithKeyboard(app.textFields["Search notes, tags, type…"])

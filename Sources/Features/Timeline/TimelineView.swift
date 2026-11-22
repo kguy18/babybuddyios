@@ -639,10 +639,11 @@ private struct RailNode: View {
 /// to the timeline, so changes apply live behind the sheet; combines with the search field.
 private struct TimelineFiltersView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Binding var kindFilter: EntityKind?
     @Binding var dateFrom: Date?
     @Binding var dateTo: Date?
-    @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var wide = false
 
     private var hasActiveFilters: Bool { kindFilter != nil || dateFrom != nil || dateTo != nil }
 
@@ -655,12 +656,7 @@ private struct TimelineFiltersView: View {
         NavigationStack {
             Form {
                 Section("Activity Type") {
-                    Picker("Type", selection: $kindFilter) {
-                        Text("All Types").tag(EntityKind?.none)
-                        ForEach(EntityKind.timelineKinds) { kind in
-                            Text(kind.displayName).tag(EntityKind?.some(kind))
-                        }
-                    }
+                    typePicker
                 }
                 Section("Date Range") {
                     dateBound(label: String(localized: "From"), date: $dateFrom, default: defaultFrom)
@@ -680,8 +676,40 @@ private struct TimelineFiltersView: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
         }
+        .trackingWide($wide)
         // Full height at accessibility sizes: at half height the date range was cut off.
         .presentationDetents(typeSize.isAccessibilitySize ? [.large] : [.medium, .large])
+    }
+
+    @ViewBuilder private var typePicker: some View {
+        if wide {
+            NavigationLink {
+                SettingsChoices(
+                    title: String(localized: "Type"),
+                    options: [nil] + EntityKind.timelineKinds.map(Optional.some),
+                    selection: $kindFilter,
+                    label: typeLabel,
+                    dismissOnSelection: true,
+                    withinSheet: true
+                )
+                .keepsNavigationBar()
+            } label: {
+                LabeledContent("Type", value: typeLabel(kindFilter))
+            }
+            .accessibilityLabel("Type")
+            .accessibilityValue(Text(typeLabel(kindFilter)))
+        } else {
+            Picker("Type", selection: $kindFilter) {
+                Text("All Types").tag(EntityKind?.none)
+                ForEach(EntityKind.timelineKinds) { kind in
+                    Text(kind.displayName).tag(EntityKind?.some(kind))
+                }
+            }
+        }
+    }
+
+    private func typeLabel(_ kind: EntityKind?) -> String {
+        kind?.displayName ?? String(localized: "All Types")
     }
 
     /// A toggle that enables/clears an optional date bound, plus a date picker shown when on.
