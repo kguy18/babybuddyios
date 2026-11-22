@@ -391,7 +391,8 @@ final class LoggingTests: UITestCase {
                               ("Diaper", "New Diaper Change")] {
             openEditor(kind)
             let bar = expect(app.navigationBars[title])
-            let heading = expect(bar.staticTexts[title])
+            // The bar wraps the title view in a text element of its own, so two elements match.
+            let heading = expect(bar.staticTexts[title].firstMatch)
             let cancel = expect(bar.buttons["Cancel"])
             let save = expect(bar.buttons["Save"])
             XCTAssertFalse(heading.frame.intersects(cancel.frame), "\(title) should clear Cancel")
