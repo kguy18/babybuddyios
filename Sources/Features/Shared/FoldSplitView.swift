@@ -50,25 +50,52 @@ extension View {
 }
 
 /// A sheet's content in two columns side by side when `wide`, and one above the other otherwise,
-/// in the order given. At accessibility text sizes it is always one column: the two are 290 pt each.
-/// The gap is the fold's width, because the open display centres a sheet on the fold. The columns
-/// keep their views across the change, so folding the phone with the sheet open keeps what's typed.
+/// in the order given. The open display centres a sheet on the fold, so the gap is the fold's width
+/// and the columns stay two at every text size: one column that wide would run across the fold. The
+/// columns keep their views across the change, so folding the phone with the sheet open keeps what's typed.
 struct SheetColumns<Leading: View, Trailing: View>: View {
     let wide: Bool
     var spacing: CGFloat = 18
     @ViewBuilder var leading: () -> Leading
     @ViewBuilder var trailing: () -> Trailing
-    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        let layout = wide && !typeSize.isAccessibilitySize
+        let layout = wide
             ? AnyLayout(HStackLayout(alignment: .top, spacing: FoldLayout.assumedFold))
             : AnyLayout(VStackLayout(alignment: .leading, spacing: spacing))
         layout {
             VStack(alignment: .leading, spacing: spacing, content: leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             VStack(alignment: .leading, spacing: spacing, content: trailing)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+/// The date and time pills for a 290 pt sheet column on iPhone Duo's open display at
+/// accessibility sizes. Side by side they don't fit, and at the largest size the date alone
+/// doesn't either, so each takes a line at the largest text size that fits it.
+struct ColumnDatePickers: View {
+    @Binding var selection: Date
+    let components: DatePickerComponents
+    var range: PartialRangeThrough<Date> = ...Date.distantFuture
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if components.contains(.date) { fitting(.date) }
+            if components.contains(.hourAndMinute) { fitting(.hourAndMinute) }
+        }
+    }
+
+    private func fitting(_ part: DatePickerComponents) -> some View {
+        let picker = DatePicker("", selection: $selection, in: range, displayedComponents: part)
+            .labelsHidden()
+            .datePickerStyle(.compact)
+            .tint(BBColor.brandAccent)
+        return ViewThatFits(in: .horizontal) {
+            picker
+            picker.dynamicTypeSize(...DynamicTypeSize.accessibility3)
+            picker.dynamicTypeSize(...DynamicTypeSize.accessibility1)
         }
     }
 }
