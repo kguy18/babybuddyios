@@ -268,6 +268,24 @@ final class FoldTests: UITestCase {
         XCTAssertEqual(rows.count, 1, "Delete should remove the repeated feeding")
     }
 
+    func testBabyChoiceStaysInTheEditorAtTheLargestText() throws {
+        try launchOpen(["BB_START_TAB": "timeline", "BB_SEED_SECOND_CHILD": "1"], largestText: true)
+        let row = elements("label BEGINSWITH 'Feeding, ' AND label CONTAINS 'tags: hungry, night'").firstMatch
+        reveal(row, in: expect(app.collectionViews.firstMatch), below: app.textFields["Search notes, tags, type…"])
+        tap(row)
+        let editor = app.scrollViews["screen-editor"]
+        tap(editor.buttons.labeled("Maya Rivers"))
+        let otherBaby = editor.buttons["Leo Rivers"]
+        assertRightOfFold(otherBaby)
+        assertLeftOfFold(row)
+        XCTAssertTrue(otherBaby.isHittable)
+        tap(otherBaby)
+        expectGone(editor.buttons.labeled("Maya Rivers"))
+        expect(editor.buttons.labeled("Leo Rivers"))
+        tap(app.buttons["Save"])
+        expectGone(row)
+    }
+
     func testDeleteConfirmationStaysInThePaneAtTheLargestText() throws {
         try launchOpen(["BB_START_TAB": "timeline"], largestText: true)
         let row = elements("label BEGINSWITH 'Feeding, ' AND label CONTAINS 'tags: hungry, night'").firstMatch

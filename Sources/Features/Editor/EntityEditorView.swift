@@ -40,6 +40,7 @@ struct EntityEditorView: View {
     /// Which baby this record is filed under. Starts at `childID`; editing an existing record
     /// lets it be reassigned to any other child in the family (``showsChildPicker``).
     @State private var selectedChildID: Int
+    @State private var showingChildChoices = false
     @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "child" }, sort: \.timestamp)
     private var children: [LocalEntity]
 
@@ -396,33 +397,55 @@ struct EntityEditorView: View {
         return parts.isEmpty ? String(localized: "Unnamed") : parts.joined(separator: " ")
     }
 
-    private var selectedChildName: String {
-        children.first { $0.serverID == selectedChildID }.map(childDisplayName) ?? "—"
+    private func childName(_ id: Int) -> String {
+        children.first { $0.serverID == id }.map(childDisplayName) ?? "—"
     }
 
     private var childRow: some View {
-        let layout = typeSize.isAccessibilitySize
+        // The system menu opens over the fold. In a pane or a wide sheet the choices stay in the card.
+        let inline = onClose != nil || wide
+        let stacked = inline || typeSize.isAccessibilitySize
+        let layout = stacked
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout())
         return layout {
             Text("Baby").font(.body)
-            if !typeSize.isAccessibilitySize { Spacer() }
-            Menu {
-                ForEach(children, id: \.serverID) { child in
-                    if let id = child.serverID {
-                        Button { selectedChildID = id } label: {
-                            menuLabel(childDisplayName(child), checked: id == selectedChildID)
-                        }
+            if !stacked { Spacer() }
+            if inline {
+                DisclosureGroup(isExpanded: $showingChildChoices) {
+                    BBChoiceRows(options: children.compactMap(\.serverID), selection: selectedChildID,
+                                 label: childName) { id in
+                        selectedChildID = id
+                        showingChildChoices = false
                     }
+                } label: {
+                    Text(childName(selectedChildID))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .foregroundStyle(BBColor.brandAccent)
                 }
-            } label: {
-                HStack(spacing: 4) {
-                    Text(selectedChildName)
-                    Image(systemName: "chevron.up.chevron.down").font(.caption2)
-                }
-                .foregroundStyle(BBColor.brandAccent)
+                .tint(BBColor.brandAccent)
+            } else {
+                childMenu
             }
         }
         .padding(.horizontal, 15).padding(.vertical, 11)
+    }
+
+    private var childMenu: some View {
+        Menu {
+            ForEach(children, id: \.serverID) { child in
+                if let id = child.serverID {
+                    Button { selectedChildID = id } label: {
+                        menuLabel(childDisplayName(child), checked: id == selectedChildID)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(childName(selectedChildID))
+                Image(systemName: "chevron.up.chevron.down").font(.caption2)
+            }
+            .foregroundStyle(BBColor.brandAccent)
+        }
     }
 
     // MARK: When card
@@ -800,8 +823,18 @@ struct EntityEditorView: View {
     private var actionButtons: some View {
         VStack(spacing: 12) {
             Button(action: save) {
-                Label("Save \(kind.displayName)",
-                      systemImage: isConverting ? "arrow.triangle.merge" : "checkmark")
+                let title = Text("Save \(kind.displayName)")
+                ViewThatFits(in: .horizontal) {
+                    Label {
+                        title
+                    } icon: {
+                        Image(systemName: isConverting ? "arrow.triangle.merge" : "checkmark")
+                    }
+                    title
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 12)
             }
             .buttonStyle(.bbPrimary)
             .disabled(!isValid)
