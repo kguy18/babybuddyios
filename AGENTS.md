@@ -77,7 +77,7 @@ on you.
 
 ## Simulators
 
-Several agents run tests on this Mac at once, and it has 16 GB. Get a simulator only by running
+Several agents run tests on this Mac at once, and it has 24 GB. Get a simulator only by running
 `scripts/unit-test.sh` or `scripts/ui-test.sh` (any lane). With simlock installed they lease a fresh
 slim device from it and release it when they finish, so nobody shares or leaks one. Never run
 `xcrun simctl create`, `boot` or `erase` yourself, and never pass a hand-picked
