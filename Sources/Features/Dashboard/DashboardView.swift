@@ -299,10 +299,8 @@ struct DashboardView: View {
                 }
             }
         }
-        // On this pane rather than the whole screen, so on the open display they stay off the fold.
-        .overlay(alignment: .bottom) {
-            UndoToastView().padding(.bottom, usesToolbarAdd ? 12 : 84)
-        }
+        // In sick mode the timers move left, so keep Undo in the right pane.
+        .undoToastFooter(when: !split || sickModeStart != nil, bottomPadding: usesToolbarAdd ? 12 : 84)
         .overlay {
             if !children.isEmpty {
                 QuickAddMenu(
@@ -328,6 +326,7 @@ struct DashboardView: View {
             }
         } else {
             DayTimelineView(kind: nil, childID: selectedChildID, onEdit: { editing = $0 })
+                .undoToastFooter()
         }
     }
 

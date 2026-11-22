@@ -254,6 +254,42 @@ final class LoggingTests: UITestCase {
         expectGone(undo)
     }
 
+    func testUndoToastKeepsHomeControlsClear() {
+        checkUndoToastKeepsHomeControlsClear(largestText: false)
+    }
+
+    func testUndoToastKeepsHomeControlsClearAtLargestText() {
+        checkUndoToastKeepsHomeControlsClear(largestText: true)
+    }
+
+    private func checkUndoToastKeepsHomeControlsClear(largestText: Bool) {
+        launch(["BB_OPEN": "change", "BB_TOAST_SECONDS": "90"], largestText: largestText)
+        let sheet = expect(app.navigationBars["New Diaper Change"])
+        tap(sheet.buttons["Save"])
+        expectGone(sheet)
+        let toast = expect(app.otherElements["Logged Diaper Change"])
+        let undo = expect(app.buttons["Undo"])
+        XCTAssertTrue(undo.isHittable)
+
+        if app.windows.firstMatch.frame.width >= 900 {
+            let stop = expect(app.buttons["Stop"])
+            attachScreen("undo-home-open")
+            XCTAssertLessThan(toast.frame.maxX, stop.frame.minX, "Undo and Stop should be in separate panes")
+            XCTAssertTrue(stop.isHittable)
+            tap(stop)
+            expect(app.navigationBars["Stop Timer"])
+        } else {
+            let scroll = app.scrollViews.firstMatch
+            let diapers = app.buttons["today-change"]
+            reveal(diapers, in: scroll)
+            attachScreen("undo-home-folded")
+            XCTAssertLessThanOrEqual(scroll.frame.maxY, toast.frame.minY + 1,
+                                     "The Today tiles should scroll above the toast")
+            tap(diapers)
+            expect(app.navigationBars["Diaper Change · Today"])
+        }
+    }
+
     /// Baby Buddy refuses a feeding that overlaps another, so the editor names the cached one it
     /// would overlap. Only a warning: Save stays enabled. The seeded feeding ran 90 to 70 minutes
     /// before launch; a new one started 80 minutes ago and ending now overlaps it.
