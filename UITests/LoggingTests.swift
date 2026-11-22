@@ -324,6 +324,7 @@ final class LoggingTests: UITestCase {
         launch(largestText: true)
         openEditor("Pumping")
         expect(app.navigationBars["New Pumping"])
+        XCTAssertTrue(expect(app.scrollViews["screen-editor"].staticTexts["Pump"]).isHittable, "The row should start at the selected kind")
         let start = expect(app.staticTexts["Start"])
         let end = expect(app.staticTexts["End"])
         XCTAssertGreaterThan(start.frame.width, start.frame.height, "\"Start\" should fit on one line")
@@ -335,11 +336,12 @@ final class LoggingTests: UITestCase {
     }
 
     /// Cancel and Save stay put while the form scrolls under them. On iPhone Duo's folded display
-    /// the bar used to scroll away with the form.
+    /// the bar used to scroll away with the form (#278).
     func testEditorBarStaysWhileScrolling() {
         launch()
         var hidden: [String] = []
-        for (kind, title) in [("Diaper", "New Diaper Change"), ("Medication", "New Medication")] {
+        for (kind, title) in [("Feeding", "New Feeding"), ("Medication", "New Medication"),
+                              ("Diaper", "New Diaper Change"), ("Sleep", "New Sleep")] {
             openEditor(kind)
             let bar = expect(app.navigationBars[title])
             let scroll = app.scrollViews["screen-editor"]
@@ -357,5 +359,45 @@ final class LoggingTests: UITestCase {
             expectGone(bar)
         }
         XCTAssertEqual(hidden, [], "Cancel and Save should stay in reach while the form scrolls")
+    }
+
+    /// The kind pills start at the selected kind. On iPhone Duo's front display Pump and Note sat
+    /// off the end of the row, so the selection didn't show.
+    func testEditorPillsShowTheSelectedKind() {
+        launch()
+        for (kind, pill) in [("Pumping", "Pump"), ("Note", "Note")] {
+            openEditor(kind)
+            let bar = expect(app.navigationBars["New \(kind)"])
+            XCTAssertTrue(expect(app.scrollViews["screen-editor"].staticTexts[pill]).isHittable, "\(pill) should be in view")
+            tap(bar.buttons["Cancel"])
+            expectGone(bar)
+        }
+    }
+
+    /// Long titles wrap between Cancel and Save. On iPhone Duo's front display, where the rail
+    /// takes a column of the bar, "New Head Circumference" truncated.
+    func testEditorTitlesFit() {
+        launch()
+        checkEditorTitles()
+    }
+
+    func testEditorTitlesFitTheLargestText() {
+        launch(largestText: true)
+        checkEditorTitles()
+    }
+
+    private func checkEditorTitles() {
+        for (kind, title) in [("Head", "New Head Circumference"), ("Temperature", "New Temperature"),
+                              ("Diaper", "New Diaper Change")] {
+            openEditor(kind)
+            let bar = expect(app.navigationBars[title])
+            let heading = expect(bar.staticTexts[title])
+            let cancel = expect(bar.buttons["Cancel"])
+            let save = expect(bar.buttons["Save"])
+            XCTAssertFalse(heading.frame.intersects(cancel.frame), "\(title) should clear Cancel")
+            XCTAssertFalse(heading.frame.intersects(save.frame), "\(title) should clear Save")
+            tap(cancel)
+            expectGone(bar)
+        }
     }
 }

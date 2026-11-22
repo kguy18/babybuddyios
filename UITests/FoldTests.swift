@@ -421,6 +421,20 @@ final class FoldTests: UITestCase {
                              "Maybe later should sit right of the fold")
     }
 
+    /// The kind pills split three and three either side of the fold, where one row put "Tummy"
+    /// on it, and the feeding types keep to the left column.
+    func testEditorPillsSplitAtTheFold() throws {
+        try launchOpen()
+        openEditor("Feeding")
+        expect(app.navigationBars["New Feeding"])
+        let editor = app.scrollViews["screen-editor"]
+        for name in ["Feeding", "Diaper", "Sleep"] { assertLeftOfFold(editor.staticTexts[name]) }
+        for name in ["Tummy", "Pump", "Note"] { assertRightOfFold(editor.staticTexts[name]) }
+        for name in ["Breast", "Formula", "Fortified", "Solid"] { assertLeftOfFold(editor.buttons[name]) }
+        tap(editor.staticTexts["Tummy"])
+        expect(app.navigationBars["New Tummy Time"])
+    }
+
     func testEditorFieldsStayBesideTheFoldAtTheLargestText() throws {
         try launchOpen(largestText: true)
         allowNotificationsIfAsked()

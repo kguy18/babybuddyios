@@ -126,6 +126,22 @@ struct EntityEditorView: View {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Save", action: save).disabled(!isValid).tint(BBColor.brandAccent)
                     }
+                    // A long title wraps rather than truncating between Cancel and Save: on iPhone
+                    // Duo's front display the rail takes a column of the bar, and "New Head
+                    // Circumference" read "New Head Circumfe…".
+                    ToolbarItem(placement: .principal) {
+                        Text(navTitle)
+                            .font(.headline)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            // Without this the bar offers one line's height, and the title shrinks
+                            // and truncates rather than wrapping.
+                            .fixedSize(horizontal: false, vertical: true)
+                            .minimumScaleFactor(0.75)
+                            // The bar's own title stops growing at this size too.
+                            .dynamicTypeSize(...DynamicTypeSize.large)
+                            .accessibilityAddTraits(.isHeader)
+                    }
                 }
                 .keepsNavigationBar()
             }
@@ -256,12 +272,23 @@ struct EntityEditorView: View {
     /// The editor's scrolling content: the activity selector (while creating, so the customer can
     /// switch kinds without reopening the editor) above the form itself.
     @ViewBuilder private var editorContent: some View {
-        if showsActivitySelector, !pillsInColumn { activitySelector }
+        if showsActivitySelector, !pillsInColumn {
+            if wide {
+                SheetColumns(wide: true) {
+                    activitySelector(quickKinds.prefix(3))
+                } trailing: {
+                    activitySelector(quickKinds.suffix(3))
+                }
+            } else {
+                activitySelector(quickKinds[...])
+            }
+        }
         formSections
     }
 
-    /// On iPhone Duo's open display at accessibility sizes the pills are too big for a row across
-    /// the sheet, where one ("Diaper") sat across the fold, so they scroll in the left column.
+    /// On iPhone Duo's open display the pills split three and three either side of the fold, where
+    /// one row put "Tummy" on it. At accessibility sizes they are too big for that, so all six
+    /// scroll in the left column.
     private var pillsInColumn: Bool { wide && typeSize.isAccessibilitySize }
 
     /// The editable form (everything below the activity selector). A wide sheet, on iPhone Duo's
@@ -269,7 +296,7 @@ struct EntityEditorView: View {
     @ViewBuilder private var formSections: some View {
         syncErrorBanner
         SheetColumns(wide: wide) {
-            if showsActivitySelector, pillsInColumn { activitySelector }
+            if showsActivitySelector, pillsInColumn { activitySelector(quickKinds[...]) }
             babySection
             sectioned(String(localized: "When")) { whenCard }
             sectioned(detailsTitle) { detailsCard }
@@ -303,12 +330,18 @@ struct EntityEditorView: View {
         !isEditing && !isConverting && quickKinds.contains(kind)
     }
 
-    private var activitySelector: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(quickKinds) { activityPill($0) }
+    /// A row of pills that scrolls, starting at the selected kind: on iPhone Duo's front display
+    /// Pump and Note sat off the end, so picking either hid the selection.
+    private func activitySelector(_ kinds: ArraySlice<EntityKind>) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(kinds) { activityPill($0).id($0) }
+                }
+                .padding(.horizontal, 2)
             }
-            .padding(.horizontal, 2)
+            .onAppear { proxy.scrollTo(kind, anchor: .center) }
+            .onChange(of: kind) { _, k in withAnimation { proxy.scrollTo(k, anchor: .center) } }
         }
     }
 
@@ -320,7 +353,8 @@ struct EntityEditorView: View {
             Text(shortName(k)).font(.subheadline.weight(selected ? .semibold : .medium))
         }
         .foregroundStyle(selected ? Color.white : accent)
-        .padding(.horizontal, 14).padding(.vertical, 8)
+        // Narrower on the open display, so three fit in a column either side of the fold.
+        .padding(.horizontal, wide && !pillsInColumn ? 10 : 14).padding(.vertical, 8)
         .background {
             Capsule().fill(selected ? accent : accent.opacity(scheme == .dark ? 0.22 : 0.15))
         }
