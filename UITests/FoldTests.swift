@@ -785,5 +785,4 @@ final class FoldTests: UITestCase {
         expect(app.textFields["Your server URL or IP address"])
     }
 
-
 }

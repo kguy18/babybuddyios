@@ -253,6 +253,8 @@ struct FeedbackSheet: View {
                     .allowsHitTesting(showsWebView)
                 if phase == .loading || savingSession || (phase == .ready && holdsChat && signedIn == nil) {
                     ProgressView()
+                        .frame(width: chatWidth)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
                 } else if phase == .ready && holdsChat {
                     signIn(wide: splitHelp)
                 }
