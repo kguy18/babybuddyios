@@ -188,11 +188,7 @@ struct FeedbackSheet: View {
         NavigationStack {
             GeometryReader { geometry in
                 let width = geometry.size.width
-                let besideFold = widget == .help && FoldLayout.isWide(width)
-                // The system centres a wide sheet across the fold. Keep Get Help in its right half.
-                sheetContent
-                    .frame(width: besideFold ? (width - FoldLayout.assumedFold) / 2 : width)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                sheetContent(width: width, splitHelp: widget == .help && FoldLayout.isWide(width))
             }
             .background(BBColor.surface.ignoresSafeArea())
             .onChange(of: phase) { _, phase in
@@ -204,6 +200,16 @@ struct FeedbackSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
+                if widget == .roadmap {
+                    ToolbarItem(placement: .principal) {
+                        Text(widget.title)
+                            .font(.headline)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.65)
+                            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                            .accessibilityAddTraits(.isHeader)
+                    }
+                }
                 if widget == .help {
                     ToolbarItem(placement: .primaryAction) {
                         Button {
@@ -222,7 +228,7 @@ struct FeedbackSheet: View {
                 }
             }
             .navigationDestination(isPresented: $signingIn) {
-                signIn
+                signIn()
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .topBarTrailing) { Button("Close") { dismiss() } }
@@ -231,21 +237,24 @@ struct FeedbackSheet: View {
         }
     }
 
-    private var sheetContent: some View {
-        ZStack {
+    private func sheetContent(width: CGFloat, splitHelp: Bool) -> some View {
+        let chatWidth = splitHelp ? (width - FoldLayout.assumedFold) / 2 : width
+        return ZStack {
             if phase == .failed {
-                unreachable
+                unreachable(wide: splitHelp)
             } else {
                 FeedbackWebView(widget: widget, phase: $phase, signedIn: $signedIn, reloads: reloads,
                                 onSignIn: { if widget != .help, signedIn != true { signingIn = true } },
                                 onClose: { dismiss() })
+                    .frame(width: chatWidth)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
                     .opacity(showsWebView ? 1 : 0)
                     .accessibilityHidden(!showsWebView)
                     .allowsHitTesting(showsWebView)
                 if phase == .loading || savingSession || (phase == .ready && holdsChat && signedIn == nil) {
                     ProgressView()
                 } else if phase == .ready && holdsChat {
-                    signIn
+                    signIn(wide: splitHelp)
                 }
             }
         }
@@ -253,7 +262,7 @@ struct FeedbackSheet: View {
 
     /// The native sign-in. Once it has written the session, the widget reloads and starts signed
     /// in, on the sheet's view. Offline, the sheet shows its Mail fallback.
-    private var signIn: some View {
+    private func signIn(wide: Bool = false) -> some View {
         FeedbackSignInView(widget: widget, onSignedIn: { session in
             // Back to the widget first. While its web view is off screen WebKit can hold up the
             // cookie write, by 20 seconds and more in testing.
@@ -269,34 +278,57 @@ struct FeedbackSheet: View {
         }, onUnreachable: {
             signingIn = false
             phase = .failed
-        })
+        }, wide: wide)
     }
 
-    private var unreachable: some View {
+    private func unreachable(wide: Bool) -> some View {
         GeometryReader { geometry in
             ScrollView {
-                BBCard(cornerRadius: BBRadius.card, padding: typeSize.isAccessibilitySize ? 12 : 20) {
-                    VStack(spacing: 12) {
-                        Image(systemName: "wifi.exclamationmark")
-                            .font(.system(size: 30, weight: .semibold))
-                            .foregroundStyle(BBColor.brand)
-                            .accessibilityHidden(true)
-                        Text("Can't reach the feedback server")
-                            .font(.headline)
-                        Text("Check your connection, or email us and we'll reply there.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Button("Email Support") { onEmail(); dismiss() }
-                            .buttonStyle(.bbPrimary)
-                            .padding(.top, 4)
+                Group {
+                    if wide {
+                        SheetColumns(wide: true) {
+                            offlineCard { offlineMessage }
+                        } trailing: {
+                            emailSupport
+                        }
+                    } else {
+                        offlineCard {
+                            offlineMessage
+                            emailSupport.padding(.top, 4)
+                        }
                     }
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
                 }
                 .padding(16)
                 .frame(minHeight: geometry.size.height)
             }
         }
+    }
+
+    private func offlineCard<Content: View>(@ViewBuilder content: @escaping () -> Content) -> some View {
+        BBCard(cornerRadius: BBRadius.card, padding: typeSize.isAccessibilitySize ? 12 : 20) {
+            VStack(spacing: 12, content: content)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+        }
+    }
+
+    private var offlineMessage: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "wifi.exclamationmark")
+                .font(.system(size: 30, weight: .semibold))
+                .foregroundStyle(BBColor.brand)
+                .accessibilityHidden(true)
+            Text("Can't reach the feedback server")
+                .font(.headline)
+            Text("Check your connection, or email us and we'll reply there.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var emailSupport: some View {
+        Button("Email Support") { onEmail(); dismiss() }
+            .buttonStyle(.bbPrimary)
     }
 }
 

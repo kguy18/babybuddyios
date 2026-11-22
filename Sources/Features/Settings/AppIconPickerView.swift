@@ -15,35 +15,40 @@ struct AppIconPickerView: View {
     }
 
     var body: some View {
-        FoldSplitView { Color.clear } main: { _ in
-            picker
+        FoldSplitView {
+            picker(Array(AppIconOption.allCases.prefix(AppIconOption.allCases.count / 2)), showNote: false)
+        } main: { split in
+            let options = AppIconOption.allCases
+            picker(split ? Array(options.dropFirst(options.count / 2)) : options, showNote: true)
         }
         .background(BBColor.surface)
         .navigationTitle("App Icon")
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private var picker: some View {
+    private func picker(_ options: [AppIconOption], showNote: Bool) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(AppIconOption.allCases) { option in
+                    ForEach(options) { option in
                         AppIconTile(option: option, isSelected: icons.selected == option) {
                             Task { await icons.select(option) }
                         }
                     }
                 }
 
-                if let error = icons.errorMessage {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundStyle(BBColor.danger)
-                        .padding(.horizontal, 4)
-                } else {
-                    Text("Changing the icon shows a confirmation from iOS. It may take a moment to update on the Home Screen.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 4)
+                if showNote {
+                    if let error = icons.errorMessage {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(BBColor.danger)
+                            .padding(.horizontal, 4)
+                    } else {
+                        Text("Changing the icon shows a confirmation from iOS. It may take a moment to update on the Home Screen.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
+                    }
                 }
             }
             .padding(.horizontal, 16)
@@ -68,18 +73,20 @@ private struct AppIconTile: View {
 
     var body: some View {
         Button(action: action) {
-            let layout = typeSize.isAccessibilitySize
-                ? AnyLayout(HStackLayout(spacing: 16))
-                : AnyLayout(VStackLayout(spacing: 8))
-            layout {
-                artwork
-                Text(option.displayName)
-                    .font(.caption.weight(isSelected ? .semibold : .regular))
-                    .foregroundStyle(isSelected ? BBColor.brandAccent : .secondary)
-                    .multilineTextAlignment(typeSize.isAccessibilitySize ? .leading : .center)
-                    .fixedSize(horizontal: false, vertical: true)
+            ViewThatFits(in: .horizontal) {
+                if typeSize.isAccessibilitySize {
+                    HStack(spacing: 16) {
+                        artwork
+                        name
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                VStack(spacing: 8) {
+                    artwork
+                    name.multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity, alignment: typeSize.isAccessibilitySize ? .leading : .center)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -87,6 +94,13 @@ private struct AppIconTile: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(option.displayName)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private var name: some View {
+        Text(option.displayName)
+            .font(.caption.weight(isSelected ? .semibold : .regular))
+            .foregroundStyle(isSelected ? BBColor.brandAccent : .secondary)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var artwork: some View {

@@ -71,11 +71,11 @@ struct SettingsView: View {
             // On iPhone Duo's open display the account and sync sections go left of the fold and
             // the app's own settings right of it. Everywhere else it is one list.
             FoldSplitView {
-                ScrollView { pane { accountSections } }
+                ScrollView { pane { accountSections(split: true) } }
             } main: { split in
                 ScrollView {
                     pane {
-                        if !split { accountSections }
+                        if !split { accountSections(split: false) }
                         appSections
                     }
                 }
@@ -143,7 +143,7 @@ struct SettingsView: View {
     }
 
     /// The child, supporting the app, and this phone's link to the server.
-    @ViewBuilder private var accountSections: some View {
+    @ViewBuilder private func accountSections(split: Bool) -> some View {
         masthead
 
         sectioned(String(localized: "Support the app")) {
@@ -151,7 +151,7 @@ struct SettingsView: View {
             footnote("Everything in the app is free. Supporting is optional and helps fund development.")
         }
 
-        sectioned(String(localized: "Server")) { serverCard }
+        sectioned(String(localized: "Server")) { serverCard(split: split) }
 
         sectioned(String(localized: "Security")) {
             securityCard
@@ -260,7 +260,7 @@ struct SettingsView: View {
 
     /// The server connection plus the offline-first sync truth (last sync, queued writes, conflicts)
     /// — combined into one "Server" card.
-    private var serverCard: some View {
+    private func serverCard(split: Bool) -> some View {
         card {
             if case .authenticated(let config) = session.state {
                 serverRow(config)
@@ -284,8 +284,33 @@ struct SettingsView: View {
 
             conflictRow
             rowDivider
-            SettingsRow(symbol: "clock.arrow.circlepath", tint: BBColor.warning,
-                        title: String(localized: "Stale after")) {
+            stalenessRow(split: split)
+        }
+    }
+
+    private func stalenessRow(split: Bool) -> some View {
+        SettingsRow(symbol: "clock.arrow.circlepath", tint: BBColor.warning,
+                    title: String(localized: "Stale after")) {
+            if split {
+                NavigationLink {
+                    SettingsChoices(
+                        title: String(localized: "Stale after"),
+                        options: SyncFreshness.thresholdOptions,
+                        selection: $stalenessThresholdMinutes,
+                        label: SyncFreshness.thresholdLabel,
+                        footer: String(localized: "The sync time on Home and in the status widget changes color after this long."),
+                        dismissOnSelection: true
+                    )
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(SyncFreshness.thresholdLabel(stalenessThresholdMinutes))
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(BBColor.brandAccent)
+                        disclosure
+                    }
+                }
+                .buttonStyle(.plain)
+            } else {
                 Menu {
                     Picker("Stale after", selection: $stalenessThresholdMinutes) {
                         ForEach(SyncFreshness.thresholdOptions, id: \.self) {
@@ -606,7 +631,9 @@ struct SettingsView: View {
                     SettingsRow(symbol: "paintbrush.fill", tint: BBColor.tummy, title: String(localized: "App Icon")) {
                         HStack(spacing: 4) {
                             Text(icons.selected.displayName)
-                                .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                             disclosure
                         }
                     }

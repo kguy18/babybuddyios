@@ -8,7 +8,7 @@ struct FeverLineView: View {
     private let unit = TemperatureUnit.current
 
     var body: some View {
-        ChoiceList(
+        SettingsChoices(
             title: String(localized: "Fever line"), options: SickMode.feverLineChoices,
             selection: Binding(get: { feverLine }, set: { celsius in
                 feverLine = celsius
@@ -26,7 +26,7 @@ struct TemperatureChecksView: View {
     static func label(_ hours: Int) -> String { hours == 0 ? String(localized: "Off") : String(localized: "Every \(hours) hr") }
 
     var body: some View {
-        ChoiceList(
+        SettingsChoices(
             title: String(localized: "Temperature checks"), options: SickMode.checkHourChoices,
             selection: Binding(get: { hours }, set: { new in
                 hours = new
@@ -42,28 +42,47 @@ struct TemperatureChecksView: View {
 }
 
 /// A pushed list of choices with a check on the selected one.
-private struct ChoiceList<Value: Hashable>: View {
+struct SettingsChoices<Value: Hashable>: View {
+    @Environment(\.dismiss) private var dismiss
     let title: String
     let options: [Value]
     @Binding var selection: Value
     let label: (Value) -> String
     let footer: String
+    var dismissOnSelection = false
 
     var body: some View {
-        FoldSplitView { Color.clear } main: { _ in choices }
+        FoldSplitView {
+            ScrollView {
+                explanation.padding(20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        } main: { split in
+            choices(showExplanation: !split)
+        }
             .background(BBColor.surface)
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
     }
 
-    private var choices: some View {
+    private var explanation: some View {
+        Text(footer)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func choices(showExplanation: Bool) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
                 BBCard(cornerRadius: BBRadius.tile, padding: 0) {
                     VStack(spacing: 0) {
                         ForEach(Array(options.enumerated()), id: \.element) { index, option in
                             if index > 0 { Rectangle().fill(BBColor.divider).frame(height: 0.5) }
-                            Button { selection = option } label: {
+                            Button {
+                                selection = option
+                                if dismissOnSelection { dismiss() }
+                            } label: {
                                 HStack {
                                     Text(label(option)).font(.body)
                                     Spacer()
@@ -83,9 +102,9 @@ private struct ChoiceList<Value: Hashable>: View {
                     }
                     .padding(.horizontal, 15)
                 }
-                Text(footer)
-                    .font(.caption).foregroundStyle(.secondary)
-                    .padding(.horizontal, 4).padding(.top, 2)
+                if showExplanation {
+                    explanation.padding(.horizontal, 4).padding(.top, 2)
+                }
             }
             .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 28)
         }
@@ -113,7 +132,18 @@ struct MedicineColorsView: View {
     }
 
     var body: some View {
-        FoldSplitView { Color.clear } main: { _ in colorList }
+        FoldSplitView {
+            colorList(showNotes: false)
+        } main: { split in
+            if split {
+                ScrollView {
+                    colorNotes.padding(20)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            } else {
+                colorList(showNotes: true)
+            }
+        }
             .background(BBColor.surface)
             .navigationTitle("Medicine colors")
             .navigationBarTitleDisplayMode(.inline)
@@ -125,7 +155,7 @@ struct MedicineColorsView: View {
             }
     }
 
-    private var colorList: some View {
+    private func colorList(showNotes: Bool) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 8) {
@@ -141,14 +171,21 @@ struct MedicineColorsView: View {
                         }
                         .padding(.horizontal, 15)
                     }
-                    Text("Each medicine gets the next color in the order it first appears on your server, so every phone shows the same colors. A color you change here changes on this phone only.")
-                        .font(.footnote).foregroundStyle(.secondary)
-                        .padding(.horizontal, 4).padding(.top, 2)
                 }
-                Button("Reset to server colors") { store.resetOverrides() }
-                    .buttonStyle(.bbTinted)
+                if showNotes { colorNotes.padding(.horizontal, 4) }
             }
             .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 28)
+        }
+    }
+
+    private var colorNotes: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Each medicine gets the next color in the order it first appears on your server, so every phone shows the same colors. A color you change here changes on this phone only.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button("Reset to server colors") { store.resetOverrides() }
+                .buttonStyle(.bbTinted)
         }
     }
 
@@ -170,17 +207,35 @@ struct MedicineColorsView: View {
 
     private func medicineRow(_ name: String) -> some View {
         let color = store.color(name)
+        let source = store.isOverridden(name) ? String(localized: "this phone only") : String(localized: "from your server")
+        let subtitle = String(localized: "\(color.name) · \(source)")
+        let chevron = Image(systemName: expanded == name ? "chevron.up" : "chevron.right")
+            .font(.footnote.weight(.semibold))
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+            .foregroundStyle(.tertiary)
+            .accessibilityHidden(true)
         return Button {
             withAnimation(.snappy(duration: 0.2)) { expanded = expanded == name ? nil : name }
         } label: {
-            SettingsRow(symbol: "pills.fill", tint: shown(name).color, title: name,
-                        subtitle: String(localized: "\(color.name) · \(store.isOverridden(name) ? String(localized: "this phone only") : String(localized: "from your server"))")) {
-                Image(systemName: expanded == name ? "chevron.up" : "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                    .frame(width: 20)
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(name).font(.callout)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 8) {
+                        Circle().fill(shown(name).color).frame(width: 12, height: 12)
+                            .accessibilityHidden(true)
+                        Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                        chevron
+                    }
+                }
+                .padding(.vertical, 11)
+                .contentShape(Rectangle())
+            } else {
+                SettingsRow(symbol: "pills.fill", tint: shown(name).color, title: name, subtitle: subtitle) {
+                    chevron.frame(width: 20)
+                }
             }
         }
         .buttonStyle(.plain)

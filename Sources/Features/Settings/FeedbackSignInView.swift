@@ -9,6 +9,7 @@ struct FeedbackSignInView: View {
     let onSignedIn: (FeedbackAuth.Session) -> Void
     /// No connection: the sheet shows its Mail fallback.
     let onUnreachable: () -> Void
+    var wide = false
 
     private enum Step { case email, code, password }
     private enum Field { case email, code, password }
@@ -41,8 +42,19 @@ struct FeedbackSignInView: View {
         // Ticks each second for Resend's countdown and the end of a rate limit.
         SwiftUI.TimelineView(.periodic(from: .now, by: 1)) { timeline in
             GeometryReader { geometry in
-                ScrollViewReader { scroll in
-                    ScrollView { content(now: timeline.date).padding(16) }
+                SheetColumns(wide: wide, spacing: 0) {
+                    if wide {
+                        ScrollView { introduction.padding(.vertical, 16) }
+                    }
+                } trailing: {
+                    ScrollViewReader { scroll in
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 14) {
+                                if !wide { introduction }
+                                form(now: timeline.date)
+                            }
+                            .padding(.vertical, 16)
+                        }
                         .scrollDismissesKeyboard(.interactively)
                         .onChange(of: geometry.size.height) { oldHeight, height in
                             // Wait until the keyboard has reduced the scroll view's height.
@@ -50,31 +62,35 @@ struct FeedbackSignInView: View {
                                 scroll.scrollTo("send-code", anchor: .bottom)
                             }
                         }
+                    }
                 }
+                .padding(.horizontal, 16)
             }
         }
         .background(BBColor.surface)
         .onAppear { Analytics.feedbackSignInStarted(from: widget.analyticsView) }
     }
 
-    private func content(now: Date) -> some View {
+    private var introduction: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(step == .code ? String(localized: "Check your email") : String(localized: "Sign in"))
+                .font(.title2.weight(.bold))
+                .accessibilityAddTraits(.isHeader)
+            Text(step == .code ? String(localized: "Enter the 6-digit code we sent to \(trimmedEmail).") : context)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.bottom, 4)
+    }
+
+    @ViewBuilder private func form(now: Date) -> some View {
         let blocked = now < blockedUntil
-        return VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(step == .code ? String(localized: "Check your email") : String(localized: "Sign in"))
-                    .font(.title2.weight(.bold))
-                    .accessibilityAddTraits(.isHeader)
-                Text(step == .code ? String(localized: "Enter the 6-digit code we sent to \(trimmedEmail).") : context)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.bottom, 4)
-            switch step {
-            case .email: emailStep(blocked: blocked)
-            case .code: codeStep(now: now, blocked: blocked)
-            case .password: passwordStep(blocked: blocked)
-            }
+        switch step {
+        case .email: emailStep(blocked: blocked)
+        case .code: codeStep(now: now, blocked: blocked)
+        case .password: passwordStep(blocked: blocked)
         }
     }
 

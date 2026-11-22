@@ -7,7 +7,16 @@ struct ConflictInboxView: View {
     @Query(sort: \ConflictRecord.detectedAt, order: .reverse) private var conflicts: [ConflictRecord]
 
     var body: some View {
-        FoldSplitView { Color.clear } main: { _ in
+        FoldSplitView {
+            if !conflicts.isEmpty {
+                ScrollView {
+                    Text("\(conflicts.count) to resolve")
+                        .font(.title2.weight(.semibold))
+                        .padding(20)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        } main: { _ in
             ScrollView {
                 LazyVStack(spacing: 10) {
                     ForEach(conflicts) { conflict in
@@ -23,15 +32,15 @@ struct ConflictInboxView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 24)
             }
+            .overlay {
+                if conflicts.isEmpty {
+                    ContentUnavailableView("No Conflicts", systemImage: "checkmark.circle",
+                        description: Text("Everything is in sync."))
+                }
+            }
         }
         .background(BBColor.surface)
         .navigationTitle("Conflicts")
-        .overlay {
-            if conflicts.isEmpty {
-                ContentUnavailableView("No Conflicts", systemImage: "checkmark.circle",
-                    description: Text("Everything is in sync."))
-            }
-        }
     }
 }
 
@@ -42,7 +51,10 @@ private struct ConflictInboxRow: View {
 
     var body: some View {
         BBCard(cornerRadius: BBRadius.row, padding: 13) {
-            HStack(spacing: 12) {
+            let layout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                : AnyLayout(HStackLayout(spacing: 12))
+            layout {
                 if !typeSize.isAccessibilitySize {
                     ActivityTile(kind: conflict.kind, size: 40, glyph: 21)
                 }
@@ -59,14 +71,17 @@ private struct ConflictInboxRow: View {
                         .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                Spacer(minLength: 8)
-                SyncStateBadge(state: .conflicted)
-                    .font(.body)
-                    .dynamicTypeSize(...DynamicTypeSize.accessibility1)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
+                HStack(spacing: 8) {
+                    if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
+                    SyncStateBadge(state: .conflicted)
+                        .font(.body)
+                        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+                    if typeSize.isAccessibilitySize { Spacer(minLength: 0) }
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .accessibilityHidden(true)
+                }
             }
         }
         .accessibilityElement(children: .combine)

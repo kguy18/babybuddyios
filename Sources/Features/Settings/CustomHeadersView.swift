@@ -267,10 +267,14 @@ struct AdvancedConfigurationSheet: View {
                         SignInTrace(gate: gate, host: host, ready: ready)
                         if !ready { fixBox(gate) }
                     }
+                    if wide { headerNote }
                 } trailing: {
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 8) {
                         headerForm
-                        if wide || typeSize.isAccessibilitySize { saveButton }
+                        if !wide { headerNote }
+                        if wide || typeSize.isAccessibilitySize {
+                            saveButton.padding(.top, 8)
+                        }
                     }
                 }
                 .padding(.horizontal, 16)
@@ -305,11 +309,14 @@ struct AdvancedConfigurationSheet: View {
             BBCard(cornerRadius: BBRadius.tile, padding: 0) {
                 CustomHeaderFields(rows: $draft, addTitle: draft.isEmpty ? String(localized: "Add header") : String(localized: "Add another header"))
             }
-            Text(CustomHeaderFields.footnote)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 4)
         }
+    }
+
+    private var headerNote: some View {
+        Text(CustomHeaderFields.footnote)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 4)
     }
 
     private var footer: some View {
@@ -511,8 +518,13 @@ struct CustomHeadersView: View {
     private var saved: [CustomHeader] { session.config?.headers ?? [] }
 
     var body: some View {
-        FoldSplitView { Color.clear } main: { _ in
-            headerForm
+        FoldSplitView {
+            ScrollView {
+                headerNote.padding(20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        } main: { split in
+            headerForm(showNote: !split)
         }
         .background(BBColor.surface.ignoresSafeArea())
         .navigationTitle("Custom headers")
@@ -530,7 +542,7 @@ struct CustomHeadersView: View {
         .onAppear { rows = saved.map(HeaderRow.init) }
     }
 
-    private var headerForm: some View {
+    private func headerForm(showNote: Bool) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
                 BBCard(cornerRadius: BBRadius.tile, padding: 0) {
@@ -542,16 +554,21 @@ struct CustomHeadersView: View {
                         .foregroundStyle(BBColor.danger)
                         .padding(.horizontal, 4)
                 }
-                Text("Only for a server behind an access gate that checks a header. \(CustomHeaderFields.footnote)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 4)
-                    .padding(.top, 2)
+                if showNote {
+                    headerNote.padding(.horizontal, 4).padding(.top, 2)
+                }
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 28)
         }
+    }
+
+    private var headerNote: some View {
+        Text("Only for a server behind an access gate that checks a header. \(CustomHeaderFields.footnote)")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private func save() {

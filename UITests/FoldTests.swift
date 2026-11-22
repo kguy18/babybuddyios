@@ -59,26 +59,25 @@ final class FoldTests: UITestCase {
         expectGone(board)
     }
 
-    func testGetHelpSignInStaysBesideTheFoldAtLargestText() throws {
+    func testGetHelpSignInUsesBothPanesAtLargestText() throws {
         try launchOpen(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out"], largestText: true)
         openSendFeedback()
         tap(app.buttons.labeled("Get Help"))
-        let email = expect(app.textFields["Email"], timeout: 30)
-        let sendCode = expect(app.buttons["Send Code"])
-        let middle = app.windows.firstMatch.frame.midX
-        XCTAssertGreaterThan(email.frame.minX, middle, "The email field should stay right of the fold")
-        XCTAssertGreaterThan(sendCode.frame.minX, middle, "Send Code should stay with the email field")
+        expect(app.textFields["Email"], timeout: 30)
+        assertLeftOfFold(app.staticTexts["Sign in with your email so I can reply to you."])
+        assertRightOfFold(app.textFields["Email"])
+        assertRightOfFold(app.buttons["Send Code"])
+        attachScreen("settings-panes-help-sign-in")
     }
 
-    func testOfflineGetHelpStaysBesideTheFold() throws {
-        try launchOpen(["BB_START_TAB": "settings"])
+    func testOfflineGetHelpUsesBothPanesAtLargestText() throws {
+        try launchOpen(["BB_START_TAB": "settings"], largestText: true)
         openSendFeedback()
         tap(app.buttons.labeled("Get Help"))
         let title = expect(app.staticTexts["Can't reach the feedback server"], timeout: 30)
-        let email = expect(app.buttons["Email Support"])
-        let middle = app.windows.firstMatch.frame.midX
-        XCTAssertGreaterThan(title.frame.minX, middle, "The offline title should stay right of the fold")
-        XCTAssertGreaterThan(email.frame.minX, middle, "Email Support should stay with the offline message")
+        assertLeftOfFold(title)
+        assertRightOfFold(app.buttons["Email Support"])
+        attachScreen("settings-panes-help-offline")
     }
 
     func testFeedbackAccountStaysBesideTheFoldAtLargestText() throws {
@@ -109,7 +108,7 @@ final class FoldTests: UITestCase {
         attachScreen("settings-custom-headers")
         let middle = app.windows.firstMatch.frame.midX
         XCTAssertGreaterThan(add.frame.minX, middle, "The header card should stay right of the fold")
-        XCTAssertGreaterThan(footer.frame.minX, middle, "The footer should stay with the header card")
+        assertLeftOfFold(footer)
         tap(add)
         let name = expect(app.textFields["Header name"])
         XCTAssertGreaterThan(name.frame.minX, middle, "Added fields should stay in the same pane")
@@ -136,7 +135,7 @@ final class FoldTests: UITestCase {
         tap(app.buttons["Medicine colors"])
         tap(app.buttons.labeled("Ibuprofen"))
         let pink = expect(app.buttons["Pink"])
-        XCTAssertGreaterThan(pink.frame.minX, middle)
+        assertLeftOfFold(pink)
         tap(pink)
         let cancel = expect(app.buttons["Cancel"])
         XCTAssertGreaterThan(cancel.frame.minX, middle)
@@ -148,25 +147,83 @@ final class FoldTests: UITestCase {
         XCTAssertGreaterThan(expect(signOut.buttons["Cancel"]).frame.minX, middle)
     }
 
-    func testSettingsPickersStayRightOfTheFold() throws {
-        try launchOpen(["BB_START_TAB": "settings"])
-        let middle = app.windows.firstMatch.frame.midX
+    func testSettingsPickersUseBothPanes() throws {
+        try checkSettingsPickers(largestText: false)
+    }
+
+    func testSettingsPickersUseBothPanesAtLargestText() throws {
+        try checkSettingsPickers(largestText: true)
+    }
+
+    private func checkSettingsPickers(largestText: Bool) throws {
+        try launchOpen(["BB_START_TAB": "settings"], largestText: largestText)
 
         tap(app.buttons.labeled("Today tiles, 4 on"))
         expect(app.navigationBars["Today Tiles"])
-        XCTAssertGreaterThan(expect(app.staticTexts["Feedings"]).frame.minX, middle)
-        XCTAssertGreaterThan(expect(app.switches["Feedings"]).frame.minX, middle)
+        assertLeftOfFold(app.staticTexts.labeled("Drag to change the order on Home."))
+        assertRightOfFold(app.switches["Feedings"])
+        attachScreen("settings-panes-tiles")
         back(from: "Today Tiles")
 
         tap(app.buttons.labeled("App Icon, Center Peek"))
         expect(app.navigationBars["App Icon"])
-        XCTAssertGreaterThan(expect(app.buttons.labeled("Center Peek")).frame.minX, middle)
+        assertLeftOfFold(app.buttons["Center Peek"])
+        assertRightOfFold(app.buttons["Peek Wave"])
+        XCTAssertTrue(app.buttons["Center Peek"].isSelected)
+        attachScreen("settings-panes-icons")
         back(from: "App Icon")
 
         tap(app.buttons.labeled("Forgotten timer alerts, Off"))
         expect(app.navigationBars["Forgotten timer alerts"])
-        XCTAssertGreaterThan(expect(app.scrollViews.staticTexts["Forgotten timer alerts"]).frame.minX, middle)
-        XCTAssertGreaterThan(expect(app.switches["Forgotten timer alerts"]).frame.minX, middle)
+        assertLeftOfFold(app.staticTexts.labeled("Get a notification when a timer runs longer than expected"))
+        assertRightOfFold(app.switches["Forgotten timer alerts"])
+        attachScreen("settings-panes-timers")
+    }
+
+    func testSickModeDetailsUseBothPanesAtLargestText() throws {
+        try launchOpen(["BB_START_TAB": "settings", "BB_SEED_SICK": "1", "BB_TEMP_UNIT": "f"], largestText: true)
+        allowNotificationsIfAsked()
+
+        tap(app.buttons.labeled("Fever line"))
+        assertLeftOfFold(app.staticTexts.labeled("A reading at or over this line counts as a fever."))
+        assertRightOfFold(app.buttons["99.5°F"])
+        attachScreen("settings-panes-fever")
+        back(from: "Fever line")
+
+        tap(app.buttons.labeled("Temperature checks"))
+        assertLeftOfFold(app.staticTexts.labeled("While sick mode is on"))
+        assertRightOfFold(app.buttons["Off"])
+        attachScreen("settings-panes-checks")
+        back(from: "Temperature checks")
+
+        tap(app.buttons["Medicine colors"])
+        assertRightOfFold(app.staticTexts.labeled("Each medicine gets the next color"))
+        assertRightOfFold(app.buttons["Reset to server colors"])
+        assertLeftOfFold(app.buttons.labeled("Acetaminophen"))
+        attachScreen("settings-panes-medicines")
+    }
+
+    func testStaleAfterChoicesStayClearOfTheFold() throws {
+        try launchOpen(["BB_START_TAB": "settings"], largestText: true)
+        tap(app.buttons["30 min"])
+        expect(app.navigationBars["Stale after"])
+        assertLeftOfFold(app.staticTexts.labeled("The sync time on Home"))
+        assertRightOfFold(app.buttons["15 min"])
+        attachScreen("settings-panes-stale")
+        tap(app.buttons["15 min"])
+        expect(app.navigationBars["Settings"])
+        expect(app.buttons["15 min"])
+    }
+
+    func testRoadmapTitleFitsWithSignIn() throws {
+        try launchOpen(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out"], largestText: true)
+        openSendFeedback()
+        tap(app.buttons.labeled("Roadmap and Updates"))
+        expect(app.webViews.staticTexts["Stub widget: home"], timeout: 30)
+        let bar = expect(app.navigationBars["Roadmap and Updates"])
+        let title = expect(bar.staticTexts["Roadmap and Updates"])
+        XCTAssertGreaterThan(title.frame.width, 115, "The title needs room for all three words")
+        attachScreen("settings-panes-roadmap")
     }
 
     /// The tapped record opens right of the list, ready to edit, with Save, Repeat and Delete in the
@@ -416,6 +473,19 @@ final class FoldTests: UITestCase {
         expectGone(later)
     }
 
+    func testAdvancedConfigurationKeepsSaveByTheHeaders() throws {
+        try launchOpen(demo: false)
+        tap(app.buttons["Advanced configuration"])
+        expect(app.navigationBars["Advanced configuration"])
+        tap(app.buttons["Add header"])
+        let add = expect(app.buttons["Add another header"])
+        let save = expect(app.buttons["Save"])
+        assertRightOfFold(save)
+        XCTAssertTrue(save.isHittable)
+        XCTAssertLessThanOrEqual(save.frame.minY - add.frame.maxY, 28)
+        attachScreen("settings-panes-advanced")
+    }
+
     func testAdvancedConfigurationStaysBesideTheFoldAtTheLargestText() throws {
         try launchOpen(["BB_GATE_PREVIEW": "cloudflareAccess"], largestText: true, demo: false)
         expect(app.navigationBars["Advanced configuration"])
@@ -424,7 +494,11 @@ final class FoldTests: UITestCase {
         assertRightOfFold(app.textFields["Client ID"])
         let label = expect(app.staticTexts["Client ID"])
         XCTAssertGreaterThan(label.frame.width, label.frame.height, "\"Client ID\" should fit on one line")
-        assertRightOfFold(app.buttons["Save and try again"])
+        let add = expect(app.buttons["Add another header"])
+        let save = expect(app.buttons["Save and try again"])
+        assertRightOfFold(save)
+        XCTAssertLessThanOrEqual(save.frame.minY - add.frame.maxY, 28,
+                       "Save should sit directly below the headers")
     }
 
     // The fold is the middle 40 pt of the open window. Allow one point for frame rounding.
@@ -657,8 +731,9 @@ final class FoldTests: UITestCase {
         try launchOpen(["BB_START_TAB": "settings", "BB_SEED_CONFLICT": "1"])
         tap(app.buttons.labeled("Conflicts"))
         let row = expect(app.buttons.labeled("Feeding"))
-        XCTAssertGreaterThan(row.frame.minX, app.windows.firstMatch.frame.midX,
-                             "The inbox should stay in one pane")
+        assertLeftOfFold(app.staticTexts["1 to resolve"])
+        assertRightOfFold(row)
+        attachScreen("settings-panes-conflicts")
         tap(row)
         expect(app.navigationBars["Resolve Conflict"])
         let mine = expect(app.buttons.labeled("Amount, Mine,"))
@@ -709,5 +784,6 @@ final class FoldTests: UITestCase {
         expectGone(instructions)
         expect(app.textFields["Your server URL or IP address"])
     }
+
 
 }

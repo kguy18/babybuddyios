@@ -17,8 +17,13 @@ struct TimerAlertsView: View {
     }
 
     var body: some View {
-        FoldSplitView { Color.clear } main: { _ in
-            alertSettings
+        FoldSplitView {
+            ScrollView {
+                introduction.padding(20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        } main: { split in
+            alertSettings(showIntroduction: !split)
         }
         .background(BBColor.surface)
         .onAppear { thresholds = Self.stored() }
@@ -26,67 +31,78 @@ struct TimerAlertsView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private var alertSettings: some View {
+    private var switchCard: some View {
+        BBCard(cornerRadius: BBRadius.tile, padding: 0) {
+            SettingsRow(symbol: "bell.badge", tint: BBColor.restart, title: String(localized: "Forgotten timer alerts")) {
+                SettingsView.alertToggle(String(localized: "Forgotten timer alerts"), $enabled, setting: "forgottenTimerAlerts")
+            }
+            .padding(.horizontal, 15)
+        }
+    }
+
+    private var introduction: some View {
+        Text("Get a notification when a timer runs longer than expected, so a forgotten one doesn't file a bogus record. Tap it to open Stop Timer.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func alertSettings(showIntroduction: Bool) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 8) {
-                    BBCard(cornerRadius: BBRadius.tile, padding: 0) {
-                        SettingsRow(symbol: "bell.badge", tint: BBColor.restart, title: String(localized: "Forgotten timer alerts")) {
-                            SettingsView.alertToggle(String(localized: "Forgotten timer alerts"), $enabled, setting: "forgottenTimerAlerts")
-                        }
-                        .padding(.horizontal, 15)
-                    }
-                    Text("Get a notification when a timer runs longer than expected, so a forgotten one doesn't file a bogus record. Tap it to open Stop Timer.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 4)
-                        .padding(.top, 2)
-                }
-
-                if enabled {
-                    VStack(alignment: .leading, spacing: 8) {
-                        SectionHeader(String(localized: "Alert after"))
-                        BBCard(cornerRadius: BBRadius.tile, padding: 0) {
-                            VStack(spacing: 0) {
-                                ForEach(Array(TimerActivity.allCases.enumerated()), id: \.element) { index, activity in
-                                    if index > 0 {
-                                        Rectangle().fill(BBColor.divider).frame(height: 0.5)
-                                    }
-                                    SettingsRow(symbol: activity.systemImage, tint: BBColor.tint(for: activity),
-                                                title: activity.timerName) {
-                                        Menu {
-                                            Picker(activity.timerName, selection: threshold(activity)) {
-                                                ForEach(ForgottenTimerPolicy.choices(for: activity), id: \.self) {
-                                                    Text(EntityFormatting.formatInterval($0)).tag($0)
-                                                }
-                                            }
-                                        } label: {
-                                            HStack(spacing: 4) {
-                                                Text(EntityFormatting.formatInterval(thresholds[activity] ?? ForgottenTimerPolicy.threshold(for: activity)))
-                                                    .font(.subheadline.weight(.medium))
-                                                    .foregroundStyle(BBColor.brandAccent)
-                                                Image(systemName: "chevron.up.chevron.down")
-                                                    .font(.system(size: 12, weight: .semibold))
-                                                    .foregroundStyle(BBColor.brandAccent)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, 15)
-                        }
-                        Text("A timer nags once. The alert stays until the timer stops.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 4)
-                            .padding(.top, 2)
+                    switchCard
+                    if showIntroduction {
+                        introduction.padding(.horizontal, 4).padding(.top, 2)
                     }
                 }
+                if enabled { thresholdSettings }
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 28)
             .animation(.default, value: enabled)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var thresholdSettings: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionHeader(String(localized: "Alert after"))
+            BBCard(cornerRadius: BBRadius.tile, padding: 0) {
+                VStack(spacing: 0) {
+                    ForEach(Array(TimerActivity.allCases.enumerated()), id: \.element) { index, activity in
+                        if index > 0 {
+                            Rectangle().fill(BBColor.divider).frame(height: 0.5)
+                        }
+                        SettingsRow(symbol: activity.systemImage, tint: BBColor.tint(for: activity),
+                                    title: activity.timerName) {
+                            Menu {
+                                Picker(activity.timerName, selection: threshold(activity)) {
+                                    ForEach(ForgottenTimerPolicy.choices(for: activity), id: \.self) {
+                                        Text(EntityFormatting.formatInterval($0)).tag($0)
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text(EntityFormatting.formatInterval(thresholds[activity] ?? ForgottenTimerPolicy.threshold(for: activity)))
+                                        .font(.subheadline.weight(.medium))
+                                        .foregroundStyle(BBColor.brandAccent)
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(BBColor.brandAccent)
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 15)
+            }
+            Text("A timer nags once. The alert stays until the timer stops.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+                .padding(.top, 2)
         }
     }
 
