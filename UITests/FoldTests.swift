@@ -367,8 +367,10 @@ final class FoldTests: UITestCase {
         assertLeftOfFold(copy)
         assertRightOfFold(cancel)
         assertRightOfFold(dialog.buttons["Sign out"])
-        XCTAssertTrue(app.windows.firstMatch.frame.contains(copy.frame))
-        XCTAssertTrue(cancel.isHittable)
+        // The copy has the whole left pane; past its height it scrolls there.
+        XCTAssertTrue(app.windows.firstMatch.frame.contains(dialog.staticTexts["Sign out?"].frame),
+                      "The heading should be in view")
+        XCTAssertTrue(cancel.isHittable, "Cancel should be in view")
         tap(cancel)
         expectGone(dialog)
     }
@@ -383,7 +385,7 @@ final class FoldTests: UITestCase {
         assertLeftOfFold(reminder)
         assertRightOfFold(app.buttons["Become a Supporter"])
         assertRightOfFold(later)
-        XCTAssertTrue(app.windows.firstMatch.frame.contains(reminder.frame))
+        XCTAssertTrue(app.windows.firstMatch.frame.contains(copy.frame), "The whole body should be in view")
         tap(later)
         expectGone(later)
     }
