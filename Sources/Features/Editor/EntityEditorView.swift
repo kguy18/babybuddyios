@@ -40,7 +40,6 @@ struct EntityEditorView: View {
     /// Which baby this record is filed under. Starts at `childID`; editing an existing record
     /// lets it be reassigned to any other child in the family (``showsChildPicker``).
     @State private var selectedChildID: Int
-    @State private var showingChildChoices = false
     @Query(filter: #Predicate<LocalEntity> { $0.kindRaw == "child" }, sort: \.timestamp)
     private var children: [LocalEntity]
 
@@ -402,50 +401,17 @@ struct EntityEditorView: View {
     }
 
     private var childRow: some View {
-        // The system menu opens over the fold. In a pane or a wide sheet the choices stay in the card.
-        let inline = onClose != nil || wide
-        let stacked = inline || typeSize.isAccessibilitySize
-        let layout = stacked
+        let layout = typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout())
         return layout {
             Text("Baby").font(.body)
-            if !stacked { Spacer() }
-            if inline {
-                DisclosureGroup(isExpanded: $showingChildChoices) {
-                    BBChoiceRows(options: children.compactMap(\.serverID), selection: selectedChildID,
-                                 label: childName) { id in
-                        selectedChildID = id
-                        showingChildChoices = false
-                    }
-                } label: {
-                    Text(childName(selectedChildID))
-                        .fixedSize(horizontal: false, vertical: true)
-                        .foregroundStyle(BBColor.brandAccent)
-                }
-                .tint(BBColor.brandAccent)
-            } else {
-                childMenu
+            if !typeSize.isAccessibilitySize { Spacer() }
+            EditorChoice(inline: inlineChoices, options: children.compactMap(\.serverID),
+                         selection: $selectedChildID, label: childName) {
+                menuValue(childName(selectedChildID))
             }
         }
         .padding(.horizontal, 15).padding(.vertical, 11)
-    }
-
-    private var childMenu: some View {
-        Menu {
-            ForEach(children, id: \.serverID) { child in
-                if let id = child.serverID {
-                    Button { selectedChildID = id } label: {
-                        menuLabel(childDisplayName(child), checked: id == selectedChildID)
-                    }
-                }
-            }
-        } label: {
-            HStack(spacing: 4) {
-                Text(childName(selectedChildID))
-                Image(systemName: "chevron.up.chevron.down").font(.caption2)
-            }
-            .foregroundStyle(BBColor.brandAccent)
-        }
     }
 
     // MARK: When card
@@ -666,34 +632,35 @@ struct EntityEditorView: View {
     }
 
     private var colorRow: some View {
-        HStack {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout())
+        return layout {
             Text("Color").font(.body)
-            Spacer()
-            Menu {
-                Button { color = nil } label: { menuLabel(String(localized: "None"), checked: color == nil) }
-                ForEach(DiaperColor.allCases, id: \.self) { c in
-                    Button { color = c } label: { menuLabel(c.label, checked: color == c) }
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Text(color?.label ?? String(localized: "None"))
-                    Image(systemName: "chevron.up.chevron.down").font(.caption2)
-                }
-                .foregroundStyle(BBColor.brandAccent)
+            if !typeSize.isAccessibilitySize { Spacer() }
+            EditorChoice(inline: inlineChoices, options: [nil] + DiaperColor.allCases.map(Optional.some),
+                         selection: $color, label: { $0?.label ?? String(localized: "None") }) {
+                menuValue(color?.label ?? String(localized: "None"))
             }
         }
         .padding(.horizontal, 15).padding(.vertical, 11)
     }
 
+    /// A row's current choice in brand blue, with the menu's up-down chevron.
+    private func menuValue(_ title: String) -> some View {
+        HStack(spacing: 4) {
+            Text(title)
+            Image(systemName: "chevron.up.chevron.down").font(.caption2)
+        }
+        .foregroundStyle(BBColor.brandAccent)
+    }
+
+    /// At accessibility sizes the system menu opens centred on the screen, which on iPhone Duo's
+    /// open display is over the fold. In a pane or a wide sheet the choices open in place instead.
+    private var inlineChoices: Bool { typeSize.isAccessibilitySize && (onClose != nil || wide) }
+
     private func menuField<T: Hashable>(options: [T], selection: Binding<T>,
                                         label: @escaping (T) -> String) -> some View {
-        Menu {
-            ForEach(options, id: \.self) { option in
-                Button { selection.wrappedValue = option } label: {
-                    menuLabel(label(option), checked: option == selection.wrappedValue)
-                }
-            }
-        } label: {
+        EditorChoice(inline: inlineChoices, options: options, selection: selection, label: label) {
             HStack {
                 Text(label(selection.wrappedValue)).font(.body)
                 Spacer()
@@ -708,10 +675,6 @@ struct EntityEditorView: View {
                     .strokeBorder(BBColor.fieldStroke, lineWidth: 0.5)
             }
         }
-    }
-
-    @ViewBuilder private func menuLabel(_ title: String, checked: Bool) -> some View {
-        if checked { Label(title, systemImage: "checkmark") } else { Text(title) }
     }
 
     private func plainField(_ placeholder: String, text: Binding<String>) -> some View {
@@ -1181,6 +1144,40 @@ private extension FeedingType {
         case .fortifiedBreastMilk: return String(localized: "Fortified")
         case .solidFood: return String(localized: "feeding.type.solid.short", defaultValue: "Solid",
                                        comment: "Solid food, not a diaper containing stool")
+        }
+    }
+}
+
+/// One of a few options: the system menu, or with `inline` the choices as rows below the trigger
+/// (``EntityEditorView/inlineChoices``).
+private struct EditorChoice<Value: Hashable, Trigger: View>: View {
+    let inline: Bool
+    let options: [Value]
+    @Binding var selection: Value
+    let label: (Value) -> String
+    @ViewBuilder let trigger: () -> Trigger
+    @State private var expanded = false
+
+    var body: some View {
+        if inline {
+            VStack(alignment: .leading, spacing: 4) {
+                Button { expanded.toggle() } label: { trigger() }
+                    .buttonStyle(.plain)
+                if expanded {
+                    BBChoiceRows(options: options, selection: selection, label: label) { option in
+                        selection = option
+                        expanded = false
+                    }
+                }
+            }
+        } else {
+            Menu {
+                ForEach(options, id: \.self) { option in
+                    Button { selection = option } label: {
+                        if option == selection { Label(label(option), systemImage: "checkmark") } else { Text(label(option)) }
+                    }
+                }
+            } label: { trigger() }
         }
     }
 }

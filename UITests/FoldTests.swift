@@ -268,20 +268,30 @@ final class FoldTests: UITestCase {
         XCTAssertEqual(rows.count, 1, "Delete should remove the repeated feeding")
     }
 
-    func testBabyChoiceStaysInTheEditorAtTheLargestText() throws {
+    func testEditorChoicesStayInThePaneAtTheLargestText() throws {
         try launchOpen(["BB_START_TAB": "timeline", "BB_SEED_SECOND_CHILD": "1"], largestText: true)
         let row = elements("label BEGINSWITH 'Feeding, ' AND label CONTAINS 'tags: hungry, night'").firstMatch
         reveal(row, in: expect(app.collectionViews.firstMatch), below: app.textFields["Search notes, tags, type…"])
         tap(row)
-        let editor = app.scrollViews["screen-editor"]
-        tap(editor.buttons.labeled("Maya Rivers"))
-        let otherBaby = editor.buttons["Leo Rivers"]
+        // In the pane the editor carries the Timeline's identifier, not "screen-editor". The child
+        // pill reads "Current child, …", so these match only the editor's Baby row.
+        tap(app.buttons.labeled("Maya Rivers"))
+        let otherBaby = app.buttons["Leo Rivers"]
         assertRightOfFold(otherBaby)
         assertLeftOfFold(row)
         XCTAssertTrue(otherBaby.isHittable)
         tap(otherBaby)
-        expectGone(editor.buttons.labeled("Maya Rivers"))
-        expect(editor.buttons.labeled("Leo Rivers"))
+        expectGone(app.buttons.labeled("Maya Rivers"))
+        expect(app.buttons.labeled("Leo Rivers"))
+        // The field menus open in place too.
+        let type = app.buttons["Breast Milk"]
+        reveal(type, in: app.scrollViews.containing(NSPredicate(format: "label == 'Save Feeding'")).firstMatch)
+        tap(type)
+        let formula = app.buttons["Formula"]
+        assertRightOfFold(formula)
+        tap(formula)
+        expect(app.buttons["Formula"])
+        expectGone(app.buttons["Breast Milk"])
         tap(app.buttons["Save"])
         expectGone(row)
     }
