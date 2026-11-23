@@ -418,6 +418,42 @@ extension FittedSheet where Actions == EmptyView {
     }
 }
 
+/// Choice rows for a card, with a checkmark and accessibility selection on the current value.
+struct BBChoiceRows<Value: Hashable>: View {
+    let options: [Value]
+    let selection: Value
+    let label: (Value) -> String
+    let select: (Value) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(options.enumerated()), id: \.element) { index, option in
+                if index > 0 { Rectangle().fill(BBColor.divider).frame(height: 0.5) }
+                Button {
+                    select(option)
+                } label: {
+                    HStack {
+                        Text(label(option))
+                            .font(.body)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer()
+                        if option == selection {
+                            Image(systemName: "checkmark")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(BBColor.brandAccent)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .padding(.vertical, 13)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(option == selection ? .isSelected : [])
+            }
+        }
+    }
+}
+
 // MARK: Buttons
 
 /// Full-width filled button carrying the action-color grammar (stop=yellow, primary=blue…).

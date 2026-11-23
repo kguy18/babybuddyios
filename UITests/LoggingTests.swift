@@ -330,6 +330,9 @@ final class LoggingTests: UITestCase {
         replaceText(unit, with: "mL\n")
         let save = app.buttons["Save Medication"]
         reveal(save, in: scroll)
+        if hasRail, app.windows.firstMatch.frame.width < 900 {
+            XCTAssertGreaterThan(save.frame.height, 100, "Save Medication should have room for two lines")
+        }
         tap(save)
         expectGone(app.navigationBars["New Medication"])
         expect(elements("label BEGINSWITH 'Medication, Test medicine'").firstMatch)

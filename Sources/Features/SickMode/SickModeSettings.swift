@@ -91,29 +91,9 @@ struct SettingsChoices<Value: Hashable>: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
                 BBCard(cornerRadius: BBRadius.tile, padding: 0) {
-                    VStack(spacing: 0) {
-                        ForEach(Array(options.enumerated()), id: \.element) { index, option in
-                            if index > 0 { Rectangle().fill(BBColor.divider).frame(height: 0.5) }
-                            Button {
-                                selection = option
-                                if dismissOnSelection { dismiss() }
-                            } label: {
-                                HStack {
-                                    Text(label(option)).font(.body)
-                                    Spacer()
-                                    if option == selection {
-                                        Image(systemName: "checkmark")
-                                            .font(.body.weight(.semibold))
-                                            .foregroundStyle(BBColor.brandAccent)
-                                            .accessibilityHidden(true)
-                                    }
-                                }
-                                .padding(.vertical, 13)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityAddTraits(option == selection ? .isSelected : [])
-                        }
+                    BBChoiceRows(options: options, selection: selection, label: label) { option in
+                        selection = option
+                        if dismissOnSelection { dismiss() }
                     }
                     .padding(.horizontal, 15)
                 }
