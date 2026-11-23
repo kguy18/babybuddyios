@@ -29,7 +29,7 @@ struct SupportGentleAskCard: View {
 
     var body: some View {
         if typeSize.isAccessibilitySize {
-            SettingsDialogCard(label: wrappingTitle, onCancel: onDismiss, splitAtAccessibilitySizes: true) {
+            SettingsDialogCard(label: wrappingTitle, onCancel: onDismiss, splitAtAccessibilitySizes: true) { _ in
                 VStack(spacing: 7) {
                     copy
                     reminder

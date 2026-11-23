@@ -18,19 +18,25 @@ struct SignOutDialog: View {
 
     var body: some View {
         SettingsDialogCard(label: String(localized: "Sign out of \(host)?"), onCancel: onCancel,
-                           splitAtAccessibilitySizes: true) {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 13) {
-                    if !typeSize.isAccessibilitySize {
-                        glyphTile(size: 46, radius: 14, symbol: "rectangle.portrait.and.arrow.right",
-                                  font: .title3, tint: BBColor.danger, color: BBColor.danger)
+                           splitAtAccessibilitySizes: true) { split in
+            VStack(alignment: .leading, spacing: split ? 2 : 14) {
+                if split {
+                    // Beside the fold at the largest sizes, the heading names the server: the
+                    // copy then fits the pane without the server row.
+                    Text("Sign out of \(host)?").font(.title3.weight(.semibold))
+                } else {
+                    HStack(spacing: 13) {
+                        if !typeSize.isAccessibilitySize {
+                            glyphTile(size: 46, radius: 14, symbol: "rectangle.portrait.and.arrow.right",
+                                      font: .title3, tint: BBColor.danger, color: BBColor.danger)
+                        }
+                        Text("Sign out?").font(.title3.weight(.semibold))
                     }
-                    Text("Sign out?").font(.title3.weight(.semibold))
+                    serverRow
+                    if pendingCount > 0 { pendingRow(showGlyph: true) }
                 }
-                serverRow
-                if pendingCount > 0 { pendingRow }
                 Text("The activities cached on this device will be deleted. Nothing on your server changes — signing back in downloads them again.")
-                    .font(.body)
+                    .font(split ? .subheadline : .body)
                     .foregroundStyle(.secondary)
             }
         } actions: {
@@ -39,6 +45,10 @@ struct SignOutDialog: View {
                 // The pale red in dark mode needs dark text for contrast.
                 .buttonStyle(BBFilledButton(background: BBColor.danger,
                                             foreground: .adaptive(light: "FFFFFF", dark: "0C0E12")))
+        } splitCopyAboveActions: {
+            if pendingCount > 0 {
+                DialogCopy(alignment: .leading) { pendingRow(showGlyph: false) }
+            }
         }
     }
 
@@ -62,10 +72,12 @@ struct SignOutDialog: View {
 
     /// Unsynced writes are the one thing sign-out destroys that the server can't give back, so they
     /// get the amber pending-changes vocabulary rather than a line of body copy.
-    private var pendingRow: some View {
+    private func pendingRow(showGlyph: Bool) -> some View {
         HStack(alignment: .top, spacing: 10) {
-            glyphTile(size: 26, radius: 8, symbol: "icloud.and.arrow.up", font: .footnote,
-                      tint: BBColor.warning, color: BBColor.warning, opacity: 0.35)
+            if showGlyph {
+                glyphTile(size: 26, radius: 8, symbol: "icloud.and.arrow.up", font: .footnote,
+                          tint: BBColor.warning, color: BBColor.warning, opacity: 0.35)
+            }
             Text(pendingMessage)
                 .font(.subheadline)
                 .fixedSize(horizontal: false, vertical: true)
@@ -98,16 +110,29 @@ struct SignOutDialog: View {
 }
 
 /// A modal card that keeps its actions visible while the copy scrolls.
-struct SettingsDialogCard<Copy: View, Actions: View>: View {
+struct SettingsDialogCard<Copy: View, Actions: View, ActionCopy: View>: View {
     let label: String
     let onCancel: () -> Void
-    var splitAtAccessibilitySizes = false
-    @ViewBuilder var copy: () -> Copy
-    @ViewBuilder var actions: () -> Actions
+    let splitAtAccessibilitySizes: Bool
+    private let copy: (Bool) -> Copy
+    private let actions: () -> Actions
+    private let splitCopyAboveActions: () -> ActionCopy
 
     @Environment(\.colorScheme) private var scheme
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var shown = false
+
+    init(label: String, onCancel: @escaping () -> Void, splitAtAccessibilitySizes: Bool = false,
+         @ViewBuilder copy: @escaping (Bool) -> Copy,
+         @ViewBuilder actions: @escaping () -> Actions,
+         @ViewBuilder splitCopyAboveActions: @escaping () -> ActionCopy = { EmptyView() }) {
+        self.label = label
+        self.onCancel = onCancel
+        self.splitAtAccessibilitySizes = splitAtAccessibilitySizes
+        self.copy = copy
+        self.actions = actions
+        self.splitCopyAboveActions = splitCopyAboveActions
+    }
 
     var body: some View {
         ZStack {
@@ -117,17 +142,22 @@ struct SettingsDialogCard<Copy: View, Actions: View>: View {
                 .accessibilityHidden(true)
             FoldSplitView {
                 if splitCopy {
-                    pane(maxWidth: .infinity) { DialogCopy(alignment: .leading, content: copy) }
+                    pane(maxWidth: .infinity) { DialogCopy(alignment: .leading) { copy(true) } }
                 } else {
                     Color.clear.allowsHitTesting(false)
                 }
             } main: { split in
                 if split && splitCopy {
-                    pane { actionGroup }
+                    pane {
+                        VStack(alignment: .leading, spacing: 12) {
+                            splitCopyAboveActions()
+                            actionGroup
+                        }
+                    }
                 } else {
                     pane {
                         VStack(alignment: .leading, spacing: typeSize.isAccessibilitySize ? 12 : 16) {
-                            DialogCopy(alignment: .leading, content: copy)
+                            DialogCopy(alignment: .leading) { copy(false) }
                             actionGroup
                         }
                     }
@@ -149,7 +179,9 @@ struct SettingsDialogCard<Copy: View, Actions: View>: View {
         BBCard(padding: typeSize.isAccessibilitySize ? 14 : 20, content: content)
             .shadow(color: .black.opacity(scheme == .dark ? 0.5 : 0.18), radius: 24, y: 12)
             .frame(maxWidth: maxWidth)
-            .padding(typeSize.isAccessibilitySize ? 10 : 16)
+            .padding(.horizontal, typeSize.isAccessibilitySize ? 10 : 16)
+            // Split at the largest sizes, every point of height goes to the copy.
+            .padding(.vertical, splitCopy ? 4 : typeSize.isAccessibilitySize ? 10 : 16)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 

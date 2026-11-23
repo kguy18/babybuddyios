@@ -314,7 +314,7 @@ struct MedicineColorWarning: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        SettingsDialogCard(label: String(localized: "Color changes only on this phone"), onCancel: onCancel) {
+        SettingsDialogCard(label: String(localized: "Color changes only on this phone"), onCancel: onCancel) { _ in
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 13) {
                     if !typeSize.isAccessibilitySize {
