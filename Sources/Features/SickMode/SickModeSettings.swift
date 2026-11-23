@@ -48,24 +48,39 @@ struct SettingsChoices<Value: Hashable>: View {
     let options: [Value]
     @Binding var selection: Value
     let label: (Value) -> String
-    let footer: String
+    var footer: String? = nil
     var dismissOnSelection = false
+    var withinSheet = false
 
     var body: some View {
-        FoldSplitView {
-            ScrollView {
-                explanation.padding(20)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+        Group {
+            if withinSheet {
+                GeometryReader { geometry in
+                    SheetColumns(wide: FoldLayout.isWide(geometry.size.width)) {
+                        EmptyView()
+                    } trailing: {
+                        choices(showExplanation: true)
+                    }
+                }
+            } else {
+                FoldSplitView {
+                    if let footer {
+                        ScrollView {
+                            explanation(footer).padding(20)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                } main: { split in
+                    choices(showExplanation: !split)
+                }
             }
-        } main: { split in
-            choices(showExplanation: !split)
         }
-            .background(BBColor.surface)
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
+        .background(BBColor.surface)
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
     }
 
-    private var explanation: some View {
+    private func explanation(_ footer: String) -> some View {
         Text(footer)
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -102,8 +117,8 @@ struct SettingsChoices<Value: Hashable>: View {
                     }
                     .padding(.horizontal, 15)
                 }
-                if showExplanation {
-                    explanation.padding(.horizontal, 4).padding(.top, 2)
+                if showExplanation, let footer {
+                    explanation(footer).padding(.horizontal, 4).padding(.top, 2)
                 }
             }
             .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 28)

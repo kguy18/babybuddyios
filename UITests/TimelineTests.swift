@@ -37,6 +37,19 @@ final class TimelineTests: UITestCase {
         expect(changes.firstMatch)
     }
 
+    func testTypeMenuFiltersAtLargestText() {
+        launch(["BB_START_TAB": "timeline"], largestText: true)
+        tap(app.buttons["Filters"])
+        let filters = expect(app.navigationBars["Filters"])
+        tap(app.buttons.labeled("Type"))
+        let feeding = expect(app.buttons["Feeding"])
+        attachScreen("timeline-type-compact-axxxl")
+        tap(feeding)
+        tap(filters.buttons["Done"])
+        expect(element(labeled: "Feeding, "))
+        XCTAssertEqual(elements("label BEGINSWITH 'Diaper Change, '").count, 0)
+    }
+
     /// History pages back a window at a time and stops at the child's birthday rather than asking
     /// the server forever (#17). Demo mode reveals a fixed historic set the same way a pull would.
     ///
