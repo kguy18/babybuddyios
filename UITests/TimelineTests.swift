@@ -118,15 +118,22 @@ final class TimelineTests: UITestCase {
     /// where at half height the date range was off the bottom.
     func testRowsDayHeadersAndFiltersAtTheLargestText() {
         launch(["BB_START_TAB": "timeline"], largestText: true)
-        let today = expect(app.staticTexts["Today"])
-        // "1 feed · 1 diaper", "3 feeds · 2h sleep", "2 events": the first one is today's.
-        let summary = expect(app.staticTexts.matching(NSPredicate(format: "label CONTAINS ' feed' OR "
-            + "label CONTAINS ' diaper' OR label CONTAINS ' sleep' OR label CONTAINS ' event'")).firstMatch)
-        XCTAssertGreaterThan(summary.frame.minY, today.frame.maxY - 1, "The summary should sit under the day")
+        // Demo data is relative to launch time, so which days show, and what each holds, moves
+        // with the clock: just after midnight Today has one record or none. Take the first day.
+        let summaries = NSPredicate(format: "label CONTAINS ' feed' OR label CONTAINS ' diaper' "
+            + "OR label CONTAINS ' sleep' OR label CONTAINS ' event'")
+        let day = expect(app.cells.containing(summaries).firstMatch)
+        let header = day.staticTexts.element(boundBy: 0)
+        let summary = day.staticTexts.matching(summaries).firstMatch
+        XCTAssertNotEqual(header.label, summary.label, "The day's first text should be its name")
+        XCTAssertGreaterThan(summary.frame.minY, header.frame.maxY - 1, "The summary should sit under the day")
 
-        let row = expect(elements("label BEGINSWITH 'Feeding, ' AND label CONTAINS 'tags: hungry, night'").firstMatch)
-        let title = expect(row.staticTexts["Feeding"])
-        let time = expect(row.staticTexts.matching(NSPredicate(format: "label CONTAINS ':'")).firstMatch)
+        // The first row with a time on it, whatever kind it is: "Weight, 5.4, 12:00 AM".
+        let row = expect(app.cells.buttons.matching(NSPredicate(format: "label MATCHES '.*[0-9]:[0-9][0-9].*'"))
+            .firstMatch)
+        let title = row.staticTexts.element(boundBy: 0)
+        let time = expect(row.staticTexts.matching(NSPredicate(format: "label MATCHES '.*[0-9]:[0-9][0-9].*'"))
+            .firstMatch)
         XCTAssertGreaterThan(time.frame.minY, title.frame.maxY - 1, "The time should sit under the title")
 
         tap(app.buttons["Filters"])
