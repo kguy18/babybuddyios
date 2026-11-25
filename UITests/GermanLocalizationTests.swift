@@ -41,4 +41,18 @@ final class GermanLocalizationTests: UITestCase {
         tap(editor.buttons["Abbrechen"])
         expect(app.navigationBars["Mahlzeit · Heute"])
     }
+
+    func testGermanTimerReminderActivityNames() {
+        launch(["BB_START_TAB": "settings"], language: "de", locale: "de_DE")
+        let title = "Erinnerungen an laufende Timer"
+        tap(app.buttons.labeled("\(title), Aus"))
+        expect(app.navigationBars[title])
+        tap(app.switches[title])
+        let allow = springboard.buttons.matching(NSPredicate(format: "label IN %@", ["Allow", "Erlauben"])).firstMatch
+        if allow.waitForExistence(timeout: 5) { allow.tap() }
+
+        for activity in ["Mahlzeit", "Schlaf", "Bauchlage", "Abpumpen"] {
+            expect(app.staticTexts[activity])
+        }
+    }
 }
