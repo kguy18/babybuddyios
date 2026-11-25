@@ -85,7 +85,7 @@ release notes can be written from the milestone:
   new UI test class goes in a shard of both `ui` and `duo`; the `changes` job fails until it does.
 - The eight Duo UI shards run only on a PR that touches `Sources/`, `Widgets/`, `UITests/`,
   `scripts/ui-test.sh` or `pr.yml` (the `changes` job's `duo-ui` output). Any other code PR, such
-  as a version bump or a tooling change, still gets `duo (unit)` and both `duo (open …)` jobs.
+  as a version bump or a tooling change, still gets `duo (unit)` and the `duo (open …)` jobs.
 - macOS jobs share one pool of five runners across both images, so a Duo job that started early
   would hold a slot a required lane is waiting for. That is why the Duo jobs wait.
 - `release-notes` runs on every PR, docs-only ones included: `node scripts/release.mjs validate`
@@ -124,8 +124,10 @@ release notes can be written from the milestone:
   Home button.
 - XCUITest can't unfold a Duo. `scripts/ui-test.sh --duo-open` unfolds one with duoctl
   (`scripts/duoctl`, pinned to one upstream commit), fails unless the inner screen took over, and
-  runs `FoldTests` and `SmokeTests` there; CI runs it as `duo (open fold)` and `duo (open smoke)`,
-  one class each. `FoldTests` skip on any other
+  runs `FoldTests` and `SmokeTests` there. CI splits `FoldTests` by measured time across
+  `duo (open fold-1)` and `duo (open fold-2)`. Add each new `FoldTests` method to one of those
+  shards in `pr.yml`. The `changes` job checks every method is assigned once.
+  `duo (open smoke)` runs all of `SmokeTests`. `FoldTests` skip on any other
   display unless the runner sets `TEST_RUNNER_BB_FOLD=1`, which forces the open layouts on any
   simulator through `BB_FOLD`. duoctl drives private simulator interfaces: it is a stopgap until
   Apple ships a supported way to fold the simulator, and a new Xcode can break it. The Duo
