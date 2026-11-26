@@ -37,7 +37,7 @@ jobs:
     # The environment hands its secrets to main only.
     environment: release
     env:
-      OP_ENVIRONMENT_IDS: ${{ vars.OP_ENVIRONMENT_ID }} ${{ vars.OP_ASC_ENVIRONMENT_ID }}
+      OP_ENVIRONMENT_IDS: ${{ secrets.OP_ENVIRONMENT_ID }} ${{ secrets.OP_ASC_ENVIRONMENT_ID }}
       GH_TOKEN: ${{ github.token }}
       VERSION: ${{ inputs.version }}
       BUILD: ${{ inputs.build }}
