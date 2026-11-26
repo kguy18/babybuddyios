@@ -65,7 +65,7 @@ every `pt-BR` plural also has a `zero` form with the plural wording ("0 campos")
 ```sh
 python3 scripts/check-localization.py
 node --test scripts/*.test.mjs
-node scripts/release.mjs validate
+node scripts/asc.mjs validate
 xcodegen generate
 ```
 

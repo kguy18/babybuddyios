@@ -1,21 +1,26 @@
 name: Prepare Release
 
-# Run by hand after the release-preparation PR has merged and the version exists in App Store
-# Connect. It puts the release notes into the version's "What's New" and makes a draft GitHub
-# Release. It never changes a version number, creates the App Store version, builds, uploads,
-# picks a build, submits, or tags. Builds come from `/babybuddy-release testflight`, and Publish
-# Release moves the draft to the commit of the build Apple shipped.
-#
-# Safe to rerun: it overwrites the same What's New and edits the same draft. Rerun it whenever the
-# notes change on main.
+# Run by hand from main once the version PR has merged. It refuses unless
+# main is that version with valid notes and the release is not yet published.
+# Then it creates the App Store version if missing, sets What's New from
+# Docs/release-notes.md, attaches the build, and creates or updates the one
+# draft GitHub Release. With submit=true it submits the version for review.
+# Safe to rerun until the version is submitted.
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: The App Store version, e.g. 1.1.0
+        description: "Marketing version, e.g. 1.1 (must match project.yml on main)"
         required: true
-        type: string
+      build:
+        description: "Build number to attach (empty takes the newest processed build of the version)"
+        required: false
+        default: ""
+      submit:
+        description: "Submit for App Review"
+        type: boolean
+        default: false
 
 concurrency:
   group: release
@@ -26,73 +31,113 @@ permissions:
 
 jobs:
   prepare:
-    name: prepare
+    name: Prepare
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    # See publish-release.yml: the environment's `main`-only policy is the real guard.
+    timeout-minutes: 30
+    # The environment hands its secrets to main only.
     environment: release
     env:
+      OP_ENVIRONMENT_IDS: ${{ vars.OP_ENVIRONMENT_ID }} ${{ vars.OP_ASC_ENVIRONMENT_ID }}
       GH_TOKEN: ${{ github.token }}
       VERSION: ${{ inputs.version }}
+      BUILD: ${{ inputs.build }}
       TAG: v${{ inputs.version }}
+      # op signs in with the service account token alone and never waits for input.
+      OP_BIOMETRIC_UNLOCK_ENABLED: "false"
+      OP_CACHE: "false"
     steps:
       - name: Only from main
         run: |
           if [ "$GITHUB_REF" != "refs/heads/main" ]; then
-            echo "::error::run this from main, not $GITHUB_REF"; exit 1
+            echo "::error::run this from main, not $GITHUB_REF. Nothing was sent."; exit 1
           fi
           if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
-            echo "::error::\"$VERSION\" is not a version number"; exit 1
+            echo "::error::\"$VERSION\" is not a marketing version such as 1.1. Nothing was sent."; exit 1
           fi
+          if [ -n "$BUILD" ] && ! [[ "$BUILD" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "::error::\"$BUILD\" is not a build number. Nothing was sent."; exit 1
+          fi
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: 1password/install-cli-action@1a3160d5e9de1ae0803eaa08a88746f5ae3daa50 # v4.1.0
+        with:
+          version: latest
 
-      - uses: actions/checkout@v4
-
-      # Everything that can be wrong is checked before anything is changed.
-      - name: This commit is that version, with notes, and not yet published
+      # Everything that can be wrong on main is checked before App Store Connect is touched.
+      - name: Main is that version, with notes, not yet published
         id: check
         run: |
-          fail() { echo "::error::$1"; exit 1; }
-          field() { sed -nE "s/^ *$1: *\"?([^\"]*)\"? *$/\1/p" project.yml | head -1; }
-          [ "$(field MARKETING_VERSION)" = "$VERSION" ] || fail "MARKETING_VERSION is $(field MARKETING_VERSION), not $VERSION — merge the release-preparation PR first"
-
-          node scripts/release.mjs validate
-          node scripts/release.mjs body "$VERSION" > "$RUNNER_TEMP/body.md"
-
-          # `gh release view` finds drafts; the REST "release by tag" endpoint does not, and a
-          # lookup that misses the draft would make a second one.
-          if gh release view "$TAG" --json isDraft > release.json 2>/dev/null; then
-            [ "$(jq -r .isDraft release.json)" = "true" ] || fail "$TAG is already published — a published release is never re-prepared"
+          fail() { echo "::error::$1 Nothing was sent."; exit 1; }
+          MAIN_V="$(node scripts/asc.mjs marketing-version)"
+          [ "$MAIN_V" = "$VERSION" ] || fail "main is version $MAIN_V, not $VERSION. Merge the version PR first."
+          node scripts/asc.mjs validate
+          node scripts/asc.mjs notes "$VERSION" > "$RUNNER_TEMP/whats-new.txt"
+          cat "$RUNNER_TEMP/whats-new.txt"
+          # gh release view finds drafts; the REST "release by tag" endpoint does
+          # not, and a lookup that missed the draft would make a second one.
+          if DRAFT="$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null)"; then
+            [ "$DRAFT" = "true" ] || fail "$TAG is already published. A published release is never prepared again."
             echo "exists=true" >> "$GITHUB_OUTPUT"
+          elif git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null; then
+            fail "the tag $TAG exists without a release. Never move or delete it."
           fi
 
-      - name: Send the notes to App Store Connect
+      # A 403 means the API key's role cannot edit App Store metadata; a 409
+      # means the version is no longer editable. asc.mjs says so in the log.
+      - name: Version, What's New, build
+        id: asc
+        timeout-minutes: 5
         env:
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          ASC_PRIVATE_KEY_P8: ${{ secrets.ASC_PRIVATE_KEY_P8 }}
-          ASC_APP_ID: ${{ vars.ASC_APP_ID }}
-          ASC_LOCALE: ${{ vars.ASC_LOCALE }}
-        run: node scripts/release.mjs send "$VERSION"
-
-      # The target is this commit's full SHA, never `main`: GitHub creates the tag when the draft
-      # is published, at whatever the target resolves to *then*.
-      - name: Draft the GitHub Release
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          OP_CONFIG_DIR: ${{ runner.temp }}/op
         run: |
-          if [ "${{ steps.check.outputs.exists }}" = "true" ]; then
-            gh release edit "$TAG" --draft --target "$GITHUB_SHA" \
-              --title "$TAG" --notes-file "$RUNNER_TEMP/body.md"
+          set -o pipefail
+          # shellcheck disable=SC2016 # the inner script expands under op run, not here
+          scripts/op-run.sh bash -eo pipefail -c '
+            node scripts/asc.mjs version "$VERSION"
+            node scripts/asc.mjs whats-new "$VERSION"
+            node scripts/asc.mjs attach "$VERSION" ${BUILD:+"$BUILD"}
+            node scripts/asc.mjs status "$VERSION" --json > "$RUNNER_TEMP/status.json"
+          ' | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "build=$(jq -r '.build // empty' "$RUNNER_TEMP/status.json")" >> "$GITHUB_OUTPUT"
+
+      # The target is this commit's full SHA, never main: GitHub creates the tag
+      # when the draft is published, at whatever the target resolves to then.
+      # Publish Release moves it to the shipped build's commit.
+      - name: Draft the GitHub Release
+        env:
+          EXISTS: ${{ steps.check.outputs.exists }}
+          ATTACHED: ${{ steps.asc.outputs.build }}
+          BADGE: "[![Download on the App Store](https://raw.githubusercontent.com/kguy18/babybuddyios/main/Docs/app-store-badge.svg)](https://apps.apple.com/app/id6788966667)"
+        run: |
+          [ -n "$ATTACHED" ] || { echo "::error::App Store Connect shows no build on $VERSION."; exit 1; }
+          {
+            echo "$BADGE"; echo
+            node scripts/asc.mjs body "$VERSION"
+          } > "$RUNNER_TEMP/body.md"
+          if [ "$EXISTS" = "true" ]; then
+            gh release edit "$TAG" --draft --target "$GITHUB_SHA" --title "$TAG" --notes-file "$RUNNER_TEMP/body.md"
           else
-            gh release create "$TAG" --draft --target "$GITHUB_SHA" \
-              --title "$TAG" --notes-file "$RUNNER_TEMP/body.md"
+            gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "$TAG" --notes-file "$RUNNER_TEMP/body.md"
           fi
+          echo "Draft release: $(gh release view "$TAG" --json url --jq .url), build $ATTACHED" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Submit for review
+        if: inputs.submit
+        timeout-minutes: 5
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          OP_CONFIG_DIR: ${{ runner.temp }}/op
+        run: |
+          set -o pipefail
+          scripts/op-run.sh \
+            node scripts/asc.mjs submit "$VERSION" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Summary
+        env:
+          SUBMIT: ${{ inputs.submit }}
         run: |
-          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-          ## Baby Buddy Companion $VERSION
-
-          - App Store Connect: What's New updated for $VERSION.
-          - GitHub: draft release \`$TAG\`. No tag exists until Publish Release.
-
-          Next: \`/babybuddy-release testflight\` uploads a build of main. Submit the one you want, and once the version is live, run Publish Release.
-          EOF
+          if [ "$SUBMIT" = "true" ]; then
+            echo "Next: Apple reviews $VERSION. Once it is approved and released in App Store Connect, run Publish Release." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Next: run again with submit=true to submit $VERSION for review." >> "$GITHUB_STEP_SUMMARY"
+          fi

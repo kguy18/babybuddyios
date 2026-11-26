@@ -1,0 +1,147 @@
+name: Release
+
+# Run by hand from main. Builds main, uploads it to TestFlight, sets What to
+# Test, tags the commit build/<version>/<number>, and adds the build to the
+# groups named. With dry_run it stops before the upload. The build number is
+# the next one App Store Connect has for the version.
+
+on:
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: "What to Test (leave empty to build it from merged PRs)"
+        required: false
+        default: ""
+      dry_run:
+        description: "Build, sign and export, but do not upload"
+        type: boolean
+        default: false
+      groups:
+        description: "TestFlight groups to add the build to, comma-separated (empty adds it to none)"
+        required: false
+        default: ""
+
+# One release workflow at a time. A queued one waits instead of cancelling.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # the build/<version>/<number> tag
+  pull-requests: read
+
+jobs:
+  testflight:
+    name: TestFlight
+    # The image with the Xcode that release builds use.
+    runs-on: xcode-27
+    timeout-minutes: 60
+    # The environment hands its secrets to main only.
+    environment: release
+    env:
+      OP_ENVIRONMENT_IDS: ${{ vars.OP_ENVIRONMENT_ID }} ${{ vars.OP_ASC_ENVIRONMENT_ID }}
+    steps:
+      - name: Only from main
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::run this from main, not $GITHUB_REF. Nothing was built."; exit 1
+          fi
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0   # the tags and merged PRs, for What to Test
+      - name: Generate project
+        run: |
+          command -v xcodegen >/dev/null || brew install xcodegen
+          xcodegen generate
+          xcodebuild -version
+      - uses: 1password/install-cli-action@1a3160d5e9de1ae0803eaa08a88746f5ae3daa50 # v4.1.0
+        with:
+          version: latest
+      - name: Archive, export, upload
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          NOTES_OVERRIDE: ${{ inputs.notes }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          TESTFLIGHT_GROUPS: ${{ inputs.groups }}
+        run: |
+          # shellcheck disable=SC2016 # the inner script expands under op-run.sh, not here
+          scripts/op-run.sh bash -eo pipefail -c '
+            fail() { echo "::error::$1"; exit 1; }
+            PROJECT=BabyBuddy.xcodeproj; SCHEME=BabyBuddy
+            TEAM="$(plutil -extract teamID raw ExportOptions.plist)"
+
+            # The build-time values, for every key the xcconfig declares.
+            grep -E "^[A-Z0-9_]+ *=" Config/BabyBuddy.xcconfig | cut -d= -f1 | tr -d " " | while read -r KEY; do
+              printf "%s = %s\n" "$KEY" "${!KEY:-}"
+            done > Config/Secrets.xcconfig
+
+            MARKETING="$(node scripts/asc.mjs marketing-version)"
+            BUILD_NUMBER="$(node scripts/asc.mjs next-build "$MARKETING")"
+            echo "Building $MARKETING ($BUILD_NUMBER)"
+
+            # Signing happens at export, so the archive is unsigned.
+            xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Release \
+              -destination "generic/platform=iOS" -archivePath build/App.xcarchive archive \
+              CURRENT_PROJECT_VERSION="$BUILD_NUMBER" CODE_SIGNING_ALLOWED=NO \
+              COMPILER_INDEX_STORE_ENABLE=NO -quiet
+            APP="build/App.xcarchive/Products/Applications/$SCHEME.app"
+
+            # Every build-time value reached the app and the widget, and the
+            # widget carries the app version and build number.
+            scripts/check-build.py "$APP"
+            scripts/entitlements.py embed "$PROJECT" "$APP" "$TEAM"
+
+            KEY_FILE="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+            echo "$ASC_KEY_P8_BASE64" | base64 --decode > "$KEY_FILE"
+            xcodebuild -exportArchive -archivePath build/App.xcarchive \
+              -exportOptionsPlist ExportOptions.plist -exportPath build/export \
+              -allowProvisioningUpdates -authenticationKeyPath "$KEY_FILE" \
+              -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+            rm -f "$KEY_FILE"
+            IPA=$(ls build/export/*.ipa | head -1)
+
+            # The same checks on what is about to be uploaded, and who signed it.
+            unzip -qo "$IPA" -d "$RUNNER_TEMP/ipa"
+            EXPORTED="$RUNNER_TEMP/ipa/Payload/$SCHEME.app"
+            scripts/entitlements.py verify "$PROJECT" "$EXPORTED" "$TEAM"
+            scripts/check-build.py "$EXPORTED" "$TEAM"
+
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "dry run: $MARKETING ($BUILD_NUMBER) built, signed and exported; nothing was uploaded" | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+
+            # What to Test covers the app PRs merged since the previous upload.
+            if [ -n "$NOTES_OVERRIDE" ]; then NOTES="$NOTES_OVERRIDE"; else NOTES="$(scripts/testflight-notes.sh "$(node scripts/asc.mjs last-upload)")"; fi
+            printf "%s\n" "$NOTES" > build/what-to-test.txt
+            LENGTH=$(LC_ALL=en_US.UTF-8 wc -m < build/what-to-test.txt | tr -d " ")
+            [ "$LENGTH" -le 4001 ] || fail "What to Test is $LENGTH characters; TestFlight allows 4000. Shorten it. Nothing was uploaded."
+
+            command -v fastlane >/dev/null || brew install fastlane
+            python3 -c "import base64,json,os; print(json.dumps({\"key_id\": os.environ[\"ASC_KEY_ID\"], \"issuer_id\": os.environ[\"ASC_ISSUER_ID\"], \"key\": base64.b64decode(os.environ[\"ASC_KEY_P8_BASE64\"]).decode()}))" > "$RUNNER_TEMP/asc.json"
+            fastlane pilot upload --skip_submission --ipa "$IPA" --api_key_path "$RUNNER_TEMP/asc.json"
+            rm -f "$RUNNER_TEMP/asc.json"
+            echo "TestFlight build: $MARKETING ($BUILD_NUMBER)" | tee -a "$GITHUB_STEP_SUMMARY"
+
+            # The tag records which commit each build came from. Publish Release needs it.
+            git tag "build/$MARKETING/$BUILD_NUMBER" "$GITHUB_SHA"
+            git push origin "build/$MARKETING/$BUILD_NUMBER"
+
+            # Waits for processing, then sets What to Test.
+            node scripts/asc.mjs test-notes "$MARKETING" "$BUILD_NUMBER" build/what-to-test.txt | tee -a "$GITHUB_STEP_SUMMARY"
+
+            # Not $GROUPS: bash owns that name and ignores the environment.
+            IFS=, read -ra NAMES <<< "$TESTFLIGHT_GROUPS"
+            for name in "${NAMES[@]}"; do
+              [ -n "${name// /}" ] || continue
+              node scripts/asc.mjs distribute "$MARKETING" "$BUILD_NUMBER" "$name" | tee -a "$GITHUB_STEP_SUMMARY"
+            done
+          '
+      - name: Keep the notes with the run
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: what-to-test
+          path: build/what-to-test.txt
+          if-no-files-found: ignore

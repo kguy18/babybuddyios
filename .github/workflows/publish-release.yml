@@ -38,6 +38,10 @@ jobs:
     # copy of this file. The first step only says so more clearly.
     environment: release
     env:
+      OP_ENVIRONMENT_IDS: ${{ vars.OP_ENVIRONMENT_ID }} ${{ vars.OP_ASC_ENVIRONMENT_ID }}
+      # op signs in with the service account token alone and never waits for input.
+      OP_BIOMETRIC_UNLOCK_ENABLED: "false"
+      OP_CACHE: "false"
       GH_TOKEN: ${{ github.token }}
       VERSION: ${{ inputs.version }}
       TAG: v${{ inputs.version }}
@@ -54,6 +58,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0   # the build tags, and main's history to check them against
+      - uses: 1password/install-cli-action@1a3160d5e9de1ae0803eaa08a88746f5ae3daa50 # v4.1.0
+        with:
+          version: latest
 
       # `gh release view` finds drafts; the REST "release by tag" endpoint does not.
       - name: Find the GitHub Release
@@ -67,14 +74,13 @@ jobs:
       - name: The App Store version is live
         id: asc
         env:
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          ASC_PRIVATE_KEY_P8: ${{ secrets.ASC_PRIVATE_KEY_P8 }}
-          ASC_APP_ID: ${{ vars.ASC_APP_ID }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          OP_CONFIG_DIR: ${{ runner.temp }}/op
         run: |
-          node scripts/release.mjs status "$VERSION" | tee status.txt
-          STATE=$(grep '^state=' status.txt | cut -d= -f2)
-          echo "build=$(grep '^build=' status.txt | cut -d= -f2)" >> "$GITHUB_OUTPUT"
+          scripts/op-run.sh node scripts/asc.mjs status "$VERSION" --json > "$RUNNER_TEMP/status.json"
+          STATE=$(jq -r '.state // empty' "$RUNNER_TEMP/status.json")
+          echo "$VERSION: ${STATE:-no App Store version}, build $(jq -r '.build // "none"' "$RUNNER_TEMP/status.json")"
+          echo "build=$(jq -r '.build // empty' "$RUNNER_TEMP/status.json")" >> "$GITHUB_OUTPUT"
           # A version submitted for manual release waits at PENDING_DEVELOPER_RELEASE until it is
           # released in App Store Connect. Refusing then is the point, not a fault.
           if [ "$STATE" != "READY_FOR_DISTRIBUTION" ]; then
@@ -89,6 +95,7 @@ jobs:
         if: steps.release.outputs.draft == 'true'
         env:
           ASC_BUILD: ${{ steps.asc.outputs.build }}
+          BADGE: "[![Download on the App Store](https://raw.githubusercontent.com/kguy18/babybuddyios/main/Docs/app-store-badge.svg)](https://apps.apple.com/app/id6788966667)"
         run: |
           fail() { echo "::error::$1"; exit 1; }
           BUILD_TAG="build/$VERSION/$ASC_BUILD"
@@ -101,7 +108,10 @@ jobs:
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
           git show "$SHA:Docs/release-notes.md" > "$RUNNER_TEMP/release-notes.md"
-          RELEASE_NOTES="$RUNNER_TEMP/release-notes.md" node scripts/release.mjs body "$VERSION" > "$RUNNER_TEMP/body.md"
+          {
+            echo "$BADGE"; echo
+            RELEASE_NOTES="$RUNNER_TEMP/release-notes.md" node scripts/asc.mjs body "$VERSION"
+          } > "$RUNNER_TEMP/body.md"
 
       - name: Publish
         id: publish

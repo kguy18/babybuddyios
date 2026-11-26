@@ -34,13 +34,13 @@
 // still reads from Quackback, so an unknown post still fails, but prints each write instead of
 // sending it.
 //
-// No dependencies, on purpose, like release.mjs.
+// No dependencies, on purpose, like asc.mjs.
 
 import { execFileSync } from 'node:child_process'
 import { appendFileSync, readFileSync } from 'node:fs'
 import { userInfo } from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { appStoreNotes } from './release.mjs'
+import { appStoreNotes } from './asc.mjs'
 
 const API = process.env.QUACKBACK_URL ?? 'https://feedback.babybuddy.app/api/v1'
 const DRY_RUN = process.env.QUACKBACK_DRY_RUN === '1'
