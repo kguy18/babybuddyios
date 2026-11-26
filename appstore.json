@@ -1,0 +1,9 @@
+{
+  "bundleId": "com.kurtisguy.BabyBuddy",
+  "projectYml": "project.yml",
+  "appDir": "Sources",
+  "notesFile": "Docs/release-notes.md",
+  "whatsNew": ["sync", "alert", "photo", "guard", "timer", "widget", "speed", "new"],
+  "screenshotsDir": "store-screenshots/final",
+  "configFile": "Config/BabyBuddy.xcconfig"
+}

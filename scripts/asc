@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# App Store Connect commands with their credentials, for /kguydev:appstore
+# and for running by hand.
+#
+#   scripts/asc <asc.mjs command> [arguments]
+#
+# In CI, OP_SERVICE_ACCOUNT_TOKEN is already set. Locally the service-account
+# token is read from 1Password (one Touch ID). Its reference is the content
+# of .op-token-ref when that file exists (gitignored, for a repo that keeps
+# the reference out of git), or else appstore.json's opTokenRef. With
+# ASC_SESSION_DIR set, the token is kept in that directory for later calls.
+# Never prints a value.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+if [ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]; then
+  cache="${ASC_SESSION_DIR:+$ASC_SESSION_DIR/op-token}"
+  if [ -n "$cache" ] && [ -s "$cache" ]; then
+    token="$(cat "$cache")"
+  else
+    ref="$(cat .op-token-ref 2>/dev/null || node -p "require('./appstore.json').opTokenRef")"
+    token="$(op read "$ref")"
+    [ -z "$cache" ] || (umask 077; printf '%s' "$token" > "$cache")
+  fi
+  export OP_SERVICE_ACCOUNT_TOKEN="$token"
+fi
+exec scripts/op-run.sh node scripts/asc.mjs "$@"

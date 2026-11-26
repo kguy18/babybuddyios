@@ -7,8 +7,9 @@ An offline-first iOS client for a self-hosted [Baby Buddy](https://github.com/ba
 ## Versioning and releases
 
 - **Never bump `MARKETING_VERSION` unprompted.** It is the App Store version, and a new one sends the next TestFlight build through App Store review instead of straight to testers. It changes only when the owner asks for a release — ask first, every time.
-- **Build numbers aren't committed.** `/babybuddy-release testflight` archives `main` with one more
-  than App Store Connect's highest build of the version and passes it to `xcodebuild`.
+- **Build numbers aren't committed.** The Release workflow (`.github/workflows/release.yml`, run by
+  hand from `main`) archives `main` with one more than App Store Connect's highest build of the
+  version and passes it to `xcodebuild`.
   `CURRENT_PROJECT_VERSION` in `project.yml` only numbers local builds, so there is nothing to bump.
   Each upload pushes a `build/<version>/<build>` tag on the commit it built, and that tag is the only
   record of which commit a build came from.
@@ -18,16 +19,17 @@ An offline-first iOS client for a self-hosted [Baby Buddy](https://github.com/ba
   in progress: a `MARKETING_VERSION` on `main` that is newer than the live one.
 - **Prepare Release** (`.github/workflows/prepare-release.yml`, run by hand from `main` after the
   release-preparation PR merges) sends the version's `appstore` notes to App Store Connect's
-  What's New and drafts a GitHub Release. It never builds, changes a version number, tags, or
-  submits; rerun it whenever the notes change.
+  What's New, attaches a build and drafts a GitHub Release. It submits the version for review
+  only when run with `submit`. It never builds, changes a version number or tags; rerun it
+  whenever the notes change.
 - **Publish Release** (`.github/workflows/publish-release.yml`, run by hand from `main`) publishes
   a version's draft GitHub Release on the commit of the build Apple shipped (its build tag),
   creating the `v<version>` tag there, rebuilds babybuddy.app, posts the notes to the feedback
   site's changelog, sets the requests on the milestone to Shipped (AGENTS.md, "Feedback
   requests"), and closes the milestone. It runs only once App Store
   Connect reports the version `READY_FOR_DISTRIBUTION`. GitHub Releases carry notes and an App
-  Store link, never a build. `node scripts/release.mjs status <version>` asks App Store Connect the
-  same question locally, with `ASC_KEY_ID` and `ASC_ISSUER_ID` set.
+  Store link, never a build. `scripts/asc status <version>` asks App Store Connect the same
+  question locally.
 
 ## Merging
 
@@ -88,11 +90,11 @@ release notes can be written from the milestone:
   as a version bump or a tooling change, still gets `duo (unit)` and the `duo (open …)` jobs.
 - macOS jobs share one pool of five runners across both images, so a Duo job that started early
   would hold a slot a required lane is waiting for. That is why the Duo jobs wait.
-- `release-notes` runs on every PR, docs-only ones included: `node scripts/release.mjs validate`
-  checks that each version in `Docs/release-notes.md` has a non-empty `appstore` and `whatsnew`
-  block and that the store text fits App Store Connect's 4,000 characters. It reports through
+- `release-notes` runs on every PR, docs-only ones included: `node scripts/asc.mjs validate`
+  checks that each version in `Docs/release-notes.md` has a non-empty `appstore` block, that the
+  newest has a `whatsnew` block, and that the store text fits App Store Connect's 4,000 characters. It reports through
   `build-and-test`, the one check the ruleset requires. `node --test scripts/*.test.mjs`
-  runs the tests for `release.mjs` and `quackback.mjs`; both need nothing installed.
+  runs the tests for `asc.mjs` and `quackback.mjs`; both need nothing installed.
 
 ## UI tests
 
