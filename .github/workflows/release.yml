@@ -92,6 +92,20 @@ jobs:
             scripts/check-build.py "$APP"
             scripts/entitlements.py embed "$PROJECT" "$APP" "$TEAM"
 
+            # With a distribution certificate, export signs with it and only
+            # the profiles are managed. Without one, the certificate is too.
+            if [ -n "${SIGNING_CERT_P12_BASE64:-}" ]; then
+              KEYCHAIN="$RUNNER_TEMP/ci.keychain-db"; KC_PW="$(uuidgen)"
+              security create-keychain -p "$KC_PW" "$KEYCHAIN"
+              security set-keychain-settings -lut 21600 "$KEYCHAIN"
+              security unlock-keychain -p "$KC_PW" "$KEYCHAIN"
+              echo "$SIGNING_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+              security import "$RUNNER_TEMP/cert.p12" -P "$SIGNING_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+              rm -f "$RUNNER_TEMP/cert.p12"
+              security set-key-partition-list -S apple-tool:,apple: -k "$KC_PW" "$KEYCHAIN" >/dev/null
+              security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+            fi
+
             KEY_FILE="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
             echo "$ASC_KEY_P8_BASE64" | base64 --decode > "$KEY_FILE"
             xcodebuild -exportArchive -archivePath build/App.xcarchive \
