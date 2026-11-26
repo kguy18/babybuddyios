@@ -38,7 +38,7 @@ jobs:
     # copy of this file. The first step only says so more clearly.
     environment: release
     env:
-      OP_ENVIRONMENT_IDS: ${{ vars.OP_ENVIRONMENT_ID }} ${{ vars.OP_ASC_ENVIRONMENT_ID }}
+      OP_ENVIRONMENT_IDS: ${{ secrets.OP_ENVIRONMENT_ID }} ${{ secrets.OP_ASC_ENVIRONMENT_ID }}
       # op signs in with the service account token alone and never waits for input.
       OP_BIOMETRIC_UNLOCK_ENABLED: "false"
       OP_CACHE: "false"
