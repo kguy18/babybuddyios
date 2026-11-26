@@ -26,6 +26,31 @@ trimming is the whole parser.
 The rest of the store listing (description, keywords, review information) lives in
 `app_store_listing.md`, which is gitignored because it stages the reviewer's demo credentials.
 
+## 1.5.1
+
+```appstore
+#Improved
+- The app now fits the largest text sizes. Text reads in full instead of getting cut off, and the buttons you need stay in view while the rest scrolls.
+- The app uses more of the open iPhone Duo. Trends shows two columns of charts, Settings and its pages split across the fold, and sheets, dialogs, and menus keep their content on one side or the other instead of across it.
+- The running timer's Live Activity shows its name, elapsed time, and Stop at larger text sizes.
+- Cancel and Save stay at the top while you scroll through a new entry.
+
+#Fixed
+- The Undo toast no longer covers Home's tiles or the running timer's Stop button.
+- The + button no longer sits on top of Home, sick mode, or a day's list.
+- Timer reminder settings now show the activity names in your language.
+- At the largest text size, a Timeline search that finds nothing can be cleared again.
+```
+
+```whatsnew
+#New
+- new | Accessibility Improvements | Every screen reads in full at the biggest text sizes, and key buttons stay in view.
+- new | Updated iPhone Duo Layouts | Trends, Settings, sheets, and dialogs use both sides and stay clear of the fold.
+#Fixed
+- The Undo toast no longer covers tiles or Stop
+- Timer reminders show activity names in your language
+```
+
 ## 1.5.0
 
 ```appstore

@@ -611,7 +611,8 @@ final class FoldTests: UITestCase {
         assertLeftOfFold(done)
         assertRightOfFold(releases)
         attachScreen("whats-new-axxxl")
-        reveal(element(labeled: "Activity estimates"), in: releases)
+        // The card shows only the running version's notes, so scroll to its last line, not a named item.
+        reveal(releases.staticTexts.element(boundBy: releases.staticTexts.count - 1), in: releases)
         tap(done)
         expectGone(done)
 
