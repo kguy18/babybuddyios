@@ -15,5 +15,9 @@ if [ ${#flags[@]} -eq 0 ]; then
   echo "error: no Environment ID. Put it in .op-environment (1Password app → Developer → Environments → Manage → Copy environment ID)." >&2
   exit 1
 fi
+# op run hides secret values in the output. A short value then corrupts the
+# numbers and dates printed, so a caller that reads the output as data
+# sets OP_RUN_NO_MASKING=1. The default stays masked for CI logs.
+[ -z "${OP_RUN_NO_MASKING:-}" ] || flags+=(--no-masking)
 command -v op >/dev/null || { echo "error: 1Password CLI not installed (brew install --cask 1password-cli@beta)" >&2; exit 1; }
 exec op run "${flags[@]}" -- "$@"

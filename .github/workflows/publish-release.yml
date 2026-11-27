@@ -77,7 +77,9 @@ jobs:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
           OP_CONFIG_DIR: ${{ runner.temp }}/op
         run: |
-          scripts/op-run.sh node scripts/asc.mjs status "$VERSION" --json > "$RUNNER_TEMP/status.json"
+          # Written inside the wrapper: its output is masked, so it is not safe to read as data.
+          # shellcheck disable=SC2016 # the inner script expands under op-run.sh, not here
+          scripts/op-run.sh bash -c 'node scripts/asc.mjs status "$VERSION" --json > "$RUNNER_TEMP/status.json"'
           STATE=$(jq -r '.state // empty' "$RUNNER_TEMP/status.json")
           echo "$VERSION: ${STATE:-no App Store version}, build $(jq -r '.build // "none"' "$RUNNER_TEMP/status.json")"
           echo "build=$(jq -r '.build // empty' "$RUNNER_TEMP/status.json")" >> "$GITHUB_OUTPUT"
