@@ -21,6 +21,8 @@
 //   whats-new <version>              set its en-US What's New from the notes file (1.0 has none)
 //   attach <version> [build]         attach a build; default the newest processed one of the version
 //   submit <version>                 submit the version for App Review
+//   review-attachment <version> <file>    upload a file to App Review Information's attachments,
+//                                    replacing one with the same name
 //
 // No credentials needed:
 //   validate                         check the notes file; warns when a card row is over its limit
@@ -33,9 +35,9 @@
 //
 // Nothing here prints a secret. Apple's error bodies carry no credential.
 
-import { sign } from 'node:crypto'
+import { createHash, sign } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 
@@ -72,6 +74,7 @@ const USAGE = {
   'whats-new': ['<version>'],
   attach: ['<version>', '[build]'],
   submit: ['<version>'],
+  'review-attachment': ['<version>', '<file>'],
   validate: [],
   notes: ['<version>'],
   body: ['<version>', '[build]'],
@@ -338,6 +341,14 @@ export function whatToTest(prs, { since, appDir } = {}) {
   if (kept.length < notes.length && [...text + more].length <= NOTES_LIMIT) text += more
   return text
 }
+
+/// The requests Apple's uploadOperations ask for, each with its slice of the file.
+export const uploadParts = (operations, bytes) => operations.map((op) => ({
+  method: op.method,
+  url: op.url,
+  headers: Object.fromEntries((op.requestHeaders ?? []).map((h) => [h.name, h.value])),
+  body: bytes.subarray(op.offset, op.offset + op.length),
+}))
 
 // MARK: network
 
@@ -654,6 +665,65 @@ export const commands = {
       console.log(`${marketing}: submitted for review (${sent.attributes.state})`)
     } catch (error) {
       throw refusal(error, marketing, 'review submission')
+    }
+  },
+
+  // Prepare Release sends the App Review sign-in QR here, so nobody re-adds it by hand each version.
+  async 'review-attachment'(marketing, file) {
+    const bytes = readFileSync(file)
+    const fileName = basename(file)
+    const { id } = await requireVersion(marketing)
+    try {
+      let detail = (await asc(`/v1/appStoreVersions/${id}/appStoreReviewDetail`).catch((e) => {
+        if (e.status === 404) return { data: null }
+        throw e
+      })).data
+      if (!detail) {
+        ;({ data: detail } = await asc('/v1/appStoreReviewDetails', {
+          method: 'POST',
+          body: { data: { type: 'appStoreReviewDetails', relationships: { appStoreVersion: { data: { type: 'appStoreVersions', id } } } } },
+        }))
+      }
+      const { data: existing } = await asc(`/v1/appStoreReviewDetails/${detail.id}/appStoreReviewAttachments?limit=200`)
+      for (const old of existing.filter((a) => a.attributes.fileName === fileName)) {
+        await asc(`/v1/appStoreReviewAttachments/${old.id}`, { method: 'DELETE' })
+        console.log(`${marketing}: removed the old ${fileName}`)
+      }
+      const { data: reserved } = await asc('/v1/appStoreReviewAttachments', {
+        method: 'POST',
+        body: {
+          data: {
+            type: 'appStoreReviewAttachments',
+            attributes: { fileName, fileSize: bytes.length },
+            relationships: { appStoreReviewDetail: { data: { type: 'appStoreReviewDetails', id: detail.id } } },
+          },
+        },
+      })
+      for (const part of uploadParts(reserved.attributes.uploadOperations, bytes)) {
+        const response = await fetch(part.url, { method: part.method, headers: part.headers, body: part.body })
+        if (!response.ok) throw new Error(`upload of ${fileName} failed: ${response.status} ${await response.text()}`)
+      }
+      await asc(`/v1/appStoreReviewAttachments/${reserved.id}`, {
+        method: 'PATCH',
+        body: {
+          data: {
+            type: 'appStoreReviewAttachments',
+            id: reserved.id,
+            attributes: { uploaded: true, sourceFileChecksum: createHash('md5').update(bytes).digest('hex') },
+          },
+        },
+      })
+      // Apple processes the file after the commit; a stuck or failed one blocks the submission.
+      for (let i = 0; i < 12; i++) {
+        const { data } = await asc(`/v1/appStoreReviewAttachments/${reserved.id}`)
+        const state = data.attributes.assetDeliveryState?.state
+        if (state === 'COMPLETE') return console.log(`${marketing}: review attachment ${fileName} uploaded`)
+        if (state === 'FAILED') throw new Error(`${marketing}: Apple could not process ${fileName}: ${JSON.stringify(data.attributes.assetDeliveryState.errors ?? [])}`)
+        await sleep(5_000)
+      }
+      console.log(`${marketing}: review attachment ${fileName} uploaded, still processing`)
+    } catch (error) {
+      throw refusal(error, marketing, 'review attachment')
     }
   },
 
