@@ -22,6 +22,10 @@ struct DashboardView: View {
     /// events, every child record (for the header/switcher), and every timer (deep links can
     /// target a timer belonging to any child). Rebuilt on child switch via `init`.
     @Query private var allEntities: [LocalEntity]
+    /// Every child record, and every timer, queried on their own so the header and the timer cards
+    /// don't each scan the selected child's whole history on every redraw.
+    @Query private var children: [LocalEntity]
+    @Query private var timers: [LocalEntity]
     /// Navigation path for the day-timeline pushes (in-app "Today" tiles + the status widget).
     @State private var navPath: [EntityKind] = []
     @State private var addKind: EntityKind?
@@ -113,6 +117,10 @@ struct DashboardView: View {
             entity.childID == child || entity.kindRaw == childKind || entity.kindRaw == timerKind
         }
         _allEntities = Query(filter: predicate, sort: \LocalEntity.timestamp, order: .reverse)
+        _children = Query(filter: #Predicate<LocalEntity> { $0.kindRaw == childKind },
+                          sort: \LocalEntity.timestamp, order: .reverse)
+        _timers = Query(filter: #Predicate<LocalEntity> { $0.kindRaw == timerKind },
+                        sort: \LocalEntity.timestamp, order: .reverse)
     }
 
     var body: some View {
@@ -646,7 +654,12 @@ struct DashboardView: View {
     }
 
     private func todayGrid(_ kinds: [EntityKind], now: Date, forecast: ForecastSnapshot?) -> some View {
-        let today = childEntities.filter { Calendar.current.isDateInToday($0.timestamp) }
+        // `allEntities` is newest first, so today's rows are a prefix: no need to read the rest.
+        let startOfToday = Calendar.current.startOfDay(for: .now)
+        let today = allEntities.prefix { $0.timestamp >= startOfToday }.filter {
+            Calendar.current.isDateInToday($0.timestamp) && $0.childID == selectedChildID
+                && $0.syncState != .pendingDelete
+        }
         // Two columns at the largest sizes broke the labels a syllable per line.
         return LazyVGrid(columns: typeSize.isAccessibilitySize ? [GridItem(.flexible())] : columns, spacing: 9) {
             ForEach(kinds) { kind in
@@ -740,7 +753,7 @@ struct DashboardView: View {
     private func showTimer(_ id: UUID?) {
         guard let id else { return }
         router.openTimerLocalID = nil
-        if let child = allEntities.first(where: { $0.localID == id && $0.kind == .timer })?.childID {
+        if let child = timers.first(where: { $0.localID == id })?.childID {
             selectedChildID = child
         }
     }
@@ -748,7 +761,7 @@ struct DashboardView: View {
     /// Stop on a widget or Live Activity for an untyped timer: stop it and ask what to log.
     private func openStop(_ id: UUID?) {
         guard let id,
-              let timer = allEntities.first(where: { $0.localID == id && $0.kind == .timer })
+              let timer = timers.first(where: { $0.localID == id })
         else { return }
         router.stopTimerLocalID = nil
         beginStop(timer)
@@ -768,7 +781,7 @@ struct DashboardView: View {
     /// button for activities that need extra fields (feeding/pumping).
     private func openConvert(_ target: DeepLinkRouter.ConvertTarget?) {
         guard let target,
-              let timer = allEntities.first(where: { $0.localID == target.localID && $0.kind == .timer })
+              let timer = timers.first(where: { $0.localID == target.localID })
         else { return }
         // ponytail: the link's arrival stands in for the tap, a second or two later on a cold launch.
         // An intent that stops before opening the app would pin it exactly.
@@ -832,8 +845,6 @@ struct DashboardView: View {
 
     // MARK: Derived data
 
-    private var children: [LocalEntity] { allEntities.filter { $0.kind == .child } }
-
     private var childEntities: [LocalEntity] {
         allEntities.filter { $0.childID == selectedChildID && $0.syncState != .pendingDelete }
     }
@@ -853,19 +864,16 @@ struct DashboardView: View {
         return name.isEmpty ? String(localized: "Child") : name
     }
 
-    private func lastEvent(of kind: EntityKind) -> LocalEntity? {
-        if kind == .feeding || kind == .sleep {
-            let now = Date.now
-            return childEntities.filter { $0.kind == kind }
-                .map { ($0, $0.activityRecency(now: now).date) }
-                .max { $0.1 < $1.1 }?.0
-        }
-        return childEntities.first { $0.kind == kind }
-    }
-
+    /// The newest record of each of `recentKinds`, newest first, from one pass over the history.
+    /// Feedings and sleeps go by when they ended, so the newest start isn't always the one.
     private var latestEvents: [LocalEntity] {
         let now = Date.now
-        return recentKinds.compactMap { lastEvent(of: $0) }
+        let byKind = Dictionary(grouping: childEntities, by: \.kind)
+        return recentKinds.compactMap { kind -> LocalEntity? in
+            guard let rows = byKind[kind] else { return nil }
+            guard kind == .feeding || kind == .sleep else { return rows.first }
+            return rows.map { ($0, $0.activityRecency(now: now).date) }.max { $0.1 < $1.1 }?.0
+        }
             .map { ($0, $0.activityRecency(now: now).date) }
             .sorted { $0.1 > $1.1 }
             .map(\.0)
@@ -881,8 +889,8 @@ struct DashboardView: View {
 
     /// Running timers, and stopped ones not yet logged or discarded (whose DELETE may be queued).
     private var activeTimers: [LocalEntity] {
-        allEntities.filter {
-            $0.childID == selectedChildID && ($0.isRunningTimer || ($0.kind == .timer && $0.stoppedAt != nil))
+        timers.filter {
+            $0.childID == selectedChildID && ($0.isRunningTimer || $0.stoppedAt != nil)
         }
     }
 }
