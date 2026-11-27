@@ -291,7 +291,8 @@ struct DashboardView: View {
                     }
 
                     todayAndNext
-                    if !latestEvents.isEmpty { latestSection }
+                    let latest = latestEvents
+                    if !latest.isEmpty { latestSection(latest) }
                 }
             }
             .padding(.horizontal)
@@ -736,7 +737,7 @@ struct DashboardView: View {
 
     // MARK: Latest
 
-    private var latestSection: some View {
+    private func latestSection(_ latestEvents: [LocalEntity]) -> some View {
         VStack(alignment: .leading, spacing: 9) {
             SectionHeader(String(localized: "Latest"))
             VStack(spacing: 9) {

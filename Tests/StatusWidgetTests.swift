@@ -77,6 +77,37 @@ final class StatusWidgetTests: XCTestCase {
         XCTAssertEqual(child2.childName, "Bo")
     }
 
+    /// The widget fetches only the selected child's rows; the status and estimate match those
+    /// computed from every row in the store.
+    func testScopedFetchMatchesFullFetch() throws {
+        let now = Date()
+        func ago(_ hours: Double) -> String { iso(now.addingTimeInterval(-hours * 3600)) }
+        seedChild(id: 1, first: "Ada")
+        seedChild(id: 2, first: "Bo")
+        for child in [1, 2] {
+            for hour in stride(from: 1.0, through: 24 * 40, by: 3) {
+                _ = repo.create(kind: .feeding, payload: ["child": child, "start": ago(hour), "end": ago(hour - 0.3)])
+                _ = repo.create(kind: .change, payload: ["child": child, "time": ago(hour + 1), "wet": true])
+            }
+            _ = repo.create(kind: .sleep, payload: ["child": child, "start": ago(2000), "end": ago(1990)])
+        }
+        let timer = repo.create(kind: .timer, payload: ["child": 1, "name": "Sleep", "start": ago(0.5)])!
+        repo.stopTimer(timer, at: now.addingTimeInterval(-60))
+        _ = repo.create(kind: .timer, payload: ["child": 2, "name": "Feeding", "start": ago(0.2)])
+        let gone = repo.create(kind: .feeding, payload: ["child": 1, "start": ago(0.1), "end": ago(0.05)])!
+        repo.delete(gone)
+        try context.save()
+
+        for child in [1, 2] {
+            let scoped = try context.fetch(ChildStatus.fetchDescriptor(childID: child))
+            XCTAssertLessThan(scoped.count, try entities().count)
+            XCTAssertEqual(ChildStatus.compute(from: scoped, childID: child, now: now),
+                           ChildStatus.compute(from: try entities(), childID: child, now: now))
+            XCTAssertEqual(ForecastCache.snapshot(scoped, childID: child, lastSync: now, now: now),
+                           ForecastCache.snapshot(try entities(), childID: child, lastSync: now, now: now))
+        }
+    }
+
     func testRunningTimerSurfaced() throws {
         let now = Date(timeIntervalSince1970: 1_720_000_000)
         seedChild(id: 1, first: "Patrick")
