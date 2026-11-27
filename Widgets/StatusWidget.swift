@@ -64,8 +64,8 @@ struct StatusProvider: TimelineProvider {
             configurations: ModelConfiguration(schema: LocalStore.schema, url: LocalStore.storeURL))
         else { return StatusEntry(date: now, status: .unavailable) }
         let context = ModelContext(container)
-        let entities = (try? context.fetch(FetchDescriptor<LocalEntity>())) ?? []
         let child = SharedDefaults.selectedChildID
+        let entities = child.flatMap { try? context.fetch(ChildStatus.fetchDescriptor(childID: $0)) } ?? []
         let forecast = ForecastPreferences.shows(ForecastPreferences.widgetKey) ? child.map {
             ForecastCache.snapshot(entities, childID: $0, lastSync: SharedDefaults.lastSyncDate, now: now)
         } : nil

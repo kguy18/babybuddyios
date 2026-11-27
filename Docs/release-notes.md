@@ -36,6 +36,7 @@ The rest of the store listing (description, keywords, review information) lives 
 - Cancel and Save stay at the top while you scroll through a new entry.
 
 #Fixed
+- The app no longer closes on its own when Home has a long history to show. It happened most on the iPhone Duo with estimates turned on.
 - The Undo toast no longer covers Home's tiles or the running timer's Stop button.
 - The + button no longer sits on top of Home, sick mode, or a day's list.
 - Timer reminder settings now show the activity names in your language.
@@ -47,6 +48,7 @@ The rest of the store listing (description, keywords, review information) lives 
 - new | Accessibility Improvements | Every screen reads in full at the biggest text sizes, and key buttons stay in view.
 - new | Updated iPhone Duo Layouts | Trends, Settings, sheets, and dialogs use both sides and stay clear of the fold.
 #Fixed
+- The app no longer closes on its own with a long history
 - The Undo toast no longer covers tiles or Stop
 - Timer reminders show activity names in your language
 ```

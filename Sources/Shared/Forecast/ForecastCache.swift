@@ -1,9 +1,15 @@
 import Foundation
 
 enum ForecastCache {
-    static func records(_ entities: [LocalEntity]) -> [ForecastRecord] {
-        entities.compactMap { entity in
-            guard let kind = ForecastRecord.Kind(rawValue: entity.kindRaw), let child = entity.childID else { return nil }
+    /// The records the engine can use at `now`. Rows older than its lookback, with a day to spare,
+    /// are skipped on their stored `timestamp` before their payload is decoded: Home redraws this
+    /// on the main thread, and decoding a whole history took long enough for the watchdog to kill
+    /// the app.
+    static func records(_ entities: [LocalEntity], now: Date = .now) -> [ForecastRecord] {
+        let cutoff = now.addingTimeInterval(-Double(ForecastEngine.lookbackDays + 1) * 86_400)
+        return entities.compactMap { entity in
+            guard entity.timestamp >= cutoff, let kind = ForecastRecord.Kind(rawValue: entity.kindRaw),
+                  let child = entity.childID else { return nil }
             let dates = entity.startEndDates
             let time = kind == .change ? (entity.payloadObject["time"] as? String).flatMap(APIDate.parse) : dates.start
             guard let start = time else { return nil }
@@ -23,7 +29,7 @@ enum ForecastCache {
         }
     }
     static func snapshot(_ entities: [LocalEntity], childID: Int, lastSync: Date?, now: Date = .now) -> ForecastSnapshot {
-        ForecastEngine().snapshot(records: records(entities), timers: timers(entities), childID: childID, lastSync: lastSync, now: now)
+        ForecastEngine().snapshot(records: records(entities, now: now), timers: timers(entities), childID: childID, lastSync: lastSync, now: now)
     }
 }
 
