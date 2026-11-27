@@ -1,0 +1,121 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "Daily rhythm": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily rhythm"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tagesrhythmus"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ritmo diário"
+          }
+        }
+      }
+    },
+    "Daily rhythm in Trends": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily rhythm in Trends"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tagesrhythmus in Statistiken"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ritmo diário nas estatísticas"
+          }
+        }
+      }
+    },
+    "No sleep or feedings logged": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No sleep or feedings logged"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein Schlaf und keine Mahlzeiten erfasst"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nenhum sono ou alimentação registrado"
+          }
+        }
+      }
+    },
+    "Show daily details": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show daily details"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tagesdetails anzeigen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar detalhes do dia"
+          }
+        }
+      }
+    },
+    "Local clock time. Sleep is split at midnight and clock changes; feedings mark their start.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local clock time. Sleep is split at midnight and clock changes; feedings mark their start."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ortszeit. Schlaf wird an Mitternacht und bei Zeitumstellungen aufgeteilt. Die Punkte zeigen den Beginn einer Mahlzeit."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Horário local. O sono é dividido à meia-noite e nas mudanças de horário; os pontos marcam o início das alimentações."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

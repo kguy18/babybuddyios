@@ -126,6 +126,31 @@ final class SmokeTests: UITestCase {
         }
     }
 
+    func testDailyRhythmDetailsPeriodsAndSetting() {
+        launch(["BB_START_TAB": "trends"])
+        tap(app.buttons["rhythm-details"])
+        tap(app.buttons["rhythm-today"])
+        expect(app.buttons["Done"])
+        expect(app.staticTexts["Sleep"])
+        expect(app.staticTexts["Feedings"])
+        tap(app.buttons["Done"])
+        tap(app.buttons["14 days"])
+        expect(app.otherElements["daily-rhythm"])
+        tap(tab("Settings"))
+        let visible = app.switches["Daily rhythm in Trends"]
+        toggle(visible, to: "0")
+        tap(tab("Trends"))
+        XCTAssertFalse(app.buttons["rhythm-details"].exists)
+    }
+
+    func testGermanDailyRhythm() {
+        launch(["BB_START_TAB": "trends"], language: "de", locale: "de_DE")
+        expect(app.staticTexts["Tagesrhythmus"])
+        let details = app.buttons["rhythm-details"]
+        expect(details)
+        XCTAssertEqual(details.label, "Tagesdetails anzeigen")
+    }
+
     /// The sick spell as one picture (#79): the temperature card's peak, the fever line it's read
     /// against, and a tally of each medicine marked on it. `BB_SEED_SICK=1` seeds a day and a half
     /// of fever stored in °F, on a phone the en_US launch locale puts in °F too.
