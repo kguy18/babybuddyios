@@ -33,6 +33,18 @@ final class FoldTests: UITestCase {
                           + "TEST_RUNNER_BB_FOLD=1; this window is \(Int(width)) pt wide")
     }
 
+    /// Launches on the open display turned on its side (`UI_TEST_DUO_ROTATE=portrait`), 669 pt wide
+    /// and 951 tall, and skips anywhere else.
+    private func launchTurnedOnItsSide(_ environment: [String: String]) throws {
+        try XCTSkipIf(forced, "BB_FOLD lays out a vertical fold however the display is turned")
+        try XCTSkipIf(Self.measuredWidth.map { $0 < 600 } ?? false, "Needs iPhone Duo's open display")
+        launch(environment)
+        let window = app.windows.firstMatch.frame
+        try XCTSkipUnless(min(window.width, window.height) >= 600 && window.height > window.width,
+                          "Needs the open display turned on its side (scripts/ui-test.sh --duo-open with "
+                          + "UI_TEST_DUO_ROTATE=portrait); this window is \(window.size)")
+    }
+
     func testFeedbackKeepsTheNoteBesideTheActions() throws {
         try checkFeedbackPanes(largestText: false)
     }
@@ -78,6 +90,20 @@ final class FoldTests: UITestCase {
         assertLeftOfFold(title)
         assertRightOfFold(app.buttons["Email Support"])
         attachScreen("settings-panes-help-offline")
+    }
+
+    /// Turned on its side, the open display is tall and narrow with the fold running across it, but
+    /// a sheet there is still over ``FoldLayout/wideSheet`` wide. Get Help put the chat in a right
+    /// half that didn't exist and left the rest of the screen empty; it fills the sheet.
+    func testGetHelpChatFillsTheSheetTurnedOnItsSide() throws {
+        try launchTurnedOnItsSide(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in"])
+        let window = app.windows.firstMatch
+        openSendFeedback()
+        tap(app.buttons.labeled("Get Help"))
+        let chat = expect(app.webViews.firstMatch, timeout: 30)
+        expect(app.webViews.staticTexts["Stub widget: chat"], timeout: 30)
+        XCTAssertLessThan(chat.frame.minX, window.frame.midX, "The chat should start left of the middle: \(chat.frame)")
+        attachScreen("help-turned-on-its-side")
     }
 
     func testFeedbackAccountStaysBesideTheFoldAtLargestText() throws {

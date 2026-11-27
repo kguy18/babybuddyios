@@ -128,7 +128,9 @@ release notes can be written from the milestone:
   (`scripts/duoctl`, pinned to one upstream commit), fails unless the inner screen took over, and
   runs `FoldTests` and `SmokeTests` there. CI splits `FoldTests` by measured time across
   `duo (open fold-1)` and `duo (open fold-2)`. Add each new `FoldTests` method to one of those
-  shards in `pr.yml`. The `changes` job checks every method is assigned once.
+  shards in `pr.yml`. The `changes` job checks every method is assigned once. A test that needs
+  the open display turned on its side, fold across it, goes in `duo (open turned)`, which runs
+  with `UI_TEST_DUO_ROTATE=portrait` (duoctl's name for it; the open display starts `landscape`).
   `duo (open smoke)` runs all of `SmokeTests`. `FoldTests` skip on any other
   display unless the runner sets `TEST_RUNNER_BB_FOLD=1`, which forces the open layouts on any
   simulator through `BB_FOLD`. duoctl drives private simulator interfaces: it is a stopgap until

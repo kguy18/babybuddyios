@@ -39,13 +39,36 @@ enum FoldLayout {
     /// is at most 440 pt wide and the front display's 382 pt, and both keep one column.
     static let wideSheet: CGFloat = 600
 
-    static func isWide(_ width: CGFloat) -> Bool { forced || width >= wideSheet }
+    /// Whether a sheet `width` wide takes two columns. `fold` is the division the system reports
+    /// around it, either way round. With the open display turned on its side the fold runs across
+    /// the sheet rather than down it, so one column, the full width, is the right layout.
+    static func isWide(_ width: CGFloat, fold: CGRect? = nil) -> Bool {
+        if forced { return true }
+        guard width >= wideSheet else { return false }
+        return fold.map { $0.height > $0.width } ?? true
+    }
+
+    static func isWide(in geometry: GeometryProxy) -> Bool {
+        isWide(geometry.size.width, fold: division(in: geometry))
+    }
+
+    /// The fold the system reports around `geometry`, running either way. Inactive ones count too:
+    /// the fold is only reserved in the book pose, but nothing is drawn across it laid flat either.
+    static func division(in geometry: GeometryProxy) -> CGRect? {
+        // ReservedRegion is in the iOS 27.1 SDK (Xcode 27.1, Swift 6.4) and later.
+        #if compiler(>=6.4)
+        if #available(iOS 27.1, *) {
+            return geometry.reservedRegions(kind: .division, options: .includeInactive).first?.frame
+        }
+        #endif
+        return nil
+    }
 }
 
 extension View {
-    /// Writes whether this view is at least ``FoldLayout/wideSheet`` wide to `wide`, as it changes.
+    /// Writes whether this view takes two columns (``FoldLayout/isWide(in:)``) to `wide`, as it changes.
     func trackingWide(_ wide: Binding<Bool>) -> some View {
-        onGeometryChange(for: Bool.self) { FoldLayout.isWide($0.size.width) } action: { wide.wrappedValue = $0 }
+        onGeometryChange(for: Bool.self) { FoldLayout.isWide(in: $0) } action: { wide.wrappedValue = $0 }
     }
 }
 

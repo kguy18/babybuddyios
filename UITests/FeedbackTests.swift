@@ -82,6 +82,22 @@ final class FeedbackTests: UITestCase {
         expectGone(sheet)
     }
 
+    /// Typing in the chat leaves the page at its size. WebKit zoomed in on the composer's small
+    /// text when it took focus, and the zoomed page ran past the sheet's edge, Send included.
+    func testGetHelpDoesNotZoomWhenTyping() {
+        launch(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in"])
+        openSendFeedback()
+        tap(app.buttons.labeled("Get Help"))
+        let label = expect(app.webViews.staticTexts["Stub widget: chat"], timeout: 30)
+        let before = label.frame
+        tap(app.webViews.textViews["Message"])
+        app.typeText("The layout needs fixing")
+        expect(app.keyboards.firstMatch)
+        // WebKit animates the zoom; give it time to land before measuring.
+        _ = app.webViews.staticTexts["never"].waitForExistence(timeout: 2)
+        XCTAssertEqual(label.frame.width, before.width, accuracy: 1, "The page zoomed in on the message box")
+    }
+
     /// Request a Feature's Sign In pushes the sign-in with the board's reason, and a code lands
     /// back on the board, signed in.
     func testFeatureRequestSignsInWithACodeAndReturnsToTheBoard() {

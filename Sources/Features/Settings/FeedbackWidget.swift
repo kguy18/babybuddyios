@@ -130,10 +130,13 @@ enum FeedbackWidget: String, Identifiable {
     /// reports a session's user with `auth-change` before `ready` and says nothing for an
     /// anonymous visitor; it has a session when the app holds one (in memory under the stub), as the
     /// native sign-in leaves it. It shows the `quackback:open` view it's sent so a test can read it,
-    /// and a "Sign in to post" link to the portal's sign-in, as the real board has.
+    /// and a "Sign in to post" link to the portal's sign-in, as the real board has. Its message box
+    /// has the real composer's viewport and small text, which WebKit zooms in on when it's focused.
     private static func stubPage(signedIn: Bool) -> String {
         """
+        <meta name="viewport" content="width=device-width,initial-scale=1">
         <p id="view">Stub widget</p>
+        <textarea aria-label="Message" style="font-size:14px"></textarea>
         <p><a href="/?auth=signin">Sign in to post</a></p>
         <script>
         window.addEventListener('message', function (e) {
@@ -187,8 +190,8 @@ struct FeedbackSheet: View {
     var body: some View {
         NavigationStack {
             GeometryReader { geometry in
-                let width = geometry.size.width
-                sheetContent(width: width, splitHelp: widget == .help && FoldLayout.isWide(width))
+                sheetContent(width: geometry.size.width,
+                             splitHelp: widget == .help && FoldLayout.isWide(in: geometry))
             }
             .background(BBColor.surface.ignoresSafeArea())
             .onChange(of: phase) { _, phase in
@@ -388,11 +391,15 @@ struct FeedbackWebView: UIViewRepresentable {
             })();
             """, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         #endif
+        // `maximum-scale=1` stops WebKit zooming in on the composer when it takes focus: its text
+        // is under 16 px, and the zoomed page ran past the sheet's edge, Send included.
         content.addUserScript(WKUserScript(source: """
             if (location.pathname.indexOf('/widget') === 0) {
                 var style = document.createElement('style');
                 style.textContent = '\(Self.hideCloseButtonCSS)';
                 document.head.appendChild(style);
+                var viewport = document.querySelector('meta[name=viewport]');
+                if (viewport) { viewport.content += ',maximum-scale=1'; }
             }
             """, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
         content.add(context.coordinator, name: "quackback")

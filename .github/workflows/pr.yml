@@ -530,6 +530,10 @@ jobs:
               FoldTests/testUndoToastLeavesTheTimerUncoveredAtTheLargestText
               FoldTests/testWhatsNewSplitsAtTheFold
               FoldTests/testWhatsNewUpgradeNotesScrollBesideContinueAtTheLargestText
+          # The open display turned on its side, with the fold running across it.
+          - shard: turned
+            rotate: portrait
+            tests: FoldTests/testGetHelpChatFillsTheSheetTurnedOnItsSide
           - shard: smoke
             tests: SmokeTests
     timeout-minutes: 45
@@ -549,6 +553,7 @@ jobs:
         id: ui
         env:
           TESTS: ${{ matrix.tests }}
+          UI_TEST_DUO_ROTATE: ${{ matrix.rotate }}
         run: |
           mkdir -p build/DerivedData/Build
           tar -C build/DerivedData/Build -xzf build/duo-products.tgz
