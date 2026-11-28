@@ -3,7 +3,7 @@ name: Prepare Release
 # Run by hand from main once the version PR has merged. It refuses unless
 # main is that version with valid notes and the release is not yet published.
 # Then it creates the App Store version if missing, sets What's New from
-# Docs/release-notes.md, attaches the build, and creates or updates the one
+# Docs/release-notes.md, attaches the build and the App Review QR, and creates or updates the one
 # draft GitHub Release. With submit=true it submits the version for review.
 # Safe to rerun until the version is submitted.
 
@@ -96,6 +96,14 @@ jobs:
             node scripts/asc.mjs version "$VERSION"
             node scripts/asc.mjs whats-new "$VERSION"
             node scripts/asc.mjs attach "$VERSION" ${BUILD:+"$BUILD"}
+            # The App Review sign-in QR, kept in the 1Password Environment because it is a login.
+            if [ -n "${APP_REVIEW_QR_PNG_BASE64:-}" ]; then
+              printf %s "$APP_REVIEW_QR_PNG_BASE64" | base64 -d > "$RUNNER_TEMP/app-review-qr.png"
+              node scripts/asc.mjs review-attachment "$VERSION" "$RUNNER_TEMP/app-review-qr.png"
+              rm -f "$RUNNER_TEMP/app-review-qr.png"
+            else
+              echo "$VERSION: no APP_REVIEW_QR_PNG_BASE64 in the 1Password Environment, so no review attachment was sent"
+            fi
             node scripts/asc.mjs status "$VERSION" --json > "$RUNNER_TEMP/status.json"
           ' | tee -a "$GITHUB_STEP_SUMMARY"
           echo "build=$(jq -r '.build // empty' "$RUNNER_TEMP/status.json")" >> "$GITHUB_OUTPUT"

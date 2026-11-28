@@ -19,7 +19,8 @@ An offline-first iOS client for a self-hosted [Baby Buddy](https://github.com/ba
   in progress: a `MARKETING_VERSION` on `main` that is newer than the live one.
 - **Prepare Release** (`.github/workflows/prepare-release.yml`, run by hand from `main` after the
   release-preparation PR merges) sends the version's `appstore` notes to App Store Connect's
-  What's New, attaches a build and drafts a GitHub Release. It submits the version for review
+  What's New, attaches a build and the App Review sign-in QR (`APP_REVIEW_QR_PNG_BASE64` in the
+  1Password Environment), and drafts a GitHub Release. It submits the version for review
   only when run with `submit`. It never builds, changes a version number or tags; rerun it
   whenever the notes change.
 - **Publish Release** (`.github/workflows/publish-release.yml`, run by hand from `main`) publishes

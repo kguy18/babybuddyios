@@ -9,7 +9,7 @@ import { test } from 'node:test'
 import {
   appStoreNotes, automatic, buildRows, cardWarnings, commands, compareDotted, jwt, latestUpload, loadConfig,
   marketingVersion, missingReviewInfo, nextBuild, NOTES_LIMIT, parseArgs, prBullets, releaseBody,
-  sections, statusLine, validateNotes, whatToTest,
+  sections, statusLine, uploadParts, validateNotes, whatToTest,
 } from './asc.mjs'
 
 const part = (s) => JSON.parse(Buffer.from(s, 'base64url').toString())
@@ -242,4 +242,19 @@ test('whats-new sends nothing for a first version', async () => {
     console.log = realLog
   }
   assert.deepEqual(lines, ["1.0: the first version has no What's New in App Store Connect. Nothing was sent."])
+})
+
+test('uploadParts slices the file the way Apple asks', () => {
+  const bytes = Buffer.from('abcdefghij')
+  const parts = uploadParts([
+    { method: 'PUT', url: 'https://u/1', offset: 0, length: 6, requestHeaders: [{ name: 'Content-Type', value: 'image/png' }] },
+    { method: 'PUT', url: 'https://u/2', offset: 6, length: 4 },
+  ], bytes)
+  assert.deepEqual(parts.map((p) => [p.url, p.body.toString(), p.headers]),
+    [['https://u/1', 'abcdef', { 'Content-Type': 'image/png' }], ['https://u/2', 'ghij', {}]])
+})
+
+test('review-attachment needs a version and a file', () => {
+  assert.deepEqual(parseArgs(['review-attachment', '1.5.1', 'qr.png']).args, ['1.5.1', 'qr.png'])
+  assert.throws(() => parseArgs(['review-attachment', '1.5.1']), /usage/)
 })
