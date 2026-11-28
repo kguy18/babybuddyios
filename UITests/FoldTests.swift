@@ -92,18 +92,30 @@ final class FoldTests: UITestCase {
         attachScreen("settings-panes-help-offline")
     }
 
+    /// The chat fills the whole sheet, across the fold. It sat in the sheet's right half, beside
+    /// the fold, which read as a broken layout with the left half empty.
+    func testGetHelpChatFillsTheSheet() throws {
+        try launchOpen(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in"])
+        openSendFeedback()
+        tap(app.buttons.labeled("Get Help"))
+        expect(app.webViews.staticTexts["Stub widget: chat"], timeout: 30)
+        let chat = app.webViews.firstMatch.frame, middle = app.windows.firstMatch.frame.midX
+        XCTAssertLessThan(chat.minX, middle - 19, "The chat should start left of the fold: \(chat)")
+        XCTAssertGreaterThan(chat.maxX, middle + 19, "The chat should end right of the fold: \(chat)")
+        attachScreen("help-fills-the-sheet")
+    }
+
     /// Turned on its side, the open display is tall and narrow with the fold running across it, but
-    /// a sheet there is still over ``FoldLayout/wideSheet`` wide. Get Help put the chat in a right
-    /// half that didn't exist and left the rest of the screen empty; it fills the sheet.
-    func testGetHelpChatFillsTheSheetTurnedOnItsSide() throws {
-        try launchTurnedOnItsSide(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in"])
+    /// a sheet there is still over ``FoldLayout/wideSheet`` wide. Get Help's sign-in split into two
+    /// columns either side of a fold that runs the other way; it keeps one.
+    func testGetHelpSignInTakesOneColumnTurnedOnItsSide() throws {
+        try launchTurnedOnItsSide(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out"])
         let window = app.windows.firstMatch
         openSendFeedback()
         tap(app.buttons.labeled("Get Help"))
-        let chat = expect(app.webViews.firstMatch, timeout: 30)
-        expect(app.webViews.staticTexts["Stub widget: chat"], timeout: 30)
-        XCTAssertLessThan(chat.frame.minX, window.frame.midX, "The chat should start left of the middle: \(chat.frame)")
-        attachScreen("help-turned-on-its-side")
+        let email = expect(app.textFields["Email"], timeout: 30)
+        XCTAssertLessThan(email.frame.minX, window.frame.midX, "The sign-in should take one column: \(email.frame)")
+        attachScreen("help-sign-in-turned-on-its-side")
     }
 
     func testFeedbackAccountStaysBesideTheFoldAtLargestText() throws {

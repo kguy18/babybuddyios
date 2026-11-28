@@ -190,8 +190,7 @@ struct FeedbackSheet: View {
     var body: some View {
         NavigationStack {
             GeometryReader { geometry in
-                sheetContent(width: geometry.size.width,
-                             splitHelp: widget == .help && FoldLayout.isWide(in: geometry))
+                sheetContent(splitHelp: widget == .help && FoldLayout.isWide(in: geometry))
             }
             .background(BBColor.surface.ignoresSafeArea())
             .onChange(of: phase) { _, phase in
@@ -240,24 +239,21 @@ struct FeedbackSheet: View {
         }
     }
 
-    private func sheetContent(width: CGFloat, splitHelp: Bool) -> some View {
-        let chatWidth = splitHelp ? (width - FoldLayout.assumedFold) / 2 : width
-        return ZStack {
+    /// The chat fills the sheet, across the fold on the open iPhone Duo; the native sign-in and the
+    /// offline screen split either side of it when `splitHelp`.
+    private func sheetContent(splitHelp: Bool) -> some View {
+        ZStack {
             if phase == .failed {
                 unreachable(wide: splitHelp)
             } else {
                 FeedbackWebView(widget: widget, phase: $phase, signedIn: $signedIn, reloads: reloads,
                                 onSignIn: { if widget != .help, signedIn != true { signingIn = true } },
                                 onClose: { dismiss() })
-                    .frame(width: chatWidth)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
                     .opacity(showsWebView ? 1 : 0)
                     .accessibilityHidden(!showsWebView)
                     .allowsHitTesting(showsWebView)
                 if phase == .loading || savingSession || (phase == .ready && holdsChat && signedIn == nil) {
                     ProgressView()
-                        .frame(width: chatWidth)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
                 } else if phase == .ready && holdsChat {
                     signIn(wide: splitHelp)
                 }

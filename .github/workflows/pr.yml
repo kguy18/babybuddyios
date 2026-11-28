@@ -498,6 +498,7 @@ jobs:
               FoldTests/testFeedbackKeepsTheNoteBesideTheActions
               FoldTests/testFeedbackKeepsTheNoteBesideTheActionsAtLargestText
               FoldTests/testGentleNudgeCopySitsBesideItsActionsAtTheLargestText
+              FoldTests/testGetHelpChatFillsTheSheet
               FoldTests/testGetHelpSignInUsesBothPanesAtLargestText
               FoldTests/testHomeEmptyStateSitsUnderTheHeader
               FoldTests/testOfflineGetHelpUsesBothPanesAtLargestText
@@ -533,7 +534,7 @@ jobs:
           # The open display turned on its side, with the fold running across it.
           - shard: turned
             rotate: portrait
-            tests: FoldTests/testGetHelpChatFillsTheSheetTurnedOnItsSide
+            tests: FoldTests/testGetHelpSignInTakesOneColumnTurnedOnItsSide
           - shard: smoke
             tests: SmokeTests
     timeout-minutes: 45
