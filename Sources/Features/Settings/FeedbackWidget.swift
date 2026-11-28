@@ -131,12 +131,12 @@ enum FeedbackWidget: String, Identifiable {
     /// anonymous visitor; it has a session when the app holds one (in memory under the stub), as the
     /// native sign-in leaves it. It shows the `quackback:open` view it's sent so a test can read it,
     /// and a "Sign in to post" link to the portal's sign-in, as the real board has. Its message box
-    /// has the real composer's viewport and small text, which WebKit zooms in on when it's focused.
+    /// is a `contenteditable` at 14 px like the real composer, which WebKit zooms in on when focused.
     private static func stubPage(signedIn: Bool) -> String {
         """
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <p id="view">Stub widget</p>
-        <textarea aria-label="Message" style="font-size:14px"></textarea>
+        <div contenteditable="true" role="textbox" aria-label="Message" style="font-size:14px;border:1px solid;min-height:2em"></div>
         <p><a href="/?auth=signin">Sign in to post</a></p>
         <script>
         window.addEventListener('message', function (e) {
@@ -351,6 +351,13 @@ struct FeedbackWebView: UIViewRepresentable {
     /// `close` event still dismisses the sheet if a later widget brings it back.
     private static let hideCloseButtonCSS = #"button.h-8.w-8:has(> svg.w-5 > path[d^="M5.47 5.47"]) { display: none !important; }"#
 
+    /// WebKit zooms the page in on a focused field whose text is under 16 px, and the zoomed page
+    /// ran past the sheet's edge, Send included. The chat's composer is a rich-text editor, a
+    /// `contenteditable` div at 14 px (Tailwind's `prose-sm`). A `maximum-scale=1` viewport didn't
+    /// hold: the widget replaces its viewport tag after load.
+    private static let noFocusZoomCSS =
+        "input, textarea, select, [contenteditable], [contenteditable] * { font-size: 16px !important; }"
+
     let widget: FeedbackWidget
     @Binding var phase: Phase
     @Binding var signedIn: Bool?
@@ -391,15 +398,11 @@ struct FeedbackWebView: UIViewRepresentable {
             })();
             """, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         #endif
-        // `maximum-scale=1` stops WebKit zooming in on the composer when it takes focus: its text
-        // is under 16 px, and the zoomed page ran past the sheet's edge, Send included.
         content.addUserScript(WKUserScript(source: """
             if (location.pathname.indexOf('/widget') === 0) {
                 var style = document.createElement('style');
-                style.textContent = '\(Self.hideCloseButtonCSS)';
+                style.textContent = '\(Self.hideCloseButtonCSS) \(Self.noFocusZoomCSS)';
                 document.head.appendChild(style);
-                var viewport = document.querySelector('meta[name=viewport]');
-                if (viewport) { viewport.content += ',maximum-scale=1'; }
             }
             """, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
         content.add(context.coordinator, name: "quackback")
