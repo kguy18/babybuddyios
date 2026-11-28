@@ -39,6 +39,14 @@ final class FoldLayoutTests: XCTestCase {
         }
     }
 
+    /// Turned on its side, the open display is 669 pt wide with the fold running across it. A
+    /// sheet there still passes the width check, but one column fills it.
+    func testASheetWithTheFoldRunningAcrossItKeepsOneColumn() {
+        XCTAssertTrue(FoldLayout.isWide(653, fold: CGRect(x: 306, y: 0, width: 40, height: 640)))
+        XCTAssertFalse(FoldLayout.isWide(653, fold: CGRect(x: 0, y: 455, width: 653, height: 40)))
+        XCTAssertFalse(FoldLayout.isWide(440, fold: CGRect(x: 200, y: 0, width: 40, height: 640)))
+    }
+
     func testAFoldReachingPastTheWindowIsClipped() {
         XCTAssertEqual(FoldLayout.panes(width: 800, fold: CGRect(x: 380, y: -20, width: 40, height: 900)),
                        FoldLayout.Panes(side: 380, fold: 40, main: 380))

@@ -33,6 +33,18 @@ final class FoldTests: UITestCase {
                           + "TEST_RUNNER_BB_FOLD=1; this window is \(Int(width)) pt wide")
     }
 
+    /// Launches on the open display turned on its side (`UI_TEST_DUO_ROTATE=portrait`), 669 pt wide
+    /// and 951 tall, and skips anywhere else.
+    private func launchTurnedOnItsSide(_ environment: [String: String]) throws {
+        try XCTSkipIf(forced, "BB_FOLD lays out a vertical fold however the display is turned")
+        try XCTSkipIf(Self.measuredWidth.map { $0 < 600 } ?? false, "Needs iPhone Duo's open display")
+        launch(environment)
+        let window = app.windows.firstMatch.frame
+        try XCTSkipUnless(min(window.width, window.height) >= 600 && window.height > window.width,
+                          "Needs the open display turned on its side (scripts/ui-test.sh --duo-open with "
+                          + "UI_TEST_DUO_ROTATE=portrait); this window is \(window.size)")
+    }
+
     func testFeedbackKeepsTheNoteBesideTheActions() throws {
         try checkFeedbackPanes(largestText: false)
     }
@@ -78,6 +90,32 @@ final class FoldTests: UITestCase {
         assertLeftOfFold(title)
         assertRightOfFold(app.buttons["Email Support"])
         attachScreen("settings-panes-help-offline")
+    }
+
+    /// The chat fills the whole sheet, across the fold. It sat in the sheet's right half, beside
+    /// the fold, which read as a broken layout with the left half empty.
+    func testGetHelpChatFillsTheSheet() throws {
+        try launchOpen(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-in"])
+        openSendFeedback()
+        tap(app.buttons.labeled("Get Help"))
+        expect(app.webViews.staticTexts["Stub widget: chat"], timeout: 30)
+        let chat = app.webViews.firstMatch.frame, middle = app.windows.firstMatch.frame.midX
+        XCTAssertLessThan(chat.minX, middle - 19, "The chat should start left of the fold: \(chat)")
+        XCTAssertGreaterThan(chat.maxX, middle + 19, "The chat should end right of the fold: \(chat)")
+        attachScreen("help-fills-the-sheet")
+    }
+
+    /// Turned on its side, the open display is tall and narrow with the fold running across it, but
+    /// a sheet there is still over ``FoldLayout/wideSheet`` wide. Get Help's sign-in split into two
+    /// columns either side of a fold that runs the other way; it keeps one.
+    func testGetHelpSignInTakesOneColumnTurnedOnItsSide() throws {
+        try launchTurnedOnItsSide(["BB_START_TAB": "settings", "BB_FEEDBACK_STUB": "signed-out"])
+        let window = app.windows.firstMatch
+        openSendFeedback()
+        tap(app.buttons.labeled("Get Help"))
+        let email = expect(app.textFields["Email"], timeout: 30)
+        XCTAssertLessThan(email.frame.minX, window.frame.midX, "The sign-in should take one column: \(email.frame)")
+        attachScreen("help-sign-in-turned-on-its-side")
     }
 
     func testFeedbackAccountStaysBesideTheFoldAtLargestText() throws {

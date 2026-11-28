@@ -33,6 +33,8 @@
 # an installed iPhone Duo, unfolded with scripts/duoctl after it boots. XCUITest can't unfold it, and
 # FoldTests skip unless the display is open. It runs FoldTests and SmokeTests unless the arguments
 # name tests of their own, and on a failure saves what the open display showed to build/duo-open.png.
+# With UI_TEST_DUO_ROTATE=portrait it turns the open display on its side first, the way people
+# hold it, which FoldTests that need it check for and the rest skip.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 DEVICE="${UI_TEST_DEVICE:-BabyBuddy UI Tests}"
@@ -157,6 +159,9 @@ for d in json.load(sys.stdin)["result"]["displays"]:
     echo "duoctl open didn't take (attempt $ATTEMPT of 8); trying again in 15 s"
     sleep 15
   done
+  # UI_TEST_DUO_ROTATE=portrait turns the open display on its side for the run, fold across it.
+  # XCUIDevice can't: the app is portrait-locked, and only the system turns it there.
+  if [ -n "${UI_TEST_DUO_ROTATE:-}" ]; then scripts/duoctl rotate "$UI_TEST_DUO_ROTATE"; fi
 fi
 
 # A Duo shard's first test paid the simulator's cold start on top of its own waits. With a

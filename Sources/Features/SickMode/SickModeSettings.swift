@@ -56,7 +56,7 @@ struct SettingsChoices<Value: Hashable>: View {
         Group {
             if withinSheet {
                 GeometryReader { geometry in
-                    SheetColumns(wide: FoldLayout.isWide(geometry.size.width)) {
+                    SheetColumns(wide: FoldLayout.isWide(in: geometry)) {
                         EmptyView()
                     } trailing: {
                         choices(showExplanation: true)
